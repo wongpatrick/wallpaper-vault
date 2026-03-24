@@ -8,6 +8,7 @@
 # wallpaper files — track structure, not the images themselves
 wallpapers/
 images/
+scripts/
 
 # environment
 .env
