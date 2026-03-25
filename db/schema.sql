@@ -2,7 +2,7 @@ PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS creators (
     id             INTEGER PRIMARY KEY,
-    canonical_name TEXT    NOT NULL,
+    canonical_name TEXT    NOT NULL UNIQUE,
     type           TEXT,
     notes          TEXT
 );

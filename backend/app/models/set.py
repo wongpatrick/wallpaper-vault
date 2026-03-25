@@ -1,6 +1,6 @@
 from typing import Optional, TYPE_CHECKING
-from sqlalchemy import Mapped, mapped_column, text
-from sqlalchemy.orm import relationship
+from sqlalchemy import text
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.models.base import Base
 from app.models.associations import set_creators
 
