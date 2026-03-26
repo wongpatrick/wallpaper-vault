@@ -26,6 +26,7 @@ venv/
 env/
 *.egg-info/
 dist/
+*/dist-electron/
 build/
 .pytest_cache/
 .mypy_cache/
