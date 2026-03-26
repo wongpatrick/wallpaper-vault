@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.crud import creator as crud_creator
 from app.schemas.creator import Creator, CreatorCreate
 from sqlalchemy.exc import IntegrityError
-from fastapi import status
 
 router = APIRouter()
 
