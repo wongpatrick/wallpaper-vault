@@ -1,93 +1,61 @@
-# wallpaper-vault
+# Wallpaper Vault
 
-A personal tool for tracking and organizing wallpaper image sets from cosplayers, artists, and photographers. Prevents duplicate sets, supports multi-creator collabs, and stores per-image metadata for filtering by resolution and aspect ratio.
+A production-ready desktop application for managing high-resolution wallpaper collections. 
 
-## Features
+## 🏗️ Architecture
+This project is built using a **Decoupled Engine & Shell** architecture:
 
-- Track image sets with full metadata
-- Multi-creator and collab support
-- Creator alias management (English, Japanese, Chinese, online handles)
-- Tag-based organization
-- Duplicate detection via source URL and perceptual hashing
-- Per-image resolution and aspect ratio filtering
+*   **The Engine (Backend):** A high-performance **FastAPI** server managing a SQLite database (via SQLAlchemy 2.0).
+*   **The Shell (Frontend):** A modern **Electron** desktop application built with **React (Vite)** and TypeScript.
 
-## Project Structure
+---
 
-```
+## 📁 Project Structure
+```text
 wallpaper-vault/
-├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── database.py
-│   ├── models/
-│   └── routers/
-├── db/
-│   ├── schema.sql
-│   └── migrations/
-├── scripts/
-│   └── import_set.py
-├── tests/
-├── .gitignore
-├── requirements.txt
-└── README.md
+├── backend/        # FastAPI application (Python 3.12+ / uv)
+│   ├── app/        # Core API logic (Models, Schemas, CRUD, Routes)
+│   └── README.md   # Backend implementation plan
+├── frontend/       # Electron + React application (Node.js / npm)
+│   ├── electron/   # Main & Preload scripts for the desktop shell
+│   ├── src/        # React UI components and state
+│   └── README.md   # Frontend implementation plan
+├── db/             # SQLite database and schema.sql
+└── scripts/        # Utility and automation scripts
 ```
 
-## Getting Started
+---
 
-### 1. Clone the repo
+## 🚀 Getting Started
 
-```bash
-git clone https://github.com/yourusername/wallpaper-vault.git
-cd wallpaper-vault
+### 1. The Engine (Backend)
+Requires **Python 3.12+** and **uv**.
+```powershell
+cd backend
+uv sync
+uv run uvicorn app.main:app --reload
 ```
+*   **API Docs:** Visit `http://localhost:8000/docs` to see the interactive documentation.
 
-### 2. Create the database
-
-```bash
-sqlite3 wallpapers.db < db/schema.sql
+### 2. The Shell (Frontend)
+Requires **Node.js 20+**.
+```powershell
+cd frontend
+npm install
+npm run dev
 ```
+*   **Desktop App:** A window will launch automatically, connecting to your Vite dev server.
 
-### 3. Install dependencies
+---
 
-```bash
-# fill in once stack is decided
-```
+## 🛠️ Current Progress
+- [x] **Phase 1 (Backend):** Initialization, Models, and Database Session setup.
+- [x] **Phase 2 (Backend):** Creators & Sets (Schemas, CRUD, and API Routes).
+- [x] **Phase 1 (Frontend):** Electron Shell initialization with Vite + React.
+- [ ] **Phase 2 (Frontend):** Connecting the UI to the FastAPI "Engine."
 
-### 4. Run the app
+---
 
-```bash
-# fill in once stack is decided
-```
-
-## Database Schema
-
-Five core tables:
-
-- `creators` — artists, cosplayers, photographers
-- `creator_aliases` — alternate names per creator (English, Japanese, Chinese, online handles)
-- `sets` — image sets with source URL, local path, and perceptual hash
-- `set_creators` — join table linking sets to one or more creators (supports collabs)
-- `tags` / `set_tags` — tag system for organizing sets
-- `images` — individual images within a set, with resolution, aspect ratio, and perceptual hash
-
-See `db/schema.sql` for the full schema.
-
-## Duplicate Detection
-
-Sets are deduplicated primarily by:
-
-1. `source_url` — exact match, catches obvious duplicates immediately
-2. `title + creator` pairing — enforced at the application level before insert
-3. `phash` — perceptual hash used as a soft hint for visually similar images across sources
-
-## Aspect Ratio Labels
-
-Images are stored with both a decimal `aspect_ratio` (e.g. `1.78`) and a human-readable `aspect_ratio_label` (e.g. `16:9`) computed at import time from width and height. Use `aspect_ratio_label` for filtering.
-
-## Migrations
-
-Schema changes are tracked as numbered SQL files in `db/migrations/`. Run them in order when updating an existing database.
-
-## License
-
-Personal use.
+## 💡 Developer Notes
+- Ensure the **Backend** is running before launching the **Frontend** to see live data.
+- SQLite constraints (like `UNIQUE`) are enforced at the database layer and handled gracefully in the API.
