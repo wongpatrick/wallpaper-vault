@@ -5,6 +5,7 @@
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
+    "generate": "orval",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",

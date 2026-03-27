@@ -34,7 +34,7 @@ build/
 
 # node
 node_modules/
-dist/
+*/dist/
 dist-ssr
 *.local
 .next/
