@@ -9,7 +9,8 @@ function createWindow() {
         width: 1600,
         height: 800,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.mjs'),
+            preload: path.join(__dirname, 'preload.js'),
+            sandbox: false
         },
     })
     if (process.env.VITE_DEV_SERVER_URL) {
