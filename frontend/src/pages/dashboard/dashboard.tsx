@@ -1,9 +1,10 @@
+import { Title, Text, Container } from '@mantine/core';
 
 export default function Dashboard() {
     return (
-        <section className="dashboard-page">
-            <h1> Dashboard Placeholder </h1>
-            <p>Welcome to your Wallpaper Vault. Your collection overview will appear here.</p>
-        </section>
-    )
+        <Container size="xl">
+            <Title order={1} mb="md">📊 Dashboard</Title>
+            <Text c="dimmed" mb="xl">Welcome to your Wallpaper Vault. Your collection overview will appear here.</Text>
+        </Container>
+    );
 }
