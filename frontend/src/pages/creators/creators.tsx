@@ -1,5 +1,5 @@
-import { Title, Text, Container, Table, Group, Avatar, ActionIcon, Loader, Center, Alert } from '@mantine/core';
-import { IconPencil, IconTrash, IconAlertCircle } from '@tabler/icons-react';
+import { Title, Text, Container, Table, Group, Avatar, Loader, Center, Alert } from '@mantine/core';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
 
 export default function Creators() {
