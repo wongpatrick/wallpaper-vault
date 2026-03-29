@@ -1,64 +1,33 @@
-import { useState, useCallback, useEffect } from "react"
 import { Outlet } from "react-router-dom"
-import { useLocalStorage } from '@mantine/hooks';
+import { AppShell, Title } from "@mantine/core"
 import SideNav from "./SideNav"
 import classes from './Layout.module.css';
 
 export default function MainLayout() {
-    const [sidebarWidth, setSidebarWidth] = useLocalStorage({
-        key: 'sidebar-width',
-        defaultValue: 280,
-    });
-    
-    const [isResizing, setIsResizing] = useState(false);
-
-    const startResizing = useCallback(() => {
-        setIsResizing(true);
-    }, []);
-
-    const stopResizing = useCallback(() => {
-        setIsResizing(false);
-    }, []);
-
-    const resize = useCallback(
-        (mouseMoveEvent: MouseEvent) => {
-            if (isResizing) {
-                const newWidth = mouseMoveEvent.clientX;
-                if (newWidth > 150 && newWidth < 600) {
-                    setSidebarWidth(newWidth);
-                }
-            }
-        },
-        [isResizing, setSidebarWidth]
-    );
-
-    useEffect(() => {
-        window.addEventListener("mousemove", resize);
-        window.addEventListener("mouseup", stopResizing);
-        return () => {
-            window.removeEventListener("mousemove", resize);
-            window.removeEventListener("mouseup", stopResizing);
-        };
-    }, [resize, stopResizing]);
-
     return (
-        <div className={classes.layoutContainer}>
-            <aside 
-                className={classes.sidebar} 
-                style={{ width: sidebarWidth }}
-            >
-                <h2 className={classes.appTitle}>Wallpaper Vault</h2>
+        <AppShell
+            navbar={{
+                width: 280,
+                breakpoint: 'sm',
+            }}
+            padding="md"
+        >
+            <AppShell.Navbar p="md" className={classes.navbar}>
+                <Title 
+                    order={3} 
+                    className={classes.appTitle} 
+                    mb="xl"
+                    pl="xs"
+                >
+                    Wallpaper Vault
+                </Title>
+                
                 <SideNav />
-            </aside>
+            </AppShell.Navbar>
             
-            <div 
-                className={`${classes.resizer} ${isResizing ? classes.resizerActive : ''}`} 
-                onMouseDown={startResizing}
-            />
-            
-            <main className={classes.mainContent}>
+            <AppShell.Main className={classes.main}>
                 <Outlet />
-            </main>
-        </div>
+            </AppShell.Main>
+        </AppShell>
     )
 }

@@ -1,86 +1,55 @@
-import { useLocation, useNavigate } from 'react-router-dom';
-import { NavLink, ActionIcon, Group, useMantineColorScheme, Stack, Divider, Box } from '@mantine/core';
+import { ActionIcon, Group, useMantineColorScheme, Stack, Divider, Box } from '@mantine/core';
 import { IconBrush, IconDashboard, IconPhoto, IconSettings, IconTool, IconSun, IconMoon } from '@tabler/icons-react';
+import NavItem from './NavItem';
 
 const mainLinks = [
-    {
-        icon: IconDashboard,
-        label: 'Dashboard',
-        path: '/'
-    },
-    {
-        icon: IconBrush,
-        label: 'Creators',
-        path: '/creators'
-    },
-    {
-        icon: IconPhoto,
-        label: 'Sets',
-        path: '/sets'
-    },
-    {
-        icon: IconTool,
-        label: 'Tools',
-        path: '/tools'
-    },
+    { icon: IconDashboard, label: 'Dashboard', path: '/' },
+    { icon: IconBrush, label: 'Creators', path: '/creators' },
+    { icon: IconPhoto, label: 'Sets', path: '/sets' },
+    { icon: IconTool, label: 'Tools', path: '/tools' },
 ];
 
 export default function SideNav() {
-    const location = useLocation();
-    const navigate = useNavigate();
     const { colorScheme, toggleColorScheme } = useMantineColorScheme();
     const dark = colorScheme === 'dark';
-    
+
     return (
         <Box style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-
             <Stack gap="xs" style={{ flex: 1 }}>
                 {mainLinks.map((link) => (
-                    <NavLink
+                    <NavItem
                         key={link.label}
+                        icon={link.icon}
                         label={link.label}
-                        leftSection={<link.icon size="1.2rem" stroke={1.5} />}
-                        active={location.pathname === link.path}
-                        onClick={() => navigate(link.path)}
-                        variant="light"
-                        color="blue"
-                        styles={{
-                            root: {
-                                borderRadius: '8px',
-                            }
-                        }}
+                        path={link.path}
+                        collapsed={false}
                     />
                 ))}
             </Stack>
 
-            <Stack gap="xs" mt="xl">
-                <Divider mb="sm" />
+            <Stack gap="sm" mt="xl">
+                <Divider />
                 
-                <NavLink
+                <NavItem
+                    icon={IconSettings}
                     label="Settings"
-                    leftSection={<IconSettings size="1.2rem" stroke={1.5} />}
-                    active={location.pathname === '/settings'}
-                    onClick={() => navigate('/settings')}
-                    variant="light"
+                    path="/settings"
+                    collapsed={false}
                     color="gray"
-                    styles={{
-                        root: {
-                            borderRadius: '8px',
-                        }
-                    }}
                 />
 
-                <Group justify="center" p="xs">
+                <Group justify="center" py="xs">
                     <ActionIcon
-                        variant="default"
+                        variant="subtle"
                         onClick={() => toggleColorScheme()}
-                        size="lg"
+                        size="xl"
+                        radius="md"
                         aria-label="Toggle color scheme"
                     >
-                        {dark ? <IconSun size="1.2rem" /> : <IconMoon size="1.2rem" />}
+                        {dark ? <IconSun size="1.4rem" stroke={1.5} /> : <IconMoon size="1.4rem" stroke={1.5} />}
                     </ActionIcon>
                 </Group>
             </Stack>
         </Box>
-    )
+    );
 }
