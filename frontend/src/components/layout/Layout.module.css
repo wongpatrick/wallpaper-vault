@@ -1,0 +1,33 @@
+.layoutContainer {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--mantine-color-gray-0);
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 280px;
+  background-color: var(--mantine-color-white);
+  border-right: 1px solid var(--mantine-color-gray-3);
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.02);
+}
+
+.appTitle {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--mantine-color-black);
+  margin-bottom: 32px;
+  padding-left: 12px;
+  letter-spacing: -0.5px;
+}
+
+.mainContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 40px;
+  background-color: var(--mantine-color-gray-0);
+}
