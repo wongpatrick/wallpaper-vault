@@ -1,6 +1,6 @@
 import { Title, Text, Container, Card, TextInput, Group, Stack, Table, Badge, ActionIcon, Tooltip, Paper, Switch, Code } from '@mantine/core';
 import { IconFolder, IconSettings, IconFileSearch, IconCheck, IconX, IconInfoCircle, IconRegex } from '@tabler/icons-react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 
 interface ParseResult {
     original: string;
@@ -13,8 +13,55 @@ export default function Tools() {
     const [template, setTemplate] = useState('[Creator] - [Set]');
     const [isAdvanced, setIsAdvanced] = useState(false);
     const [droppedFolders, setDroppedFolders] = useState<string[]>([]);
+    const [results, setResults] = useState<ParseResult[]>([]);
 
-    // Convert Template -> Regex
+    const parseFolderName = useCallback((folderName: string, pattern: string, advanced: boolean): ParseResult => {
+        try {
+            let regex: RegExp;
+            if (advanced) {
+                regex = new RegExp(pattern);
+            } else {
+                const regexPattern = pattern
+                    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                    .replace(/\\\[Creator\\\]/g, '(?<creator>.+)')
+                    .replace(/\\\[Set\\\]/g, '(?<set>.+)');
+                regex = new RegExp(`^${regexPattern}$`);
+            }
+
+            const match = folderName.match(regex);
+            if (match && match.groups) {
+                return {
+                    original: folderName,
+                    creator: match.groups.creator || 'Unknown',
+                    set: match.groups.set || 'Unknown',
+                    isValid: true
+                };
+            }
+        } catch (e) {
+            console.error("Regex error:", e);
+        }
+
+        return {
+            original: folderName,
+            creator: 'Unknown',
+            set: 'Unknown',
+            isValid: false
+        };
+    }, []);
+
+    useEffect(() => {
+        const newResults = droppedFolders.map(folder => parseFolderName(folder, template, isAdvanced));
+        setResults(newResults);
+    }, [droppedFolders, template, isAdvanced, parseFolderName]);
+
+    const handleResultChange = (index: number, field: 'creator' | 'set', value: string) => {
+        setResults(prev => {
+            const next = [...prev];
+            next[index] = { ...next[index], [field]: value };
+            return next;
+        });
+    };
+
     const templateToRegex = (t: string) => {
         return t
             .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -22,7 +69,6 @@ export default function Tools() {
             .replace(/\\\[Set\\\]/g, '(?<set>.+)');
     };
 
-    // Convert Regex -> Template (Best effort)
     const regexToTemplate = (r: string) => {
         return r
             .replace(/^\^/, '')
@@ -34,52 +80,12 @@ export default function Tools() {
 
     const handleToggleAdvanced = (checked: boolean) => {
         if (checked) {
-            // Moving to Advanced: Transform template to regex
             setTemplate(templateToRegex(template));
         } else {
-            // Moving to Simple: Transform regex to template
             setTemplate(regexToTemplate(template));
         }
         setIsAdvanced(checked);
     };
-
-    // Parsing logic
-    const results = useMemo<ParseResult[]>(() => {
-        return droppedFolders.map(folderName => {
-            try {
-                let regex: RegExp;
-
-                if (isAdvanced) {
-                    regex = new RegExp(template); // Now using shared 'template' state for both
-                } else {
-                    if (!template.includes('[Creator]') || !template.includes('[Set]')) {
-                        return { original: folderName, creator: 'Unknown', set: 'Unknown', isValid: false };
-                    }
-                    regex = new RegExp(`^${templateToRegex(template)}$`);
-                }
-
-                const match = folderName.match(regex);
-
-                if (match && match.groups) {
-                    return {
-                        original: folderName,
-                        creator: match.groups.creator || 'Unknown',
-                        set: match.groups.set || 'Unknown',
-                        isValid: true
-                    };
-                }
-            } catch (e) {
-                console.error("Regex error:", e);
-            }
-
-            return {
-                original: folderName,
-                creator: 'Unknown',
-                set: 'Unknown',
-                isValid: false
-            };
-        });
-    }, [template, isAdvanced, droppedFolders]);
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
@@ -212,16 +218,24 @@ export default function Tools() {
                                     <Table.Tbody>
                                         {results.map((result, index) => (
                                             <Table.Tr key={index}>
-                                                <Table.Td><Text size="sm" ff="monospace">{result.original}</Text></Table.Td>
+                                                <Table.Td><Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>{result.original}</Text></Table.Td>
                                                 <Table.Td>
-                                                    <Badge variant="light" color={result.isValid ? "blue" : "gray"}>
-                                                        {result.creator}
-                                                    </Badge>
+                                                    <TextInput 
+                                                        size="xs"
+                                                        value={result.creator}
+                                                        onChange={(e) => handleResultChange(index, 'creator', e.currentTarget.value)}
+                                                        variant={result.isValid ? "default" : "filled"}
+                                                        error={!result.isValid && result.creator === 'Unknown'}
+                                                    />
                                                 </Table.Td>
                                                 <Table.Td>
-                                                    <Badge variant="light" color={result.isValid ? "cyan" : "gray"}>
-                                                        {result.set}
-                                                    </Badge>
+                                                    <TextInput 
+                                                        size="xs"
+                                                        value={result.set}
+                                                        onChange={(e) => handleResultChange(index, 'set', e.currentTarget.value)}
+                                                        variant={result.isValid ? "default" : "filled"}
+                                                        error={!result.isValid && result.set === 'Unknown'}
+                                                    />
                                                 </Table.Td>
                                                 <Table.Td>
                                                     <Group justify="center">
