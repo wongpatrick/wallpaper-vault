@@ -9,7 +9,11 @@ const mainLinks = [
     { icon: IconTool, label: 'Tools', path: '/tools' },
 ];
 
-export default function SideNav() {
+interface SideNavProps {
+    collapsed: boolean;
+}
+
+export default function SideNav({ collapsed }: SideNavProps) {
     const { colorScheme, toggleColorScheme } = useMantineColorScheme();
     const dark = colorScheme === 'dark';
 
@@ -22,7 +26,7 @@ export default function SideNav() {
                         icon={link.icon}
                         label={link.label}
                         path={link.path}
-                        collapsed={false}
+                        collapsed={collapsed}
                     />
                 ))}
             </Stack>
@@ -34,7 +38,7 @@ export default function SideNav() {
                     icon={IconSettings}
                     label="Settings"
                     path="/settings"
-                    collapsed={false}
+                    collapsed={collapsed}
                     color="gray"
                 />
 
