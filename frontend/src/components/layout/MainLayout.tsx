@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom"
 import SideNav from "./SideNav"
+import './Layout.css'
 
 export default function MainLayout() {
     return (
