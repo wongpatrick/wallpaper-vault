@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 
 from app.crud import set as crud_set
-from app.schemas.set import Set, SetCreate
+from app.schemas.set import Set, SetCreate, SetImport
 
 
 router = APIRouter()
@@ -14,6 +14,13 @@ async def create_set(
         db: AsyncSession = Depends(get_db)
 ):
     return await crud_set.create_set(db=db, set_in=set_in)
+
+@router.post("/import", response_model=Set)
+async def import_set(
+        set_in: SetImport,
+        db: AsyncSession = Depends(get_db)
+):
+    return await crud_set.import_set(db=db, set_in=set_in)
 
 @router.get("/", response_model=list[Set])
 async def read_sets(

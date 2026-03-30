@@ -22,7 +22,8 @@ import type {
   HTTPValidationError,
   ReadSetsApiSetsGetParams,
   Set,
-  SetCreate
+  SetCreate,
+  SetImport
 } from '../../model';
 
 import { customInstance } from '../../axios-instance';
@@ -96,6 +97,72 @@ export const useCreateSetApiSetsPost = <TError = ErrorType<HTTPValidationError>,
       > => {
       return useMutation(getCreateSetApiSetsPostMutationOptions(options));
     }
+
+
+/**
+ * @summary Import Set
+ */
+export const importSetApiSetsImportPost = (
+    setImport: BodyType<SetImport>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<Set>(
+      {url: `/api/sets/import`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: setImport, signal
+    },
+      options);
+    }
+
+
+
+export const getImportSetApiSetsImportPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importSetApiSetsImportPost>>, TError,{data: BodyType<SetImport>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof importSetApiSetsImportPost>>, TError,{data: BodyType<SetImport>}, TContext> => {
+
+const mutationKey = ['importSetApiSetsImportPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importSetApiSetsImportPost>>, {data: BodyType<SetImport>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importSetApiSetsImportPost(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportSetApiSetsImportPostMutationResult = NonNullable<Awaited<ReturnType<typeof importSetApiSetsImportPost>>>
+    export type ImportSetApiSetsImportPostMutationBody = BodyType<SetImport>
+    export type ImportSetApiSetsImportPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Import Set
+ */
+export const useImportSetApiSetsImportPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importSetApiSetsImportPost>>, TError,{data: BodyType<SetImport>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importSetApiSetsImportPost>>,
+        TError,
+        {data: BodyType<SetImport>},
+        TContext
+      > => {
+      return useMutation(getImportSetApiSetsImportPostMutationOptions(options));
+    }
+
     /**
  * @summary Read Sets
  */

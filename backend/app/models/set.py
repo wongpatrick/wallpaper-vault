@@ -6,6 +6,7 @@ from app.models.associations import set_creators
 
 if TYPE_CHECKING:
     from app.models.creator import Creator
+    from app.models.image import Image
 
 class Set(Base):
     __tablename__ = "sets"
@@ -21,6 +22,11 @@ class Set(Base):
     creators: Mapped[list["Creator"]] = relationship(
         secondary=set_creators,
         back_populates="sets"
+    )
+
+    images: Mapped[list["Image"]] = relationship(
+        back_populates="set",
+        cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:

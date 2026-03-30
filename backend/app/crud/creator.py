@@ -7,6 +7,12 @@ from app.schemas.creator import CreatorCreate
 async def get_creator(db: AsyncSession, creator_id: int):
     return await db.get(Creator, creator_id) 
 
+async def get_creator_by_name(db: AsyncSession, name: str):
+    result = await db.execute(
+        select(Creator).filter(Creator.canonical_name == name)
+    )
+    return result.scalar_one_or_none()
+
 async def get_creators(db: AsyncSession, skip: int = 0, limit: int = 100):
     creators = await db.execute(
         select(Creator).offset(skip).limit(limit)
