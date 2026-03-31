@@ -1,4 +1,4 @@
-import { Title, Text, Card, TextInput, Group, Stack, Table, Badge, ActionIcon, Tooltip, Paper, Switch, Code, Button, ThemeIcon } from '@mantine/core';
+import { Text, Card, TextInput, Group, Stack, Table, Badge, ActionIcon, Tooltip, Paper, Switch, Code, Button, ThemeIcon } from '@mantine/core';
 import { IconFolder, IconSettings, IconFileSearch, IconCheck, IconX, IconInfoCircle, IconRegex, IconCloudUpload } from '@tabler/icons-react';
 import { useState, useCallback, useEffect } from 'react';
 import { useImportSetApiSetsImportPost } from '../../api/generated/sets/sets';
