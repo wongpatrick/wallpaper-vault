@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,6 +13,19 @@ function createWindow() {
             sandbox: false
         },
     })
+    
+    // Add directory picker handler
+    ipcMain.handle('open-directory', async () => {
+        const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+            properties: ['openDirectory']
+        })
+        if (canceled) {
+            return null
+        } else {
+            return filePaths[0]
+        }
+    })
+
     if (process.env.VITE_DEV_SERVER_URL) {
         win.loadURL(process.env.VITE_DEV_SERVER_URL)
     } else {
