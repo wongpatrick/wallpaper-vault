@@ -5,7 +5,11 @@ import Creators from './pages/creators/creators'
 import Tools from './pages/tools/tools'
 import Settings from './pages/settings/settings'
 import { createTheme, MantineProvider } from '@mantine/core'
+import { Notifications } from '@mantine/notifications'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+
+import '@mantine/core/styles.css'
+import '@mantine/notifications/styles.css'
 
 const theme = createTheme({
   primaryColor: 'blue',
@@ -39,6 +43,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <MantineProvider theme={theme} defaultColorScheme="auto">
+        <Notifications position="top-right" />
         <Router>
           <Routes>
             <Route element={<MainLayout />}>
