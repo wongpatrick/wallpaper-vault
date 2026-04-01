@@ -50,4 +50,16 @@ The database is managed locally in a SQLite file. Core entities include:
 - **Creators:** Artists and photographers.
 - **Sets:** Collections of wallpapers with shared metadata.
 - **Images:** Individual high-resolution files.
+- **Settings:** Persistent application configuration (Key-Value).
 - **Tags & Franchises:** Categorization and filtering metadata.
+
+---
+
+## ⚙️ Settings Management
+The backend includes a flexible key-value settings system used for application configuration (e.g., library paths, automation toggles).
+
+- **Endpoints:**
+    - `GET /api/settings/`: List all settings.
+    - `GET /api/settings/{key}`: Get a specific configuration value.
+    - `PUT /api/settings/{key}`: Update or create (upsert) a setting.
+- **Storage:** Settings are stored in the database to ensure the Engine can access them even when the UI is closed. Values can be simple strings or JSON-formatted strings for complex configurations.

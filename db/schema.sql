@@ -85,6 +85,13 @@ CREATE TABLE IF NOT EXISTS images (
     date_added         TEXT    NOT NULL DEFAULT (date('now'))
 );
 
+CREATE TABLE IF NOT EXISTS settings (
+    key         TEXT PRIMARY KEY,
+    value       TEXT NOT NULL,
+    description TEXT,
+    updated_at  TEXT DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_creator_aliases_creator_id  ON creator_aliases(creator_id);
 CREATE INDEX IF NOT EXISTS idx_creator_aliases_alias       ON creator_aliases(alias);
 CREATE INDEX IF NOT EXISTS idx_set_creators_set_id         ON set_creators(set_id);
