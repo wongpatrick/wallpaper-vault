@@ -1,4 +1,4 @@
-import { HashRouter as Router, Routes, Route } from 'react-router-dom'
+import { createHashRouter, RouterProvider, Navigate } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'
 import Dashboard from './pages/dashboard/dashboard'
 import Creators from './pages/creators/creators'
@@ -38,23 +38,40 @@ const theme = createTheme({
 
 const queryClient = new QueryClient();
 
-function App() {
+const router = createHashRouter([
+  {
+    element: <MainLayout />,
+    children: [
+      {
+        path: "/",
+        element: <Dashboard />,
+      },
+      {
+        path: "/creators",
+        element: <Creators />,
+      },
+      {
+        path: "/sets",
+        element: <Navigate to="/" replace />,
+      },
+      {
+        path: "/tools",
+        element: <Tools />,
+      },
+      {
+        path: "/settings",
+        element: <Settings />,
+      },
+    ],
+  },
+]);
 
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <MantineProvider theme={theme} defaultColorScheme="auto">
         <Notifications position="top-right" />
-        <Router>
-          <Routes>
-            <Route element={<MainLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/creators" element={<Creators />} />
-              <Route path="/sets" element={<Dashboard />} />
-              <Route path="/tools" element={<Tools />} />
-              <Route path="/settings" element={<Settings />} />
-            </Route>
-          </Routes>
-        </Router>
+        <RouterProvider router={router} />
       </MantineProvider>
     </QueryClientProvider>
   )
