@@ -1,15 +1,16 @@
 import { Card, Stack, Group, Title, Text, Divider } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 interface SettingsSectionProps {
     title: string;
     description: string;
     isDirty?: boolean;
     children: ReactNode;
+    footer?: ReactNode;
 }
 
-export function SettingsSection({ title, description, isDirty, children }: SettingsSectionProps) {
+export function SettingsSection({ title, description, isDirty, children, footer }: SettingsSectionProps) {
     return (
         <Card shadow="sm" padding="xl" radius="md" withBorder>
             <Stack gap="md">
@@ -27,6 +28,12 @@ export function SettingsSection({ title, description, isDirty, children }: Setti
                 
                 <Divider />
                 {children}
+
+                {footer && (
+                    <Group justify="flex-end" mt="md">
+                        {footer}
+                    </Group>
+                )}
             </Stack>
         </Card>
     );
