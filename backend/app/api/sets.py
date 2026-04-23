@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 
 from app.crud import set as crud_set
-from app.schemas.set import Set, SetCreate, SetImport
+from app.schemas.set import Set, SetCreate, SetImport, BatchImportRequest, BatchImportResponse
 
 
 router = APIRouter()
@@ -21,6 +21,17 @@ async def import_set(
         db: AsyncSession = Depends(get_db)
 ):
     return await crud_set.import_set(db=db, set_in=set_in)
+
+@router.post("/batch-import", response_model=BatchImportResponse)
+async def batch_import_sets(
+        batch_in: BatchImportRequest,
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Unified route to scan, parse, and optionally execute batch imports.
+    If dry_run=True, it only scans and returns parsed items.
+    """
+    return await crud_set.batch_import_sets(db=db, batch_in=batch_in)
 
 @router.get("/", response_model=list[Set])
 async def read_sets(
