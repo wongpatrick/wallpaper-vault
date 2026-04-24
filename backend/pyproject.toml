@@ -12,4 +12,5 @@ dependencies = [
     "uvicorn[standard]>=0.42.0",
     "opencv-python>=4.11.0.86",
     "numpy>=2.2.3",
+    "opencv-contrib-python>=4.13.0.92",
 ]

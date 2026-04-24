@@ -160,16 +160,10 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest) -> B
     regex = None
     if batch_in.parsing_template:
         try:
-            # Simple [Creator] / [Set] template to Regex
-            pattern = batch_in.parsing_template \
-                .replace(".", "\\.") \
-                .replace("[", "\\[") \
-                .replace("]", "\\]") \
-                .replace("\\\\[Creator\\\\]", "(?P<creator>.+)") \
-                .replace("\\\\[Set\\\\]", "(?P<set>.+)")
-            # Fix the escaping if it went too far
-            pattern = batch_in.parsing_template
-            pattern = re.escape(pattern).replace("\\[Creator\\]", "(?P<creator>.+)").replace("\\[Set\\]", "(?P<set>.+)")
+            # Escape literal characters but keep our placeholders
+            pattern = re.escape(batch_in.parsing_template)
+            pattern = pattern.replace("\\[Creator\\]", "(?P<creator>.+)")
+            pattern = pattern.replace("\\[Set\\]", "(?P<set>.+)")
             regex = re.compile(f"^{pattern}$")
         except Exception as e:
             print(f"Error compiling template: {e}")
@@ -213,6 +207,22 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest) -> B
     
     vault_root = Path(vault_setting.value)
     
+    # Get target ratios from settings
+    h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
+    v_ratio_setting = await get_setting(db, "vertical_target_ratio")
+    
+    def parse_ratio(r_str, default):
+        try:
+            if "/" in r_str:
+                num, den = r_str.split("/")
+                return float(num) / float(den)
+            return float(r_str)
+        except:
+            return default
+
+    h_ratio = parse_ratio(h_ratio_setting.value if h_ratio_setting else "16/9", 16.0/9.0)
+    v_ratio = parse_ratio(v_ratio_setting.value if v_ratio_setting else "9/16", 9.0/16.0)
+    
     import cv2
     final_results = []
     for item in results:
@@ -245,21 +255,35 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest) -> B
             db_images = []
             for img_path in image_paths:
                 p = Path(img_path)
+                # We save directly to dest_dir (root)
                 base_out = dest_dir / p.name
-                ok, final_p_str = process_image(img_path, str(base_out), auto_orient=True, sort_output=True)
+                
+                # Pass ratios to process_image
+                ok, final_p_str = process_image(
+                    img_path, 
+                    str(base_out), 
+                    auto_orient=True, 
+                    sort_output=False, # We handles naming inside process_image now
+                    horz_ar=h_ratio,
+                    vert_ar=v_ratio
+                )
                 
                 if ok:
                     final_p = Path(final_p_str)
                     img = cv2.imread(final_p_str)
                     if img is not None:
                         h, w = img.shape[:2]
+                        
+                        # Determine label based on final name or ratios
+                        ratio_label = "horizontal" if ".horizontal." in final_p.name else "vertical"
+                        
                         db_images.append(Image(
                             filename=final_p.name,
                             local_path=str(final_p.resolve()),
                             width=w, height=h,
                             file_size=final_p.stat().st_size,
                             aspect_ratio=float(w)/float(h) if h!=0 else 0,
-                            aspect_ratio_label=final_p.parent.name
+                            aspect_ratio_label=ratio_label
                         ))
             
             # Create Set

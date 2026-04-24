@@ -93,13 +93,13 @@ def best_crop_coords(W, H, cw, ch, sal_map_uint8):
 
     return best_x, best_y
 
-def orientation_for_dims(cw, ch):
+def orientation_for_dims(cw, ch, vert_ar=VERT_AR, horz_ar=HORZ_AR):
     ratio = cw / ch if ch else 0
-    vert_diff = abs(ratio - VERT_AR)
-    horz_diff = abs(ratio - HORZ_AR)
+    vert_diff = abs(ratio - vert_ar)
+    horz_diff = abs(ratio - horz_ar)
     return "vertical" if vert_diff <= horz_diff else "horizontal"
 
-def process_image(img_path, out_path, target_w=1920, target_h=1080, exact=False, downscale_max=1200, sort_output=True, auto_orient=False):
+def process_image(img_path, out_path, target_w=1920, target_h=1080, exact=False, downscale_max=1200, sort_output=True, auto_orient=False, vert_ar=VERT_AR, horz_ar=HORZ_AR):
     img = load_image(img_path)
     if img is None:
         return False, None
@@ -110,7 +110,7 @@ def process_image(img_path, out_path, target_w=1920, target_h=1080, exact=False,
     ar = None
     if auto_orient:
         orient = "vertical" if H > W else "horizontal"
-        ar = VERT_AR if orient == "vertical" else HORZ_AR
+        ar = vert_ar if orient == "vertical" else horz_ar
     else:
         ar = float(target_w) / float(target_h) if target_h != 0 else 1.0
 
@@ -160,17 +160,27 @@ def process_image(img_path, out_path, target_w=1920, target_h=1080, exact=False,
 
     crop = img[y:y+ch, x:x+cw]
 
-    # Handle sorting into vertical/horizontal folders
+    # Handle sorting and naming
+    orientation = orientation_for_dims(cw, ch, vert_ar=vert_ar, horz_ar=horz_ar)
+    # Ratio string like "16-9" or "9-16"
+    ratio_val = horz_ar if orientation == "horizontal" else vert_ar
+    # We can't easily turn 1.777 back to "16/9" unless we store the string
+    # For now, let's use the orientation name or we pass the string label from settings
+    
+    p = Path(out_path)
+    # New filename: original_name.16-9.jpg
+    ratio_suffix = "horizontal" if orientation == "horizontal" else "vertical"
+    new_name = f"{p.stem}.{ratio_suffix}{p.suffix}"
+    
     if sort_output:
-        orientation = orientation_for_dims(cw, ch)
-        dest_dir = Path(out_path).parent / orientation
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        final_out_path = dest_dir / Path(out_path).name
+        # We'll stick to root for now as requested, but keeping the logic extensible
+        final_out_path = p.parent / new_name
     else:
-        final_out_path = Path(out_path)
-        final_out_path.parent.mkdir(parents=True, exist_ok=True)
+        final_out_path = p.parent / new_name
 
+    final_out_path.parent.mkdir(parents=True, exist_ok=True)
     ok = save_image(str(final_out_path), crop)
+    
     if not ok:
         return False, None
 
