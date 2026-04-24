@@ -92,6 +92,31 @@ export function BatchImporter() {
         }
     };
 
+    const handleReparse = async () => {
+        if (results.length === 0) return;
+        setIsScanning(true);
+        try {
+            const response = await batchImportApi({
+                data: {
+                    items: results.map(r => ({ source_path: r.source_path })),
+                    dry_run: true,
+                    parsing_template: template
+                }
+            });
+            
+            const updatedItems = response.items || [];
+            setResults(prev => prev.map(old => {
+                const match = updatedItems.find(u => u.source_path === old.source_path);
+                return match ? match : old;
+            }));
+            notifications.show({ title: 'Queue Updated', message: 'Applied new template to current queue.', color: 'blue' });
+        } catch (err) {
+            notifications.show({ title: 'Error', message: 'Failed to re-parse queue', color: 'red' });
+        } finally {
+            setIsScanning(false);
+        }
+    };
+
     const handleImportAll = async () => {
         const pendingResults = results.filter(r => r.isValid && (r.status === 'pending' || r.status === 'error'));
         if (pendingResults.length === 0) return;
@@ -163,7 +188,7 @@ export function BatchImporter() {
                     </Stack>
                 </Group>
 
-                <Paper withBorder p="md" radius="md" bg="var(--mantine-color-gray-0)">
+                <Paper withBorder p="md" radius="md" bg="light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))">
                     <Stack gap="xs">
                         <Group gap="xs">
                             <IconSettings size={18} />
@@ -181,8 +206,17 @@ export function BatchImporter() {
 
                 <div onDragOver={(e) => e.preventDefault()} onDrop={handleDrop} style={{ cursor: 'pointer' }}>
                     <Paper 
-                        withBorder p={30} radius="md" bg="var(--mantine-color-grape-light)"
-                        style={{ borderStyle: 'dashed', borderWidth: 2, borderColor: 'var(--mantine-color-grape-4)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+                        withBorder p={30} radius="md" 
+                        bg="light-dark(var(--mantine-color-grape-0), rgba(132, 94, 247, 0.1))"
+                        style={{ 
+                            borderStyle: 'dashed', 
+                            borderWidth: 2, 
+                            borderColor: 'var(--mantine-color-grape-4)', 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            alignItems: 'center', 
+                            justifyContent: 'center' 
+                        }}
                     >
                         <Stack align="center" gap="xs">
                             <IconCloudUpload size={40} stroke={1.5} color="var(--mantine-color-grape-6)" />
@@ -209,6 +243,16 @@ export function BatchImporter() {
                             <Text fw={600}>Queue ({results.length})</Text>
                             <Group>
                                 <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    color="blue" 
+                                    leftSection={<IconRefresh size={18} className={isScanning ? "spinning" : ""} />}
+                                    onClick={handleReparse}
+                                    loading={isScanning}
+                                >
+                                    Re-parse Queue
+                                </Button>
+                                <Button 
                                     size="sm" color="grape" leftSection={<IconCloudUpload size={18} />}
                                     onClick={handleImportAll} loading={isImporting}
                                     disabled={!results.some(r => r.isValid && (r.status === 'pending' || r.status === 'error'))}
@@ -222,7 +266,7 @@ export function BatchImporter() {
                         </Group>
 
                         <Table verticalSpacing="xs" withTableBorder>
-                            <Table.Thead bg="var(--mantine-color-gray-0)">
+                            <Table.Thead bg="light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))">
                                 <Table.Tr>
                                     <Table.Th>Folder</Table.Th>
                                     <Table.Th>Parsed Data</Table.Th>

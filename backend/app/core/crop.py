@@ -99,7 +99,7 @@ def orientation_for_dims(cw, ch, vert_ar=VERT_AR, horz_ar=HORZ_AR):
     horz_diff = abs(ratio - horz_ar)
     return "vertical" if vert_diff <= horz_diff else "horizontal"
 
-def process_image(img_path, out_path, target_w=1920, target_h=1080, exact=False, downscale_max=1200, sort_output=True, auto_orient=False, vert_ar=VERT_AR, horz_ar=HORZ_AR):
+def process_image(img_path, out_path, target_w=1920, target_h=1080, exact=False, downscale_max=1200, sort_output=True, auto_orient=False, vert_ar=VERT_AR, horz_ar=HORZ_AR, horz_label="horizontal", vert_label="vertical"):
     img = load_image(img_path)
     if img is None:
         return False, None
@@ -160,23 +160,14 @@ def process_image(img_path, out_path, target_w=1920, target_h=1080, exact=False,
 
     crop = img[y:y+ch, x:x+cw]
 
-    # Handle sorting and naming
+    # Handle naming with prefix
     orientation = orientation_for_dims(cw, ch, vert_ar=vert_ar, horz_ar=horz_ar)
-    # Ratio string like "16-9" or "9-16"
-    ratio_val = horz_ar if orientation == "horizontal" else vert_ar
-    # We can't easily turn 1.777 back to "16/9" unless we store the string
-    # For now, let's use the orientation name or we pass the string label from settings
+    label = horz_label if orientation == "horizontal" else vert_label
     
     p = Path(out_path)
-    # New filename: original_name.16-9.jpg
-    ratio_suffix = "horizontal" if orientation == "horizontal" else "vertical"
-    new_name = f"{p.stem}.{ratio_suffix}{p.suffix}"
-    
-    if sort_output:
-        # We'll stick to root for now as requested, but keeping the logic extensible
-        final_out_path = p.parent / new_name
-    else:
-        final_out_path = p.parent / new_name
+    # New filename: 16x9.original_name.jpg
+    new_name = f"{label}.{p.name}"
+    final_out_path = p.parent / new_name
 
     final_out_path.parent.mkdir(parents=True, exist_ok=True)
     ok = save_image(str(final_out_path), crop)

@@ -160,11 +160,23 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest) -> B
     regex = None
     if batch_in.parsing_template:
         try:
-            # Escape literal characters but keep our placeholders
-            pattern = re.escape(batch_in.parsing_template)
-            pattern = pattern.replace("\\[Creator\\]", "(?P<creator>.+)")
-            pattern = pattern.replace("\\[Set\\]", "(?P<set>.+)")
-            regex = re.compile(f"^{pattern}$")
+            pt = batch_in.parsing_template
+            # If user provides a raw regex with named groups, use it directly
+            if "(?P<creator" in pt or "(?P<set" in pt:
+                regex = re.compile(pt)
+            else:
+                # Support multiple [Creator] or [Set] tags by indexing them
+                # e.g. [Creator] & [Creator] -> (?P<creator_0>.+?) & (?P<creator_1>.+?)
+                pattern = re.escape(pt)
+                
+                # We need to replace occurrences one by one to give them unique group names
+                for tag, group_prefix in [("\\[Creator\\]", "creator"), ("\\[Set\\]", "set")]:
+                    count = 0
+                    while tag in pattern:
+                        pattern = pattern.replace(tag, f"(?P<{group_prefix}_{count}>.+?)", 1)
+                        count += 1
+                
+                regex = re.compile(f"^{pattern}$")
         except Exception as e:
             print(f"Error compiling template: {e}")
 
@@ -179,8 +191,19 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest) -> B
             if regex:
                 m = regex.match(name)
                 if m:
-                    creator = creator or m.group("creator")
-                    title = title or m.group("set")
+                    # Extract and join all indexed creator groups
+                    c_parts = [v for k, v in m.groupdict().items() if k.startswith("creator_") and v]
+                    if c_parts:
+                        creator = creator or " & ".join([p.strip() for p in c_parts])
+                    elif "creator" in m.groupdict(): # Fallback for raw regex
+                        creator = creator or m.group("creator")
+                        
+                    # Extract and join all indexed set groups
+                    s_parts = [v for k, v in m.groupdict().items() if k.startswith("set_") and v]
+                    if s_parts:
+                        title = title or " ".join([p.strip() for p in s_parts])
+                    elif "set" in m.groupdict(): # Fallback for raw regex
+                        title = title or m.group("set")
                 else:
                     isValid = False
             else:
@@ -211,6 +234,9 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest) -> B
     h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
     v_ratio_setting = await get_setting(db, "vertical_target_ratio")
     
+    h_label_raw = h_ratio_setting.value if h_ratio_setting else "16/9"
+    v_label_raw = v_ratio_setting.value if v_ratio_setting else "9/16"
+    
     def parse_ratio(r_str, default):
         try:
             if "/" in r_str:
@@ -220,8 +246,12 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest) -> B
         except:
             return default
 
-    h_ratio = parse_ratio(h_ratio_setting.value if h_ratio_setting else "16/9", 16.0/9.0)
-    v_ratio = parse_ratio(v_ratio_setting.value if v_ratio_setting else "9/16", 9.0/16.0)
+    h_ratio = parse_ratio(h_label_raw, 16.0/9.0)
+    v_ratio = parse_ratio(v_label_raw, 9.0/16.0)
+    
+    # Clean labels for filename (e.g. 16/9 -> 16x9)
+    h_label = h_label_raw.replace("/", "x")
+    v_label = v_label_raw.replace("/", "x")
     
     import cv2
     final_results = []
@@ -233,24 +263,44 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest) -> B
             continue
             
         try:
-            # Create destination
-            dest_dir = vault_root / item.creator_name / item.set_title
+            # 1. Handle Multiple Creators
+            # Split ONLY on ' & ' with whitespace to be safe for names with special chars
+            raw_names = re.split(r'\s+&\s+', item.creator_name)
+            creator_names = [n.strip() for n in raw_names if n.strip()]
+            if not creator_names:
+                # Fallback to literal string if no ' & ' found
+                creator_names = [item.creator_name.strip()] if item.creator_name.strip() else ["Unknown"]
+            
+            db_creators = []
+            for name in creator_names:
+                c = await get_creator_by_name(db, name)
+                if not c:
+                    c = await create_creator(db, CreatorCreate(canonical_name=name))
+                db_creators.append(c)
+
+            # Join back for folder name
+            joined_creators = " & ".join([c.canonical_name for c in db_creators])
+            
+            # 2. Create destination: Vault / Creator & Creator - Set Title
+            folder_name = f"{joined_creators} - {item.set_title}"
+            dest_dir = vault_root / folder_name
             dest_dir.mkdir(parents=True, exist_ok=True)
 
-            # Creator
-            db_creator = await get_creator_by_name(db, item.creator_name)
-            if not db_creator:
-                db_creator = await create_creator(db, CreatorCreate(canonical_name=item.creator_name))
+            # 3. Existing Set Check (Check if title exists for any of the creators)
+            is_duplicate = False
+            for c in db_creators:
+                existing = await get_set_by_title_and_creator(db, item.set_title, c.id)
+                if existing:
+                    is_duplicate = True
+                    break
             
-            # Existing Set Check
-            existing = await get_set_by_title_and_creator(db, item.set_title, db_creator.id)
-            if existing:
+            if is_duplicate:
                 item.status = "error"
-                item.error = "Set already exists"
+                item.error = "Set already exists for one or more creators"
                 final_results.append(item)
                 continue
 
-            # Process Images
+            # 4. Process Images
             image_paths = collect_image_paths(item.source_path, recursive=True)
             db_images = []
             for img_path in image_paths:
@@ -258,14 +308,16 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest) -> B
                 # We save directly to dest_dir (root)
                 base_out = dest_dir / p.name
                 
-                # Pass ratios to process_image
+                # Pass ratios and labels to process_image
                 ok, final_p_str = process_image(
                     img_path, 
                     str(base_out), 
                     auto_orient=True, 
-                    sort_output=False, # We handles naming inside process_image now
+                    sort_output=False,
                     horz_ar=h_ratio,
-                    vert_ar=v_ratio
+                    vert_ar=v_ratio,
+                    horz_label=h_label,
+                    vert_label=v_label
                 )
                 
                 if ok:
@@ -274,8 +326,8 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest) -> B
                     if img is not None:
                         h, w = img.shape[:2]
                         
-                        # Determine label based on final name or ratios
-                        ratio_label = "horizontal" if ".horizontal." in final_p.name else "vertical"
+                        # Determine label based on final name prefix
+                        ratio_label = h_label if final_p.name.startswith(f"{h_label}.") else v_label
                         
                         db_images.append(Image(
                             filename=final_p.name,
@@ -286,9 +338,9 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest) -> B
                             aspect_ratio_label=ratio_label
                         ))
             
-            # Create Set
+            # 5. Create Set
             db_set = Set(title=item.set_title, local_path=str(dest_dir.resolve()))
-            db_set.creators = [db_creator]
+            db_set.creators = db_creators
             db_set.images = db_images
             db.add(db_set)
             
