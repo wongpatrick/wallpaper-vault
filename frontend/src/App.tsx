@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { createHashRouter, RouterProvider, Navigate } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'
 import Dashboard from './pages/dashboard/dashboard'
@@ -5,7 +6,7 @@ import Creators from './pages/creators/creators'
 import Tools from './pages/tools/tools'
 import Settings from './pages/settings/settings'
 import { createTheme, MantineProvider } from '@mantine/core'
-import { Notifications } from '@mantine/notifications'
+import { notifications, Notifications } from '@mantine/notifications'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import '@mantine/core/styles.css'
@@ -66,11 +67,71 @@ const router = createHashRouter([
   },
 ]);
 
+function GlobalTasks() {
+  const [isTaskRunning, setIsTaskRunning] = useState(false);
+
+  useEffect(() => {
+    // Note: In a real production app, this URL should be configurable
+    const eventSource = new EventSource('http://localhost:8000/api/sets/events');
+
+    eventSource.onmessage = (event) => {
+      try {
+        const tasks = JSON.parse(event.data);
+        const taskList = Object.values(tasks) as any[];
+        
+        const hasActive = taskList.some(t => t.status === 'processing' || t.status === 'accepted');
+        setIsTaskRunning(hasActive);
+
+        Object.entries(tasks).forEach(([tid, tinfo]: [string, any]) => {
+          if (tinfo.status === 'completed') {
+            notifications.show({
+              id: tid, // Use tid to prevent duplicate notifications for the same task
+              title: 'Batch Import Complete',
+              message: 'Your background import task has finished successfully.',
+              color: 'green',
+              autoClose: 5000,
+            });
+          } else if (tinfo.status === 'error') {
+            notifications.show({
+              id: tid,
+              title: 'Batch Import Failed',
+              message: 'An error occurred during the background import process.',
+              color: 'red',
+              autoClose: false,
+            });
+          }
+        });
+      } catch (err) {
+        console.error('Error parsing SSE data:', err);
+      }
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isTaskRunning) {
+        e.preventDefault();
+        e.returnValue = 'A batch import is currently running. Closing the app will interrupt the process.';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isTaskRunning]);
+
+  return null;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <MantineProvider theme={theme} defaultColorScheme="auto">
         <Notifications position="top-right" />
+        <GlobalTasks />
         <RouterProvider router={router} />
       </MantineProvider>
     </QueryClientProvider>

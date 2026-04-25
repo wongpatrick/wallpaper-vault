@@ -6,8 +6,12 @@
  */
 import type { BatchImportItem } from './batchImportItem';
 import type { BatchImportResponseSummary } from './batchImportResponseSummary';
+import type { BatchImportResponseTaskId } from './batchImportResponseTaskId';
+import type { BatchImportResponseStatus } from './batchImportResponseStatus';
 
 export interface BatchImportResponse {
   items: BatchImportItem[];
   summary?: BatchImportResponseSummary;
+  task_id?: BatchImportResponseTaskId;
+  status?: BatchImportResponseStatus;
 }

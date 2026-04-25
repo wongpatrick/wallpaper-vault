@@ -1,12 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 
 from app.crud import set as crud_set
 from app.schemas.set import Set, SetCreate, SetImport, BatchImportRequest, BatchImportResponse
+from app.core import tasks
 
 
 router = APIRouter()
+
+@router.get("/events")
+async def event_stream():
+    return StreamingResponse(tasks.event_stream(), media_type="text/event-stream")
 
 @router.post("/", response_model=Set)
 async def create_set(
@@ -25,13 +31,26 @@ async def import_set(
 @router.post("/batch-import", response_model=BatchImportResponse)
 async def batch_import_sets(
         batch_in: BatchImportRequest,
+        background_tasks: BackgroundTasks,
         db: AsyncSession = Depends(get_db)
 ):
     """
     Unified route to scan, parse, and optionally execute batch imports.
     If dry_run=True, it only scans and returns parsed items.
     """
-    return await crud_set.batch_import_sets(db=db, batch_in=batch_in)
+    if batch_in.dry_run:
+        return await crud_set.batch_import_sets(db=db, batch_in=batch_in)
+    
+    # Background execution
+    task_id = tasks.create_task(status="accepted")
+    background_tasks.add_task(crud_set.run_batch_import_background, batch_in, task_id)
+    
+    return BatchImportResponse(
+        items=[], 
+        task_id=task_id, 
+        status="accepted",
+        summary={"message": "Batch import started in background"}
+    )
 
 @router.get("/", response_model=list[Set])
 async def read_sets(

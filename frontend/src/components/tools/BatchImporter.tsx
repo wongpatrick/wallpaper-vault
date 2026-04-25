@@ -137,14 +137,23 @@ export function BatchImporter() {
                 }
             });
             
-            // Map results back to local state
-            const updatedItems = response.items || [];
-            setResults(prev => prev.map(old => {
-                const match = updatedItems.find(u => u.source_path === old.source_path);
-                return match ? match : old;
-            }));
+            if (response.status === 'accepted') {
+                notifications.show({ 
+                    title: 'Batch Import Started', 
+                    message: 'The import is running in the background. You can safely navigate away.', 
+                    color: 'blue' 
+                });
+                setResults([]); // Clear the local queue since it's now being processed in the background
+            } else {
+                // Map results back to local state (for sync fallback)
+                const updatedItems = response.items || [];
+                setResults(prev => prev.map(old => {
+                    const match = updatedItems.find(u => u.source_path === old.source_path);
+                    return match ? match : old;
+                }));
 
-            notifications.show({ title: 'Batch Import Finished', message: 'Check the queue for status details.', color: 'green' });
+                notifications.show({ title: 'Batch Import Finished', message: 'Check the queue for status details.', color: 'green' });
+            }
         } catch (err: unknown) {
             console.error('Import error:', err);
             notifications.show({ title: 'Import Failed', message: 'An error occurred during batch processing.', color: 'red' });
