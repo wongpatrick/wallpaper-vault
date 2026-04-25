@@ -24,6 +24,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BatchImportRequest,
+  BatchImportResponse,
   HTTPValidationError,
   ReadSetsApiSetsGetParams,
   Set,
@@ -257,6 +259,72 @@ export const useImportSetApiSetsImportPost = <TError = ErrorType<HTTPValidationE
       > => {
 
       const mutationOptions = getImportSetApiSetsImportPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Unified route to scan, parse, and optionally execute batch imports.
+If dry_run=True, it only scans and returns parsed items.
+ * @summary Batch Import Sets
+ */
+export const batchImportSetsApiSetsBatchImportPost = (
+    batchImportRequest: BodyType<BatchImportRequest>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<BatchImportResponse>(
+      {url: `/api/sets/batch-import`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: batchImportRequest, signal
+    },
+      options);
+    }
+  
+
+
+export const getBatchImportSetsApiSetsBatchImportPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof batchImportSetsApiSetsBatchImportPost>>, TError,{data: BodyType<BatchImportRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof batchImportSetsApiSetsBatchImportPost>>, TError,{data: BodyType<BatchImportRequest>}, TContext> => {
+
+const mutationKey = ['batchImportSetsApiSetsBatchImportPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof batchImportSetsApiSetsBatchImportPost>>, {data: BodyType<BatchImportRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  batchImportSetsApiSetsBatchImportPost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BatchImportSetsApiSetsBatchImportPostMutationResult = NonNullable<Awaited<ReturnType<typeof batchImportSetsApiSetsBatchImportPost>>>
+    export type BatchImportSetsApiSetsBatchImportPostMutationBody = BodyType<BatchImportRequest>
+    export type BatchImportSetsApiSetsBatchImportPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Batch Import Sets
+ */
+export const useBatchImportSetsApiSetsBatchImportPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof batchImportSetsApiSetsBatchImportPost>>, TError,{data: BodyType<BatchImportRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof batchImportSetsApiSetsBatchImportPost>>,
+        TError,
+        {data: BodyType<BatchImportRequest>},
+        TContext
+      > => {
+
+      const mutationOptions = getBatchImportSetsApiSetsBatchImportPostMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

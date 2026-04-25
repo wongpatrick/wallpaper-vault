@@ -5,6 +5,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './batchImportItem';
+export * from './batchImportItemError';
+export * from './batchImportRequest';
+export * from './batchImportRequestParsingTemplate';
+export * from './batchImportResponse';
+export * from './batchImportResponseSummary';
 export * from './creator';
 export * from './creatorCreate';
 export * from './creatorCreateNotes';
@@ -33,6 +39,9 @@ export * from './imageWidth';
 export * from './readCreatorsApiCreatorsGetParams';
 export * from './readSetsApiSetsGetParams';
 export * from './set';
+export * from './setBatchImport';
+export * from './setBatchImportCreatorName';
+export * from './setBatchImportSetTitle';
 export * from './setCreate';
 export * from './setCreateLocalPath';
 export * from './setCreateNotes';

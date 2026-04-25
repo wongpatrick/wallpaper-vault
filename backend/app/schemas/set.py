@@ -22,6 +22,32 @@ class SetImport(BaseModel):
     images: list[ImageCreate] = []
     notes: Optional[str] = None
 
+class SetBatchImport(BaseModel):
+    source_path: str
+    creator_name: Optional[str] = None
+    set_title: Optional[str] = None
+    delete_source: bool = False
+    auto_orient: bool = True
+
+class BatchImportItem(BaseModel):
+    source_path: str
+    creator_name: str
+    set_title: str
+    status: str = "pending"
+    error: Optional[str] = None
+    isValid: bool = True
+
+class BatchImportRequest(BaseModel):
+    items: list[SetBatchImport] = []
+    scan_auto_path: bool = False
+    dry_run: bool = True
+    parsing_template: Optional[str] = None # e.g. "Coser@[Creator] - [Set]"
+    delete_source_default: bool = False
+
+class BatchImportResponse(BaseModel):
+    items: list[BatchImportItem]
+    summary: dict = {}
+
 class SetUpdate(SetBase):
     pass
 

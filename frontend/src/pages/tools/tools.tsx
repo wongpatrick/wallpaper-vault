@@ -1,8 +1,9 @@
 import { Title, Text, Container, Stack, SimpleGrid, Paper, Group, ActionIcon, UnstyledButton, rem, ThemeIcon } from '@mantine/core';
-import { IconArrowLeft, IconFileSearch, IconChevronRight, IconCrop } from '@tabler/icons-react';
+import { IconArrowLeft, IconFileSearch, IconChevronRight, IconCrop, IconCloudUpload } from '@tabler/icons-react';
 import { useState } from 'react';
 import { FolderParser } from '../../components/tools/FolderParser';
 import { ImageCropper } from '../../components/tools/ImageCropper';
+import { BatchImporter } from '../../components/tools/BatchImporter';
 
 interface Tool {
     id: string;
@@ -26,6 +27,13 @@ const TOOLS: Tool[] = [
         description: 'Crop and resize images for your collection.',
         icon: <IconCrop style={{ width: rem(32), height: rem(32) }} />,
         color: 'orange'
+    },
+    {
+        id: 'batch-importer',
+        title: 'Batch Auto-Importer',
+        description: 'Streamlined AI-cropping and vaulting for new sets.',
+        icon: <IconCloudUpload style={{ width: rem(32), height: rem(32) }} />,
+        color: 'grape'
     }
 ];
 
@@ -107,6 +115,7 @@ export default function Tools() {
                     <Stack>
                         {activeTool === 'folder-parser' && <FolderParser />}
                         {activeTool === 'image-cropper' && <ImageCropper />}
+                        {activeTool === 'batch-importer' && <BatchImporter />}
                     </Stack>
                 )}
             </Stack>
