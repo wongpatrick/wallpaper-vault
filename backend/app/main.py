@@ -1,7 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import api_router
+from app.core.tasks import cleanup_zombie_tasks
+
 app = FastAPI()
+
+@app.on_event("startup")
+async def startup_event():
+    await cleanup_zombie_tasks()
 
 app.add_middleware(
     CORSMiddleware,
@@ -15,4 +21,4 @@ app.include_router(api_router, prefix="/api")
 @app.get("/", tags=["Health"])
 async def root():
     # Basic Healthcheck endpoint 
-    return {"status": "ok", "message": "Wallpaper Vault API is running"}  
+    return {"status": "ok", "message": "Wallpaper Vault API is running"}

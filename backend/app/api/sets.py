@@ -42,7 +42,7 @@ async def batch_import_sets(
         return await crud_set.batch_import_sets(db=db, batch_in=batch_in)
     
     # Background execution
-    task_id = tasks.create_task(status="accepted")
+    task_id = await tasks.create_task(db_session=db, status="accepted")
     background_tasks.add_task(crud_set.run_batch_import_background, batch_in, task_id)
     
     return BatchImportResponse(

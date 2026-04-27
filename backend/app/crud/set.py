@@ -259,7 +259,7 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task
     total_items = len(results)
     for idx, item in enumerate(results):
         if task_id:
-            tasks.update_task(task_id, progress=idx, total=total_items)
+            await tasks.update_task(db, task_id, progress=idx, total=total_items)
             
         if not item.isValid:
             item.status = "error"
@@ -365,7 +365,7 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task
 
     await db.commit()
     if task_id:
-        tasks.update_task(task_id, progress=total_items, total=total_items)
+        await tasks.update_task(db, task_id, progress=total_items, total=total_items)
     return BatchImportResponse(items=final_results)
 
 
@@ -374,10 +374,10 @@ from app.db.session import SessionLocal
 async def run_batch_import_background(batch_in: BatchImportRequest, task_id: str):
     async with SessionLocal() as db:
         try:
-            tasks.update_task(task_id, status="processing")
+            await tasks.update_task(db, task_id, status="processing")
             await batch_import_sets(db, batch_in, task_id=task_id)
-            tasks.update_task(task_id, status="completed")
+            await tasks.update_task(db, task_id, status="completed")
         except Exception as e:
             import traceback
             traceback.print_exc()
-            tasks.update_task(task_id, status="error")
+            await tasks.update_task(db, task_id, status="error", error_message=str(e))
