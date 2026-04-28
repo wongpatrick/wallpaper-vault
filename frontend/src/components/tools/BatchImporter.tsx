@@ -284,7 +284,7 @@ export function BatchImporter() {
                             </Table.Thead>
                             <Table.Tbody>
                                 {results.map((result, index) => (
-                                    <Table.Tr key={index} style={{ opacity: result.status === 'success' ? 0.6 : 1 }}>
+                                    <Table.Tr key={index} style={{ opacity: (result.status === 'success' || result.status === 'duplicate') ? 0.6 : 1 }}>
                                         <Table.Td>
                                             <Stack gap={0}>
                                                 <Text size="sm" fw={500}>{result.source_path.split(/[\\/]/).pop()}</Text>
@@ -309,6 +309,9 @@ export function BatchImporter() {
                                             <Group justify="center">
                                                 {result.status === 'pending' && (
                                                     result.isValid ? <Badge variant="dot" color="blue">Ready</Badge> : <Badge color="red">Invalid</Badge>
+                                                )}
+                                                {result.status === 'duplicate' && (
+                                                    <Badge color="orange" variant="light">Duplicate</Badge>
                                                 )}
                                                 {result.status === 'success' && (
                                                     <ThemeIcon color="green" variant="light" radius="xl"><IconCheck size={16} /></ThemeIcon>

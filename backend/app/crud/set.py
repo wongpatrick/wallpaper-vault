@@ -217,6 +217,21 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task
             isValid=isValid,
             status="pending"
         )
+        
+        # Additional duplicate check for dry_run
+        if isValid and creator and title:
+            raw_names = re.split(r'\s+&\s+', item_result.creator_name)
+            creator_names = [n.strip() for n in raw_names if n.strip()]
+            
+            for name in creator_names:
+                c = await get_creator_by_name(db, name)
+                if c:
+                    existing = await get_set_by_title_and_creator(db, item_result.set_title, c.id)
+                    if existing:
+                        item_result.status = "duplicate"
+                        item_result.error = "Already in vault"
+                        break
+        
         results.append(item_result)
 
     if batch_in.dry_run:
