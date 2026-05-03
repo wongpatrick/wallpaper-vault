@@ -1,5 +1,7 @@
-import { createContext, useContext, useState, useCallback, ReactNode, useMemo } from 'react';
-import { notifications, NotificationData } from '@mantine/notifications';
+import { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import type { ReactNode } from 'react';
+import { notifications } from '@mantine/notifications';
+import type { NotificationData } from '@mantine/notifications';
 
 export interface NotificationHistoryItem {
   id: string;
