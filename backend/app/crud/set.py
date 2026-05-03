@@ -17,6 +17,7 @@ from app.crud.creator import get_creator_by_name, create_creator
 from app.schemas.creator import CreatorCreate
 from app.core.crop import collect_image_paths, process_image
 from app.crud.settings import get_setting
+from app.core import tasks
 import shutil
 from pathlib import Path
 import re
@@ -129,7 +130,7 @@ async def delete_set(db: AsyncSession, set_id: int):
     return set
 
 
-async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest) -> BatchImportResponse:
+async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task_id: str = None) -> BatchImportResponse:
     # 1. Gather candidate folders
     candidates = []
     if batch_in.scan_auto_path:
@@ -216,6 +217,21 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest) -> B
             isValid=isValid,
             status="pending"
         )
+        
+        # Additional duplicate check for dry_run
+        if isValid and creator and title:
+            raw_names = re.split(r'\s+&\s+', item_result.creator_name)
+            creator_names = [n.strip() for n in raw_names if n.strip()]
+            
+            for name in creator_names:
+                c = await get_creator_by_name(db, name)
+                if c:
+                    existing = await get_set_by_title_and_creator(db, item_result.set_title, c.id)
+                    if existing:
+                        item_result.status = "duplicate"
+                        item_result.error = "Already in vault"
+                        break
+        
         results.append(item_result)
 
     if batch_in.dry_run:
@@ -255,7 +271,11 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest) -> B
     
     import cv2
     final_results = []
-    for item in results:
+    total_items = len(results)
+    for idx, item in enumerate(results):
+        if task_id:
+            await tasks.update_task(db, task_id, progress=idx, total=total_items)
+            
         if not item.isValid:
             item.status = "error"
             item.error = "Invalid parsing"
@@ -359,4 +379,20 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest) -> B
         final_results.append(item)
 
     await db.commit()
+    if task_id:
+        await tasks.update_task(db, task_id, progress=total_items, total=total_items)
     return BatchImportResponse(items=final_results)
+
+
+from app.db.session import SessionLocal
+
+async def run_batch_import_background(batch_in: BatchImportRequest, task_id: str):
+    async with SessionLocal() as db:
+        try:
+            await tasks.update_task(db, task_id, status="processing")
+            await batch_import_sets(db, batch_in, task_id=task_id)
+            await tasks.update_task(db, task_id, status="completed")
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            await tasks.update_task(db, task_id, status="error", error_message=str(e))

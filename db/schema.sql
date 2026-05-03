@@ -92,6 +92,15 @@ CREATE TABLE IF NOT EXISTS settings (
     updated_at  TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS tasks (
+    id            TEXT PRIMARY KEY,
+    status        TEXT DEFAULT 'accepted',
+    progress      INTEGER DEFAULT 0,
+    total         INTEGER DEFAULT 0,
+    updated_at    TEXT DEFAULT (datetime('now')),
+    error_message TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_creator_aliases_creator_id  ON creator_aliases(creator_id);
 CREATE INDEX IF NOT EXISTS idx_creator_aliases_alias       ON creator_aliases(alias);
 CREATE INDEX IF NOT EXISTS idx_set_creators_set_id         ON set_creators(set_id);

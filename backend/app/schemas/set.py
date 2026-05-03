@@ -47,6 +47,8 @@ class BatchImportRequest(BaseModel):
 class BatchImportResponse(BaseModel):
     items: list[BatchImportItem]
     summary: dict = {}
+    task_id: Optional[str] = None
+    status: Optional[str] = None
 
 class SetUpdate(SetBase):
     pass

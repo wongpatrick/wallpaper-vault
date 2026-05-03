@@ -2,7 +2,7 @@ import { Text, Card, TextInput, Group, Stack, Table, Badge, ActionIcon, Tooltip,
 import { IconSettings, IconCheck, IconX, IconCloudUpload, IconCrop, IconSearch, IconRefresh } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useBatchImportSetsApiSetsBatchImportPost } from '../../api/generated/sets/sets';
-import { notifications } from '@mantine/notifications';
+import { useNotificationHistory } from '../../context/NotificationContext';
 import type { BatchImportItem } from '../../api/model';
 
 export function BatchImporter() {
@@ -13,8 +13,10 @@ export function BatchImporter() {
     const [globalDeleteSource, setGlobalDeleteSource] = useState(true);
 
     const { mutateAsync: batchImportApi } = useBatchImportSetsApiSetsBatchImportPost();
+    const { showNotification } = useNotificationHistory();
 
     const handleResultChange = (index: number, field: keyof BatchImportItem, value: string | boolean) => {
+// ... rest of code unchanged ...
         setResults(prev => {
             const next = [...prev];
             next[index] = { ...next[index], [field]: value } as BatchImportItem;
@@ -55,7 +57,7 @@ export function BatchImporter() {
                 });
             } catch (err: unknown) {
                 console.error('Drop error:', err);
-                notifications.show({ title: 'Error', message: 'Failed to parse dropped folders', color: 'red' });
+                showNotification({ title: 'Error', message: 'Failed to parse dropped folders', color: 'red', status: 'error' });
             } finally {
                 setIsScanning(false);
             }
@@ -80,13 +82,13 @@ export function BatchImporter() {
                     const uniqueNew = newItems.filter(r => !existingPaths.has(r.source_path));
                     return [...prev, ...uniqueNew];
                 });
-                notifications.show({ title: 'Scan Complete', message: `Found ${newItems.length} potential sets.`, color: 'green' });
+                showNotification({ title: 'Scan Complete', message: `Found ${newItems.length} potential sets.`, color: 'green', status: 'success' });
             } else {
-                notifications.show({ title: 'Scan Complete', message: 'No folders found in auto-parse path.', color: 'blue' });
+                showNotification({ title: 'Scan Complete', message: 'No folders found in auto-parse path.', color: 'blue', status: 'info' });
             }
         } catch (err: unknown) {
             console.error('Scan error:', err);
-            notifications.show({ title: 'Scan Failed', message: 'Could not access auto-parse path.', color: 'red' });
+            showNotification({ title: 'Scan Failed', message: 'Could not access auto-parse path.', color: 'red', status: 'error' });
         } finally {
             setIsScanning(false);
         }
@@ -109,9 +111,9 @@ export function BatchImporter() {
                 const match = updatedItems.find(u => u.source_path === old.source_path);
                 return match ? match : old;
             }));
-            notifications.show({ title: 'Queue Updated', message: 'Applied new template to current queue.', color: 'blue' });
+            showNotification({ title: 'Queue Updated', message: 'Applied new template to current queue.', color: 'blue', status: 'info' });
         } catch (err) {
-            notifications.show({ title: 'Error', message: 'Failed to re-parse queue', color: 'red' });
+            showNotification({ title: 'Error', message: 'Failed to re-parse queue', color: 'red', status: 'error' });
         } finally {
             setIsScanning(false);
         }
@@ -137,21 +139,32 @@ export function BatchImporter() {
                 }
             });
             
-            // Map results back to local state
-            const updatedItems = response.items || [];
-            setResults(prev => prev.map(old => {
-                const match = updatedItems.find(u => u.source_path === old.source_path);
-                return match ? match : old;
-            }));
+            if (response.status === 'accepted') {
+                showNotification({ 
+                    title: 'Batch Import Started', 
+                    message: 'The import is running in the background. You can safely navigate away.', 
+                    color: 'blue',
+                    status: 'info'
+                });
+                setResults([]); // Clear the local queue since it's now being processed in the background
+            } else {
+                // Map results back to local state (for sync fallback)
+                const updatedItems = response.items || [];
+                setResults(prev => prev.map(old => {
+                    const match = updatedItems.find(u => u.source_path === old.source_path);
+                    return match ? match : old;
+                }));
 
-            notifications.show({ title: 'Batch Import Finished', message: 'Check the queue for status details.', color: 'green' });
+                showNotification({ title: 'Batch Import Finished', message: 'Check the queue for status details.', color: 'green', status: 'success' });
+            }
         } catch (err: unknown) {
             console.error('Import error:', err);
-            notifications.show({ title: 'Import Failed', message: 'An error occurred during batch processing.', color: 'red' });
+            showNotification({ title: 'Import Failed', message: 'An error occurred during batch processing.', color: 'red', status: 'error' });
         } finally {
             setIsImporting(false);
         }
     };
+
 
     return (
         <Card shadow="sm" padding="xl" radius="md" withBorder>
@@ -275,7 +288,7 @@ export function BatchImporter() {
                             </Table.Thead>
                             <Table.Tbody>
                                 {results.map((result, index) => (
-                                    <Table.Tr key={index} style={{ opacity: result.status === 'success' ? 0.6 : 1 }}>
+                                    <Table.Tr key={index} style={{ opacity: (result.status === 'success' || result.status === 'duplicate') ? 0.6 : 1 }}>
                                         <Table.Td>
                                             <Stack gap={0}>
                                                 <Text size="sm" fw={500}>{result.source_path.split(/[\\/]/).pop()}</Text>
@@ -300,6 +313,9 @@ export function BatchImporter() {
                                             <Group justify="center">
                                                 {result.status === 'pending' && (
                                                     result.isValid ? <Badge variant="dot" color="blue">Ready</Badge> : <Badge color="red">Invalid</Badge>
+                                                )}
+                                                {result.status === 'duplicate' && (
+                                                    <Badge color="orange" variant="light">Duplicate</Badge>
                                                 )}
                                                 {result.status === 'success' && (
                                                     <ThemeIcon color="green" variant="light" radius="xl"><IconCheck size={16} /></ThemeIcon>
