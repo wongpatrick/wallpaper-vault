@@ -6,8 +6,9 @@ import Creators from './pages/creators/creators'
 import Tools from './pages/tools/tools'
 import Settings from './pages/settings/settings'
 import { createTheme, MantineProvider } from '@mantine/core'
-import { notifications, Notifications } from '@mantine/notifications'
+import { Notifications } from '@mantine/notifications'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { NotificationProvider, useNotificationHistory } from './context/NotificationContext'
 
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
@@ -69,6 +70,7 @@ const router = createHashRouter([
 
 function GlobalTasks() {
   const [isTaskRunning, setIsTaskRunning] = useState(false);
+  const { showNotification } = useNotificationHistory();
 
   useEffect(() => {
     // Note: In a real production app, this URL should be configurable
@@ -84,20 +86,22 @@ function GlobalTasks() {
 
         Object.entries(tasks).forEach(([tid, tinfo]: [string, any]) => {
           if (tinfo.status === 'completed') {
-            notifications.show({
+            showNotification({
               id: tid, // Use tid to prevent duplicate notifications for the same task
               title: 'Batch Import Complete',
               message: 'Your background import task has finished successfully.',
               color: 'green',
               autoClose: 5000,
+              status: 'completed',
             });
           } else if (tinfo.status === 'error') {
-            notifications.show({
+            showNotification({
               id: tid,
               title: 'Batch Import Failed',
               message: 'An error occurred during the background import process.',
               color: 'red',
               autoClose: false,
+              status: 'error',
             });
           }
         });
@@ -109,7 +113,7 @@ function GlobalTasks() {
     return () => {
       eventSource.close();
     };
-  }, []);
+  }, [showNotification]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -130,12 +134,15 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <MantineProvider theme={theme} defaultColorScheme="auto">
-        <Notifications position="top-right" />
-        <GlobalTasks />
-        <RouterProvider router={router} />
+        <NotificationProvider>
+          <Notifications position="top-right" />
+          <GlobalTasks />
+          <RouterProvider router={router} />
+        </NotificationProvider>
       </MantineProvider>
     </QueryClientProvider>
   )
 }
 
 export default App
+
