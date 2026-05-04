@@ -26,6 +26,9 @@ import type {
 import type {
   Creator,
   CreatorCreate,
+  CreatorMerge,
+  CreatorUpdate,
+  CreatorWithSets,
   HTTPValidationError,
   ReadCreatorsApiCreatorsGetParams
 } from '../../model';
@@ -204,7 +207,7 @@ export const readCreatorApiCreatorsCreatorIdGet = (
 ) => {
       
       
-      return customInstance<Creator>(
+      return customInstance<CreatorWithSets>(
       {url: `/api/creators/${creatorId}`, method: 'GET', signal
     },
       options);
@@ -287,3 +290,193 @@ export function useReadCreatorApiCreatorsCreatorIdGet<TData = Awaited<ReturnType
 
 
 
+/**
+ * @summary Update Creator
+ */
+export const updateCreatorApiCreatorsCreatorIdPatch = (
+    creatorId: number,
+    creatorUpdate: BodyType<CreatorUpdate>,
+ options?: SecondParameter<typeof customInstance>,) => {
+      
+      
+      return customInstance<Creator>(
+      {url: `/api/creators/${creatorId}`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: creatorUpdate
+    },
+      options);
+    }
+  
+
+
+export const getUpdateCreatorApiCreatorsCreatorIdPatchMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCreatorApiCreatorsCreatorIdPatch>>, TError,{creatorId: number;data: BodyType<CreatorUpdate>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCreatorApiCreatorsCreatorIdPatch>>, TError,{creatorId: number;data: BodyType<CreatorUpdate>}, TContext> => {
+
+const mutationKey = ['updateCreatorApiCreatorsCreatorIdPatch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCreatorApiCreatorsCreatorIdPatch>>, {creatorId: number;data: BodyType<CreatorUpdate>}> = (props) => {
+          const {creatorId,data} = props ?? {};
+
+          return  updateCreatorApiCreatorsCreatorIdPatch(creatorId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCreatorApiCreatorsCreatorIdPatchMutationResult = NonNullable<Awaited<ReturnType<typeof updateCreatorApiCreatorsCreatorIdPatch>>>
+    export type UpdateCreatorApiCreatorsCreatorIdPatchMutationBody = BodyType<CreatorUpdate>
+    export type UpdateCreatorApiCreatorsCreatorIdPatchMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Update Creator
+ */
+export const useUpdateCreatorApiCreatorsCreatorIdPatch = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCreatorApiCreatorsCreatorIdPatch>>, TError,{creatorId: number;data: BodyType<CreatorUpdate>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateCreatorApiCreatorsCreatorIdPatch>>,
+        TError,
+        {creatorId: number;data: BodyType<CreatorUpdate>},
+        TContext
+      > => {
+
+      const mutationOptions = getUpdateCreatorApiCreatorsCreatorIdPatchMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * @summary Delete Creator
+ */
+export const deleteCreatorApiCreatorsCreatorIdDelete = (
+    creatorId: number,
+ options?: SecondParameter<typeof customInstance>,) => {
+      
+      
+      return customInstance<Creator>(
+      {url: `/api/creators/${creatorId}`, method: 'DELETE'
+    },
+      options);
+    }
+  
+
+
+export const getDeleteCreatorApiCreatorsCreatorIdDeleteMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCreatorApiCreatorsCreatorIdDelete>>, TError,{creatorId: number}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCreatorApiCreatorsCreatorIdDelete>>, TError,{creatorId: number}, TContext> => {
+
+const mutationKey = ['deleteCreatorApiCreatorsCreatorIdDelete'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCreatorApiCreatorsCreatorIdDelete>>, {creatorId: number}> = (props) => {
+          const {creatorId} = props ?? {};
+
+          return  deleteCreatorApiCreatorsCreatorIdDelete(creatorId,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCreatorApiCreatorsCreatorIdDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCreatorApiCreatorsCreatorIdDelete>>>
+    
+    export type DeleteCreatorApiCreatorsCreatorIdDeleteMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Delete Creator
+ */
+export const useDeleteCreatorApiCreatorsCreatorIdDelete = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCreatorApiCreatorsCreatorIdDelete>>, TError,{creatorId: number}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCreatorApiCreatorsCreatorIdDelete>>,
+        TError,
+        {creatorId: number},
+        TContext
+      > => {
+
+      const mutationOptions = getDeleteCreatorApiCreatorsCreatorIdDeleteMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * @summary Merge Creators
+ */
+export const mergeCreatorsApiCreatorsMergePost = (
+    creatorMerge: BodyType<CreatorMerge>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<Creator>(
+      {url: `/api/creators/merge`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: creatorMerge, signal
+    },
+      options);
+    }
+  
+
+
+export const getMergeCreatorsApiCreatorsMergePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeCreatorsApiCreatorsMergePost>>, TError,{data: BodyType<CreatorMerge>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergeCreatorsApiCreatorsMergePost>>, TError,{data: BodyType<CreatorMerge>}, TContext> => {
+
+const mutationKey = ['mergeCreatorsApiCreatorsMergePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergeCreatorsApiCreatorsMergePost>>, {data: BodyType<CreatorMerge>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  mergeCreatorsApiCreatorsMergePost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergeCreatorsApiCreatorsMergePostMutationResult = NonNullable<Awaited<ReturnType<typeof mergeCreatorsApiCreatorsMergePost>>>
+    export type MergeCreatorsApiCreatorsMergePostMutationBody = BodyType<CreatorMerge>
+    export type MergeCreatorsApiCreatorsMergePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Merge Creators
+ */
+export const useMergeCreatorsApiCreatorsMergePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeCreatorsApiCreatorsMergePost>>, TError,{data: BodyType<CreatorMerge>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof mergeCreatorsApiCreatorsMergePost>>,
+        TError,
+        {data: BodyType<CreatorMerge>},
+        TContext
+      > => {
+
+      const mutationOptions = getMergeCreatorsApiCreatorsMergePostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    

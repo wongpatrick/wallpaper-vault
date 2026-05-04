@@ -30,7 +30,8 @@ import type {
   ReadSetsApiSetsGetParams,
   Set,
   SetCreate,
-  SetImport
+  SetImport,
+  SetUpdate
 } from '../../model';
 
 import { customInstance } from '../../axios-instance';
@@ -512,3 +513,129 @@ export function useReadSetApiSetsSetIdGet<TData = Awaited<ReturnType<typeof read
 
 
 
+/**
+ * @summary Update Set
+ */
+export const updateSetApiSetsSetIdPatch = (
+    setId: number,
+    setUpdate: BodyType<SetUpdate>,
+ options?: SecondParameter<typeof customInstance>,) => {
+      
+      
+      return customInstance<Set>(
+      {url: `/api/sets/${setId}`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: setUpdate
+    },
+      options);
+    }
+  
+
+
+export const getUpdateSetApiSetsSetIdPatchMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSetApiSetsSetIdPatch>>, TError,{setId: number;data: BodyType<SetUpdate>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSetApiSetsSetIdPatch>>, TError,{setId: number;data: BodyType<SetUpdate>}, TContext> => {
+
+const mutationKey = ['updateSetApiSetsSetIdPatch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSetApiSetsSetIdPatch>>, {setId: number;data: BodyType<SetUpdate>}> = (props) => {
+          const {setId,data} = props ?? {};
+
+          return  updateSetApiSetsSetIdPatch(setId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSetApiSetsSetIdPatchMutationResult = NonNullable<Awaited<ReturnType<typeof updateSetApiSetsSetIdPatch>>>
+    export type UpdateSetApiSetsSetIdPatchMutationBody = BodyType<SetUpdate>
+    export type UpdateSetApiSetsSetIdPatchMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Update Set
+ */
+export const useUpdateSetApiSetsSetIdPatch = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSetApiSetsSetIdPatch>>, TError,{setId: number;data: BodyType<SetUpdate>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateSetApiSetsSetIdPatch>>,
+        TError,
+        {setId: number;data: BodyType<SetUpdate>},
+        TContext
+      > => {
+
+      const mutationOptions = getUpdateSetApiSetsSetIdPatchMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * @summary Delete Set
+ */
+export const deleteSetApiSetsSetIdDelete = (
+    setId: number,
+ options?: SecondParameter<typeof customInstance>,) => {
+      
+      
+      return customInstance<Set>(
+      {url: `/api/sets/${setId}`, method: 'DELETE'
+    },
+      options);
+    }
+  
+
+
+export const getDeleteSetApiSetsSetIdDeleteMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSetApiSetsSetIdDelete>>, TError,{setId: number}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSetApiSetsSetIdDelete>>, TError,{setId: number}, TContext> => {
+
+const mutationKey = ['deleteSetApiSetsSetIdDelete'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSetApiSetsSetIdDelete>>, {setId: number}> = (props) => {
+          const {setId} = props ?? {};
+
+          return  deleteSetApiSetsSetIdDelete(setId,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSetApiSetsSetIdDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSetApiSetsSetIdDelete>>>
+    
+    export type DeleteSetApiSetsSetIdDeleteMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Delete Set
+ */
+export const useDeleteSetApiSetsSetIdDelete = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSetApiSetsSetIdDelete>>, TError,{setId: number}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSetApiSetsSetIdDelete>>,
+        TError,
+        {setId: number},
+        TContext
+      > => {
+
+      const mutationOptions = getDeleteSetApiSetsSetIdDeleteMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
