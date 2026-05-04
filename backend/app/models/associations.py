@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, String, Table
+from sqlalchemy import Column, ForeignKey, String, Table
 from app.models.base import Base
 
 set_creators = Table(

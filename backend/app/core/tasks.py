@@ -1,12 +1,11 @@
 import asyncio
 import json
 import uuid
-from typing import Dict, Any, Set, List
+from typing import Dict, Any, Set
 from datetime import datetime
 from sqlalchemy import select, update
 from app.db.session import SessionLocal
 from app.models.task import Task
-from app.schemas.task import TaskSchema
 
 class TaskBroadcaster:
     def __init__(self):
@@ -53,11 +52,15 @@ async def create_task(db_session, status: str = "accepted") -> str:
 
 async def update_task(db_session, task_id: str, status: str = None, progress: int = None, total: int = None, error_message: str = None):
     update_data = {}
-    if status: update_data["status"] = status
-    if progress is not None: update_data["progress"] = progress
-    if total is not None: update_data["total"] = total
-    if error_message: update_data["error_message"] = error_message
-    
+    if status: 
+        update_data["status"] = status
+    if progress is not None: 
+        update_data["progress"] = progress
+    if total is not None: 
+        update_data["total"] = total
+    if error_message: 
+        update_data["error_message"] = error_message
+
     if update_data:
         stmt = update(Task).where(Task.id == task_id).values(**update_data)
         await db_session.execute(stmt)

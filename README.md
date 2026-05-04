@@ -51,15 +51,31 @@ npm run dev
 ## 🛠️ Current State
 - [x] **Backend Core:** Models, Schemas, and CRUD for Creators, Sets, and Images.
 - [x] **Desktop Shell:** Electron integration with React and IPC bridge.
-- [x] **API Integration:** Automatic TypeScript client generation via **Orval**.
-- [x] **UI Framework:** Fully themed interface using **Mantine UI v7**.
-- [x] **Advanced Tools:**
+- [x] **Library Management:**
+    - Immersive **Library Grid** with cover images and metadata.
+    - **Set Detail View** with image gallery and full-screen lightbox.
+    - **Artist Hub (Creators):** Portfolio views and metadata management.
+- [x] **Advanced Features:**
+    - **Batch Importer:** Multi-phase background import pipeline with regex parsing.
+    - **Native Integration:** "Open Folder" feature using Electron's shell module.
+    - **Search & Filtering:** Live library filtering by title, artist, and type.
+    - **Merge Tool:** Consolidate duplicate artist profiles safely.
+- [x] **Precision Tools:**
     - **Folder Parser:** Automatically scan and organize local wallpaper directories.
     - **Precision Cropper:** Custom tool for perfectly fitting wallpapers to any aspect ratio.
 
 ---
 
+## 📋 Roadmap (To-Do)
+- [ ] **Library Repair Utility:** Automated tool to fix broken paths and re-sync database with filesystem.
+- [ ] **Smart Duplicate Detection:** Identify identical wallpapers using pHash (Perceptual Hashing).
+- [ ] **Bulk Metadata Editing:** Select multiple sets to categorize or rename in one go.
+- [ ] **Custom Themes:** User-selectable accent colors and dark/light mode persistence.
+- [ ] **Wallpaper Engine Integration:** (Optional) Support for animated wallpapers and direct "Set as Wallpaper" triggers.
+
+---
+
 ## 💡 Developer Notes
-- **API Generation:** If backend models change, run `npm run generate-api` in the `frontend` directory to update the TypeScript hooks.
-- **Styling:** We prefer **Mantine** components for UI primitives and **Vanilla CSS / CSS Modules** for custom layouts.
-- **Database:** Uses SQLite for local-first storage. Schema is managed in `db/schema.sql`.
+- **API Generation:** If backend models change, run `npm run generate` in the `frontend` directory.
+- **Styling:** We use **Mantine UI v7** for all core components.
+- **Path Handling:** All filesystem paths are normalized to ensure cross-platform compatibility.

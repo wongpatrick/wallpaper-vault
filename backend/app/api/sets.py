@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 
 from app.crud import set as crud_set
-from app.schemas.set import Set, SetCreate, SetImport, BatchImportRequest, BatchImportResponse
+from app.schemas.set import Set, SetCreate, SetImport, BatchImportRequest, BatchImportResponse, SetUpdate
 from app.core import tasks
 
 
@@ -67,6 +67,27 @@ async def read_set(
         db: AsyncSession = Depends(get_db)
 ):
     db_set = await crud_set.get_set(db, set_id=set_id)
+    if db_set is None:
+        raise HTTPException(status_code=404, detail="Set not found")
+    return db_set
+
+@router.patch("/{set_id}", response_model=Set)
+async def update_set(
+        set_id: int,
+        set_in: SetUpdate,
+        db: AsyncSession = Depends(get_db)
+):
+    db_set = await crud_set.update_set(db, set_id=set_id, set_in=set_in)
+    if db_set is None:
+        raise HTTPException(status_code=404, detail="Set not found")
+    return db_set
+
+@router.delete("/{set_id}", response_model=Set)
+async def delete_set(
+        set_id: int,
+        db: AsyncSession = Depends(get_db)
+):
+    db_set = await crud_set.delete_set(db, set_id=set_id)
     if db_set is None:
         raise HTTPException(status_code=404, detail="Set not found")
     return db_set
