@@ -8,4 +8,6 @@
 export type ReadCreatorsApiCreatorsGetParams = {
 skip?: number;
 limit?: number;
+search?: string | null;
+creator_type?: string | null;
 };

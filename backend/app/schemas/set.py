@@ -61,3 +61,9 @@ class Set(SetBase):
     images: list[Image] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+class SetPage(BaseModel):
+    items: list[Set]
+    total: int
+    skip: int
+    limit: int

@@ -14,3 +14,8 @@ dependencies = [
     "numpy>=2.2.3",
     "opencv-contrib-python>=4.13.0.92",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.12",
+]

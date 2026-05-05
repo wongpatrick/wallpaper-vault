@@ -9,18 +9,26 @@ The "Wallpaper Vault" backend is a high-performance **FastAPI** application that
 - **ORM:** [SQLAlchemy 2.0](https://www.sqlalchemy.org/)
 - **Database:** [SQLite](https://www.sqlite.org/) (Asynchronous via `aiosqlite`)
 - **Validation:** [Pydantic v2](https://docs.pydantic.dev/)
+- **Linting:** [Ruff](https://github.com/astral-sh/ruff)
 
 ---
 
 ## 🏗️ Architecture
-The backend follows a standard layered architecture for scalability:
+The backend follows a standard layered architecture:
 
 *   **`app/api/`**: RESTful routers and endpoint definitions.
-*   **`app/core/`**: App configuration and global settings.
+*   **`app/services/`**: Focused business logic services (e.g., `import_service`).
+*   **`app/core/`**: App configuration, background tasks, and crop logic.
 *   **`app/crud/`**: Reusable database interaction logic.
 *   **`app/db/`**: Connection handling and session management.
-*   **`app/models/`**: SQLAlchemy ORM models reflecting the core schema.
+*   **`app/models/`**: SQLAlchemy ORM models.
 *   **`app/schemas/`**: Pydantic models for request/response validation.
+
+### 🔄 Import Pipeline
+The import system is modularized into three distinct phases in `import_service.py`:
+1.  **Gather:** Scans local directories for candidates.
+2.  **Parse & Validate:** Applies regex templates and checks for duplicates.
+3.  **Execute:** Processes images, sanitizes paths, and saves to the database.
 
 ---
 
@@ -34,32 +42,21 @@ uv sync
 
 ### Running the Engine
 ```powershell
-uv run uvicorn app.main:app --reload
+uv run python -m uvicorn app.main:app --reload
 ```
-The API will be available at `http://localhost:8000`.
 
-### Documentation
-FastAPI automatically generates documentation:
-- **Swagger UI:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- **ReDoc:** [http://localhost:8000/redoc](http://localhost:8000/redoc)
+### Code Quality
+We use **Ruff** for fast and strict linting.
+```powershell
+uv run ruff check .
+```
 
 ---
 
 ## 📊 Database Schema
-The database is managed locally in a SQLite file. Core entities include:
-- **Creators:** Artists and photographers.
-- **Sets:** Collections of wallpapers with shared metadata.
-- **Images:** Individual high-resolution files.
-- **Settings:** Persistent application configuration (Key-Value).
-- **Tags & Franchises:** Categorization and filtering metadata.
-
----
-
-## ⚙️ Settings Management
-The backend includes a flexible key-value settings system used for application configuration (e.g., library paths, automation toggles).
-
-- **Endpoints:**
-    - `GET /api/settings/`: List all settings.
-    - `GET /api/settings/{key}`: Get a specific configuration value.
-    - `PUT /api/settings/{key}`: Update or create (upsert) a setting.
-- **Storage:** Settings are stored in the database to ensure the Engine can access them even when the UI is closed. Values can be simple strings or JSON-formatted strings for complex configurations.
+Core entities include:
+- **Creators:** Artist profiles with portfolios.
+- **Sets:** Curated collections of wallpapers.
+- **Images:** Individual files with metadata (resolution, pHash).
+- **Tasks:** Background operation tracking for long-running imports.
+- **Settings:** Global application configuration.

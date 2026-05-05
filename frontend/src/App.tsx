@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
-import { createHashRouter, RouterProvider, Navigate } from 'react-router-dom'
+import { createHashRouter, RouterProvider } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'
 import Dashboard from './pages/dashboard/dashboard'
 import Creators from './pages/creators/creators'
+import CreatorDetail from './pages/creators/CreatorDetail'
+import Sets from './pages/sets/sets'
+import SetDetail from './pages/sets/SetDetail'
 import Tools from './pages/tools/tools'
 import Settings from './pages/settings/settings'
 import { createTheme, MantineProvider } from '@mantine/core'
@@ -53,8 +56,16 @@ const router = createHashRouter([
         element: <Creators />,
       },
       {
+        path: "/creators/:creatorId",
+        element: <CreatorDetail />,
+      },
+      {
         path: "/sets",
-        element: <Navigate to="/" replace />,
+        element: <Sets />,
+      },
+      {
+        path: "/sets/:setId",
+        element: <SetDetail />,
       },
       {
         path: "/tools",
@@ -78,13 +89,18 @@ function GlobalTasks() {
 
     eventSource.onmessage = (event) => {
       try {
-        const tasks = JSON.parse(event.data);
-        const taskList = Object.values(tasks) as any[];
+        const tasks: Record<string, {
+            status: string;
+            progress: number;
+            total: number;
+            error_message?: string;
+        }> = JSON.parse(event.data);
+        const taskList = Object.values(tasks);
         
         const hasActive = taskList.some(t => t.status === 'processing' || t.status === 'accepted');
         setIsTaskRunning(hasActive);
 
-        Object.entries(tasks).forEach(([tid, tinfo]: [string, any]) => {
+        Object.entries(tasks).forEach(([tid, tinfo]) => {
           if (tinfo.status === 'completed') {
             showNotification({
               id: tid, // Use tid to prevent duplicate notifications for the same task

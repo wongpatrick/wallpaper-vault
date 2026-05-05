@@ -1,7 +1,7 @@
 # Wallpaper Vault: Frontend Shell (Electron + React)
 
 ## 🚀 Overview
-The "Wallpaper Vault" frontend is a desktop shell built with **Electron** and **React**. It provides a rich, native-like interface for managing wallpaper collections, interacting with the FastAPI engine, and performing advanced image processing.
+The "Wallpaper Vault" frontend is a desktop shell built with **Electron** and **React**. It provides a rich, native-like interface for managing wallpaper collections and interacting with the FastAPI engine.
 
 ## 🛠️ Technical Stack
 - **Framework:** [React 18+](https://react.dev/) (Vite)
@@ -9,18 +9,23 @@ The "Wallpaper Vault" frontend is a desktop shell built with **Electron** and **
 - **UI Toolkit:** [Mantine UI v7](https://mantine.dev/)
 - **Icons:** [Tabler Icons](https://tabler.io/icons)
 - **API Client:** [Axios](https://axios-http.com/) with [Orval](https://orval.dev/) for automatic hook generation.
-- **Styling:** CSS Modules and Vanilla CSS.
+- **State & Data:** [React Query v5](https://tanstack.com/query) for efficient caching and server state.
 
 ---
 
 ## 🏗️ Architecture
-The frontend is designed to be a thin shell that delegates heavy lifting to the backend engine:
+The frontend is organized for maximum modularity and reusability:
 
-*   **`src/api/`**: Generated API client hooks and Axios configuration.
-*   **`src/components/`**: Reusable UI components (Layout, UI primitives, Tools).
-*   **`src/pages/`**: High-level page orchestrators.
-*   **`src/hooks/`**: Custom React hooks for shared logic.
-*   **`electron/`**: Main process and preload scripts for desktop integration.
+*   **`src/api/`**: Axios instance and generated React Query hooks.
+*   **`src/pages/`**: High-level page orchestrators (Library, Artists, Tools).
+*   **`src/pages/sets/components/`**: Modular library components like `SetCard`, `ImageGridItem`, and `Lightbox`.
+*   **`src/utils/`**: Centralized utilities (e.g., `fileUtils.ts` for path and URL handling).
+*   **`electron/`**: Main process and preload scripts for native OS features.
+
+### 🏠 Main Views
+*   **Library (Sets):** Visual grid with live search and type-based filtering.
+*   **Artist Hub (Creators):** Portfolio views showcasing an artist's full collection.
+*   **Tools:** Specialized utilities for batch importing and image cropping.
 
 ---
 
@@ -36,16 +41,15 @@ npm install
 ```powershell
 npm run dev
 ```
-This launches the Vite dev server and opens the Electron application window.
 
 ### API Integration
-We use **Orval** to generate typed React hooks from the backend OpenAPI schema.
+We use **Orval** to maintain type safety across the stack.
 1.  Ensure the backend is running.
-2.  Run `npm run generate-api` to update the generated hooks in `src/api/generated/`.
+2.  Run `npm run generate` to update the hooks in `src/api/generated/`.
 
 ---
 
 ## 🎨 Advanced Features
-- **Precision Cropper**: A dedicated tool for creating perfect aspect-ratio crops for wallpapers.
-- **Folder Parser**: A utility to scan local directories and automatically import sets.
-- **Side Nav**: Responsive sidebar with a resizable handle for custom layout management.
+- **Native OS Integration:** Open any set's folder directly in Windows Explorer via Electron's `shell` module.
+- **Precision Cropper:** A dedicated UI for creating perfect aspect-ratio crops for wallpapers.
+- **Batch Importer:** A drag-and-drop tool for bulk collection management with real-time progress tracking.
