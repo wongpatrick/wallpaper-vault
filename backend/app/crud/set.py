@@ -1,7 +1,7 @@
 from typing import Optional
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.models.creator import Creator
 from app.models.set import Set
@@ -19,6 +19,8 @@ from app.crud.settings import get_setting
 from app.core import tasks
 from app.db.session import SessionLocal
 from pathlib import Path
+import os
+import re
 
 async def get_set(db: AsyncSession, set_id: int):
     result = await db.execute(
@@ -30,18 +32,37 @@ async def get_set(db: AsyncSession, set_id: int):
     return result.scalar_one_or_none()
 
 
-async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100):
-    sets = await db.execute(
-        select(Set)
-        .options(
-            selectinload(Set.creators),
-            selectinload(Set.images)
+async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Optional[str] = None, creator_type: Optional[str] = None):
+    # Base query for sets
+    query = select(Set)
+    
+    # Joins for filtering if needed
+    if search or creator_type:
+        query = query.join(Set.creators)
+    
+    # Apply filters
+    if creator_type:
+        query = query.filter(Creator.type == creator_type)
+    if search:
+        query = query.filter(
+            (Set.title.icontains(search)) | 
+            (Creator.canonical_name.icontains(search))
         )
-        .order_by(Set.date_added.desc())
-        .offset(skip)
-        .limit(limit)
-    )
-    return list(sets.scalars().all())
+    
+    # Total count for filtered results
+    count_query = select(func.count()).select_from(query.distinct().subquery())
+    count_result = await db.execute(count_query)
+    total = count_result.scalar_one()
+
+    # Final paginated query with relationship loading
+    # We use distinct() because the join might create multiple rows per set
+    sets_query = query.distinct().options(
+        selectinload(Set.creators),
+        selectinload(Set.images)
+    ).order_by(Set.date_added.desc()).offset(skip).limit(limit)
+    
+    result = await db.execute(sets_query)
+    return list(result.scalars().all()), total
 
 async def create_set(db: AsyncSession, set_in: SetCreate) -> Set:
     db_set = Set(**set_in.model_dump(exclude={"creator_ids", "images"}))

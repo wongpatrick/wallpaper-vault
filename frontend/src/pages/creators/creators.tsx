@@ -1,37 +1,69 @@
-import { Title, Text, Container, Table, Group, Avatar, Loader, Center, Alert, ActionIcon, TextInput, Select, Stack, Button, Modal } from '@mantine/core';
+import { Title, Text, Container, Table, Group, Loader, Center, Alert, ActionIcon, TextInput, Select, Stack, Button, Modal, Pagination } from '@mantine/core';
 import { IconAlertCircle, IconChevronRight, IconSearch, IconFilter, IconGitMerge } from '@tabler/icons-react';
 import { useReadCreatorsApiCreatorsGet, useMergeCreatorsApiCreatorsMergePost } from '../../api/generated/creators/creators';
 import { useNavigate } from 'react-router-dom';
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { notifications } from '@mantine/notifications';
+import { CreatorAvatar } from './components/CreatorAvatar';
+
+const PAGE_SIZE = 12;
 
 export default function Creators() {
     const navigate = useNavigate();
-    const { data: creators, isLoading, error, refetch } = useReadCreatorsApiCreatorsGet();
-    const mergeMutation = useMergeCreatorsApiCreatorsMergePost();
-
-    // Filter State
+    
+    // 1. All hooks at the top
+    const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState<string | null>(null);
+
+    // Reset page when filters change
+    useEffect(() => {
+        setPage(1);
+    }, [search, typeFilter]);
+
+    const { data: pageData, isLoading, error, refetch } = useReadCreatorsApiCreatorsGet({
+        skip: (page - 1) * PAGE_SIZE,
+        limit: PAGE_SIZE,
+        search: search || undefined,
+        creator_type: typeFilter || undefined
+    });
+    
+    const creators = pageData?.items || [];
+    const totalCount = pageData?.total || 0;
+    const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+    const mergeMutation = useMergeCreatorsApiCreatorsMergePost();
 
     // Merge Modal State
     const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
     const [sourceCreatorId, setSourceCreatorId] = useState<string | null>(null);
     const [targetCreatorId, setTargetCreatorId] = useState<string | null>(null);
 
-    const filteredCreators = useMemo(() => {
-        if (!creators) return [];
-        return creators.filter(creator => {
-            const matchesSearch = !search || 
-                creator.canonical_name.toLowerCase().includes(search.toLowerCase());
-            
-            const matchesType = !typeFilter || 
-                creator.type === typeFilter;
+    const creatorOptions = useMemo(() => creators.map(c => ({
+        value: String(c.id),
+        label: c.canonical_name
+    })) || [], [creators]);
 
-            return matchesSearch && matchesType;
-        });
-    }, [creators, search, typeFilter]);
+    // 2. Early returns
+    if (isLoading) {
+        return (
+            <Center h={400}>
+                <Loader size="xl" />
+            </Center>
+        );
+    }
 
+    if (error) {
+        return (
+            <Container size="xl">
+                <Alert icon={<IconAlertCircle size="1rem" />} title="Error!" color="red">
+                    Could not fetch creators from the backend. Make sure your FastAPI server is running!
+                </Alert>
+            </Container>
+        );
+    }
+
+    // 3. Handlers
     const handleMerge = async () => {
         if (!sourceCreatorId || !targetCreatorId) return;
         try {
@@ -51,30 +83,7 @@ export default function Creators() {
         }
     };
 
-    const creatorOptions = creators?.map(c => ({
-        value: String(c.id),
-        label: c.canonical_name
-    })) || [];
-
-    if (isLoading) {
-        return (
-            <Center h={400}>
-                <Loader size="xl" />
-            </Center>
-        );
-    }
-
-    if (error) {
-        return (
-            <Container size="xl">
-                <Alert icon={<IconAlertCircle size="1rem" />} title="Error!" color="red">
-                    Could not fetch creators from the backend. Make sure your FastAPI server is running!
-                </Alert>
-            </Container>
-        );
-    }
-
-    const rows = filteredCreators.map((element) => (
+    const rows = creators.map((element) => (
         <Table.Tr 
             key={element.id} 
             onClick={() => navigate(`/creators/${element.id}`)}
@@ -82,7 +91,7 @@ export default function Creators() {
         >
             <Table.Td>
                 <Group gap="sm">
-                    <Avatar size={30} radius={30} color="blue" />
+                    <CreatorAvatar imageId={element.stats?.preview_image_id} size={40} />
                     <Text size="sm" fw={500}>
                         {element.canonical_name}
                     </Text>
@@ -119,7 +128,7 @@ export default function Creators() {
             <Group mb="xl" grow align="flex-end">
                 <TextInput
                     placeholder="Search by artist name..."
-                    label="Search artists"
+                    label="Search all artists"
                     leftSection={<IconSearch size={16} />}
                     value={search}
                     onChange={(e) => setSearch(e.currentTarget.value)}
@@ -149,11 +158,17 @@ export default function Creators() {
                 </Table>
             </Table.ScrollContainer>
             
-            {filteredCreators.length === 0 && (
+            {creators.length === 0 && (
                 <Stack align="center" py={100} gap="md">
                     <Text size="xl" fw={500} c="dimmed">No artists match your filters</Text>
                     <Text c="dimmed">Try adjusting your search terms or clearing the filter.</Text>
                 </Stack>
+            )}
+
+            {totalPages > 1 && (
+                <Center mt="xl" pb="xl">
+                    <Pagination total={totalPages} value={page} onChange={setPage} withEdges />
+                </Center>
             )}
 
             {/* Merge Modal */}

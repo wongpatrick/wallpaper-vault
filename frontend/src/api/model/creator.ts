@@ -6,10 +6,12 @@
  */
 import type { CreatorType } from './creatorType';
 import type { CreatorNotes } from './creatorNotes';
+import type { CreatorStatsProperty } from './creatorStatsProperty';
 
 export interface Creator {
   canonical_name: string;
   type?: CreatorType;
   notes?: CreatorNotes;
   id: number;
+  stats?: CreatorStatsProperty;
 }

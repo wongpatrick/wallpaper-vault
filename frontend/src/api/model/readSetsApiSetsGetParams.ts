@@ -8,4 +8,6 @@
 export type ReadSetsApiSetsGetParams = {
 skip?: number;
 limit?: number;
+search?: string | null;
+creator_type?: string | null;
 };

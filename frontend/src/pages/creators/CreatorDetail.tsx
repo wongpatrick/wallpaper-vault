@@ -2,11 +2,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
     Title, Text, Container, SimpleGrid, Group, Badge, Loader, 
     Center, Alert, Stack, ActionIcon, Menu, Button, Card, 
-    TextInput, Select, Textarea, Modal
+    TextInput, Select, Textarea, Modal, Paper
 } from '@mantine/core';
 import { 
     IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
-    IconEdit, IconUser
+    IconEdit, IconDatabase, IconPhoto, IconLayersIntersect, IconAspectRatio
 } from '@tabler/icons-react';
 import { 
     useReadCreatorApiCreatorsCreatorIdGet, 
@@ -15,19 +15,22 @@ import {
 } from '../../api/generated/creators/creators';
 import { notifications } from '@mantine/notifications';
 import { SetCard } from '../sets/components/SetCard';
+import { CreatorAvatar } from './components/CreatorAvatar';
+import { useState, useEffect, useMemo } from 'react';
+import { formatBytes } from '../../utils/fileUtils';
 import type { Set, CreatorWithSets } from '../../api/model';
-import { useState, useEffect } from 'react';
 
 export default function CreatorDetail() {
     const { creatorId } = useParams<{ creatorId: string }>();
     const navigate = useNavigate();
+    
+    // 1. All hooks at the top
     const { data: creatorData, isLoading, error, refetch } = useReadCreatorApiCreatorsCreatorIdGet(Number(creatorId));
     const creator = creatorData as CreatorWithSets | undefined;
     
     const updateMutation = useUpdateCreatorApiCreatorsCreatorIdPatch();
     const deleteMutation = useDeleteCreatorApiCreatorsCreatorIdDelete();
 
-    // Edit Modal State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editForm, setEditForm] = useState({
         canonical_name: '',
@@ -45,6 +48,17 @@ export default function CreatorDetail() {
         }
     }, [creator]);
 
+    const stats = useMemo(() => {
+        if (!creator) return [];
+        return [
+            { label: 'Total Sets', value: creator.stats?.total_sets || 0, icon: IconLayersIntersect, color: 'blue' },
+            { label: 'Total Images', value: creator.stats?.total_images || 0, icon: IconPhoto, color: 'teal' },
+            { label: 'Library Size', value: formatBytes(creator.stats?.total_size_bytes || 0), icon: IconDatabase, color: 'orange' },
+            { label: 'Primary Ratio', value: creator.stats?.primary_aspect_ratio || 'N/A', icon: IconAspectRatio, color: 'grape' },
+        ];
+    }, [creator]);
+
+    // 2. Early returns
     if (isLoading) return <Center h={400}><Loader size="xl" /></Center>;
 
     if (error || !creator) {
@@ -60,6 +74,7 @@ export default function CreatorDetail() {
         );
     }
 
+    // 3. Handlers
     const handleUpdate = async () => {
         try {
             await updateMutation.mutateAsync({ 
@@ -99,20 +114,13 @@ export default function CreatorDetail() {
 
             {/* Profile Header */}
             <Card withBorder radius="md" p="xl" mb="xl">
-                <Group justify="space-between" align="flex-start">
+                <Group justify="space-between" align="flex-start" wrap="nowrap">
                     <Group align="center" gap="xl">
-                        <Center 
-                            w={80} h={80} 
-                            bg="blue.1" 
-                            style={{ borderRadius: '50%' }}
-                        >
-                            <IconUser size={40} color="var(--mantine-color-blue-6)" />
-                        </Center>
+                        <CreatorAvatar imageId={creator.stats?.preview_image_id} size={100} />
                         <Stack gap={4}>
                             <Title order={1}>{creator.canonical_name}</Title>
                             <Group gap="xs">
                                 <Badge size="lg" variant="light" color="blue">{creator.type || 'Artist'}</Badge>
-                                <Badge size="lg" variant="outline" color="gray">{creator.sets?.length || 0} Sets</Badge>
                             </Group>
                         </Stack>
                     </Group>
@@ -138,56 +146,75 @@ export default function CreatorDetail() {
                 </Group>
 
                 {creator.notes && (
-                        <Text mt="xl" size="lg" c="dimmed" fs="italic">
-                            "{creator.notes}"
-                        </Text>
-                    )}
-                </Card>
-
-                {/* Artist's Sets */}
-                <Title order={2} mb="lg">Collection by {creator.canonical_name}</Title>
-                
-                {creator.sets && creator.sets.length > 0 ? (
-                    <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
-                        {creator.sets.map((set: Set) => (
-                            <SetCard key={set.id} set={set} onDelete={() => {}} />
-                        ))}
-                    </SimpleGrid>
-                ) : (
-                    <Center py={100}>
-                        <Text c="dimmed">This artist has no wallpaper sets yet.</Text>
-                    </Center>
+                    <Text mt="xl" size="lg" c="dimmed" fs="italic">
+                        "{creator.notes}"
+                    </Text>
                 )}
+            </Card>
 
-                {/* Edit Modal */}
-                <Modal 
-                    opened={isEditModalOpen} 
-                    onClose={() => setIsEditModalOpen(false)} 
-                    title="Edit Creator Profile"
-                    radius="md"
-                >
-                    <Stack gap="md">
-                        <TextInput 
-                            label="Artist Name" 
-                            value={editForm.canonical_name} 
-                            onChange={(e) => setEditForm({ ...editForm, canonical_name: e.currentTarget.value })}
-                        />
-                        <Select 
-                            label="Creator Type"
-                            data={['Artist', 'AI Generated', 'Studio', 'Photography', 'Unknown']}
-                            value={editForm.type}
-                            onChange={(v) => setEditForm({ ...editForm, type: v || '' })}
-                        />
-                        <Textarea 
-                            label="Internal Notes"
-                            placeholder="Add links or artist info..."
-                            value={editForm.notes}
-                            onChange={(e) => setEditForm({ ...editForm, notes: e.currentTarget.value })}
-                            minRows={3}
-                        />
-                        <Button fullWidth onClick={handleUpdate} mt="md">Save Changes</Button>
-                    </Stack>
-                </Modal>
+            {/* Stats Grid */}
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} mb={40}>
+                {stats.map((stat) => (
+                    <Paper key={stat.label} withBorder p="md" radius="md">
+                        <Group justify="space-between">
+                            <Text size="xs" c="dimmed" fw={700} tt="uppercase">
+                                {stat.label}
+                            </Text>
+                            <stat.icon size={20} color={`var(--mantine-color-${stat.color}-6)`} />
+                        </Group>
+                        <Group align="flex-end" gap="xs" mt={10}>
+                            <Text size="xl" fw={700}>
+                                {stat.value}
+                            </Text>
+                        </Group>
+                    </Paper>
+                ))}
+            </SimpleGrid>
+
+            {/* Artist's Sets */}
+            <Title order={2} mb="lg">Collection by {creator.canonical_name}</Title>
+            
+            {creator.sets && creator.sets.length > 0 ? (
+                <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
+                    {creator.sets.map((set: Set) => (
+                        <SetCard key={set.id} set={set} onDelete={() => {}} />
+                    ))}
+                </SimpleGrid>
+            ) : (
+                <Center py={100}>
+                    <Text c="dimmed">This artist has no wallpaper sets yet.</Text>
+                </Center>
+            )}
+
+            {/* Edit Modal */}
+            <Modal 
+                opened={isEditModalOpen} 
+                onClose={() => setIsEditModalOpen(false)} 
+                title="Edit Creator Profile"
+                radius="md"
+            >
+                <Stack gap="md">
+                    <TextInput 
+                        label="Artist Name" 
+                        value={editForm.canonical_name} 
+                        onChange={(e) => setEditForm({ ...editForm, canonical_name: e.currentTarget.value })}
+                    />
+                    <Select 
+                        label="Creator Type"
+                        data={['Artist', 'AI Generated', 'Studio', 'Photography', 'Unknown']}
+                        value={editForm.type}
+                        onChange={(v) => setEditForm({ ...editForm, type: v || '' })}
+                    />
+                    <Textarea 
+                        label="Internal Notes"
+                        placeholder="Add links or artist info..."
+                        value={editForm.notes}
+                        onChange={(e) => setEditForm({ ...editForm, notes: e.currentTarget.value })}
+                        minRows={3}
+                    />
+                    <Button fullWidth onClick={handleUpdate} mt="md">Save Changes</Button>
+                </Stack>
+            </Modal>
         </Container>
     );
 }

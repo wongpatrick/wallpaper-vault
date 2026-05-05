@@ -1,32 +1,37 @@
-import { Title, Text, Container, SimpleGrid, Loader, Center, Alert, Stack, TextInput, Group, Select } from '@mantine/core';
+import { Title, Text, Container, SimpleGrid, Loader, Center, Alert, Stack, TextInput, Group, Select, Pagination } from '@mantine/core';
 import { IconAlertCircle, IconSearch, IconFilter } from '@tabler/icons-react';
 import { useReadSetsApiSetsGet, useDeleteSetApiSetsSetIdDelete } from '../../api/generated/sets/sets';
 import { notifications } from '@mantine/notifications';
 import { SetCard } from './components/SetCard';
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
+
+const PAGE_SIZE = 12;
 
 export default function Sets() {
-    const { data: sets, isLoading, error, refetch } = useReadSetsApiSetsGet();
-    const deleteMutation = useDeleteSetApiSetsSetIdDelete();
-
-    // Filter State
+    // 1. All hooks at the top
+    const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState<string | null>(null);
 
-    const filteredSets = useMemo(() => {
-        if (!sets) return [];
-        return sets.filter(set => {
-            const matchesSearch = !search || 
-                set.title?.toLowerCase().includes(search.toLowerCase()) ||
-                set.creators?.some(c => c.canonical_name.toLowerCase().includes(search.toLowerCase()));
-            
-            const matchesType = !typeFilter || 
-                set.creators?.some(c => c.type === typeFilter);
+    // Reset page to 1 when filters change
+    useEffect(() => {
+        setPage(1);
+    }, [search, typeFilter]);
 
-            return matchesSearch && matchesType;
-        });
-    }, [sets, search, typeFilter]);
+    const { data: pageData, isLoading, error, refetch } = useReadSetsApiSetsGet({
+        skip: (page - 1) * PAGE_SIZE,
+        limit: PAGE_SIZE,
+        search: search || undefined,
+        creator_type: typeFilter || undefined
+    });
 
+    const sets = pageData?.items || [];
+    const totalCount = pageData?.total || 0;
+    const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+    const deleteMutation = useDeleteSetApiSetsSetIdDelete();
+
+    // 2. Early returns
     if (isLoading) {
         return (
             <Center h={400}>
@@ -45,6 +50,7 @@ export default function Sets() {
         );
     }
 
+    // 3. Handlers
     const handleDelete = async (setId: number) => {
         try {
             await deleteMutation.mutateAsync({ setId });
@@ -70,8 +76,8 @@ export default function Sets() {
 
             <Group mb="xl" grow align="flex-end">
                 <TextInput
-                    placeholder="Search by title or artist..."
-                    label="Search library"
+                    placeholder="Search titles or artists..."
+                    label="Search entire library"
                     leftSection={<IconSearch size={16} />}
                     value={search}
                     onChange={(e) => setSearch(e.currentTarget.value)}
@@ -88,16 +94,22 @@ export default function Sets() {
             </Group>
             
             <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
-                {filteredSets.map((set) => (
+                {sets.map((set) => (
                     <SetCard key={set.id} set={set} onDelete={handleDelete} />
                 ))}
             </SimpleGrid>
             
-            {filteredSets.length === 0 && (
+            {sets.length === 0 && (
                 <Stack align="center" py={100} gap="md">
                     <Text size="xl" fw={500} c="dimmed">No sets match your filters</Text>
                     <Text c="dimmed">Try adjusting your search terms or clearing the type filter.</Text>
                 </Stack>
+            )}
+
+            {totalPages > 1 && (
+                <Center mt="xl" pb="xl">
+                    <Pagination total={totalPages} value={page} onChange={setPage} withEdges />
+                </Center>
             )}
         </Container>
     );

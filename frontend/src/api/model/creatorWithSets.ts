@@ -6,6 +6,7 @@
  */
 import type { CreatorWithSetsType } from './creatorWithSetsType';
 import type { CreatorWithSetsNotes } from './creatorWithSetsNotes';
+import type { CreatorWithSetsStats } from './creatorWithSetsStats';
 import type { Set } from './set';
 
 export interface CreatorWithSets {
@@ -13,5 +14,6 @@ export interface CreatorWithSets {
   type?: CreatorWithSetsType;
   notes?: CreatorWithSetsNotes;
   id: number;
+  stats?: CreatorWithSetsStats;
   sets?: Set[];
 }

@@ -27,6 +27,7 @@ import type {
   Creator,
   CreatorCreate,
   CreatorMerge,
+  CreatorPage,
   CreatorUpdate,
   CreatorWithSets,
   HTTPValidationError,
@@ -114,7 +115,7 @@ export const readCreatorsApiCreatorsGet = (
 ) => {
       
       
-      return customInstance<Creator[]>(
+      return customInstance<CreatorPage>(
       {url: `/api/creators/`, method: 'GET',
         params, signal
     },

@@ -31,6 +31,7 @@ import type {
   Set,
   SetCreate,
   SetImport,
+  SetPage,
   SetUpdate
 } from '../../model';
 
@@ -207,7 +208,7 @@ export const readSetsApiSetsGet = (
 ) => {
       
       
-      return customInstance<Set[]>(
+      return customInstance<SetPage>(
       {url: `/api/sets/`, method: 'GET',
         params, signal
     },

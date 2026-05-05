@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.crud import creator as crud_creator
-from app.schemas.creator import Creator, CreatorCreate, CreatorWithSets, CreatorMerge
+from app.schemas.creator import Creator, CreatorCreate, CreatorWithSets, CreatorMerge, CreatorPage
 from sqlalchemy.exc import IntegrityError
 
 router = APIRouter()
@@ -24,14 +25,16 @@ async def create_creator(
 
         raise e 
 
-@router.get("/", response_model=list[Creator])
+@router.get("/", response_model=CreatorPage)
 async def read_creators(
         skip: int = 0,
         limit: int = 100,
+        search: Optional[str] = None,
+        creator_type: Optional[str] = None,
         db: AsyncSession = Depends(get_db)
 ):
-    creators = await crud_creator.get_creators(db, skip=skip, limit=limit)
-    return creators
+    creators, total = await crud_creator.get_creators(db, skip=skip, limit=limit, search=search, creator_type=creator_type)
+    return CreatorPage(items=creators, total=total, skip=skip, limit=limit)
 
 @router.get("/{creator_id}", response_model=CreatorWithSets)
 async def read_creator(
