@@ -155,9 +155,16 @@ async def update_set(db: AsyncSession, set_id: int, set_in: SetUpdate) -> Option
     if not db_set:
         return None
     
-    update_data = set_in.model_dump(exclude_unset=True)
+    update_data = set_in.model_dump(exclude_unset=True, exclude={"creator_ids"})
     for field in update_data:
         setattr(db_set, field, update_data[field])
+    
+    if set_in.creator_ids is not None:
+        result = await db.execute(
+            select(Creator).where(Creator.id.in_(set_in.creator_ids))
+        )
+        creators = result.scalars().all()
+        db_set.creators = list(creators)
     
     db.add(db_set)
     await db.commit()

@@ -10,6 +10,7 @@ class SetBase(BaseModel):
     local_path: Optional[str] = None
     phash: Optional[str] = None
     notes: Optional[str] = None
+    tags: Optional[str] = None
 
 class SetCreate(SetBase):
     creator_ids: list[int] = []
@@ -51,7 +52,7 @@ class BatchImportResponse(BaseModel):
     status: Optional[str] = None
 
 class SetUpdate(SetBase):
-    pass
+    creator_ids: Optional[list[int]] = None
 
 class Set(SetBase):
     id: int

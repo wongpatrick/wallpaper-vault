@@ -1,27 +1,31 @@
-import { Title, Text, Container, SimpleGrid, Loader, Center, Alert, Stack, TextInput, Group, Select, Pagination } from '@mantine/core';
+import { Title, Text, Container, SimpleGrid, Loader, Center, Alert, Stack, TextInput, Group, Select, Pagination, Box, Overlay } from '@mantine/core';
 import { IconAlertCircle, IconSearch, IconFilter } from '@tabler/icons-react';
 import { useReadSetsApiSetsGet, useDeleteSetApiSetsSetIdDelete } from '../../api/generated/sets/sets';
 import { notifications } from '@mantine/notifications';
 import { SetCard } from './components/SetCard';
 import { useState, useEffect } from 'react';
+import { useDebouncedValue } from '@mantine/hooks';
 
 const PAGE_SIZE = 12;
 
 export default function Sets() {
-    // 1. All hooks at the top
+    // State
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState<string | null>(null);
 
+    // Debounce search
+    const [debouncedSearch] = useDebouncedValue(search, 300);
+
     // Reset page to 1 when filters change
     useEffect(() => {
         setPage(1);
-    }, [search, typeFilter]);
+    }, [debouncedSearch, typeFilter]);
 
-    const { data: pageData, isLoading, error, refetch } = useReadSetsApiSetsGet({
+    const { data: pageData, isLoading, isFetching, error, refetch } = useReadSetsApiSetsGet({
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         creator_type: typeFilter || undefined
     });
 
@@ -31,26 +35,7 @@ export default function Sets() {
 
     const deleteMutation = useDeleteSetApiSetsSetIdDelete();
 
-    // 2. Early returns
-    if (isLoading) {
-        return (
-            <Center h={400}>
-                <Loader size="xl" />
-            </Center>
-        );
-    }
-
-    if (error) {
-        return (
-            <Container size="xl">
-                <Alert icon={<IconAlertCircle size="1rem" />} title="Error!" color="red">
-                    Could not fetch sets from the backend. Make sure your FastAPI server is running!
-                </Alert>
-            </Container>
-        );
-    }
-
-    // 3. Handlers
+    // Handlers
     const handleDelete = async (setId: number) => {
         try {
             await deleteMutation.mutateAsync({ setId });
@@ -93,18 +78,44 @@ export default function Sets() {
                 />
             </Group>
             
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
-                {sets.map((set) => (
-                    <SetCard key={set.id} set={set} onDelete={handleDelete} />
-                ))}
-            </SimpleGrid>
-            
-            {sets.length === 0 && (
-                <Stack align="center" py={100} gap="md">
-                    <Text size="xl" fw={500} c="dimmed">No sets match your filters</Text>
-                    <Text c="dimmed">Try adjusting your search terms or clearing the type filter.</Text>
-                </Stack>
-            )}
+            <Box style={{ position: 'relative', minHeight: 400 }}>
+                 {/* Initial Loading */}
+                 {isLoading && !sets.length ? (
+                    <Center py={100}><Loader size="xl" /></Center>
+                ) : (
+                    <>
+                        {/* Re-fetching Overlay (Search/Pagination) */}
+                        {isFetching && (
+                            <Overlay color="#fff" backgroundOpacity={0.5} blur={1} zIndex={10}>
+                                <Center style={{ height: '100%' }}>
+                                    <Loader size="lg" />
+                                </Center>
+                            </Overlay>
+                        )}
+
+                        {error ? (
+                            <Alert icon={<IconAlertCircle size="1rem" />} title="Error!" color="red">
+                                Could not fetch sets from the backend.
+                            </Alert>
+                        ) : (
+                            <>
+                                <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
+                                    {sets.map((set) => (
+                                        <SetCard key={set.id} set={set} onDelete={handleDelete} />
+                                    ))}
+                                </SimpleGrid>
+                                
+                                {sets.length === 0 && !isFetching && (
+                                    <Stack align="center" py={100} gap="md">
+                                        <Text size="xl" fw={500} c="dimmed">No sets match your filters</Text>
+                                        <Text c="dimmed">Try adjusting your search terms or clearing the type filter.</Text>
+                                    </Stack>
+                                )}
+                            </>
+                        )}
+                    </>
+                )}
+            </Box>
 
             {totalPages > 1 && (
                 <Center mt="xl" pb="xl">

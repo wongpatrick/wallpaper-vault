@@ -1,4 +1,4 @@
-import { Card, AspectRatio, Image, Box, Text } from '@mantine/core';
+import { Card, Image, Box, Text } from '@mantine/core';
 import { getImageUrl } from '../../../utils/fileUtils';
 import type { Image as ImageModel } from '../../../api/model';
 
@@ -14,16 +14,21 @@ export function ImageGridItem({ image, onClick }: ImageGridItemProps) {
             radius="md" 
             withBorder 
             className="image-card"
-            style={{ cursor: 'pointer', overflow: 'hidden' }}
+            style={{ 
+                cursor: 'pointer', 
+                overflow: 'hidden',
+                marginBottom: '16px', // Gap between items in the column
+                breakInside: 'avoid', // Prevent card from breaking across columns
+                display: 'block'
+            }}
             onClick={onClick}
         >
-            <AspectRatio ratio={image.width && image.height ? image.width / image.height : 16/9}>
-                <Image 
-                    src={getImageUrl(image.id)} 
-                    alt={image.filename}
-                    loading="lazy"
-                />
-            </AspectRatio>
+            <Image 
+                src={getImageUrl(image.id)} 
+                alt={image.filename}
+                loading="lazy"
+                style={{ width: '100%', height: 'auto', display: 'block' }}
+            />
             <Box
                 className="image-overlay"
                 style={{

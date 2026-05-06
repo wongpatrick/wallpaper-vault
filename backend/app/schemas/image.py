@@ -16,9 +16,13 @@ class ImageBase(BaseModel):
 class ImageCreate(ImageBase):
     pass
 
-class ImageUpdate(ImageBase):
+class ImageUpdate(BaseModel):
     filename: Optional[str] = None
     local_path: Optional[str] = None
+    phash: Optional[str] = None
+    aspect_ratio_label: Optional[str] = None
+    sort_order: Optional[int] = None
+    notes: Optional[str] = None
 
 class Image(ImageBase):
     id: int

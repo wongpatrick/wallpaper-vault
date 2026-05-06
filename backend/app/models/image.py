@@ -16,11 +16,11 @@ class Image(Base):
     phash: Mapped[Optional[str]] = mapped_column()
     width: Mapped[Optional[int]] = mapped_column()
     height: Mapped[Optional[int]] = mapped_column()
-    file_size: Mapped[Optional[int]] = mapped_column()
+    file_size:  Mapped[Optional[int]] = mapped_column()
     aspect_ratio: Mapped[Optional[float]] = mapped_column()
     aspect_ratio_label: Mapped[Optional[str]] = mapped_column()
     sort_order: Mapped[Optional[int]] = mapped_column()
-    notes: Mapped[Optional[str]] = mapped_column()
+    notes:      Mapped[Optional[str]] = mapped_column()
     date_added: Mapped[str] = mapped_column(server_default=text("(date('now'))"))
 
     set: Mapped["Set"] = relationship(back_populates="images")
