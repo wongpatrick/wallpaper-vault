@@ -7,10 +7,6 @@
 import type { ImageUpdateFilename } from './imageUpdateFilename';
 import type { ImageUpdateLocalPath } from './imageUpdateLocalPath';
 import type { ImageUpdatePhash } from './imageUpdatePhash';
-import type { ImageUpdateWidth } from './imageUpdateWidth';
-import type { ImageUpdateHeight } from './imageUpdateHeight';
-import type { ImageUpdateFileSize } from './imageUpdateFileSize';
-import type { ImageUpdateAspectRatio } from './imageUpdateAspectRatio';
 import type { ImageUpdateAspectRatioLabel } from './imageUpdateAspectRatioLabel';
 import type { ImageUpdateSortOrder } from './imageUpdateSortOrder';
 import type { ImageUpdateNotes } from './imageUpdateNotes';
@@ -19,10 +15,6 @@ export interface ImageUpdate {
   filename?: ImageUpdateFilename;
   local_path?: ImageUpdateLocalPath;
   phash?: ImageUpdatePhash;
-  width?: ImageUpdateWidth;
-  height?: ImageUpdateHeight;
-  file_size?: ImageUpdateFileSize;
-  aspect_ratio?: ImageUpdateAspectRatio;
   aspect_ratio_label?: ImageUpdateAspectRatioLabel;
   sort_order?: ImageUpdateSortOrder;
   notes?: ImageUpdateNotes;

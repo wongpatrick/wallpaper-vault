@@ -1,30 +1,37 @@
-import { Title, Text, Container, Table, Group, Loader, Center, Alert, ActionIcon, TextInput, Select, Stack, Button, Modal, Pagination } from '@mantine/core';
+import { Title, Text, Container, Table, Group, Loader, Center, Alert, ActionIcon, TextInput, Select, Stack, Button, Modal, Pagination, Overlay, Box } from '@mantine/core';
 import { IconAlertCircle, IconChevronRight, IconSearch, IconFilter, IconGitMerge } from '@tabler/icons-react';
 import { useReadCreatorsApiCreatorsGet, useMergeCreatorsApiCreatorsMergePost } from '../../api/generated/creators/creators';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { notifications } from '@mantine/notifications';
 import { CreatorAvatar } from './components/CreatorAvatar';
+import { useDebouncedValue } from '@mantine/hooks';
 
 const PAGE_SIZE = 12;
 
 export default function Creators() {
     const navigate = useNavigate();
     
-    // 1. All hooks at the top
+    // State
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState<string | null>(null);
+    const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+    const [sourceCreatorId, setSourceCreatorId] = useState<string | null>(null);
+    const [targetCreatorId, setTargetCreatorId] = useState<string | null>(null);
+
+    // Debounce search to avoid API spam
+    const [debouncedSearch] = useDebouncedValue(search, 300);
 
     // Reset page when filters change
     useEffect(() => {
         setPage(1);
-    }, [search, typeFilter]);
+    }, [debouncedSearch, typeFilter]);
 
-    const { data: pageData, isLoading, error, refetch } = useReadCreatorsApiCreatorsGet({
+    const { data: pageData, isLoading, isFetching, error, refetch } = useReadCreatorsApiCreatorsGet({
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         creator_type: typeFilter || undefined
     });
     
@@ -34,36 +41,12 @@ export default function Creators() {
 
     const mergeMutation = useMergeCreatorsApiCreatorsMergePost();
 
-    // Merge Modal State
-    const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
-    const [sourceCreatorId, setSourceCreatorId] = useState<string | null>(null);
-    const [targetCreatorId, setTargetCreatorId] = useState<string | null>(null);
-
     const creatorOptions = useMemo(() => creators.map(c => ({
         value: String(c.id),
         label: c.canonical_name
     })) || [], [creators]);
 
-    // 2. Early returns
-    if (isLoading) {
-        return (
-            <Center h={400}>
-                <Loader size="xl" />
-            </Center>
-        );
-    }
-
-    if (error) {
-        return (
-            <Container size="xl">
-                <Alert icon={<IconAlertCircle size="1rem" />} title="Error!" color="red">
-                    Could not fetch creators from the backend. Make sure your FastAPI server is running!
-                </Alert>
-            </Container>
-        );
-    }
-
-    // 3. Handlers
+    // Handlers
     const handleMerge = async () => {
         if (!sourceCreatorId || !targetCreatorId) return;
         try {
@@ -144,26 +127,52 @@ export default function Creators() {
                 />
             </Group>
             
-            <Table.ScrollContainer minWidth={500}>
-                <Table verticalSpacing="sm" highlightOnHover>
-                    <Table.Thead>
-                        <Table.Tr>
-                            <Table.Th>Name</Table.Th>
-                            <Table.Th>Type</Table.Th>
-                            <Table.Th>Notes</Table.Th>
-                            <Table.Th />
-                        </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>{rows}</Table.Tbody>
-                </Table>
-            </Table.ScrollContainer>
-            
-            {creators.length === 0 && (
-                <Stack align="center" py={100} gap="md">
-                    <Text size="xl" fw={500} c="dimmed">No artists match your filters</Text>
-                    <Text c="dimmed">Try adjusting your search terms or clearing the filter.</Text>
-                </Stack>
-            )}
+            <Box style={{ position: 'relative', minHeight: 200 }}>
+                {/* Initial Loading State */}
+                {isLoading && !creators.length ? (
+                    <Center py={100}><Loader size="xl" /></Center>
+                ) : (
+                    <>
+                        {/* Fetching Overlay (for search/pagination) */}
+                        {isFetching && (
+                            <Overlay color="#fff" backgroundOpacity={0.5} blur={2} zIndex={10}>
+                                <Center style={{ height: '100%' }}>
+                                    <Loader size="lg" />
+                                </Center>
+                            </Overlay>
+                        )}
+
+                        {error ? (
+                             <Alert icon={<IconAlertCircle size="1rem" />} title="Error!" color="red">
+                                Could not fetch creators from the backend.
+                            </Alert>
+                        ) : (
+                            <>
+                                <Table.ScrollContainer minWidth={500}>
+                                    <Table verticalSpacing="sm" highlightOnHover>
+                                        <Table.Thead>
+                                            <Table.Tr>
+                                                <Table.Th>Name</Table.Th>
+                                                <Table.Th>Type</Table.Th>
+                                                <Table.Th>Notes</Table.Th>
+                                                <Table.Th />
+                                            </Table.Tr>
+                                        </Table.Thead>
+                                        <Table.Tbody>{rows}</Table.Tbody>
+                                    </Table>
+                                </Table.ScrollContainer>
+                                
+                                {creators.length === 0 && !isFetching && (
+                                    <Stack align="center" py={100} gap="md">
+                                        <Text size="xl" fw={500} c="dimmed">No artists match your filters</Text>
+                                        <Text c="dimmed">Try adjusting your search terms or clearing the filter.</Text>
+                                    </Stack>
+                                )}
+                            </>
+                        )}
+                    </>
+                )}
+            </Box>
 
             {totalPages > 1 && (
                 <Center mt="xl" pb="xl">

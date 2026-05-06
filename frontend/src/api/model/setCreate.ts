@@ -9,6 +9,7 @@ import type { SetCreateSourceUrl } from './setCreateSourceUrl';
 import type { SetCreateLocalPath } from './setCreateLocalPath';
 import type { SetCreatePhash } from './setCreatePhash';
 import type { SetCreateNotes } from './setCreateNotes';
+import type { SetCreateTags } from './setCreateTags';
 import type { ImageCreate } from './imageCreate';
 
 export interface SetCreate {
@@ -17,6 +18,7 @@ export interface SetCreate {
   local_path?: SetCreateLocalPath;
   phash?: SetCreatePhash;
   notes?: SetCreateNotes;
+  tags?: SetCreateTags;
   creator_ids?: number[];
   images?: ImageCreate[];
 }

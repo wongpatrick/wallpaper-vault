@@ -9,6 +9,7 @@ import type { SetSourceUrl } from './setSourceUrl';
 import type { SetLocalPath } from './setLocalPath';
 import type { SetPhash } from './setPhash';
 import type { SetNotes } from './setNotes';
+import type { SetTags } from './setTags';
 import type { Creator } from './creator';
 import type { Image } from './image';
 
@@ -18,6 +19,7 @@ export interface Set {
   local_path?: SetLocalPath;
   phash?: SetPhash;
   notes?: SetNotes;
+  tags?: SetTags;
   id: number;
   date_added: string;
   creators?: Creator[];

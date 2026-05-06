@@ -1,5 +1,5 @@
 import { Modal, Box, Group, Stack, Text, Button, ActionIcon, Center, Image } from '@mantine/core';
-import { IconWallpaper, IconX, IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
+import { IconWallpaper, IconX, IconChevronLeft, IconChevronRight, IconEdit } from '@tabler/icons-react';
 import { getImageUrl } from '../../../utils/fileUtils';
 import type { Image as ImageModel } from '../../../api/model';
 
@@ -8,9 +8,10 @@ interface LightboxProps {
     selectedIndex: number | null;
     onClose: () => void;
     onSelectIndex: (index: number) => void;
+    onEdit: (image: ImageModel) => void;
 }
 
-export function Lightbox({ images, selectedIndex, onClose, onSelectIndex }: LightboxProps) {
+export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit }: LightboxProps) {
     if (selectedIndex === null) return null;
     
     const currentImage = images[selectedIndex];
@@ -48,6 +49,14 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex }: Ligh
                         </Text>
                     </Stack>
                     <Group>
+                        <Button 
+                            leftSection={<IconEdit size={18} />} 
+                            variant="subtle" 
+                            color="gray"
+                            onClick={() => onEdit(currentImage)}
+                        >
+                            Edit
+                        </Button>
                         <Button leftSection={<IconWallpaper size={18} />} color="blue" variant="filled">
                             Set as Wallpaper
                         </Button>

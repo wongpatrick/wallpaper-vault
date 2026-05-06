@@ -9,6 +9,8 @@ import type { SetUpdateSourceUrl } from './setUpdateSourceUrl';
 import type { SetUpdateLocalPath } from './setUpdateLocalPath';
 import type { SetUpdatePhash } from './setUpdatePhash';
 import type { SetUpdateNotes } from './setUpdateNotes';
+import type { SetUpdateTags } from './setUpdateTags';
+import type { SetUpdateCreatorIds } from './setUpdateCreatorIds';
 
 export interface SetUpdate {
   title?: SetUpdateTitle;
@@ -16,4 +18,6 @@ export interface SetUpdate {
   local_path?: SetUpdateLocalPath;
   phash?: SetUpdatePhash;
   notes?: SetUpdateNotes;
+  tags?: SetUpdateTags;
+  creator_ids?: SetUpdateCreatorIds;
 }
