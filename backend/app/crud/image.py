@@ -1,8 +1,43 @@
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.models.image import Image
+from app.models.set import Set
+from app.models.creator import Creator
 from app.schemas.image import ImageUpdate, ImageCreate
+
+async def get_random_image(
+    db: AsyncSession, 
+    tags: Optional[list[str]] = None, 
+    aspect_ratio_label: Optional[str] = None,
+    min_width: Optional[int] = None,
+    min_height: Optional[int] = None,
+    creator_id: Optional[int] = None
+) -> Optional[Image]:
+    query = select(Image).join(Image.set)
+    
+    if tags:
+        # Assuming tags are stored as a comma-separated string in the Set model
+        for tag in tags:
+            query = query.filter(Set.tags.icontains(tag))
+            
+    if aspect_ratio_label:
+        query = query.filter(Image.aspect_ratio_label == aspect_ratio_label)
+        
+    if min_width:
+        query = query.filter(Image.width >= min_width)
+        
+    if min_height:
+        query = query.filter(Image.height >= min_height)
+        
+    if creator_id:
+        query = query.join(Set.creators).filter(Creator.id == creator_id)
+
+    # Order by random and get one
+    query = query.order_by(func.random()).limit(1)
+    
+    result = await db.execute(query)
+    return result.scalar_one_or_none()
 
 async def get_image(db: AsyncSession, image_id: int) -> Optional[Image]:
     result = await db.execute(select(Image).filter(Image.id == image_id))

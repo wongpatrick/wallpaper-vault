@@ -1,9 +1,10 @@
 import { Title, Text, Container, Stack, SimpleGrid, Paper, Group, ActionIcon, UnstyledButton, rem, ThemeIcon } from '@mantine/core';
-import { IconArrowLeft, IconFileSearch, IconChevronRight, IconCrop, IconCloudUpload } from '@tabler/icons-react';
+import { IconArrowLeft, IconFileSearch, IconChevronRight, IconCrop, IconCloudUpload, IconWallpaper } from '@tabler/icons-react';
 import { useState } from 'react';
 import { FolderParser } from '../../components/tools/FolderParser';
 import { ImageCropper } from '../../components/tools/ImageCropper';
 import { BatchImporter } from '../../components/tools/BatchImporter';
+import { WallpaperLinkGenerator } from '../../components/tools/WallpaperLinkGenerator';
 
 interface Tool {
     id: string;
@@ -34,6 +35,13 @@ const TOOLS: Tool[] = [
         description: 'Streamlined AI-cropping and vaulting for new sets.',
         icon: <IconCloudUpload style={{ width: rem(32), height: rem(32) }} />,
         color: 'grape'
+    },
+    {
+        id: 'wallpaper-link',
+        title: 'Wallpaper Link Generator',
+        description: 'Create and copy random image URLs for DisplayFusion.',
+        icon: <IconWallpaper style={{ width: rem(32), height: rem(32) }} />,
+        color: 'teal'
     }
 ];
 
@@ -116,6 +124,7 @@ export default function Tools() {
                         {activeTool === 'folder-parser' && <FolderParser />}
                         {activeTool === 'image-cropper' && <ImageCropper />}
                         {activeTool === 'batch-importer' && <BatchImporter />}
+                        {activeTool === 'wallpaper-link' && <WallpaperLinkGenerator />}
                     </Stack>
                 )}
             </Stack>

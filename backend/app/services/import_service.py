@@ -11,17 +11,8 @@ from app.schemas.creator import CreatorCreate
 from app.models.image import Image
 from app.models.set import Set
 from app.core.crop import collect_image_paths, process_image
+from app.core.utils import sanitize_filename
 from app.core import tasks
-
-def sanitize_filename(filename: str) -> str:
-    """Removes or replaces characters that are illegal in Windows/Unix filenames."""
-    # Replace reserved characters with a dash
-    # < > : " / \ | ? *
-    sanitized = re.sub(r'[<>:"/\\|?*]', '-', filename)
-    # Remove control characters
-    sanitized = "".join(char for char in sanitized if ord(char) >= 32)
-    # Trim whitespace and dots at the end (Windows doesn't like them)
-    return sanitized.strip().strip('.')
 
 async def gather_candidates(db: AsyncSession, batch_in: BatchImportRequest) -> list[dict]:
     """Phase 1: Gather potential folders for import."""
