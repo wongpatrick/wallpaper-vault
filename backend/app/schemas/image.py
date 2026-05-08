@@ -30,3 +30,16 @@ class Image(ImageBase):
     date_added: str
 
     model_config = ConfigDict(from_attributes=True)
+
+class ImageWithContext(Image):
+    set_title: str
+    creator_names: list[str]
+
+class DuplicateGroup(BaseModel):
+    phash: str
+    images: list[ImageWithContext]
+    recommended_keep_id: int
+
+class DuplicateResolutionRequest(BaseModel):
+    keep_image_id: int
+    remove_image_ids: list[int]

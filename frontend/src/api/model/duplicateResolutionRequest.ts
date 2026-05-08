@@ -5,7 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CreatorMerge {
-  source_ids: number[];
-  target_id: number;
+export interface DuplicateResolutionRequest {
+  keep_image_id: number;
+  remove_image_ids: number[];
 }

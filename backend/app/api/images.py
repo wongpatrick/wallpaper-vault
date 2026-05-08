@@ -4,10 +4,84 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.crud import image as crud_image
-from app.schemas.image import Image, ImageUpdate, ImageCreate
+from app.schemas.image import Image, ImageUpdate, ImageCreate, DuplicateGroup, DuplicateResolutionRequest, ImageWithContext
 from pathlib import Path
 
 router = APIRouter()
+
+@router.get("/duplicates/groups", response_model=List[DuplicateGroup])
+async def read_duplicate_groups(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all groups of duplicate images.
+    """
+    groups_dict = await crud_image.get_duplicate_groups(db)
+    
+    result = []
+    for phash, img_list in groups_dict.items():
+        # Map to schema
+        images_with_context = []
+        for img in img_list:
+            images_with_context.append(
+                ImageWithContext(
+                    id=img.id,
+                    set_id=img.set_id,
+                    filename=img.filename,
+                    local_path=img.local_path,
+                    phash=img.phash,
+                    width=img.width,
+                    height=img.height,
+                    file_size=img.file_size,
+                    aspect_ratio=img.aspect_ratio,
+                    aspect_ratio_label=img.aspect_ratio_label,
+                    sort_order=img.sort_order,
+                    notes=img.notes,
+                    date_added=str(img.date_added),
+                    set_title=img.set.title,
+                    creator_names=[c.canonical_name for c in img.set.creators]
+                )
+            )
+        
+        # Sort: Highest resolution first, then by set name
+        def score_img(img):
+            score = 0
+            if "Needs Organizing" not in (" ".join(img.creator_names)):
+                score += 1000
+            score += (img.width * img.height) / 1000000
+            return score
+            
+        images_with_context.sort(key=score_img, reverse=True)
+        
+        result.append(
+            DuplicateGroup(
+                phash=phash,
+                images=images_with_context,
+                recommended_keep_id=images_with_context[0].id
+            )
+        )
+    
+    return result
+
+@router.post("/duplicates/resolve")
+async def resolve_duplicates(
+    request: DuplicateResolutionRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Resolve a duplicate group by keeping one image and removing others.
+    """
+    try:
+        removed, saved = await crud_image.resolve_duplicates(
+            db, 
+            keep_id=request.keep_image_id, 
+            remove_ids=request.remove_image_ids
+        )
+        return {"status": "success", "removed_count": removed, "space_saved_bytes": saved}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/random/file/{ratio}/tags/{tags:path}/image.jpg")
 async def read_random_image_file_path_tags(

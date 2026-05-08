@@ -13,7 +13,7 @@ class CreatorUpdate(CreatorBase):
     canonical_name: Optional[str] = None
 
 class CreatorMerge(BaseModel):
-    source_id: int
+    source_ids: list[int]
     target_id: int
 
 class CreatorStats(BaseModel):

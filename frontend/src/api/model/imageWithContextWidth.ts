@@ -5,7 +5,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CreatorMerge {
-  source_ids: number[];
-  target_id: number;
-}
+export type ImageWithContextWidth = number | null;

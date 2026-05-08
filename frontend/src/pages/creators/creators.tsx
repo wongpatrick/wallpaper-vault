@@ -1,10 +1,11 @@
-import { Title, Text, Container, Table, Group, Loader, Center, Alert, ActionIcon, TextInput, Select, Stack, Button, Modal, Pagination, Overlay, Box } from '@mantine/core';
-import { IconAlertCircle, IconChevronRight, IconSearch, IconFilter, IconGitMerge } from '@tabler/icons-react';
+import { Title, Text, Container, Table, Group, Loader, Center, Alert, ActionIcon, TextInput, Select, Stack, Button, Modal, Pagination, Overlay, Box, MultiSelect } from '@mantine/core';
+import { IconAlertCircle, IconChevronRight, IconSearch, IconFilter, IconGitMerge, IconPlus } from '@tabler/icons-react';
 import { useReadCreatorsApiCreatorsGet, useMergeCreatorsApiCreatorsMergePost } from '../../api/generated/creators/creators';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { notifications } from '@mantine/notifications';
 import { CreatorAvatar } from './components/CreatorAvatar';
+import { CreatorCreateForm } from './components/CreatorCreateForm';
 import { useDebouncedValue } from '@mantine/hooks';
 
 const PAGE_SIZE = 12;
@@ -17,7 +18,8 @@ export default function Creators() {
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState<string | null>(null);
     const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
-    const [sourceCreatorId, setSourceCreatorId] = useState<string | null>(null);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [sourceCreatorIds, setSourceCreatorIds] = useState<string[]>([]);
     const [targetCreatorId, setTargetCreatorId] = useState<string | null>(null);
 
     // Debounce search to avoid API spam
@@ -35,34 +37,48 @@ export default function Creators() {
         creator_type: typeFilter || undefined
     });
     
+    // Separate query to fetch ALL creators for the merge dropdowns (high limit)
+    const { data: allCreatorsData } = useReadCreatorsApiCreatorsGet({
+        skip: 0,
+        limit: 1000,
+        // No filters here so the user can search everything in the dropdown
+    }, {
+        query: {
+            enabled: isMergeModalOpen // Only fetch when modal is open
+        }
+    });
+
     const creators = pageData?.items || [];
     const totalCount = pageData?.total || 0;
     const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
     const mergeMutation = useMergeCreatorsApiCreatorsMergePost();
 
-    const creatorOptions = useMemo(() => creators.map(c => ({
-        value: String(c.id),
-        label: c.canonical_name
-    })) || [], [creators]);
+    const creatorOptions = useMemo(() => {
+        const list = allCreatorsData?.items || [];
+        return list.map(c => ({
+            value: String(c.id),
+            label: c.canonical_name
+        })).sort((a, b) => a.label.localeCompare(b.label));
+    }, [allCreatorsData]);
 
     // Handlers
     const handleMerge = async () => {
-        if (!sourceCreatorId || !targetCreatorId) return;
+        if (sourceCreatorIds.length === 0 || !targetCreatorId) return;
         try {
             await mergeMutation.mutateAsync({ 
                 data: { 
-                    source_id: Number(sourceCreatorId), 
+                    source_ids: sourceCreatorIds.map(id => Number(id)), 
                     target_id: Number(targetCreatorId) 
                 } 
             });
-            notifications.show({ title: 'Success', message: 'Creators merged successfully', color: 'green' });
+            notifications.show({ title: 'Success', message: 'Artists merged successfully', color: 'green' });
             setIsMergeModalOpen(false);
-            setSourceCreatorId(null);
+            setSourceCreatorIds([]);
             setTargetCreatorId(null);
             refetch();
         } catch {
-            notifications.show({ title: 'Error', message: 'Could not merge creators', color: 'red' });
+            notifications.show({ title: 'Error', message: 'Could not merge artists', color: 'red' });
         }
     };
 
@@ -98,13 +114,21 @@ export default function Creators() {
         <Container size="xl">
             <Group justify="space-between" mb="xs">
                 <Title order={1}>🎨 Artists & Creators</Title>
-                <Button 
-                    variant="light" 
-                    leftSection={<IconGitMerge size={16} />}
-                    onClick={() => setIsMergeModalOpen(true)}
-                >
-                    Merge Artists
-                </Button>
+                <Group>
+                    <Button 
+                        variant="light" 
+                        leftSection={<IconGitMerge size={16} />}
+                        onClick={() => setIsMergeModalOpen(true)}
+                    >
+                        Merge Artists
+                    </Button>
+                    <Button 
+                        leftSection={<IconPlus size={16} />}
+                        onClick={() => setIsCreateModalOpen(true)}
+                    >
+                        Create Artist
+                    </Button>
+                </Group>
             </Group>
             <Text c="dimmed" mb="xl">Manage the talented people behind your favorite wallpapers.</Text>
 
@@ -180,25 +204,44 @@ export default function Creators() {
                 </Center>
             )}
 
+            {/* Create Modal */}
+            <Modal 
+                opened={isCreateModalOpen} 
+                onClose={() => setIsCreateModalOpen(false)} 
+                title="Add New Artist"
+                radius="md"
+            >
+                <CreatorCreateForm 
+                    onSuccess={() => {
+                        setIsCreateModalOpen(false);
+                        refetch();
+                    }} 
+                />
+            </Modal>
+
             {/* Merge Modal */}
             <Modal 
                 opened={isMergeModalOpen} 
                 onClose={() => setIsMergeModalOpen(false)} 
                 title="Merge Artists"
                 radius="md"
+                size="lg"
             >
                 <Stack gap="md">
                     <Alert icon={<IconAlertCircle size="1rem" />} color="blue" variant="light">
-                        Merging will move all wallpaper sets from the source to the target artist, and then delete the source artist.
+                        Merging will move all wallpaper sets from the source artists to the target artist, and then delete the source artists.
                     </Alert>
                     
-                    <Select 
-                        label="Source Artist (To be deleted)"
-                        placeholder="Select artist..."
+                    <MultiSelect 
+                        label="Source Artists (To be deleted)"
+                        placeholder="Select one or more artists..."
                         data={creatorOptions}
                         searchable
-                        value={sourceCreatorId}
-                        onChange={setSourceCreatorId}
+                        value={sourceCreatorIds}
+                        onChange={setSourceCreatorIds}
+                        nothingFoundMessage="No artists found"
+                        clearable
+                        error={targetCreatorId && sourceCreatorIds.includes(targetCreatorId) ? "You cannot delete the target artist you are merging into." : undefined}
                     />
 
                     <Center>
@@ -212,6 +255,8 @@ export default function Creators() {
                         searchable
                         value={targetCreatorId}
                         onChange={setTargetCreatorId}
+                        nothingFoundMessage="No artists found"
+                        error={targetCreatorId && sourceCreatorIds.includes(targetCreatorId) ? "Target artist cannot be in the list of artists to be deleted." : undefined}
                     />
 
                     <Button 
@@ -219,9 +264,9 @@ export default function Creators() {
                         onClick={handleMerge} 
                         mt="md" 
                         color="blue"
-                        disabled={!sourceCreatorId || !targetCreatorId || sourceCreatorId === targetCreatorId}
+                        disabled={sourceCreatorIds.length === 0 || !targetCreatorId || sourceCreatorIds.includes(targetCreatorId)}
                     >
-                        Execute Merge
+                        Execute Bulk Merge
                     </Button>
                 </Stack>
             </Modal>
