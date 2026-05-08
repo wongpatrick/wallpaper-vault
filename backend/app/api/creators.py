@@ -72,14 +72,14 @@ async def merge_creators(
     merge_in: CreatorMerge,
     db: AsyncSession = Depends(get_db)
 ):
-    if merge_in.source_id == merge_in.target_id:
-        raise HTTPException(status_code=400, detail="Cannot merge a creator into itself")
+    if merge_in.target_id in merge_in.source_ids:
+        raise HTTPException(status_code=400, detail="Cannot merge an artist into itself")
 
     db_creator = await crud_creator.merge_creators(
         db, 
-        source_id=merge_in.source_id, 
+        source_ids=merge_in.source_ids, 
         target_id=merge_in.target_id
     )
     if db_creator is None:
-        raise HTTPException(status_code=404, detail="One or both creators not found")
+        raise HTTPException(status_code=404, detail="Target artist not found")
     return db_creator

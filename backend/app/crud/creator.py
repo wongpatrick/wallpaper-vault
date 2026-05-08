@@ -105,22 +105,26 @@ async def delete_creator(db: AsyncSession, creator_id: int):
         await db.commit()
     return db_creator
 
-async def merge_creators(db: AsyncSession, source_id: int, target_id: int):
-    # Load source with its sets
-    source = await get_creator(db, source_id)
+async def merge_creators(db: AsyncSession, source_ids: list[int], target_id: int):
     # Load target (with sets to ensure we don't duplicate associations)
     target = await get_creator(db, target_id)
-    
-    if not source or not target:
+    if not target:
         return None
-        
-    # Re-associate all sets from source to target
-    for s in source.sets:
-        if target not in s.creators:
-            s.creators.append(target)
+
+    for sid in source_ids:
+        # Load source with its sets
+        source = await get_creator(db, sid)
+        if not source:
+            continue
             
-    # Delete the source creator (SQLAlchemy handles many-to-many cleanup)
-    await db.delete(source)
+        # Re-associate all sets from source to target
+        for s in source.sets:
+            if target not in s.creators:
+                s.creators.append(target)
+                
+        # Delete the source creator (SQLAlchemy handles many-to-many cleanup)
+        await db.delete(source)
+    
     await db.commit()
     await db.refresh(target)
     

@@ -199,10 +199,8 @@ export default function Dashboard() {
                                 <Card.Section>
                                     <Image 
                                         src={getImageUrl(randomImage.id)} 
-                                        height={300} 
-                                        fallbackSrc="https://placehold.co/600x300?text=No+Preview"
+                                        fallbackSrc="https://placehold.co/600x400?text=No+Preview"
                                         alt="Random inspiration"
-                                        fit="cover"
                                     />
                                 </Card.Section>
                                 <Stack p="md" gap="xs">

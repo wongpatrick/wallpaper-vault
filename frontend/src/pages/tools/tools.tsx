@@ -1,10 +1,11 @@
 import { Title, Text, Container, Stack, SimpleGrid, Paper, Group, ActionIcon, UnstyledButton, rem, ThemeIcon } from '@mantine/core';
-import { IconArrowLeft, IconFileSearch, IconChevronRight, IconCrop, IconCloudUpload, IconWallpaper } from '@tabler/icons-react';
+import { IconArrowLeft, IconFileSearch, IconChevronRight, IconCrop, IconCloudUpload, IconWallpaper, IconCopy } from '@tabler/icons-react';
 import { useState } from 'react';
 import { FolderParser } from '../../components/tools/FolderParser';
 import { ImageCropper } from '../../components/tools/ImageCropper';
 import { BatchImporter } from '../../components/tools/BatchImporter';
 import { WallpaperLinkGenerator } from '../../components/tools/WallpaperLinkGenerator';
+import { DuplicateManager } from '../../components/tools/DuplicateManager';
 
 interface Tool {
     id: string;
@@ -35,6 +36,13 @@ const TOOLS: Tool[] = [
         description: 'Streamlined AI-cropping and vaulting for new sets.',
         icon: <IconCloudUpload style={{ width: rem(32), height: rem(32) }} />,
         color: 'grape'
+    },
+    {
+        id: 'duplicate-manager',
+        title: 'Duplicate Manager',
+        description: 'Find and resolve visually identical images across your library.',
+        icon: <IconCopy style={{ width: rem(32), height: rem(32) }} />,
+        color: 'red'
     },
     {
         id: 'wallpaper-link',
@@ -124,6 +132,7 @@ export default function Tools() {
                         {activeTool === 'folder-parser' && <FolderParser />}
                         {activeTool === 'image-cropper' && <ImageCropper />}
                         {activeTool === 'batch-importer' && <BatchImporter />}
+                        {activeTool === 'duplicate-manager' && <DuplicateManager />}
                         {activeTool === 'wallpaper-link' && <WallpaperLinkGenerator />}
                     </Stack>
                 )}
