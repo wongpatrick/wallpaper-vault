@@ -4,12 +4,13 @@
 The "Wallpaper Vault" frontend is a desktop shell built with **Electron** and **React**. It provides a rich, native-like interface for managing wallpaper collections and interacting with the FastAPI engine.
 
 ## 🛠️ Technical Stack
-- **Framework:** [React 18+](https://react.dev/) (Vite)
+- **Framework:** [React 19](https://react.dev/) (Vite)
 - **Desktop Shell:** [Electron](https://www.electronjs.org/)
 - **UI Toolkit:** [Mantine UI v7](https://mantine.dev/)
 - **Icons:** [Tabler Icons](https://tabler.io/icons)
 - **API Client:** [Axios](https://axios-http.com/) with [Orval](https://orval.dev/) for automatic hook generation.
 - **State & Data:** [React Query v5](https://tanstack.com/query) for efficient caching and server state.
+- **Communication:** **EventSource** for real-time task progress updates via SSE.
 
 ---
 
@@ -24,8 +25,8 @@ The frontend is organized for maximum modularity and reusability:
 
 ### 🏠 Main Views
 *   **Library (Sets):** Visual grid with live search and type-based filtering.
-*   **Artist Hub (Creators):** Portfolio views showcasing an artist's full collection.
-*   **Tools:** Specialized utilities for batch importing and image cropping.
+*   **Artist Hub (Creators):** Portfolio views showcasing an artist's full collection with merge capabilities.
+*   **Tools:** Specialized utilities for batch importing and saliency-aware image cropping.
 
 ---
 
@@ -51,5 +52,5 @@ We use **Orval** to maintain type safety across the stack.
 
 ## 🎨 Advanced Features
 - **Native OS Integration:** Open any set's folder directly in Windows Explorer via Electron's `shell` module.
-- **Precision Cropper:** A dedicated UI for creating perfect aspect-ratio crops for wallpapers.
-- **Batch Importer:** A drag-and-drop tool for bulk collection management with real-time progress tracking.
+- **Precision Cropper:** A dedicated UI for creating perfect aspect-ratio crops for wallpapers using backend saliency maps.
+- **Batch Importer:** A drag-and-drop tool for bulk collection management with real-time progress tracking via SSE.

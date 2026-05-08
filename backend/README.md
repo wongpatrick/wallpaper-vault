@@ -9,6 +9,7 @@ The "Wallpaper Vault" backend is a high-performance **FastAPI** application that
 - **ORM:** [SQLAlchemy 2.0](https://www.sqlalchemy.org/)
 - **Database:** [SQLite](https://www.sqlite.org/) (Asynchronous via `aiosqlite`)
 - **Validation:** [Pydantic v2](https://docs.pydantic.dev/)
+- **Image Processing:** [OpenCV](https://opencv.org/) with Saliency-based cropping.
 - **Linting:** [Ruff](https://github.com/astral-sh/ruff)
 
 ---
@@ -18,7 +19,7 @@ The backend follows a standard layered architecture:
 
 *   **`app/api/`**: RESTful routers and endpoint definitions.
 *   **`app/services/`**: Focused business logic services (e.g., `import_service`).
-*   **`app/core/`**: App configuration, background tasks, and crop logic.
+*   **`app/core/`**: App configuration, **SSE-based task broadcaster**, and saliency-aware crop logic.
 *   **`app/crud/`**: Reusable database interaction logic.
 *   **`app/db/`**: Connection handling and session management.
 *   **`app/models/`**: SQLAlchemy ORM models.
@@ -30,19 +31,22 @@ The import system is modularized into three distinct phases in `import_service.p
 2.  **Parse & Validate:** Applies regex templates and checks for duplicates.
 3.  **Execute:** Processes images, sanitizes paths, and saves to the database.
 
+### 📡 Real-time Updates
+The backend uses **Server-Sent Events (SSE)** via `app/core/tasks.py` to broadcast progress updates for long-running operations (like batch imports) to all connected clients.
+
 ---
 
 ## 🚦 Development
 
 ### Setup
-Ensure you have **Python 3.12+** and **uv** installed.
+Ensure you have **Python 3.14+** and **uv** installed.
 ```powershell
 uv sync
 ```
 
 ### Running the Engine
 ```powershell
-uv run python -m uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload
 ```
 
 ### Code Quality

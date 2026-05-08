@@ -5,20 +5,27 @@ A production-ready desktop application for managing high-resolution wallpaper co
 ## 🏗️ Architecture
 This project is built using a **Decoupled Engine & Shell** architecture:
 
-*   **The Engine (Backend):** A high-performance **FastAPI** server managing a SQLite database via **SQLAlchemy 2.0**.
-*   **The Shell (Frontend):** A modern **Electron** desktop application built with **React (Vite)**, **TypeScript**, and **Mantine UI**.
+*   **The Engine (Backend):** A high-performance **FastAPI** server managing a SQLite database via **SQLAlchemy 2.0 (Async)**.
+*   **The Shell (Frontend):** A modern **Electron** desktop application built with **React 19 (Vite)**, **TypeScript**, and **Mantine UI v7**.
+*   **Real-time Communication:** Uses **Server-Sent Events (SSE)** to provide live updates for background tasks.
 
 ---
 
 ## 📁 Project Structure
 ```text
 wallpaper-vault/
-├── backend/        # FastAPI application (Python 3.12+ / uv)
-│   ├── app/        # Core API logic (Models, Schemas, CRUD, Routes)
+├── backend/        # FastAPI application (Python 3.14+ / uv)
+│   ├── app/        # Core API logic
+│   │   ├── api/    # REST Endpoints (Creators, Images, Sets, Settings)
+│   │   ├── core/   # Business Logic (Saliency-aware Cropping, SSE Tasks)
+│   │   ├── crud/   # Database operations
+│   │   ├── models/ # SQLAlchemy models
+│   │   ├── schemas/# Pydantic validation
+│   │   └── services/# Complex services (Import Pipeline)
 │   └── README.md   # Backend technical documentation
 ├── frontend/       # Electron + React application (Node.js / npm)
 │   ├── electron/   # Main & Preload scripts for the desktop shell
-│   ├── src/        # React UI components and state
+│   ├── src/        # React UI components (Mantine UI)
 │   └── README.md   # Frontend technical documentation
 ├── db/             # SQLite database and schema definitions
 └── scripts/        # Utility and automation scripts
@@ -29,7 +36,7 @@ wallpaper-vault/
 ## 🚀 Getting Started
 
 ### 1. The Engine (Backend)
-Requires **Python 3.12+** and **[uv](https://github.com/astral-sh/uv)**.
+Requires **Python 3.14+** and **[uv](https://github.com/astral-sh/uv)**.
 ```powershell
 cd backend
 uv sync
@@ -49,33 +56,33 @@ npm run dev
 ---
 
 ## 🛠️ Current State
-- [x] **Backend Core:** Models, Schemas, and CRUD for Creators, Sets, and Images.
-- [x] **Desktop Shell:** Electron integration with React and IPC bridge.
-- [x] **Library Management:**
-    - Immersive **Library Grid** with cover images and metadata.
-    - **Set Detail View** with image gallery and full-screen lightbox.
-    - **Artist Hub (Creators):** Portfolio views and metadata management.
-- [x] **Advanced Features:**
-    - **Batch Importer:** Multi-phase background import pipeline with regex parsing.
-    - **Native Integration:** "Open Folder" feature using Electron's shell module.
-    - **Search & Filtering:** Live library filtering by title, artist, and type.
-    - **Merge Tool:** Consolidate duplicate artist profiles safely.
-- [x] **Precision Tools:**
-    - **Folder Parser:** Automatically scan and organize local wallpaper directories.
-    - **Precision Cropper:** Custom tool for perfectly fitting wallpapers to any aspect ratio.
+
+### ✅ Library Management
+- **Library Grid:** Immersive browsing with cover images and rich metadata.
+- **Artist Hub:** Dedicated views for creators with portfolio stats and merging tools.
+- **Set Detail:** Full gallery view with lightbox support.
+
+### ✅ Advanced Tools
+- **Precision Cropper:** Uses **Saliency Maps (Spectral Residual)** to automatically identify the "center of interest" and crop wallpapers to custom aspect ratios.
+- **Batch Importer:** A robust, multi-phase background pipeline that uses regex to parse folder structures and handle duplicates.
+- **Merge Utility:** Safely consolidate multiple artist profiles while preserving all associated sets and images.
+
+### ✅ Native & Third-Party Integration
+- **DisplayFusion Support:** Custom API endpoints (`/api/images/random/file/...`) compatible with DisplayFusion for automatic wallpaper rotation.
+- **Native File Shell:** "Open Folder" features integrated with Electron's shell for direct filesystem access.
+- **Global Settings:** Centralized configuration store for paths, aspect ratios, and more.
 
 ---
 
 ## 📋 Roadmap (To-Do)
 - [ ] **Library Repair Utility:** Automated tool to fix broken paths and re-sync database with filesystem.
-- [ ] **Smart Duplicate Detection:** Identify identical wallpapers using pHash (Perceptual Hashing).
+- [ ] **Smart Duplicate Detection:** Identify identical wallpapers using pHash (Perceptual Hashing) — *Schema ready, logic pending.*
 - [ ] **Bulk Metadata Editing:** Select multiple sets to categorize or rename in one go.
 - [ ] **Custom Themes:** User-selectable accent colors and dark/light mode persistence.
-- [ ] **Wallpaper Engine Integration:** (Optional) Support for animated wallpapers and direct "Set as Wallpaper" triggers.
 
 ---
 
 ## 💡 Developer Notes
-- **API Generation:** If backend models change, run `npm run generate` in the `frontend` directory.
-- **Styling:** We use **Mantine UI v7** for all core components.
-- **Path Handling:** All filesystem paths are normalized to ensure cross-platform compatibility.
+- **API Generation:** If backend models change, run `npm run generate` in the `frontend` directory to update the Orval-generated API client.
+- **Styling:** We use **Mantine UI v7** for all core components, prioritizing accessibility and modern aesthetics.
+- **Task System:** Long-running operations (like imports) are handled via a robust SSE-based task broadcaster for real-time UI feedback.
