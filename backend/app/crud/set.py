@@ -59,7 +59,7 @@ async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Op
     sets_query = query.distinct().options(
         selectinload(Set.creators),
         selectinload(Set.images)
-    ).order_by(Set.date_added.desc()).offset(skip).limit(limit)
+    ).order_by(Set.date_added.desc(), Set.id.desc()).offset(skip).limit(limit)
     
     result = await db.execute(sets_query)
     return list(result.scalars().all()), total
