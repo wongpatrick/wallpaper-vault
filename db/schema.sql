@@ -101,6 +101,23 @@ CREATE TABLE IF NOT EXISTS tasks (
     error_message TEXT
 );
 
+CREATE TABLE IF NOT EXISTS audit_issues (
+    id             INTEGER PRIMARY KEY,
+    task_id        TEXT    NOT NULL,
+    issue_type     TEXT    NOT NULL, -- "ghost" or "orphan"
+    path           TEXT    NOT NULL,
+    image_id       INTEGER REFERENCES images(id) ON DELETE SET NULL,
+    set_id         INTEGER REFERENCES sets(id) ON DELETE SET NULL,
+    expected_phash TEXT,
+    found_phash    TEXT,
+    match_issue_id INTEGER REFERENCES audit_issues(id) ON DELETE SET NULL,
+    status         TEXT    NOT NULL DEFAULT 'pending', -- "pending", "resolved", "ignored"
+    created_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_issues_task_id  ON audit_issues(task_id);
+CREATE INDEX IF NOT EXISTS idx_audit_issues_status   ON audit_issues(status);
+
 CREATE INDEX IF NOT EXISTS idx_creator_aliases_creator_id  ON creator_aliases(creator_id);
 CREATE INDEX IF NOT EXISTS idx_creator_aliases_alias       ON creator_aliases(alias);
 CREATE INDEX IF NOT EXISTS idx_set_creators_set_id         ON set_creators(set_id);
