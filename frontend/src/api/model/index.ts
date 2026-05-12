@@ -5,6 +5,18 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './auditFixAction';
+export * from './auditIssue';
+export * from './auditIssueCreatorName';
+export * from './auditIssueDirectory';
+export * from './auditIssueExpectedPhash';
+export * from './auditIssueFoundPhash';
+export * from './auditIssueImageId';
+export * from './auditIssueMatchIssueId';
+export * from './auditIssuePage';
+export * from './auditIssueSetId';
+export * from './auditIssueSetTitle';
+export * from './auditStartRequest';
 export * from './batchImportItem';
 export * from './batchImportItemError';
 export * from './batchImportRequest';
@@ -36,6 +48,7 @@ export * from './creatorWithSetsType';
 export * from './dashboardData';
 export * from './duplicateGroup';
 export * from './duplicateResolutionRequest';
+export * from './getAuditResultsApiAuditResultsGetParams';
 export * from './hTTPValidationError';
 export * from './healthAlert';
 export * from './image';
