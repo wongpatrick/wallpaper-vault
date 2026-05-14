@@ -5,13 +5,50 @@
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev": "concurrently --kill-others \"npm:dev:backend\" \"npm:dev:frontend\"",
     "dev:backend": "cd ../backend && uv run uvicorn app.main:app --reload",
     "dev:frontend": "vite",
     "build": "tsc -b && vite build",
+    "build-app": "tsc -b && vite build && electron-builder",
     "lint": "eslint .",
     "preview": "vite preview",
     "generate": "orval"
+  },
+  "build": {
+    "appId": "com.wallpaper-vault.app",
+    "productName": "Wallpaper Vault",
+    "directories": {
+      "output": "dist-build"
+    },
+    "files": [
+      "dist",
+      "dist-electron"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend",
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!**/__pycache__",
+          "!**/.venv",
+          "!**/.ruff_cache",
+          "!**/.python-version"
+        ]
+      },
+      {
+        "from": "../db",
+        "to": "db"
+      },
+      {
+        "from": "public",
+        "to": "public"
+      }
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "public/favicon.svg"
+    }
   },
   "dependencies": {
     "@mantine/core": "^7.17.1",
@@ -33,6 +70,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "concurrently": "^9.1.2",
     "electron": "^41.0.4",
+    "electron-builder": "^26.8.1",
     "esbuild": "^0.27.0",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",

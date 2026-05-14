@@ -7,29 +7,23 @@ import {
     Button, 
     Badge, 
     Table, 
-    Loader, 
-    Alert, 
     ActionIcon,
     Tooltip,
     Paper,
-    Divider,
     Title,
     Progress,
     Pagination,
     Select,
-    rem,
     Center,
     ScrollArea
 } from '@mantine/core';
 import { 
-    IconAlertCircle, 
     IconCheck, 
     IconTrash, 
     IconRefresh, 
     IconSearch,
     IconLink,
     IconLinkOff,
-    IconFileUnknown,
     IconFolder,
     IconPlus
 } from '@tabler/icons-react';
@@ -70,7 +64,7 @@ export function LibraryAudit() {
             setProgress(currentAudit.progress || 0);
             setStatus("Resuming scan...");
         }
-    }, [currentAudit]);
+    }, [currentAudit, taskId]);
 
     // Derive groups for Orphans
     const groupedOrphans = results?.items?.reduce((acc, issue) => {
@@ -89,7 +83,7 @@ export function LibraryAudit() {
             setTaskId(res.task_id);
             setProgress(0);
             setStatus("Starting scan...");
-        } catch (error) {
+        } catch (_err) {
             notifications.show({ title: 'Error', message: 'Failed to start audit.', color: 'red' });
         }
     };
@@ -126,7 +120,7 @@ export function LibraryAudit() {
         };
 
         return () => eventSource.close();
-    }, [taskId]);
+    }, [taskId, refetch]);
 
     const handleResolve = async (ids: number[], action: string) => {
         try {
@@ -138,7 +132,7 @@ export function LibraryAudit() {
             });
             notifications.show({ title: 'Success', message: `Action '${action}' executed.`, color: 'green' });
             refetch();
-        } catch (error) {
+        } catch (_err) {
             notifications.show({ title: 'Error', message: 'Failed to execute resolution.', color: 'red' });
         }
     };
@@ -271,7 +265,7 @@ export function LibraryAudit() {
                                                         <Group gap="xs">
                                                             <IconFolder size={18} color="var(--mantine-color-blue-filled)" />
                                                             <div>
-                                                                <Text size="sm" fw={600}>{dir.split(/[\\\/]/).pop()}</Text>
+                                                                <Text size="sm" fw={600}>{dir.split(/[\\/]/).pop()}</Text>
                                                                 <Text size="xs" c="dimmed" truncate="end" maw={400}>{dir}</Text>
                                                             </div>
                                                             <Badge size="xs" variant="light">{items.length} files</Badge>
@@ -324,7 +318,7 @@ export function LibraryAudit() {
                                                                         background: theme.colorScheme === 'dark' ? theme.colors.dark[5] : theme.colors.gray[0]
                                                                     })}
                                                                 >
-                                                                    <Text size="xs" truncate="end" c="dimmed" style={{ flex: 1 }}>{item.path.split(/[\\\/]/).pop()}</Text>
+                                                                    <Text size="xs" truncate="end" c="dimmed" style={{ flex: 1 }}>{item.path.split(/[\\/]/).pop()}</Text>
                                                                     <Group gap={2}>
                                                                         <ActionIcon 
                                                                             size="xs" 

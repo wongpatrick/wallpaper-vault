@@ -37,10 +37,7 @@ def save_image_buffer(path, img):
     return True
 
 def save_image(path, img):
-    if save_image_buffer(path, img):
-        return True
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    return cv2.imwrite(str(path), img)
+    return save_image_buffer(path, img)
 
 def compute_saliency_map(img_gray):
     saliency = cv2.saliency.StaticSaliencySpectralResidual_create()

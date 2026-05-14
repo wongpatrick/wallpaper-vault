@@ -1,4 +1,4 @@
-import { Title, Text, Container, Stack, LoadingOverlay, Button, Group, TextInput, Paper } from '@mantine/core';
+import { Title, Text, Container, Stack, LoadingOverlay, Button, Group, TextInput, Paper, Switch } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useSettingsForm, SETTING_KEYS } from './hooks/useSettingsForm';
 import { SettingsSection } from './components/SettingsSection';
@@ -61,6 +61,18 @@ export default function Settings() {
                                 />
                             </Group>
                         </Stack>
+                    </SettingsSection>
+
+                    <SettingsSection 
+                        title="System Integration" 
+                        description="Control how the application interacts with your operating system."
+                        isDirty={form.isDirty()}
+                    >
+                        <Switch
+                            label="Start on Windows login"
+                            description="Automatically launch the application minimized to the tray when you sign in."
+                            {...form.getInputProps(SETTING_KEYS.START_ON_LOGIN, { type: 'checkbox' })}
+                        />
                     </SettingsSection>
 
                     <AppInfoSection />
