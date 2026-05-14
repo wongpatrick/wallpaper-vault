@@ -10,7 +10,7 @@ from app.crud.creator import get_creator_by_name, create_creator
 from app.schemas.creator import CreatorCreate
 from app.models.image import Image
 from app.models.set import Set
-from app.core.crop import collect_image_paths, process_image
+from app.core.crop import collect_image_paths, process_image, load_image
 from app.core.utils import sanitize_filename
 from app.core import tasks
 
@@ -191,7 +191,7 @@ async def execute_import_item(
             
             if ok:
                 final_p = Path(final_p_str)
-                img_data = cv2.imread(final_p_str)
+                img_data = load_image(final_p_str)
                 if img_data is not None:
                     h, w = img_data.shape[:2]
                     ratio_label = h_label if final_p.name.startswith(f"{h_label}.") else v_label

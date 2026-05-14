@@ -13,6 +13,7 @@ from app.models.creator import Creator
 from app.crud.settings import get_setting
 from app.core import tasks
 from app.services import audit_service
+import cv2
 
 router = APIRouter()
 

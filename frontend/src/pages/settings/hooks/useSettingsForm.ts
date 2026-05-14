@@ -8,6 +8,7 @@ export const SETTING_KEYS = {
     AUTO_PARSE_PATH: 'auto_parse_path',
     HORIZONTAL_TARGET_RATIO: 'horizontal_target_ratio',
     VERTICAL_TARGET_RATIO: 'vertical_target_ratio',
+    START_ON_LOGIN: 'start_on_login',
 } as const;
 
 export interface SettingsForm {
@@ -15,7 +16,25 @@ export interface SettingsForm {
     [SETTING_KEYS.AUTO_PARSE_PATH]: string;
     [SETTING_KEYS.HORIZONTAL_TARGET_RATIO]: string;
     [SETTING_KEYS.VERTICAL_TARGET_RATIO]: string;
+    [SETTING_KEYS.START_ON_LOGIN]: boolean;
 }
+
+type StorageType = 'backend' | 'electron';
+
+interface SettingConfig {
+    key: string;
+    defaultValue: string | boolean;
+    storage: StorageType;
+    description?: string;
+}
+
+const SETTINGS_METADATA: SettingConfig[] = [
+    { key: SETTING_KEYS.BASE_LIBRARY_PATH, defaultValue: '', storage: 'backend', description: 'Root directory for wallpaper sets' },
+    { key: SETTING_KEYS.AUTO_PARSE_PATH, defaultValue: '', storage: 'backend', description: 'Directory to scan for new imports' },
+    { key: SETTING_KEYS.HORIZONTAL_TARGET_RATIO, defaultValue: '16/9', storage: 'backend', description: 'Target aspect ratio for horizontal images' },
+    { key: SETTING_KEYS.VERTICAL_TARGET_RATIO, defaultValue: '9/16', storage: 'backend', description: 'Target aspect ratio for vertical images' },
+    { key: SETTING_KEYS.START_ON_LOGIN, defaultValue: false, storage: 'electron' },
+];
 
 export function useSettingsForm() {
     const { data: settings, isLoading } = useReadSettingsApiSettingsGet();
@@ -23,55 +42,64 @@ export function useSettingsForm() {
     const [isSaving, setIsSaving] = useState(false);
 
     const form = useForm<SettingsForm>({
-        initialValues: {
-            [SETTING_KEYS.BASE_LIBRARY_PATH]: '',
-            [SETTING_KEYS.AUTO_PARSE_PATH]: '',
-            [SETTING_KEYS.HORIZONTAL_TARGET_RATIO]: '16/9',
-            [SETTING_KEYS.VERTICAL_TARGET_RATIO]: '9/16',
-        },
+        initialValues: SETTINGS_METADATA.reduce((acc, config) => {
+            acc[config.key as keyof SettingsForm] = config.defaultValue as any;
+            return acc;
+        }, {} as SettingsForm),
     });
 
     useEffect(() => {
-        if (settings) {
-            const lib = settings.find(s => s.key === SETTING_KEYS.BASE_LIBRARY_PATH)?.value || '';
-            const parse = settings.find(s => s.key === SETTING_KEYS.AUTO_PARSE_PATH)?.value || '';
-            const horiz = settings.find(s => s.key === SETTING_KEYS.HORIZONTAL_TARGET_RATIO)?.value || '16/9';
-            const vert = settings.find(s => s.key === SETTING_KEYS.VERTICAL_TARGET_RATIO)?.value || '9/16';
-            
-            form.initialize({
-                [SETTING_KEYS.BASE_LIBRARY_PATH]: lib,
-                [SETTING_KEYS.AUTO_PARSE_PATH]: parse,
-                [SETTING_KEYS.HORIZONTAL_TARGET_RATIO]: horiz,
-                [SETTING_KEYS.VERTICAL_TARGET_RATIO]: vert,
-            });
-        }
+        const initForm = async () => {
+            if (!settings) return;
+
+            const values: Partial<SettingsForm> = {};
+
+            for (const config of SETTINGS_METADATA) {
+                if (config.storage === 'backend') {
+                    const dbSetting = settings.find(s => s.key === config.key);
+                    values[config.key as keyof SettingsForm] = (dbSetting?.value ?? config.defaultValue) as any;
+                } else if (config.storage === 'electron') {
+                    if (window.electron?.getLoginSettings) {
+                        values[config.key as keyof SettingsForm] = (await window.electron.getLoginSettings()) as any;
+                    }
+                }
+            }
+
+            form.initialize(values as SettingsForm);
+        };
+
+        initForm();
     }, [settings]);
 
     const handleSave = async (values: SettingsForm) => {
         setIsSaving(true);
         try {
-            await Promise.all([
-                updateSetting.mutateAsync({ 
-                    key: SETTING_KEYS.BASE_LIBRARY_PATH, 
-                    data: { value: values[SETTING_KEYS.BASE_LIBRARY_PATH], description: 'Root directory for wallpaper sets' } 
-                }),
-                updateSetting.mutateAsync({ 
-                    key: SETTING_KEYS.AUTO_PARSE_PATH, 
-                    data: { value: values[SETTING_KEYS.AUTO_PARSE_PATH], description: 'Directory to scan for new imports' } 
-                }),
-                updateSetting.mutateAsync({ 
-                    key: SETTING_KEYS.HORIZONTAL_TARGET_RATIO, 
-                    data: { value: values[SETTING_KEYS.HORIZONTAL_TARGET_RATIO], description: 'Target aspect ratio for horizontal images' } 
-                }),
-                updateSetting.mutateAsync({ 
-                    key: SETTING_KEYS.VERTICAL_TARGET_RATIO, 
-                    data: { value: values[SETTING_KEYS.VERTICAL_TARGET_RATIO], description: 'Target aspect ratio for vertical images' } 
-                })
-            ]);
+            const promises: Promise<any>[] = [];
+
+            for (const config of SETTINGS_METADATA) {
+                const value = values[config.key as keyof SettingsForm];
+                
+                if (config.storage === 'backend') {
+                    promises.push(updateSetting.mutateAsync({ 
+                        key: config.key, 
+                        data: { 
+                            value: String(value), 
+                            description: config.description 
+                        } 
+                    }));
+                } else if (config.storage === 'electron') {
+                    if (window.electron?.setLoginSettings) {
+                        promises.push(window.electron.setLoginSettings(value as boolean));
+                    }
+                }
+            }
+
+            await Promise.all(promises);
             
             form.resetDirty();
             notifications.show({ title: 'Success', message: 'Settings saved successfully', color: 'green' });
         } catch (error) {
+            console.error('Save failed:', error);
             notifications.show({ title: 'Error', message: 'Failed to save settings', color: 'red' });
         } finally {
             setIsSaving(false);

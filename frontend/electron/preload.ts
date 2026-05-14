@@ -6,4 +6,6 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on(channel, (event, ...args) => func(...args)),
     openDirectory: () => ipcRenderer.invoke('open-directory'),
     openPath: (path: string) => ipcRenderer.invoke('open-path', path),
+    getLoginSettings: () => ipcRenderer.invoke('get-login-item-settings'),
+    setLoginSettings: (openAtLogin: boolean) => ipcRenderer.invoke('set-login-item-settings', openAtLogin),
 })

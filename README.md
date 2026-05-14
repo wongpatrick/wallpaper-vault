@@ -8,6 +8,7 @@ This project is built using a **Decoupled Engine & Shell** architecture:
 *   **The Engine (Backend):** A high-performance **FastAPI** server managing a SQLite database via **SQLAlchemy 2.0 (Async)**.
 *   **The Shell (Frontend):** A modern **Electron** desktop application built with **React 19 (Vite)**, **TypeScript**, and **Mantine UI v7**.
 *   **Real-time Communication:** Uses **Server-Sent Events (SSE)** to provide live updates for background tasks.
+*   **Process Management:** Electron autonomously manages the lifecycle of the FastAPI backend and provides deep OS integration.
 
 ---
 
@@ -17,14 +18,14 @@ wallpaper-vault/
 ├── backend/        # FastAPI application (Python 3.14+ / uv)
 │   ├── app/        # Core API logic
 │   │   ├── api/    # REST Endpoints (Creators, Images, Sets, Settings)
-│   │   ├── core/   # Business Logic (Saliency-aware Cropping, SSE Tasks)
+│   │   ├── core/   # Business Logic (Saliency-aware Cropping, SSE Tasks, Audit)
 │   │   ├── crud/   # Database operations
 │   │   ├── models/ # SQLAlchemy models
 │   │   ├── schemas/# Pydantic validation
-│   │   └── services/# Complex services (Import Pipeline)
+│   │   └── services/# Complex services (Import Pipeline, Audit)
 │   └── README.md   # Backend technical documentation
 ├── frontend/       # Electron + React application (Node.js / npm)
-│   ├── electron/   # Main & Preload scripts for the desktop shell
+│   ├── electron/   # Main & Preload scripts (Tray, IPC, Window management)
 │   ├── src/        # React UI components (Mantine UI)
 │   └── README.md   # Frontend technical documentation
 ├── db/             # SQLite database and schema definitions
@@ -51,7 +52,7 @@ cd frontend
 npm install
 npm run dev
 ```
-*   **Desktop App:** A window will launch automatically, connecting to the Vite dev server.
+*   **Desktop App:** A window will launch automatically, connecting to the Vite dev server and the backend.
 
 ---
 
@@ -65,9 +66,10 @@ npm run dev
 ### ✅ Advanced Tools
 - **Precision Cropper:** Uses **Saliency Maps (Spectral Residual)** to automatically identify the "center of interest" and crop wallpapers to custom aspect ratios.
 - **Batch Importer:** A robust, multi-phase background pipeline that uses regex to parse folder structures and handle duplicates.
-- **Merge Utility:** Safely consolidate multiple artist profiles while preserving all associated sets and images.
+- **Audit & Repair:** Perceptual Hashing (phash) based duplicate detection and filesystem consistency checks.
 
-### ✅ Native & Third-Party Integration
+### ✅ Native Integration
+- **System Tray:** Background persistence with a custom context menu and "Minimize to Tray" behavior.
 - **DisplayFusion Support:** Custom API endpoints (`/api/images/random/file/...`) compatible with DisplayFusion for automatic wallpaper rotation.
 - **Native File Shell:** "Open Folder" features integrated with Electron's shell for direct filesystem access.
 - **Global Settings:** Centralized configuration store for paths, aspect ratios, and more.
@@ -75,10 +77,10 @@ npm run dev
 ---
 
 ## 📋 Roadmap (To-Do)
-- [ ] **Library Repair Utility:** Automated tool to fix broken paths and re-sync database with filesystem.
-- [ ] **Smart Duplicate Detection:** Identify identical wallpapers using pHash (Perceptual Hashing) — *Schema ready, logic pending.*
-- [ ] **Bulk Metadata Editing:** Select multiple sets to categorize or rename in one go.
-- [ ] **Custom Themes:** User-selectable accent colors and dark/light mode persistence.
+- [ ] **Find a Working Tray Icon**: Standardize a high-quality icon format (ICO/SVG) that works reliably across all Windows configurations.
+- [ ] **Bulk Metadata Editing**: Select multiple sets to categorize or rename in one go.
+- [ ] **Custom Themes**: User-selectable accent colors and dark/light mode persistence.
+- [ ] **Mobile Companion**: Remote browsing and management via a local network API.
 
 ---
 
