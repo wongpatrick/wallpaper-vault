@@ -174,6 +174,75 @@ async def update_set(db: AsyncSession, set_id: int, set_in: SetUpdate) -> Option
     return await get_set(db, set_id)
 
 
+async def bulk_update_sets(db: AsyncSession, bulk_in: SetBulkUpdate) -> int:
+    # 1. Fetch all target sets with creators
+    result = await db.execute(
+        select(Set).options(selectinload(Set.creators)).where(Set.id.in_(bulk_in.set_ids))
+    )
+    db_sets = result.scalars().all()
+    
+    if not db_sets:
+        return 0
+    
+    # 2. Get Creators if creator_ids provided
+    target_creators = []
+    if bulk_in.update_data.creator_ids is not None:
+        c_result = await db.execute(
+            select(Creator).where(Creator.id.in_(bulk_in.update_data.creator_ids))
+        )
+        target_creators = c_result.scalars().all()
+
+    # 3. Apply updates
+    update_fields = bulk_in.update_data.model_dump(exclude_unset=True, exclude={"creator_ids"})
+    
+    for db_set in db_sets:
+        # Standard fields
+        for field in update_fields:
+            if bulk_in.operation_mode == BulkOperationMode.APPEND and field == "tags":
+                current_tags = (db_set.tags or "").split()
+                new_tags = (update_fields[field] or "").split()
+                # Use a set to avoid duplicates
+                combined = sorted(list(set(current_tags + new_tags)))
+                db_set.tags = " ".join(combined) if combined else None
+            elif bulk_in.operation_mode == BulkOperationMode.REMOVE and field == "tags":
+                current_tags = (db_set.tags or "").split()
+                tags_to_remove = (update_fields[field] or "").split()
+                remaining = [t for t in current_tags if t not in tags_to_remove]
+                db_set.tags = " ".join(remaining) if remaining else None
+            else:
+                # REPLACE mode (default for other fields or if explicitly set)
+                setattr(db_set, field, update_fields[field])
+        
+        # Creator logic
+        if bulk_in.update_data.creator_ids is not None:
+            if bulk_in.operation_mode == BulkOperationMode.APPEND:
+                current_ids = {c.id for c in db_set.creators}
+                to_add = [c for c in target_creators if c.id not in current_ids]
+                db_set.creators.extend(to_add)
+            elif bulk_in.operation_mode == BulkOperationMode.REMOVE:
+                remove_ids = {c.id for c in target_creators}
+                db_set.creators = [c for c in db_set.creators if c.id not in remove_ids]
+            else:
+                # REPLACE
+                db_set.creators = list(target_creators)
+        
+        db.add(db_set)
+
+    await db.commit()
+    return len(db_sets)
+
+
+async def bulk_delete_sets(db: AsyncSession, set_ids: list[int]) -> int:
+    result = await db.execute(
+        select(Set).where(Set.id.in_(set_ids))
+    )
+    db_sets = result.scalars().all()
+    for db_set in db_sets:
+        await db.delete(db_set)
+    await db.commit()
+    return len(db_sets)
+
+
 async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task_id: str = None) -> BatchImportResponse:
     from app.services import import_service
     # 1. Gather

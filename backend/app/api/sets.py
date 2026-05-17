@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 
 from app.crud import set as crud_set
-from app.schemas.set import Set, SetCreate, SetImport, BatchImportRequest, BatchImportResponse, SetUpdate, SetPage
+from app.schemas.set import Set, SetCreate, SetImport, BatchImportRequest, BatchImportResponse, SetUpdate, SetPage, SetBulkUpdate
 from app.core import tasks
 
 
@@ -84,6 +84,20 @@ async def update_set(
     if db_set is None:
         raise HTTPException(status_code=404, detail="Set not found")
     return db_set
+
+@router.post("/bulk-update", response_model=int)
+async def bulk_update_sets(
+        bulk_in: SetBulkUpdate,
+        db: AsyncSession = Depends(get_db)
+):
+    return await crud_set.bulk_update_sets(db=db, bulk_in=bulk_in)
+
+@router.post("/bulk-delete", response_model=int)
+async def bulk_delete_sets(
+        set_ids: list[int],
+        db: AsyncSession = Depends(get_db)
+):
+    return await crud_set.bulk_delete_sets(db=db, set_ids=set_ids)
 
 @router.delete("/{set_id}", response_model=Set)
 async def delete_set(

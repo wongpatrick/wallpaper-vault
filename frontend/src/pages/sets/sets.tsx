@@ -1,8 +1,9 @@
-import { Title, Text, Container, SimpleGrid, Loader, Center, Alert, Stack, TextInput, Group, Select, Pagination, Box, Overlay } from '@mantine/core';
-import { IconAlertCircle, IconSearch, IconFilter } from '@tabler/icons-react';
-import { useReadSetsApiSetsGet, useDeleteSetApiSetsSetIdDelete } from '../../api/generated/sets/sets';
+import { Title, Text, Container, SimpleGrid, Loader, Center, Alert, Stack, TextInput, Group, Select, Pagination, Box, Overlay, Button, Checkbox, Paper, Transition, ActionIcon, rem } from '@mantine/core';
+import { IconAlertCircle, IconSearch, IconFilter, IconCheck, IconX, IconTrash, IconTag, IconUserEdit } from '@tabler/icons-react';
+import { useReadSetsApiSetsGet, useDeleteSetApiSetsSetIdDelete, useBulkUpdateSetsApiSetsBulkUpdatePost, useBulkDeleteSetsApiSetsBulkDeletePost } from '../../api/generated/sets/sets';
 import { notifications } from '@mantine/notifications';
 import { SetCard } from './components/SetCard';
+import { BulkEditModal } from './components/BulkEditModal';
 import { useState, useEffect } from 'react';
 import { useDebouncedValue } from '@mantine/hooks';
 
@@ -13,6 +14,11 @@ export default function Sets() {
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState<string | null>(null);
+    
+    // Selection State
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+    const [modalType, setModalType] = useState<'artist' | 'tags' | 'delete' | null>(null);
 
     // Debounce search
     const [debouncedSearch] = useDebouncedValue(search, 300);
@@ -20,6 +26,12 @@ export default function Sets() {
     // Reset page to 1 when filters change
     useEffect(() => {
         setPage(1);
+    }, [debouncedSearch, typeFilter]);
+
+    // Auto-clear selection on filter/search change
+    useEffect(() => {
+        setSelectedIds(new Set());
+        setSelectionMode(false);
     }, [debouncedSearch, typeFilter]);
 
     const { data: pageData, isLoading, isFetching, error, refetch } = useReadSetsApiSetsGet({
@@ -34,6 +46,8 @@ export default function Sets() {
     const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
     const deleteMutation = useDeleteSetApiSetsSetIdDelete();
+    const bulkUpdateMutation = useBulkUpdateSetsApiSetsBulkUpdatePost();
+    const bulkDeleteMutation = useBulkDeleteSetsApiSetsBulkDeletePost();
 
     // Handlers
     const handleDelete = async (setId: number) => {
@@ -54,10 +68,82 @@ export default function Sets() {
         }
     };
 
+    const toggleSelect = (id: number) => {
+        const next = new Set(selectedIds);
+        if (next.has(id)) {
+            next.delete(id);
+        } else {
+            next.add(id);
+        }
+        setSelectedIds(next);
+        if (next.size > 0) setSelectionMode(true);
+    };
+
+    const selectAllVisible = () => {
+        const next = new Set(selectedIds);
+        sets.forEach(s => next.add(s.id));
+        setSelectedIds(next);
+        setSelectionMode(true);
+    };
+
+    const clearSelection = () => {
+        setSelectedIds(new Set());
+        setSelectionMode(false);
+    };
+
+    const handleBulkConfirm = async (data: any, mode: any) => {
+        const ids = Array.from(selectedIds);
+        try {
+            if (modalType === 'delete') {
+                await bulkDeleteMutation.mutateAsync({ data: ids });
+                notifications.show({
+                    title: 'Success',
+                    message: `Successfully deleted ${ids.length} sets.`,
+                    color: 'blue',
+                });
+            } else {
+                await bulkUpdateMutation.mutateAsync({
+                    data: {
+                        set_ids: ids,
+                        update_data: data,
+                        operation_mode: mode
+                    }
+                });
+                notifications.show({
+                    title: 'Success',
+                    message: `Successfully updated ${ids.length} sets.`,
+                    color: 'blue',
+                });
+            }
+            setModalType(null);
+            clearSelection();
+            refetch();
+        } catch (err) {
+            console.error('Bulk operation failed:', err);
+            notifications.show({
+                title: 'Error',
+                message: 'Bulk operation failed. Please try again.',
+                color: 'red',
+            });
+        }
+    };
+
     return (
-        <Container size="xl">
-            <Title order={1} mb="xs">📚 Wallpaper Sets</Title>
-            <Text c="dimmed" mb="xl">Browse and manage your curated wallpaper collections.</Text>
+        <Container size="xl" style={{ position: 'relative', paddingBottom: selectionMode ? 100 : 40 }}>
+            <Group justify="space-between" align="flex-start" mb="xs">
+                <Stack gap={0}>
+                    <Title order={1}>📚 Wallpaper Sets</Title>
+                    <Text c="dimmed">Browse and manage your curated wallpaper collections.</Text>
+                </Stack>
+                <Button 
+                    variant={selectionMode ? "filled" : "light"} 
+                    color={selectionMode ? "blue" : "gray"}
+                    leftSection={selectionMode ? <IconCheck size={16} /> : null}
+                    onClick={() => selectionMode ? clearSelection() : setSelectionMode(true)}
+                >
+                    {selectionMode ? "Finish Selecting" : "Select Items"}
+                </Button>
+            </Group>
 
             <Group mb="xl" grow align="flex-end">
                 <TextInput
@@ -82,7 +168,7 @@ export default function Sets() {
                  {/* Initial Loading */}
                  {isLoading && !sets.length ? (
                     <Center py={100}><Loader size="xl" /></Center>
-                ) : (
+                 ) : (
                     <>
                         {/* Re-fetching Overlay (Search/Pagination) */}
                         {isFetching && (
@@ -99,9 +185,24 @@ export default function Sets() {
                             </Alert>
                         ) : (
                             <>
+                                <Group mb="md" justify="space-between" visibleFrom="sm">
+                                    {selectionMode && (
+                                        <Button variant="subtle" size="xs" onClick={selectAllVisible}>
+                                            Select all on this page
+                                        </Button>
+                                    )}
+                                </Group>
+
                                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
                                     {sets.map((set) => (
-                                        <SetCard key={set.id} set={set} onDelete={handleDelete} />
+                                        <SetCard 
+                                            key={set.id} 
+                                            set={set} 
+                                            onDelete={handleDelete}
+                                            selectionMode={selectionMode}
+                                            selected={selectedIds.has(set.id)}
+                                            onToggleSelect={() => toggleSelect(set.id)}
+                                        />
                                     ))}
                                 </SimpleGrid>
                                 
@@ -122,6 +223,81 @@ export default function Sets() {
                     <Pagination total={totalPages} value={page} onChange={setPage} withEdges />
                 </Center>
             )}
+
+            {/* Floating Bulk Action Bar */}
+            <Transition mounted={selectionMode && selectedIds.size > 0} transition="slide-up" duration={400} timingFunction="ease">
+                {(styles) => (
+                    <Paper 
+                        shadow="xl" 
+                        p="md" 
+                        withBorder 
+                        style={{ 
+                            ...styles,
+                            position: 'fixed', 
+                            bottom: 20, 
+                            left: '50%', 
+                            transform: 'translateX(-50%)',
+                            zIndex: 100,
+                            borderRadius: 100,
+                            backgroundColor: 'var(--mantine-color-body)',
+                            width: 'auto',
+                            minWidth: 400
+                        }}
+                    >
+                        <Group justify="space-between" wrap="nowrap">
+                            <Group gap="sm">
+                                <ActionIcon variant="subtle" color="gray" onClick={clearSelection} radius="xl">
+                                    <IconX size={18} />
+                                </ActionIcon>
+                                <Text fw={600} size="sm">
+                                    {selectedIds.size} items selected
+                                </Text>
+                            </Group>
+
+                            <Group gap="xs">
+                                <Button 
+                                    size="xs" 
+                                    variant="light" 
+                                    leftSection={<IconUserEdit size={14} />} 
+                                    radius="xl"
+                                    onClick={() => setModalType('artist')}
+                                >
+                                    Artist
+                                </Button>
+                                <Button 
+                                    size="xs" 
+                                    variant="light" 
+                                    leftSection={<IconTag size={14} />} 
+                                    radius="xl"
+                                    onClick={() => setModalType('tags')}
+                                >
+                                    Tags
+                                </Button>
+                                <Button 
+                                    size="xs" 
+                                    variant="light" 
+                                    color="red" 
+                                    leftSection={<IconTrash size={14} />} 
+                                    radius="xl"
+                                    onClick={() => setModalType('delete')}
+                                >
+                                    Delete
+                                </Button>
+                            </Group>
+                        </Group>
+                    </Paper>
+                )}
+            </Transition>
+
+            {/* Bulk Edit Modal */}
+            <BulkEditModal 
+                opened={modalType !== null}
+                onClose={() => setModalType(null)}
+                type={modalType || 'artist'}
+                selectedCount={selectedIds.size}
+                onConfirm={handleBulkConfirm}
+                loading={bulkUpdateMutation.isPending || bulkDeleteMutation.isPending}
+            />
         </Container>
     );
 }
