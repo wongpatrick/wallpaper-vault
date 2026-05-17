@@ -60,6 +60,7 @@ npm run dev
 
 ### ✅ Library Management
 - **Library Grid:** Immersive browsing with cover images and rich metadata.
+- **Bulk Metadata Editing:** Enter "Selection Mode" to update artists, tags, or delete multiple sets at once.
 - **Artist Hub:** Dedicated views for creators with portfolio stats and merging tools.
 - **Set Detail:** Full gallery view with lightbox support.
 
@@ -78,9 +79,8 @@ npm run dev
 
 ## 📋 Roadmap (To-Do)
 - [ ] **Find a Working Tray Icon**: Standardize a high-quality icon format (ICO/SVG) that works reliably across all Windows configurations.
-- [ ] **Bulk Metadata Editing**: Select multiple sets to categorize or rename in one go.
-- [ ] **Custom Themes**: User-selectable accent colors and dark/light mode persistence.
-- [ ] **Mobile Companion**: Remote browsing and management via a local network API.
+- [ ] **Collections / Playlists**: Allow users to arbitrarily group images across different sets for specific moods or multi-monitor setups (integrates with DisplayFusion).
+- [ ] **Discovery / Color Explorer**: Implement color extraction on import and build a dedicated discovery screen to filter wallpapers by dominant color palettes.
 
 ---
 
