@@ -29,6 +29,7 @@ import type {
   HTTPValidationError,
   ReadSetsApiSetsGetParams,
   Set,
+  SetBulkUpdate,
   SetCreate,
   SetImport,
   SetPage,
@@ -636,6 +637,134 @@ export const useDeleteSetApiSetsSetIdDelete = <TError = ErrorType<HTTPValidation
       > => {
 
       const mutationOptions = getDeleteSetApiSetsSetIdDeleteMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * @summary Bulk Update Sets
+ */
+export const bulkUpdateSetsApiSetsBulkUpdatePost = (
+    setBulkUpdate: BodyType<SetBulkUpdate>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<number>(
+      {url: `/api/sets/bulk-update`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: setBulkUpdate, signal
+    },
+      options);
+    }
+  
+
+
+export const getBulkUpdateSetsApiSetsBulkUpdatePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateSetsApiSetsBulkUpdatePost>>, TError,{data: BodyType<SetBulkUpdate>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateSetsApiSetsBulkUpdatePost>>, TError,{data: BodyType<SetBulkUpdate>}, TContext> => {
+
+const mutationKey = ['bulkUpdateSetsApiSetsBulkUpdatePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkUpdateSetsApiSetsBulkUpdatePost>>, {data: BodyType<SetBulkUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkUpdateSetsApiSetsBulkUpdatePost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkUpdateSetsApiSetsBulkUpdatePostMutationResult = NonNullable<Awaited<ReturnType<typeof bulkUpdateSetsApiSetsBulkUpdatePost>>>
+    export type BulkUpdateSetsApiSetsBulkUpdatePostMutationBody = BodyType<SetBulkUpdate>
+    export type BulkUpdateSetsApiSetsBulkUpdatePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Bulk Update Sets
+ */
+export const useBulkUpdateSetsApiSetsBulkUpdatePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateSetsApiSetsBulkUpdatePost>>, TError,{data: BodyType<SetBulkUpdate>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bulkUpdateSetsApiSetsBulkUpdatePost>>,
+        TError,
+        {data: BodyType<SetBulkUpdate>},
+        TContext
+      > => {
+
+      const mutationOptions = getBulkUpdateSetsApiSetsBulkUpdatePostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * @summary Bulk Delete Sets
+ */
+export const bulkDeleteSetsApiSetsBulkDeletePost = (
+    bulkDeleteSetsApiSetsBulkDeletePostBody: BodyType<number[]>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<number>(
+      {url: `/api/sets/bulk-delete`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: bulkDeleteSetsApiSetsBulkDeletePostBody, signal
+    },
+      options);
+    }
+  
+
+
+export const getBulkDeleteSetsApiSetsBulkDeletePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkDeleteSetsApiSetsBulkDeletePost>>, TError,{data: BodyType<number[]>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkDeleteSetsApiSetsBulkDeletePost>>, TError,{data: BodyType<number[]>}, TContext> => {
+
+const mutationKey = ['bulkDeleteSetsApiSetsBulkDeletePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkDeleteSetsApiSetsBulkDeletePost>>, {data: BodyType<number[]>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkDeleteSetsApiSetsBulkDeletePost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkDeleteSetsApiSetsBulkDeletePostMutationResult = NonNullable<Awaited<ReturnType<typeof bulkDeleteSetsApiSetsBulkDeletePost>>>
+    export type BulkDeleteSetsApiSetsBulkDeletePostMutationBody = BodyType<number[]>
+    export type BulkDeleteSetsApiSetsBulkDeletePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Bulk Delete Sets
+ */
+export const useBulkDeleteSetsApiSetsBulkDeletePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkDeleteSetsApiSetsBulkDeletePost>>, TError,{data: BodyType<number[]>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bulkDeleteSetsApiSetsBulkDeletePost>>,
+        TError,
+        {data: BodyType<number[]>},
+        TContext
+      > => {
+
+      const mutationOptions = getBulkDeleteSetsApiSetsBulkDeletePostMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

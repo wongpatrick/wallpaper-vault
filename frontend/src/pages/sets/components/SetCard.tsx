@@ -1,4 +1,4 @@
-import { Card, Image, Group, Stack, Text, Menu, ActionIcon, Badge, rem } from '@mantine/core';
+import { Card, Image, Group, Stack, Text, Menu, ActionIcon, Badge, rem, Checkbox, Box, Overlay } from '@mantine/core';
 import { IconDotsVertical, IconExternalLink, IconFolder, IconTrash } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
@@ -8,11 +8,22 @@ import type { Set } from '../../../api/model';
 interface SetCardProps {
     set: Set;
     onDelete: (id: number) => void;
+    selectionMode?: boolean;
+    selected?: boolean;
+    onToggleSelect?: () => void;
 }
 
-export function SetCard({ set, onDelete }: SetCardProps) {
+export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect }: SetCardProps) {
     const navigate = useNavigate();
     
+    const handleCardClick = () => {
+        if (selectionMode && onToggleSelect) {
+            onToggleSelect();
+        } else {
+            navigate(`/sets/${set.id}`);
+        }
+    };
+
     const handleOpenFolder = async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!set.local_path) {
@@ -48,18 +59,43 @@ export function SetCard({ set, onDelete }: SetCardProps) {
     const creatorNames = set.creators?.map(c => c.canonical_name).join(' & ') || 'Unknown Creator';
 
     return (
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
-            <Card.Section onClick={() => navigate(`/sets/${set.id}`)} style={{ cursor: 'pointer' }}>
+        <Card 
+            shadow="sm" 
+            padding="lg" 
+            radius="md" 
+            withBorder 
+            style={{ 
+                cursor: 'pointer',
+                borderColor: selected ? 'var(--mantine-color-blue-filled)' : undefined,
+                transition: 'border-color 0.2s ease'
+            }}
+            onClick={handleCardClick}
+        >
+            <Card.Section style={{ position: 'relative' }}>
+                {selectionMode && (
+                    <Box style={{ position: 'absolute', top: 10, left: 10, zIndex: 5 }}>
+                        <Checkbox 
+                            checked={selected} 
+                            readOnly
+                            size="md"
+                            radius="xl"
+                        />
+                    </Box>
+                )}
+                
                 <Image
                     src={coverUrl}
                     height={160}
                     alt={set.title || 'Untitled Set'}
                     fallbackSrc="https://placehold.co/600x400?text=No+Images"
+                    style={{ filter: selected ? 'brightness(0.8)' : undefined }}
                 />
+
+                {selected && <Overlay color="var(--mantine-color-blue-light)" backgroundOpacity={0.15} zIndex={1} />}
             </Card.Section>
 
             <Group justify="space-between" mt="md" mb="xs" wrap="nowrap">
-                <Stack gap={0} style={{ overflow: 'hidden', cursor: 'pointer' }} onClick={() => navigate(`/sets/${set.id}`)}>
+                <Stack gap={0} style={{ overflow: 'hidden' }}>
                     <Text fw={600} size="lg" truncate="end">
                         {set.title || 'Untitled Set'}
                     </Text>
@@ -68,38 +104,40 @@ export function SetCard({ set, onDelete }: SetCardProps) {
                     </Text>
                 </Stack>
                 
-                <Menu shadow="md" width={200} position="bottom-end">
-                    <Menu.Target>
-                        <ActionIcon variant="subtle" color="gray">
-                            <IconDotsVertical size={18} />
-                        </ActionIcon>
-                    </Menu.Target>
+                {!selectionMode && (
+                    <Menu shadow="md" width={200} position="bottom-end">
+                        <Menu.Target>
+                            <ActionIcon variant="subtle" color="gray" onClick={(e) => e.stopPropagation()}>
+                                <IconDotsVertical size={18} />
+                            </ActionIcon>
+                        </Menu.Target>
 
-                    <Menu.Dropdown>
-                        <Menu.Label>Actions</Menu.Label>
-                        <Menu.Item 
-                            leftSection={<IconExternalLink style={{ width: rem(14), height: rem(14) }} />}
-                            onClick={() => navigate(`/sets/${set.id}`)}
-                        >
-                            View Details
-                        </Menu.Item>
-                        <Menu.Item 
-                            leftSection={<IconFolder style={{ width: rem(14), height: rem(14) }} />}
-                            onClick={handleOpenFolder}
-                        >
-                            Open Folder
-                        </Menu.Item>
-                        <Menu.Divider />
-                        <Menu.Label color="red">Danger zone</Menu.Label>
-                        <Menu.Item 
-                            color="red" 
-                            leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />}
-                            onClick={() => onDelete(set.id)}
-                        >
-                            Delete Set
-                        </Menu.Item>
-                    </Menu.Dropdown>
-                </Menu>
+                        <Menu.Dropdown onClick={(e) => e.stopPropagation()}>
+                            <Menu.Label>Actions</Menu.Label>
+                            <Menu.Item 
+                                leftSection={<IconExternalLink style={{ width: rem(14), height: rem(14) }} />}
+                                onClick={() => navigate(`/sets/${set.id}`)}
+                            >
+                                View Details
+                            </Menu.Item>
+                            <Menu.Item 
+                                leftSection={<IconFolder style={{ width: rem(14), height: rem(14) }} />}
+                                onClick={handleOpenFolder}
+                            >
+                                Open Folder
+                            </Menu.Item>
+                            <Menu.Divider />
+                            <Menu.Label color="red">Danger zone</Menu.Label>
+                            <Menu.Item 
+                                color="red" 
+                                leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />}
+                                onClick={() => onDelete(set.id)}
+                            >
+                                Delete Set
+                            </Menu.Item>
+                        </Menu.Dropdown>
+                    </Menu>
+                )}
             </Group>
 
             <Group gap="xs">
