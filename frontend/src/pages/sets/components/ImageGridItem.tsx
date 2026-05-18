@@ -1,4 +1,4 @@
-import { Card, Image, Box, Text } from '@mantine/core';
+import { Card, Image, Box, Text, Stack } from '@mantine/core';
 import { getImageUrl } from '../../../utils/fileUtils';
 import type { Image as ImageModel } from '../../../api/model';
 
@@ -9,26 +9,33 @@ interface ImageGridItemProps {
 
 export function ImageGridItem({ image, onClick }: ImageGridItemProps) {
     return (
-        <Card 
-            p={0} 
-            radius="md" 
-            withBorder 
+        <Card
+            p={0}
+            radius="xs" // More square-ish for that "fill" look
+            withBorder={false} // Remove border for edge-to-edge feel
             className="image-card"
-            style={{ 
-                cursor: 'pointer', 
+            style={{
+                cursor: 'pointer',
                 overflow: 'hidden',
-                marginBottom: '16px', // Gap between items in the column
-                breakInside: 'avoid', // Prevent card from breaking across columns
-                display: 'block'
+                display: 'block',
+                backgroundColor: 'transparent'
             }}
             onClick={onClick}
         >
-            <Image 
-                src={getImageUrl(image.id)} 
+            <Image
+                src={getImageUrl(image.id)}
                 alt={image.filename}
                 loading="lazy"
-                style={{ width: '100%', height: 'auto', display: 'block' }}
+                radius={0} // Ensure image itself has no radius inside card
+                style={{ 
+                    width: '100%', 
+                    height: 'auto', 
+                    display: 'block',
+                    transition: 'transform 0.3s ease'
+                }}
+                className="grid-image"
             />
+            
             <Box
                 className="image-overlay"
                 style={{
@@ -36,15 +43,18 @@ export function ImageGridItem({ image, onClick }: ImageGridItemProps) {
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    padding: '8px',
-                    background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+                    padding: '12px 8px',
+                    background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
                     color: 'white',
                     opacity: 0,
                     transition: 'opacity 0.2s ease',
                     pointerEvents: 'none'
                 }}
             >
-                <Text size="xs" fw={500}>{image.width}x{image.height}</Text>
+                <Stack gap={2}>
+                    <Text size="xs" fw={700} truncate="end">{image.filename}</Text>
+                    <Text size="xs" opacity={0.8}>{image.width} × {image.height}</Text>
+                </Stack>
             </Box>
         </Card>
     );

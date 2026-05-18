@@ -1,13 +1,14 @@
 import { Modal, Stack, MultiSelect, Button, Group, SegmentedControl, Text, TextInput } from '@mantine/core';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useReadCreatorsApiCreatorsGet } from '../../../api/generated/creators/creators';
+import type { SetUpdate, BulkOperationMode } from '../../../api/model';
 
 interface BulkEditModalProps {
     opened: boolean;
     onClose: () => void;
     type: 'artist' | 'tags' | 'delete';
     selectedCount: number;
-    onConfirm: (data: any, mode: 'append' | 'replace' | 'remove') => void;
+    onConfirm: (data: SetUpdate, mode: BulkOperationMode) => void;
     loading?: boolean;
 }
 
@@ -22,22 +23,13 @@ export function BulkEditModal({ opened, onClose, type, selectedCount, onConfirm,
         label: c.canonical_name
     }));
 
-    // Reset on open
-    useEffect(() => {
-        if (opened) {
-            setMode('append');
-            setSelectedCreators([]);
-            setTags('');
-        }
-    }, [opened]);
-
     const handleConfirm = () => {
         if (type === 'artist') {
             onConfirm({ creator_ids: selectedCreators.map(id => parseInt(id)) }, mode);
         } else if (type === 'tags') {
             onConfirm({ tags }, mode);
         } else {
-            onConfirm({}, 'replace'); // Delete mode
+            onConfirm({} as SetUpdate, 'replace' as BulkOperationMode); // Delete mode
         }
     };
 
@@ -56,7 +48,7 @@ export function BulkEditModal({ opened, onClose, type, selectedCount, onConfirm,
                         <SegmentedControl
                             fullWidth
                             value={mode}
-                            onChange={(v: any) => setMode(v)}
+                            onChange={(v) => setMode(v as BulkOperationMode)}
                             data={[
                                 { label: 'Append', value: 'append' },
                                 { label: 'Replace', value: 'replace' },

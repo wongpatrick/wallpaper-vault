@@ -11,7 +11,9 @@ from app.schemas.set import (
     SetImport, 
     SetUpdate,
     BatchImportRequest, 
-    BatchImportResponse
+    BatchImportResponse,
+    SetBulkUpdate,
+    BulkOperationMode
 )
 from app.crud.creator import get_creator_by_name, create_creator
 from app.schemas.creator import CreatorCreate
@@ -19,8 +21,6 @@ from app.crud.settings import get_setting
 from app.core import tasks
 from app.db.session import SessionLocal
 from pathlib import Path
-import os
-import re
 
 async def get_set(db: AsyncSession, set_id: int):
     result = await db.execute(

@@ -43,3 +43,9 @@ class DuplicateGroup(BaseModel):
 class DuplicateResolutionRequest(BaseModel):
     keep_image_id: int
     remove_image_ids: list[int]
+
+class ImagePage(BaseModel):
+    items: list[ImageWithContext]
+    total: int
+    skip: int
+    limit: int

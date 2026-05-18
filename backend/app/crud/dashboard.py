@@ -4,7 +4,6 @@ from app.models.image import Image
 from app.models.set import Set
 from app.models.creator import Creator
 from app.schemas.dashboard import LibraryStats, HealthAlert, DashboardData
-from app.models.associations import set_creators
 
 async def get_library_stats(db: AsyncSession) -> LibraryStats:
     # 1. Total counts and size
@@ -62,7 +61,7 @@ async def get_health_alerts(db: AsyncSession) -> list[HealthAlert]:
         ))
         
     # 3. Warning: Missing pHash (for duplicate detection)
-    missing_phash_query = select(func.count(Image.id)).filter(Image.phash == None)
+    missing_phash_query = select(func.count(Image.id)).filter(Image.phash.is_(None))
     phash_count = (await db.execute(missing_phash_query)).scalar()
     if phash_count > 0:
         alerts.append(HealthAlert(
@@ -74,7 +73,7 @@ async def get_health_alerts(db: AsyncSession) -> list[HealthAlert]:
         ))
 
     # 4. Optimization: Missing Tags
-    missing_tags_query = select(func.count(Set.id)).filter((Set.tags == None) | (Set.tags == ""))
+    missing_tags_query = select(func.count(Set.id)).filter((Set.tags.is_(None)) | (Set.tags == ""))
     tags_count = (await db.execute(missing_tags_query)).scalar()
     if tags_count > 0:
         alerts.append(HealthAlert(

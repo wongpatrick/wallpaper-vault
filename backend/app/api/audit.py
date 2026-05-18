@@ -1,16 +1,14 @@
-from typing import List, Optional
+from typing import Optional
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, update, delete
-from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.schemas.tools import AuditIssuePage, AuditStartRequest, AuditFixAction
 from app.models.audit import AuditIssue
 from app.models.image import Image
 from app.models.set import Set
-from app.models.creator import Creator
 from app.crud.settings import get_setting
 from app.core import tasks
 from app.services import audit_service
@@ -26,7 +24,7 @@ async def start_audit(
 ):
     """Start a background library audit."""
     # Check for existing active audit tasks
-    existing_task = await db.execute(
+    await db.execute(
         select(tasks.Task).filter(tasks.Task.status.in_(["accepted", "processing"]))
     )
     # This might catch other tasks, but since we only have audit and import, 

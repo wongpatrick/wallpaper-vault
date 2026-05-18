@@ -36,7 +36,7 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
         }
 
         try {
-            const result = await (window.electron as any).openPath(set.local_path);
+            const result = await window.electron.openPath(set.local_path);
             if (result && result.error) {
                 notifications.show({
                     title: 'Folder not found',

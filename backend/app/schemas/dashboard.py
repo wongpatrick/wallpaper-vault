@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 class LibraryStats(BaseModel):
     total_images: int

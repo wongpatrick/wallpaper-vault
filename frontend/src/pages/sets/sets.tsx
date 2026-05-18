@@ -1,11 +1,12 @@
-import { Title, Text, Container, SimpleGrid, Loader, Center, Alert, Stack, TextInput, Group, Select, Pagination, Box, Overlay, Button, Checkbox, Paper, Transition, ActionIcon, rem } from '@mantine/core';
+import { Title, Text, Container, SimpleGrid, Loader, Center, Alert, Stack, TextInput, Group, Select, Pagination, Box, Overlay, Button, Paper, Transition, ActionIcon } from '@mantine/core';
 import { IconAlertCircle, IconSearch, IconFilter, IconCheck, IconX, IconTrash, IconTag, IconUserEdit } from '@tabler/icons-react';
 import { useReadSetsApiSetsGet, useDeleteSetApiSetsSetIdDelete, useBulkUpdateSetsApiSetsBulkUpdatePost, useBulkDeleteSetsApiSetsBulkDeletePost } from '../../api/generated/sets/sets';
 import { notifications } from '@mantine/notifications';
 import { SetCard } from './components/SetCard';
 import { BulkEditModal } from './components/BulkEditModal';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useDebouncedValue } from '@mantine/hooks';
+import type { SetUpdate, BulkOperationMode } from '../../api/model';
 
 const PAGE_SIZE = 12;
 
@@ -23,17 +24,6 @@ export default function Sets() {
     // Debounce search
     const [debouncedSearch] = useDebouncedValue(search, 300);
 
-    // Reset page to 1 when filters change
-    useEffect(() => {
-        setPage(1);
-    }, [debouncedSearch, typeFilter]);
-
-    // Auto-clear selection on filter/search change
-    useEffect(() => {
-        setSelectedIds(new Set());
-        setSelectionMode(false);
-    }, [debouncedSearch, typeFilter]);
-
     const { data: pageData, isLoading, isFetching, error, refetch } = useReadSetsApiSetsGet({
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
@@ -50,6 +40,20 @@ export default function Sets() {
     const bulkDeleteMutation = useBulkDeleteSetsApiSetsBulkDeletePost();
 
     // Handlers
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearch(e.currentTarget.value);
+        setPage(1);
+        setSelectedIds(new Set());
+        setSelectionMode(false);
+    };
+
+    const handleTypeChange = (val: string | null) => {
+        setTypeFilter(val);
+        setPage(1);
+        setSelectedIds(new Set());
+        setSelectionMode(false);
+    };
+
     const handleDelete = async (setId: number) => {
         try {
             await deleteMutation.mutateAsync({ setId });
@@ -91,7 +95,7 @@ export default function Sets() {
         setSelectionMode(false);
     };
 
-    const handleBulkConfirm = async (data: any, mode: any) => {
+    const handleBulkConfirm = async (data: SetUpdate, mode: BulkOperationMode) => {
         const ids = Array.from(selectedIds);
         try {
             if (modalType === 'delete') {
@@ -151,7 +155,7 @@ export default function Sets() {
                     label="Search entire library"
                     leftSection={<IconSearch size={16} />}
                     value={search}
-                    onChange={(e) => setSearch(e.currentTarget.value)}
+                    onChange={handleSearchChange}
                 />
                 <Select
                     label="Artist type"
@@ -160,7 +164,7 @@ export default function Sets() {
                     data={['Artist', 'AI Generated', 'Studio', 'Photography']}
                     clearable
                     value={typeFilter}
-                    onChange={setTypeFilter}
+                    onChange={handleTypeChange}
                 />
             </Group>
             
@@ -291,6 +295,7 @@ export default function Sets() {
 
             {/* Bulk Edit Modal */}
             <BulkEditModal 
+                key={modalType || 'none'}
                 opened={modalType !== null}
                 onClose={() => setModalType(null)}
                 type={modalType || 'artist'}
