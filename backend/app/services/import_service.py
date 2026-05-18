@@ -1,10 +1,9 @@
 import re
 import shutil
-import cv2
 import os
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.set import BatchImportRequest, BatchImportItem, BatchImportResponse
+from app.schemas.set import BatchImportRequest, BatchImportItem
 from app.crud.settings import get_setting
 from app.crud.creator import get_creator_by_name, create_creator
 from app.schemas.creator import CreatorCreate
@@ -12,7 +11,6 @@ from app.models.image import Image
 from app.models.set import Set
 from app.core.crop import collect_image_paths, process_image, load_image
 from app.core.utils import sanitize_filename
-from app.core import tasks
 
 async def gather_candidates(db: AsyncSession, batch_in: BatchImportRequest) -> list[dict]:
     """Phase 1: Gather potential folders for import."""

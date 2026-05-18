@@ -6,6 +6,7 @@ import Creators from './pages/creators/creators'
 import CreatorDetail from './pages/creators/CreatorDetail'
 import Sets from './pages/sets/sets'
 import SetDetail from './pages/sets/SetDetail'
+import Images from './pages/images/images'
 import Tools from './pages/tools/tools'
 import Settings from './pages/settings/settings'
 import { createTheme, MantineProvider } from '@mantine/core'
@@ -66,6 +67,10 @@ const router = createHashRouter([
       {
         path: "/sets/:setId",
         element: <SetDetail />,
+      },
+      {
+        path: "/images",
+        element: <Images />,
       },
       {
         path: "/tools",
@@ -161,4 +166,3 @@ function App() {
 }
 
 export default App
-

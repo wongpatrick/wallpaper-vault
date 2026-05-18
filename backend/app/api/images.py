@@ -4,10 +4,47 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.crud import image as crud_image
-from app.schemas.image import Image, ImageUpdate, ImageCreate, DuplicateGroup, DuplicateResolutionRequest, ImageWithContext
+from app.schemas.image import Image, ImageUpdate, ImageCreate, DuplicateGroup, DuplicateResolutionRequest, ImageWithContext, ImagePage
 from pathlib import Path
 
 router = APIRouter()
+
+@router.get("/", response_model=ImagePage)
+async def read_images(
+    skip: int = 0,
+    limit: int = 100,
+    search: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get a paginated list of all images with optional comprehensive search.
+    """
+    images, total = await crud_image.get_images(db, skip=skip, limit=limit, search=search)
+    
+    # Map to ImageWithContext
+    items = []
+    for img in images:
+        items.append(
+            ImageWithContext(
+                id=img.id,
+                set_id=img.set_id,
+                filename=img.filename,
+                local_path=img.local_path,
+                phash=img.phash,
+                width=img.width,
+                height=img.height,
+                file_size=img.file_size,
+                aspect_ratio=img.aspect_ratio,
+                aspect_ratio_label=img.aspect_ratio_label,
+                sort_order=img.sort_order,
+                notes=img.notes,
+                date_added=str(img.date_added),
+                set_title=img.set.title,
+                creator_names=[c.canonical_name for c in img.set.creators]
+            )
+        )
+        
+    return ImagePage(items=items, total=total, skip=skip, limit=limit)
 
 @router.get("/duplicates/groups", response_model=List[DuplicateGroup])
 async def read_duplicate_groups(

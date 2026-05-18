@@ -1,11 +1,12 @@
 import { ActionIcon, Group, useMantineColorScheme, Stack, Divider, Box } from '@mantine/core';
-import { IconBrush, IconDashboard, IconPhoto, IconSettings, IconTool, IconSun, IconMoon } from '@tabler/icons-react';
+import { IconBrush, IconDashboard, IconPhoto, IconSettings, IconTool, IconSun, IconMoon, IconStack, IconWallpaper } from '@tabler/icons-react';
 import NavItem from './NavItem';
 
 const mainLinks = [
     { icon: IconDashboard, label: 'Dashboard', path: '/' },
     { icon: IconBrush, label: 'Creators', path: '/creators' },
-    { icon: IconPhoto, label: 'Sets', path: '/sets' },
+    { icon: IconStack, label: 'Sets', path: '/sets' },
+    { icon: IconWallpaper, label: 'Images', path: '/images' },
     { icon: IconTool, label: 'Tools', path: '/tools' },
 ];
 

@@ -1,15 +1,11 @@
 import os
-import asyncio
 from pathlib import Path
-from typing import List
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete, or_
+from sqlalchemy import select, func, delete
 from sqlalchemy.orm import selectinload
 
 from app.models.image import Image
 from app.models.set import Set
 from app.models.audit import AuditIssue
-from app.models.creator import Creator
 from app.db.session import SessionLocal
 from app.core import tasks
 from app.core.crop import load_image
@@ -18,10 +14,12 @@ import cv2
 def calculate_phash(path: Path):
     try:
         img = load_image(path)
-        if img is None: return None
+        if img is None:
+            return None
         hasher = cv2.img_hash.PHash_create()
         return hasher.compute(img).tobytes().hex()
-    except: return None
+    except Exception:
+        return None
 
 async def run_library_audit(vault_root_str: str, task_id: str):
     async with SessionLocal() as db:

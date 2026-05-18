@@ -1,6 +1,6 @@
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
 from app.models.image import Image
 from app.models.set import Set
@@ -81,7 +81,7 @@ async def get_duplicate_groups(db: AsyncSession):
     # 1. Find phashe that appear more than once
     subquery = (
         select(Image.phash)
-        .filter(Image.phash != None)
+        .filter(Image.phash.is_not(None))
         .group_by(Image.phash)
         .having(func.count(Image.id) > 1)
     ).subquery()
@@ -132,3 +132,34 @@ async def resolve_duplicates(db: AsyncSession, keep_id: int, remove_ids: List[in
     
     await db.commit()
     return removed_count, space_saved
+
+async def get_images(
+    db: AsyncSession, 
+    skip: int = 0, 
+    limit: int = 100, 
+    search: Optional[str] = None
+) -> tuple[List[Image], int]:
+    query = select(Image).join(Image.set)
+    
+    if search:
+        query = query.join(Set.creators).filter(
+            or_(
+                Image.filename.icontains(search),
+                Set.title.icontains(search),
+                Set.tags.icontains(search),
+                Creator.canonical_name.icontains(search)
+            )
+        )
+    
+    # Total count
+    count_query = select(func.count()).select_from(query.distinct().subquery())
+    count_result = await db.execute(count_query)
+    total = count_result.scalar_one()
+
+    # Pagination with relationship loading
+    items_query = query.distinct().options(
+        selectinload(Image.set).selectinload(Set.creators)
+    ).order_by(Image.date_added.desc(), Image.id.desc()).offset(skip).limit(limit)
+    
+    result = await db.execute(items_query)
+    return list(result.scalars().all()), total

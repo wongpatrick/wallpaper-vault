@@ -1,3 +1,4 @@
+from typing import Optional
 from collections import Counter
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
