@@ -12,7 +12,7 @@ class ImageBase(BaseModel):
     aspect_ratio_label: Optional[str] = None
     sort_order: Optional[int] = 0
     notes: Optional[str] = None
-    rating: Optional[str] = "safe"
+    rating: Optional[str] = "questionable"
     dominant_color: Optional[str] = None
     tags: Optional[str] = None
 

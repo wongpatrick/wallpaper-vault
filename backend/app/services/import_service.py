@@ -200,7 +200,8 @@ async def execute_import_item(
                         width=w, height=h,
                         file_size=final_p.stat().st_size,
                         aspect_ratio=float(w)/float(h) if h!=0 else 0,
-                        aspect_ratio_label=ratio_label
+                        aspect_ratio_label=ratio_label,
+                        rating="questionable"
                     ))
         
         # 5. Create Set
