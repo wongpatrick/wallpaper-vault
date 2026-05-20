@@ -137,10 +137,14 @@ async def get_images(
     db: AsyncSession, 
     skip: int = 0, 
     limit: int = 100, 
-    search: Optional[str] = None
+    search: Optional[str] = None,
+    rating: Optional[str] = None
 ) -> tuple[List[Image], int]:
     query = select(Image).join(Image.set)
     
+    if rating:
+        query = query.filter(Image.rating == rating)
+
     if search:
         query = query.join(Set.creators).filter(
             or_(

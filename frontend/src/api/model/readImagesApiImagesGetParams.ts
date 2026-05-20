@@ -9,4 +9,5 @@ export type ReadImagesApiImagesGetParams = {
 skip?: number;
 limit?: number;
 search?: string | null;
+rating?: string | null;
 };

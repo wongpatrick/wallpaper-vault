@@ -44,12 +44,13 @@ async def read_images(
     skip: int = 0,
     limit: int = 100,
     search: Optional[str] = None,
+    rating: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get a paginated list of all images with optional comprehensive search.
+    Get a paginated list of all images with optional comprehensive search and rating filter.
     """
-    images, total = await crud_image.get_images(db, skip=skip, limit=limit, search=search)
+    images, total = await crud_image.get_images(db, skip=skip, limit=limit, search=search, rating=rating)
     items = [map_image_to_context_schema(img) for img in images]
     return ImagePage(items=items, total=total, skip=skip, limit=limit)
 
