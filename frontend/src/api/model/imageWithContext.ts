@@ -12,6 +12,9 @@ import type { ImageWithContextAspectRatio } from './imageWithContextAspectRatio'
 import type { ImageWithContextAspectRatioLabel } from './imageWithContextAspectRatioLabel';
 import type { ImageWithContextSortOrder } from './imageWithContextSortOrder';
 import type { ImageWithContextNotes } from './imageWithContextNotes';
+import type { ImageWithContextRating } from './imageWithContextRating';
+import type { ImageWithContextDominantColor } from './imageWithContextDominantColor';
+import type { ImageWithContextTags } from './imageWithContextTags';
 
 export interface ImageWithContext {
   filename: string;
@@ -24,6 +27,9 @@ export interface ImageWithContext {
   aspect_ratio_label?: ImageWithContextAspectRatioLabel;
   sort_order?: ImageWithContextSortOrder;
   notes?: ImageWithContextNotes;
+  rating?: ImageWithContextRating;
+  dominant_color?: ImageWithContextDominantColor;
+  tags?: ImageWithContextTags;
   id: number;
   set_id: number;
   date_added: string;

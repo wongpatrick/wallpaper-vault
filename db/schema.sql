@@ -82,6 +82,9 @@ CREATE TABLE IF NOT EXISTS images (
     aspect_ratio_label TEXT,
     sort_order         INTEGER,
     notes              TEXT,
+    rating             TEXT    DEFAULT 'safe',
+    dominant_color     TEXT,
+    tags               TEXT,
     date_added         TEXT    NOT NULL DEFAULT (date('now'))
 );
 

@@ -12,6 +12,9 @@ import type { ImageAspectRatio } from './imageAspectRatio';
 import type { ImageAspectRatioLabel } from './imageAspectRatioLabel';
 import type { ImageSortOrder } from './imageSortOrder';
 import type { ImageNotes } from './imageNotes';
+import type { ImageRating } from './imageRating';
+import type { ImageDominantColor } from './imageDominantColor';
+import type { ImageTags } from './imageTags';
 
 export interface Image {
   filename: string;
@@ -24,6 +27,9 @@ export interface Image {
   aspect_ratio_label?: ImageAspectRatioLabel;
   sort_order?: ImageSortOrder;
   notes?: ImageNotes;
+  rating?: ImageRating;
+  dominant_color?: ImageDominantColor;
+  tags?: ImageTags;
   id: number;
   set_id: number;
   date_added: string;

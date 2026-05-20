@@ -1,4 +1,4 @@
-import { Card, Image, Box, Text, Stack } from '@mantine/core';
+import { Card, Image, Box, Text, Stack, Badge, Group } from '@mantine/core';
 import { getImageUrl } from '../../../utils/fileUtils';
 import type { Image as ImageModel } from '../../../api/model';
 
@@ -8,17 +8,27 @@ interface ImageGridItemProps {
 }
 
 export function ImageGridItem({ image, onClick }: ImageGridItemProps) {
+    const rating = image.rating || 'safe';
+    const dominantColor = image.dominant_color;
+    
+    const borderColor = rating === 'explicit' ? 'var(--mantine-color-red-filled)' : 
+                        rating === 'questionable' ? 'var(--mantine-color-yellow-filled)' : 
+                        'transparent';
+    
     return (
         <Card
             p={0}
-            radius="xs" // More square-ish for that "fill" look
-            withBorder={false} // Remove border for edge-to-edge feel
+            radius="xs"
+            withBorder={false}
             className="image-card"
             style={{
                 cursor: 'pointer',
                 overflow: 'hidden',
                 display: 'block',
-                backgroundColor: 'transparent'
+                backgroundColor: 'transparent',
+                position: 'relative',
+                border: rating !== 'safe' ? `2px solid ${borderColor}` : undefined,
+                boxSizing: 'border-box'
             }}
             onClick={onClick}
         >
@@ -26,7 +36,7 @@ export function ImageGridItem({ image, onClick }: ImageGridItemProps) {
                 src={getImageUrl(image.id)}
                 alt={image.filename}
                 loading="lazy"
-                radius={0} // Ensure image itself has no radius inside card
+                radius={0}
                 style={{ 
                     width: '100%', 
                     height: 'auto', 
@@ -35,6 +45,34 @@ export function ImageGridItem({ image, onClick }: ImageGridItemProps) {
                 }}
                 className="grid-image"
             />
+            
+            {/* Top Badges */}
+            <Box style={{ position: 'absolute', top: 8, right: 8, zIndex: 5, pointerEvents: 'none' }}>
+                <Group gap={4}>
+                    {dominantColor && (
+                        <Box 
+                            style={{ 
+                                width: 12, 
+                                height: 12, 
+                                borderRadius: '50%', 
+                                backgroundColor: dominantColor,
+                                border: '1px solid rgba(255,255,255,0.5)',
+                                boxShadow: '0 0 4px rgba(0,0,0,0.5)'
+                            }} 
+                        />
+                    )}
+                    {rating !== 'safe' && (
+                        <Badge 
+                            color={rating === 'explicit' ? 'red' : 'yellow'} 
+                            variant="filled" 
+                            size="xs"
+                            styles={{ root: { textTransform: 'uppercase', fontSize: '8px', padding: '0 4px' } }}
+                        >
+                            {rating}
+                        </Badge>
+                    )}
+                </Group>
+            </Box>
             
             <Box
                 className="image-overlay"
@@ -53,7 +91,14 @@ export function ImageGridItem({ image, onClick }: ImageGridItemProps) {
             >
                 <Stack gap={2}>
                     <Text size="xs" fw={700} truncate="end">{image.filename}</Text>
-                    <Text size="xs" opacity={0.8}>{image.width} × {image.height}</Text>
+                    <Group gap={8}>
+                        <Text size="xs" opacity={0.8}>{image.width} × {image.height}</Text>
+                        {image.tags && (
+                            <Text size="xs" c="blue.2" truncate="end" style={{ flex: 1 }}>
+                                {image.tags}
+                            </Text>
+                        )}
+                    </Group>
                 </Stack>
             </Box>
         </Card>
