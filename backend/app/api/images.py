@@ -9,6 +9,36 @@ from pathlib import Path
 
 router = APIRouter()
 
+def map_image_to_schema(img) -> Image:
+    """Helper to ensure image model is correctly mapped to schema with string dates."""
+    return Image(
+        id=img.id,
+        set_id=img.set_id,
+        filename=img.filename,
+        local_path=img.local_path,
+        phash=img.phash,
+        width=img.width,
+        height=img.height,
+        file_size=img.file_size,
+        aspect_ratio=img.aspect_ratio,
+        aspect_ratio_label=img.aspect_ratio_label,
+        sort_order=img.sort_order,
+        notes=img.notes,
+        rating=img.rating,
+        dominant_color=img.dominant_color,
+        tags=img.tags,
+        date_added=str(img.date_added)
+    )
+
+def map_image_to_context_schema(img) -> ImageWithContext:
+    """Helper to map image with set/creator context."""
+    base = map_image_to_schema(img)
+    return ImageWithContext(
+        **base.model_dump(),
+        set_title=img.set.title,
+        creator_names=[c.canonical_name for c in img.set.creators]
+    )
+
 @router.get("/", response_model=ImagePage)
 async def read_images(
     skip: int = 0,
@@ -20,30 +50,7 @@ async def read_images(
     Get a paginated list of all images with optional comprehensive search.
     """
     images, total = await crud_image.get_images(db, skip=skip, limit=limit, search=search)
-    
-    # Map to ImageWithContext
-    items = []
-    for img in images:
-        items.append(
-            ImageWithContext(
-                id=img.id,
-                set_id=img.set_id,
-                filename=img.filename,
-                local_path=img.local_path,
-                phash=img.phash,
-                width=img.width,
-                height=img.height,
-                file_size=img.file_size,
-                aspect_ratio=img.aspect_ratio,
-                aspect_ratio_label=img.aspect_ratio_label,
-                sort_order=img.sort_order,
-                notes=img.notes,
-                date_added=str(img.date_added),
-                set_title=img.set.title,
-                creator_names=[c.canonical_name for c in img.set.creators]
-            )
-        )
-        
+    items = [map_image_to_context_schema(img) for img in images]
     return ImagePage(items=items, total=total, skip=skip, limit=limit)
 
 @router.get("/duplicates/groups", response_model=List[DuplicateGroup])
@@ -57,30 +64,9 @@ async def read_duplicate_groups(
     
     result = []
     for phash, img_list in groups_dict.items():
-        # Map to schema
-        images_with_context = []
-        for img in img_list:
-            images_with_context.append(
-                ImageWithContext(
-                    id=img.id,
-                    set_id=img.set_id,
-                    filename=img.filename,
-                    local_path=img.local_path,
-                    phash=img.phash,
-                    width=img.width,
-                    height=img.height,
-                    file_size=img.file_size,
-                    aspect_ratio=img.aspect_ratio,
-                    aspect_ratio_label=img.aspect_ratio_label,
-                    sort_order=img.sort_order,
-                    notes=img.notes,
-                    date_added=str(img.date_added),
-                    set_title=img.set.title,
-                    creator_names=[c.canonical_name for c in img.set.creators]
-                )
-            )
+        images_with_context = [map_image_to_context_schema(img) for img in img_list]
         
-        # Sort: Highest resolution first, then by set name
+        # Sort: Highest resolution first
         def score_img(img):
             score = 0
             if "Needs Organizing" not in (" ".join(img.creator_names)):
@@ -129,7 +115,6 @@ async def read_random_image_file_path_tags(
     """
     Get a random image file based on ratio and tags in the path (DisplayFusion compatible).
     """
-    # Split by slashes now instead of commas
     tag_list = [t.strip() for t in tags.split("/") if t.strip()]
     db_image = await crud_image.get_random_image(
         db, 
@@ -196,7 +181,7 @@ async def read_random_image(
     )
     if db_image is None:
         raise HTTPException(status_code=404, detail="No images found matching criteria")
-    return db_image
+    return map_image_to_schema(db_image)
 
 @router.get("/random/file")
 async def read_random_image_file(
@@ -225,8 +210,6 @@ async def read_random_image_file(
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Image file not found on disk")
     
-    # Provide the actual filename to ensure clients like DisplayFusion don't
-    # attempt to use the URL (which contains invalid filename characters like '?')
     return FileResponse(
         str(file_path), 
         filename=db_image.filename,
@@ -241,7 +224,7 @@ async def read_image(
     db_image = await crud_image.get_image(db, image_id=image_id)
     if db_image is None:
         raise HTTPException(status_code=404, detail="Image not found")
-    return db_image
+    return map_image_to_schema(db_image)
 
 @router.patch("/{image_id}", response_model=Image)
 async def update_image(
@@ -252,7 +235,7 @@ async def update_image(
     db_image = await crud_image.update_image(db, image_id=image_id, image_in=image_in)
     if db_image is None:
         raise HTTPException(status_code=404, detail="Image not found")
-    return db_image
+    return map_image_to_schema(db_image)
 
 @router.delete("/{image_id}", response_model=Image)
 async def delete_image(
@@ -262,7 +245,7 @@ async def delete_image(
     db_image = await crud_image.delete_image(db, image_id=image_id)
     if db_image is None:
         raise HTTPException(status_code=404, detail="Image not found")
-    return db_image
+    return map_image_to_schema(db_image)
 
 @router.get("/file/{image_id}")
 async def get_image_file(
@@ -285,4 +268,5 @@ async def create_image_for_set(
     image_in: ImageCreate,
     db: AsyncSession = Depends(get_db)
 ):
-    return await crud_image.create_image(db, image_in=image_in, set_id=set_id)
+    db_image = await crud_image.create_image(db, image_in=image_in, set_id=set_id)
+    return map_image_to_schema(db_image)

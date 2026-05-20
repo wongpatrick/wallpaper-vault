@@ -1,8 +1,8 @@
-import { Modal, Stack, TextInput, Textarea, Button, NumberInput } from '@mantine/core';
+import { Modal, Stack, TextInput, Textarea, Button, NumberInput, SegmentedControl, Text, ColorInput } from '@mantine/core';
 import { useState, useEffect } from 'react';
 import { useUpdateImageApiImagesImageIdPatch } from '../../../api/generated/images/images';
 import { notifications } from '@mantine/notifications';
-import type { Image as ImageModel } from '../../../api/model';
+import type { Image as ImageModel, ImageUpdate } from '../../../api/model';
 
 interface ImageEditModalProps {
     image: ImageModel | null;
@@ -15,11 +15,14 @@ interface ImageEditModalProps {
 export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = 3000 }: ImageEditModalProps) {
     const updateMutation = useUpdateImageApiImagesImageIdPatch();
     
-    const [form, setForm] = useState({
+    const [form, setForm] = useState<ImageUpdate>({
         filename: '',
         notes: '',
         sort_order: 0,
-        aspect_ratio_label: ''
+        aspect_ratio_label: '',
+        rating: 'safe',
+        dominant_color: '',
+        tags: ''
     });
 
     useEffect(() => {
@@ -28,7 +31,10 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = 300
                 filename: image.filename || '',
                 notes: image.notes || '',
                 sort_order: image.sort_order || 0,
-                aspect_ratio_label: image.aspect_ratio_label || ''
+                aspect_ratio_label: image.aspect_ratio_label || '',
+                rating: image.rating || 'safe',
+                dominant_color: image.dominant_color || '',
+                tags: image.tags || ''
             });
         }
     }, [image]);
@@ -53,28 +59,58 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = 300
             <Stack gap="md">
                 <TextInput 
                     label="Filename" 
-                    value={form.filename} 
+                    value={form.filename || ''} 
                     onChange={(e) => setForm({ ...form, filename: e.currentTarget.value })}
                 />
+                
+                <Text size="sm" fw={500} mb={-10}>Content Rating</Text>
+                <SegmentedControl
+                    value={form.rating || 'safe'}
+                    onChange={(v) => setForm({ ...form, rating: v })}
+                    data={[
+                        { label: 'Safe', value: 'safe' },
+                        { label: 'Questionable', value: 'questionable' },
+                        { label: 'Explicit', value: 'explicit' },
+                    ]}
+                />
+
+                <TextInput 
+                    label="Tags" 
+                    placeholder="e.g. dark, landscape, minimalist"
+                    description="Granular tags for this specific image"
+                    value={form.tags || ''} 
+                    onChange={(e) => setForm({ ...form, tags: e.currentTarget.value })}
+                />
+
+                <ColorInput 
+                    label="Dominant Color" 
+                    placeholder="Hex code (e.g. #FF0055)"
+                    value={form.dominant_color || ''} 
+                    onChange={(v) => setForm({ ...form, dominant_color: v })}
+                    format="hex"
+                />
+
                 <TextInput 
                     label="Aspect Ratio Label" 
                     placeholder="e.g. 16:9, Mobile"
-                    value={form.aspect_ratio_label} 
+                    value={form.aspect_ratio_label || ''} 
                     onChange={(e) => setForm({ ...form, aspect_ratio_label: e.currentTarget.value })}
                 />
+                
                 <NumberInput 
                     label="Sort Order" 
-                    value={form.sort_order} 
+                    value={form.sort_order || 0} 
                     onChange={(v) => setForm({ ...form, sort_order: Number(v) })}
                 />
+                
                 <Textarea 
                     label="Notes" 
                     placeholder="Specific notes for this image..."
-                    value={form.notes} 
+                    value={form.notes || ''} 
                     onChange={(e) => setForm({ ...form, notes: e.currentTarget.value })}
                     minRows={3}
                 />
-                <Button fullWidth onClick={handleSave} mt="md">Save Changes</Button>
+                <Button fullWidth onClick={handleSave} mt="md" loading={updateMutation.isPending}>Save Changes</Button>
             </Stack>
         </Modal>
     );

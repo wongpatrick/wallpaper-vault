@@ -1,5 +1,5 @@
 import { ActionIcon, Group, useMantineColorScheme, Stack, Divider, Box } from '@mantine/core';
-import { IconBrush, IconDashboard, IconPhoto, IconSettings, IconTool, IconSun, IconMoon, IconStack, IconWallpaper } from '@tabler/icons-react';
+import { IconBrush, IconDashboard, IconSettings, IconTool, IconSun, IconMoon, IconStack, IconWallpaper } from '@tabler/icons-react';
 import NavItem from './NavItem';
 
 const mainLinks = [

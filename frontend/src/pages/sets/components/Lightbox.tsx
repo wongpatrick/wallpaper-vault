@@ -1,4 +1,4 @@
-import { Modal, Box, Group, Stack, Text, Button, ActionIcon, Center, Image } from '@mantine/core';
+import { Modal, Box, Group, Stack, Text, Button, ActionIcon, Center, Image, Badge } from '@mantine/core';
 import { IconWallpaper, IconX, IconChevronLeft, IconChevronRight, IconEdit } from '@tabler/icons-react';
 import { getImageUrl } from '../../../utils/fileUtils';
 import type { Image as ImageModel } from '../../../api/model';
@@ -13,8 +13,10 @@ interface LightboxProps {
 
 export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit }: LightboxProps) {
     if (selectedIndex === null) return null;
-    
+
     const currentImage = images[selectedIndex];
+    const rating = currentImage.rating || 'safe';
+    const tags = currentImage.tags;
 
     const handlePrev = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -42,17 +44,30 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
                 {/* Lightbox Header */}
                 <Group justify="space-between" p="md" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
                     <Stack gap={0}>
-                        <Text c="white" fw={600}>{currentImage.filename}</Text>
-                        <Text c="gray.5" size="xs">
-                            {currentImage.width} x {currentImage.height} • 
-                            {((currentImage.file_size || 0) / 1024 / 1024).toFixed(2)} MB
-                        </Text>
+                        <Group gap="xs">
+                            <Text c="white" fw={600}>{currentImage.filename}</Text>
+                            {rating !== 'safe' && (
+                                <Badge color={rating === 'explicit' ? 'red' : 'yellow'} variant="filled" size="xs">
+                                    {rating}
+                                </Badge>
+                            )}
+                        </Group>
+                        <Group gap={8}>
+                            <Text c="gray.5" size="xs">
+                                {currentImage.width} x {currentImage.height} • {((currentImage.file_size || 0) / 1024 / 1024).toFixed(2)} MB
+                            </Text>
+                            {tags && (
+                                <Text c="blue.4" size="xs" italic>
+                                    #{tags.split(',').map((t: string) => t.trim()).join(' #')}
+                                </Text>
+                            )}
+                        </Group>
                     </Stack>
                     <Group>
                         <Button 
                             leftSection={<IconEdit size={18} />} 
                             variant="subtle" 
-                            color="gray"
+                            color="gray" 
                             onClick={() => onEdit(currentImage)}
                         >
                             Edit
@@ -68,7 +83,7 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
 
                 {/* Main Image Area */}
                 <Center style={{ flex: 1, padding: '40px' }}>
-                    <Image 
+                    <Image
                         src={getImageUrl(currentImage.id)}
                         style={{ maxHeight: '80vh', maxWidth: '100%', objectFit: 'contain' }}
                     />
@@ -85,7 +100,7 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
                 >
                     <IconChevronLeft size={48} />
                 </ActionIcon>
-                
+
                 <ActionIcon 
                     variant="transparent" 
                     color="white" 
@@ -102,12 +117,12 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
                     <Group gap="xs" wrap="nowrap" justify="center">
                         {images.map((img, idx) => (
                             <Box 
-                                key={img.id}
+                                key={img.id} 
                                 onClick={() => onSelectIndex(idx)}
                                 style={{ 
                                     width: 60, 
                                     height: 40, 
-                                    cursor: 'pointer',
+                                    cursor: 'pointer', 
                                     border: selectedIndex === idx ? '2px solid var(--mantine-color-blue-filled)' : 'none',
                                     opacity: selectedIndex === idx ? 1 : 0.5,
                                     transition: 'all 0.2s'

@@ -12,6 +12,9 @@ import type { ImageCreateAspectRatio } from './imageCreateAspectRatio';
 import type { ImageCreateAspectRatioLabel } from './imageCreateAspectRatioLabel';
 import type { ImageCreateSortOrder } from './imageCreateSortOrder';
 import type { ImageCreateNotes } from './imageCreateNotes';
+import type { ImageCreateRating } from './imageCreateRating';
+import type { ImageCreateDominantColor } from './imageCreateDominantColor';
+import type { ImageCreateTags } from './imageCreateTags';
 
 export interface ImageCreate {
   filename: string;
@@ -24,4 +27,7 @@ export interface ImageCreate {
   aspect_ratio_label?: ImageCreateAspectRatioLabel;
   sort_order?: ImageCreateSortOrder;
   notes?: ImageCreateNotes;
+  rating?: ImageCreateRating;
+  dominant_color?: ImageCreateDominantColor;
+  tags?: ImageCreateTags;
 }
