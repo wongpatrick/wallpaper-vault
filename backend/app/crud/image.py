@@ -73,6 +73,11 @@ async def update_image(db: AsyncSession, image_id: int, image_in: ImageUpdate) -
 async def delete_image(db: AsyncSession, image_id: int) -> Optional[Image]:
     db_image = await get_image(db, image_id)
     if db_image:
+        # Delete file from disk
+        p = Path(db_image.local_path)
+        if p.exists():
+            p.unlink(missing_ok=True)
+            
         await db.delete(db_image)
         await db.commit()
     return db_image

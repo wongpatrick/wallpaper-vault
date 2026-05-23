@@ -21,6 +21,41 @@ from app.crud.settings import get_setting
 from app.core import tasks
 from app.db.session import SessionLocal
 from pathlib import Path
+import re
+
+def sanitize_folder_name(name: str) -> str:
+    # Remove invalid characters: \ / : * ? " < > |
+    return re.sub(r'[\\/:*?"<>|]', '', name).strip()
+
+def rename_set_folder_if_needed(db_set: Set):
+    if not db_set.local_path:
+        return
+        
+    # Generate new folder name based on convention: [Creators] - [Sanitized Title]
+    creator_names = [c.canonical_name for c in db_set.creators]
+    creators_str = " & ".join(creator_names) if creator_names else "Unknown"
+    sanitized_title = sanitize_folder_name(db_set.title) if db_set.title else "Untitled"
+    new_folder_name = f"{creators_str} - {sanitized_title}"
+    
+    old_path = Path(db_set.local_path)
+    if old_path.exists() and old_path.is_dir():
+        new_path = old_path.with_name(new_folder_name)
+        
+        # Perform rename if necessary and new path doesn't already exist
+        if new_path != old_path and not new_path.exists():
+            try:
+                old_path.rename(new_path)
+                db_set.local_path = str(new_path)
+                
+                # Update paths for all images within the set
+                if db_set.images:
+                    for img in db_set.images:
+                        img_old_path = Path(img.local_path)
+                        img_new_path = new_path / img_old_path.name
+                        img.local_path = str(img_new_path)
+            except Exception as e:
+                print(f"Error renaming set folder: {e}")
+                # We don't raise here to prevent blocking the metadata update if FS fails
 
 async def get_set(db: AsyncSession, set_id: int):
     result = await db.execute(
@@ -166,6 +201,9 @@ async def update_set(db: AsyncSession, set_id: int, set_in: SetUpdate) -> Option
         creators = result.scalars().all()
         db_set.creators = list(creators)
     
+    # Automatic Folder Renaming Logic
+    rename_set_folder_if_needed(db_set)
+    
     db.add(db_set)
     await db.commit()
     await db.refresh(db_set)
@@ -175,9 +213,9 @@ async def update_set(db: AsyncSession, set_id: int, set_in: SetUpdate) -> Option
 
 
 async def bulk_update_sets(db: AsyncSession, bulk_in: SetBulkUpdate) -> int:
-    # 1. Fetch all target sets with creators
+    # 1. Fetch all target sets with creators and images
     result = await db.execute(
-        select(Set).options(selectinload(Set.creators)).where(Set.id.in_(bulk_in.set_ids))
+        select(Set).options(selectinload(Set.creators), selectinload(Set.images)).where(Set.id.in_(bulk_in.set_ids))
     )
     db_sets = result.scalars().all()
     
@@ -225,6 +263,9 @@ async def bulk_update_sets(db: AsyncSession, bulk_in: SetBulkUpdate) -> int:
             else:
                 # REPLACE
                 db_set.creators = list(target_creators)
+        
+        # Automatic Folder Renaming Logic
+        rename_set_folder_if_needed(db_set)
         
         db.add(db_set)
 

@@ -1,4 +1,5 @@
 import { Card, Image, Box, Text, Stack, Badge, Group } from '@mantine/core';
+import { IconAlertTriangle, IconExclamationCircle } from '@tabler/icons-react';
 import { getImageUrl } from '../../../utils/fileUtils';
 import type { Image as ImageModel } from '../../../api/model';
 
@@ -66,7 +67,11 @@ export function ImageGridItem({ image, onClick }: ImageGridItemProps) {
                             color={rating === 'explicit' ? 'red' : 'yellow'} 
                             variant="filled" 
                             size="xs"
-                            styles={{ root: { textTransform: 'uppercase', fontSize: '8px', padding: '0 4px' } }}
+                            leftSection={rating === 'explicit' ? <IconExclamationCircle size={10} /> : <IconAlertTriangle size={10} />}
+                            styles={{ 
+                                root: { textTransform: 'uppercase', fontSize: '8px', padding: '0 4px' },
+                                section: { marginRight: 2 }
+                            }}
                         >
                             {rating}
                         </Badge>
