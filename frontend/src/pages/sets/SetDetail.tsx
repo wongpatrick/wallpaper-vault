@@ -16,6 +16,7 @@ import {
 } from '../../api/generated/sets/sets';
 import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
 import { notifications } from '@mantine/notifications';
+import { modals } from '@mantine/modals';
 import { ImageGridItem } from './components/ImageGridItem';
 import { Lightbox } from './components/Lightbox';
 import { ImageEditModal } from './components/ImageEditModal';
@@ -96,15 +97,27 @@ export default function SetDetail() {
         }
     };
 
-    const handleDelete = async () => {
-        if (!window.confirm('Are you sure you want to delete this set? This cannot be undone.')) return;
-        try {
-            await deleteMutation.mutateAsync({ setId: Number(setId) });
-            notifications.show({ title: 'Set deleted', message: 'Set removed from vault', color: 'blue' });
-            navigate('/sets');
-        } catch {
-            notifications.show({ title: 'Error', message: 'Could not delete set', color: 'red' });
-        }
+    const handleDelete = () => {
+        modals.openConfirmModal({
+            title: 'Delete Set',
+            centered: true,
+            children: (
+                <Text size="sm">
+                    Are you sure you want to delete this set? This will permanently remove all images in this set from your computer. This action cannot be undone.
+                </Text>
+            ),
+            labels: { confirm: 'Delete permanently', cancel: 'Cancel' },
+            confirmProps: { color: 'red' },
+            onConfirm: async () => {
+                try {
+                    await deleteMutation.mutateAsync({ setId: Number(setId) });
+                    notifications.show({ title: 'Set deleted', message: 'Set removed from vault', color: 'blue' });
+                    navigate('/sets');
+                } catch {
+                    notifications.show({ title: 'Error', message: 'Could not delete set', color: 'red' });
+                }
+            },
+        });
     };
 
     const handleOpenFolder = async () => {
@@ -225,6 +238,7 @@ export default function SetDetail() {
                 onClose={() => setSelectedImageIndex(null)}
                 onSelectIndex={setSelectedImageIndex}
                 onEdit={(img) => setEditingImage(img)}
+                onDelete={() => refetch()}
             />
 
             {/* Set Edit Modal */}

@@ -11,6 +11,7 @@ import Tools from './pages/tools/tools'
 import Settings from './pages/settings/settings'
 import { createTheme, MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
+import { ModalsProvider } from '@mantine/modals'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NotificationProvider, useNotificationHistory } from './context/NotificationContext'
 
@@ -155,11 +156,13 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <MantineProvider theme={theme} defaultColorScheme="auto">
-        <NotificationProvider>
-          <Notifications position="top-right" />
-          <GlobalTasks />
-          <RouterProvider router={router} />
-        </NotificationProvider>
+        <ModalsProvider>
+          <NotificationProvider>
+            <Notifications position="top-right" />
+            <GlobalTasks />
+            <RouterProvider router={router} />
+          </NotificationProvider>
+        </ModalsProvider>
       </MantineProvider>
     </QueryClientProvider>
   )

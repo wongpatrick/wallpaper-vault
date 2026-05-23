@@ -1,7 +1,9 @@
-import { Modal, Stack, TextInput, Textarea, Button, NumberInput, SegmentedControl, Text, ColorInput } from '@mantine/core';
+import { Modal, Stack, TextInput, Textarea, Button, NumberInput, SegmentedControl, Text, ColorInput, Center, Box, Group } from '@mantine/core';
 import { useState, useEffect } from 'react';
-import { useUpdateImageApiImagesImageIdPatch } from '../../../api/generated/images/images';
+import { IconAlertTriangle, IconExclamationCircle, IconShieldCheck, IconTrash } from '@tabler/icons-react';
+import { useUpdateImageApiImagesImageIdPatch, useDeleteImageApiImagesImageIdDelete } from '../../../api/generated/images/images';
 import { notifications } from '@mantine/notifications';
+import { modals } from '@mantine/modals';
 import type { Image as ImageModel, ImageUpdate } from '../../../api/model';
 
 interface ImageEditModalProps {
@@ -14,6 +16,7 @@ interface ImageEditModalProps {
 
 export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = 3000 }: ImageEditModalProps) {
     const updateMutation = useUpdateImageApiImagesImageIdPatch();
+    const deleteMutation = useDeleteImageApiImagesImageIdDelete();
     
     const [form, setForm] = useState<ImageUpdate>({
         filename: '',
@@ -54,6 +57,32 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = 300
         }
     };
 
+    const handleDelete = () => {
+        if (!image) return;
+        
+        modals.openConfirmModal({
+            title: 'Delete Image',
+            centered: true,
+            children: (
+                <Text size="sm">
+                    Are you sure you want to delete this image? This will permanently remove the file from your computer.
+                </Text>
+            ),
+            labels: { confirm: 'Delete permanently', cancel: 'Cancel' },
+            confirmProps: { color: 'red' },
+            onConfirm: async () => {
+                try {
+                    await deleteMutation.mutateAsync({ imageId: image.id });
+                    notifications.show({ title: 'Image deleted', message: 'The image has been permanently removed.', color: 'blue' });
+                    onUpdated();
+                    onClose();
+                } catch {
+                    notifications.show({ title: 'Error', message: 'Could not delete image', color: 'red' });
+                }
+            },
+        });
+    };
+
     return (
         <Modal opened={opened} onClose={onClose} title="Edit Image Metadata" radius="md" zIndex={zIndex}>
             <Stack gap="md">
@@ -68,9 +97,33 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = 300
                     value={form.rating || 'safe'}
                     onChange={(v) => setForm({ ...form, rating: v })}
                     data={[
-                        { label: 'Safe', value: 'safe' },
-                        { label: 'Questionable', value: 'questionable' },
-                        { label: 'Explicit', value: 'explicit' },
+                        { 
+                            label: (
+                                <Center style={{ gap: 10 }}>
+                                    <IconShieldCheck size={16} />
+                                    <Box>Safe</Box>
+                                </Center>
+                            ), 
+                            value: 'safe' 
+                        },
+                        { 
+                            label: (
+                                <Center style={{ gap: 10 }}>
+                                    <IconAlertTriangle size={16} color="var(--mantine-color-yellow-6)" />
+                                    <Box>Questionable</Box>
+                                </Center>
+                            ), 
+                            value: 'questionable' 
+                        },
+                        { 
+                            label: (
+                                <Center style={{ gap: 10 }}>
+                                    <IconExclamationCircle size={16} color="var(--mantine-color-red-6)" />
+                                    <Box>Explicit</Box>
+                                </Center>
+                            ), 
+                            value: 'explicit' 
+                        },
                     ]}
                 />
 
@@ -110,7 +163,19 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = 300
                     onChange={(e) => setForm({ ...form, notes: e.currentTarget.value })}
                     minRows={3}
                 />
-                <Button fullWidth onClick={handleSave} mt="md" loading={updateMutation.isPending}>Save Changes</Button>
+                
+                <Group grow mt="md">
+                    <Button 
+                        variant="light" 
+                        color="red" 
+                        leftSection={<IconTrash size={16} />} 
+                        onClick={handleDelete}
+                        loading={deleteMutation.isPending}
+                    >
+                        Delete Image
+                    </Button>
+                    <Button onClick={handleSave} loading={updateMutation.isPending}>Save Changes</Button>
+                </Group>
             </Stack>
         </Modal>
     );
