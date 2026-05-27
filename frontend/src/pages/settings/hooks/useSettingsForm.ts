@@ -1,3 +1,7 @@
+/**
+ * React hook for managing application settings form state.
+ * Handles loading, saving, and syncing settings with the backend and Electron.
+ */
 import { useForm } from '@mantine/form';
 import { useState, useEffect } from 'react';
 import { useReadSettingsApiSettingsGet, useUpdateSettingApiSettingsKeyPut } from '../../../api/generated/settings/settings';

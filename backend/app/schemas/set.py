@@ -1,3 +1,7 @@
+"""
+Pydantic schemas for set entities.
+Defines models for creating, updating, importing, and bulk managing sets.
+"""
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
 from enum import Enum

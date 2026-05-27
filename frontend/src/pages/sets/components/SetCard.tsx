@@ -1,3 +1,7 @@
+/**
+ * Module: Set Card Component
+ * Description: Displays a preview card for a wallpaper set, showing its cover image, title, creators, and providing contextual actions.
+ */
 import { Card, Image, Group, Stack, Text, Menu, ActionIcon, Badge, rem, Checkbox, Box, Overlay } from '@mantine/core';
 import { IconDotsVertical, IconExternalLink, IconFolder, IconTrash } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';

@@ -1,3 +1,7 @@
+"""
+Pydantic schemas for the dashboard.
+Defines models for library statistics and health alerts displayed on the frontend.
+"""
 from pydantic import BaseModel
 from typing import List, Dict
 

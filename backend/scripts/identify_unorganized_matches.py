@@ -1,3 +1,7 @@
+"""
+Script to match unorganized files against the organized vault.
+Calculates pHashes for loose files and checks if they already exist in known sets.
+"""
 import asyncio
 import sys
 import os

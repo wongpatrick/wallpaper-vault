@@ -1,3 +1,7 @@
+/**
+ * Module: Images Directory Page
+ * Description: Provides an infinite-scrolling gallery of all individual wallpapers with search, filtering, and lightbox viewing capabilities.
+ */
 import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Box, SimpleGrid, SegmentedControl } from '@mantine/core';
 import { IconAlertCircle, IconSearch } from '@tabler/icons-react';
 import { useReadImagesApiImagesGet } from '../../api/generated/images/images';

@@ -1,3 +1,7 @@
+"""
+Pydantic schemas for creator entities.
+Defines models for creating, updating, and returning creator data and statistics.
+"""
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
 

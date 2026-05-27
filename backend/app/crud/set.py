@@ -1,3 +1,6 @@
+"""
+CRUD operations and business logic for managing wallpaper sets and bulk imports.
+"""
 from typing import Optional
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession

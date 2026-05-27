@@ -1,3 +1,6 @@
+"""
+General utility functions and helpers for the application.
+"""
 import re
 
 def sanitize_filename(filename: str) -> str:

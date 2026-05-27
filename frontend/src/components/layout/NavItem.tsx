@@ -1,3 +1,7 @@
+/**
+ * Navigation item component for the sidebar.
+ * Handles active state rendering and optional collapsed view tooltips.
+ */
 import { NavLink, Tooltip } from '@mantine/core';
 import { useNavigate, useLocation } from 'react-router-dom';
 import React from 'react';

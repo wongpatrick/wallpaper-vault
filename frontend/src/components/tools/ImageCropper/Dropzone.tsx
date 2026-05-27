@@ -1,3 +1,7 @@
+/**
+ * Dropzone component for the image cropper.
+ * Allows users to drag and drop or select an image file to crop.
+ */
 import { Paper, Text } from '@mantine/core';
 import { IconUpload } from '@tabler/icons-react';
 

@@ -1,3 +1,7 @@
+/**
+ * Tool for parsing folder names into Set and Creator values.
+ * Allows using simple placeholders or advanced regular expressions.
+ */
 import { Text, Card, TextInput, Group, Stack, Table, Badge, ActionIcon, Tooltip, Paper, Switch, Code, Button, ThemeIcon } from '@mantine/core';
 import { IconFolder, IconSettings, IconFileSearch, IconCheck, IconX, IconInfoCircle, IconRegex, IconCloudUpload } from '@tabler/icons-react';
 import { useState, useCallback, useEffect } from 'react';

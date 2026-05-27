@@ -1,3 +1,7 @@
+/**
+ * Main application component.
+ * Sets up the router, theme, global state, and background task listeners.
+ */
 import { useEffect, useState } from 'react'
 import { createHashRouter, RouterProvider } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'

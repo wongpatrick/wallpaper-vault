@@ -1,3 +1,6 @@
+"""
+CRUD operations for creator (artist) database records and statistics.
+"""
 from typing import Optional
 from collections import Counter
 from sqlalchemy.orm import selectinload

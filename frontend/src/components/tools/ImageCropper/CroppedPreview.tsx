@@ -1,3 +1,7 @@
+/**
+ * Component for previewing a cropped image.
+ * Displays the resulting image and its dimensions.
+ */
 import { Stack, Text, Paper } from '@mantine/core';
 
 interface CroppedPreviewProps {

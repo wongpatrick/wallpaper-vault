@@ -1,3 +1,6 @@
+"""
+CRUD operations for image records, including duplicate detection and resolution.
+"""
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_

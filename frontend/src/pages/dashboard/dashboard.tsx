@@ -1,3 +1,7 @@
+/**
+ * Module: Dashboard Page
+ * Description: The main landing page displaying library statistics, recent imports, random inspiration, and system health alerts.
+ */
 import { 
     Title, 
     Text, 

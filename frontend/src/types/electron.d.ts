@@ -1,3 +1,7 @@
+/**
+ * TypeScript definitions for Electron inter-process communication API.
+ * Declares the global Window interface for Electron bindings.
+ */
 export interface ElectronAPI {
     send: (channel: string, data: unknown) => void;
     on: (channel: string, func: (...args: unknown[]) => void) => void;

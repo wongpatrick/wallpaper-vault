@@ -1,3 +1,7 @@
+"""
+Script to find and resolve duplicate images.
+Groups images by pHash to identify visual duplicates and optionally deletes redundant files.
+"""
 import asyncio
 import sys
 import os

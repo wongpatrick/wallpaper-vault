@@ -1,3 +1,7 @@
+/**
+ * React hook managing image cropping state and logic.
+ * Handles drag, resize, and cropping operations.
+ */
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 export type AspectRatio = 'free' | '16:9' | '16:10' | '9:16' | '4:3' | '1:1' | 'custom';

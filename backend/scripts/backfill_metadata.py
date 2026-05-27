@@ -1,3 +1,7 @@
+"""
+Utility script to backfill missing image metadata.
+Calculates missing perceptual hashes (pHash) and image dimensions in the database.
+"""
 import asyncio
 import sys
 import os

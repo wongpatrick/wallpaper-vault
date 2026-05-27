@@ -1,3 +1,7 @@
+"""
+Script for batch importing and organizing unorganized files.
+Scans a target directory, extracts metadata from filenames, and moves files into the vault.
+"""
 import sys
 import os
 import asyncio

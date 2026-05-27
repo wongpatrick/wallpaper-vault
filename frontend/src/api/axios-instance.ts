@@ -1,3 +1,8 @@
+/**
+ * Custom Axios instance for API communication.
+ * Provides the base configuration and custom request wrapper
+ * used by auto-generated API clients to interact with the backend.
+ */
 import Axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 
 export const AXIOS_INSTANCE = Axios.create({

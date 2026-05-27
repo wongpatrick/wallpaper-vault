@@ -1,3 +1,8 @@
+/**
+ * Electron preload script.
+ * Exposes securely selected IPC mechanisms and desktop-native 
+ * functionalities to the frontend renderer process.
+ */
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electron', {

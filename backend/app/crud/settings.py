@@ -1,3 +1,6 @@
+"""
+CRUD operations for application settings configuration.
+"""
 from typing import List, Optional
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -1,3 +1,7 @@
+/**
+ * Module: Notification Context
+ * Description: Manages the state and history of application notifications, integrating with Mantine's toast system to provide persistent notification records.
+ */
 import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { notifications } from '@mantine/notifications';

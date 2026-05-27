@@ -1,3 +1,7 @@
+/**
+ * React hook managing drag-to-resize sidebar functionality.
+ * Controls sidebar width, snapping, and resize events.
+ */
 import { useState, useCallback, useEffect, useRef } from 'react';
 
 const MIN_WIDTH = 80;

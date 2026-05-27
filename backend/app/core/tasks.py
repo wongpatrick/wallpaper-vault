@@ -1,3 +1,6 @@
+"""
+Background task management and server-sent events (SSE) broadcasting system.
+"""
 import asyncio
 import json
 import uuid

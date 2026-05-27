@@ -1,3 +1,7 @@
+/**
+ * Module: Image Edit Modal
+ * Description: Modal component for editing metadata (rating, tags, notes, etc.) of a single image and handling its deletion.
+ */
 import { Modal, Stack, TextInput, Textarea, Button, NumberInput, SegmentedControl, Text, ColorInput, Center, Box, Group } from '@mantine/core';
 import { useState, useEffect } from 'react';
 import { IconAlertTriangle, IconExclamationCircle, IconShieldCheck, IconTrash } from '@tabler/icons-react';

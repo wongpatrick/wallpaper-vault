@@ -1,3 +1,7 @@
+/**
+ * Module: Creator Detail Page
+ * Description: Displays detailed information about a specific creator, including their wallpaper sets, statistics, and provides functionality to edit or delete their profile.
+ */
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
     Title, Text, Container, SimpleGrid, Group, Badge, Loader, 

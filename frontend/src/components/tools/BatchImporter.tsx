@@ -1,3 +1,7 @@
+/**
+ * Tool for batch importing image sets into the vault.
+ * Supports drag-and-drop folders and background scanning with regex-based parsing.
+ */
 import { Text, Card, TextInput, Group, Stack, Table, Badge, ActionIcon, Tooltip, Paper, Switch, Button, ThemeIcon } from '@mantine/core';
 import { IconSettings, IconCheck, IconX, IconCloudUpload, IconCrop, IconSearch, IconRefresh } from '@tabler/icons-react';
 import { useState } from 'react';

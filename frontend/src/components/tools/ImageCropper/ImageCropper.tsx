@@ -1,3 +1,7 @@
+/**
+ * Main container for the Image Cropper tool.
+ * Assembles the dropzone, controls, crop area, and preview.
+ */
 import { Card, Group, Stack, Text, Button, ThemeIcon } from '@mantine/core';
 import { IconCrop, IconX, IconDownload } from '@tabler/icons-react';
 import { useImageCropper } from './useImageCropper';

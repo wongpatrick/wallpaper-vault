@@ -1,3 +1,7 @@
+/**
+ * Module: Creators Directory Page
+ * Description: Lists all artists and creators in the system with search, filtering, pagination, and bulk merge capabilities.
+ */
 import { Title, Text, Container, Table, Group, Loader, Center, Alert, ActionIcon, TextInput, Select, Stack, Button, Modal, Pagination, Overlay, Box, MultiSelect } from '@mantine/core';
 import { IconAlertCircle, IconChevronRight, IconSearch, IconFilter, IconGitMerge, IconPlus } from '@tabler/icons-react';
 import { useReadCreatorsApiCreatorsGet, useMergeCreatorsApiCreatorsMergePost } from '../../api/generated/creators/creators';

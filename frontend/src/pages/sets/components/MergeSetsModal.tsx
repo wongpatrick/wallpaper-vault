@@ -1,3 +1,7 @@
+/**
+ * Module: Merge Sets Modal
+ * Description: Modal component for merging multiple selected sets into a single target set, including UI for target selection and confirmation.
+ */
 import { Modal, Stack, Radio, Text, Button, Alert, Group, Paper } from '@mantine/core';
 import { IconAlertCircle, IconGitMerge } from '@tabler/icons-react';
 import { useState } from 'react';

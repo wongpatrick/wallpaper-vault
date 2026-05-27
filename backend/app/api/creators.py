@@ -1,3 +1,6 @@
+"""
+API endpoints for managing creator (artist) profiles and their associated settings.
+"""
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession

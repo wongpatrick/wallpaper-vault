@@ -1,3 +1,7 @@
+/**
+ * Module: Creator Create Form
+ * Description: A form component for adding new artists/creators to the system, handling API submission and success/error notifications.
+ */
 import { useState } from 'react';
 import { TextInput, Select, Textarea, Button, Stack } from '@mantine/core';
 import { useCreateCreatorApiCreatorsPost } from '../../../api/generated/creators/creators';

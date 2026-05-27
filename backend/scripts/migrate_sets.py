@@ -1,3 +1,7 @@
+"""
+Script for migrating media files into the organized vault.
+Uses exact, fuzzy, and pHash matching to locate and import missing files.
+"""
 import sys
 import os
 import asyncio

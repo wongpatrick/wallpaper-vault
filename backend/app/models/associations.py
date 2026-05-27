@@ -1,3 +1,6 @@
+"""
+Many-to-many association tables for SQLAlchemy models.
+"""
 from sqlalchemy import Column, ForeignKey, String, Table
 from app.models.base import Base
 

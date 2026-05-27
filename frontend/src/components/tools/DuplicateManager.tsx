@@ -1,3 +1,7 @@
+/**
+ * Tool for resolving duplicate images in the library.
+ * Allows comparing identical images side-by-side and selecting which to keep based on resolution/size.
+ */
 import { useState } from 'react';
 import { 
     Stack, 
