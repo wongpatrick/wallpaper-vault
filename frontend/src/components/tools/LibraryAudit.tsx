@@ -34,6 +34,7 @@ import {
     useResolveAuditIssuesApiAuditResolvePost,
     useGetCurrentAuditApiAuditCurrentGet
 } from '../../api/generated/audit/audit';
+import type { AuditIssue, AuditFixAction } from '../../api/model';
 
 export function LibraryAudit() {
     const [taskId, setTaskId] = useState<string | null>(null);
@@ -73,7 +74,7 @@ export function LibraryAudit() {
         if (!acc[dir]) acc[dir] = [];
         acc[dir].push(issue);
         return acc;
-    }, {} as Record<string, any[]>) || {};
+    }, {} as Record<string, AuditIssue[]>) || {};
 
     const otherIssues = results?.items?.filter(i => i.issue_type !== 'orphan') || [];
 
@@ -83,7 +84,7 @@ export function LibraryAudit() {
             setTaskId(res.task_id);
             setProgress(0);
             setStatus("Starting scan...");
-        } catch (_err) {
+        } catch {
             notifications.show({ title: 'Error', message: 'Failed to start audit.', color: 'red' });
         }
     };
@@ -127,12 +128,12 @@ export function LibraryAudit() {
             await resolveMutation.mutateAsync({
                 data: {
                     issue_ids: ids,
-                    action: action as any
+                    action: action as AuditFixAction
                 }
             });
             notifications.show({ title: 'Success', message: `Action '${action}' executed.`, color: 'green' });
             refetch();
-        } catch (_err) {
+        } catch {
             notifications.show({ title: 'Error', message: 'Failed to execute resolution.', color: 'red' });
         }
     };

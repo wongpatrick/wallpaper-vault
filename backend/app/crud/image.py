@@ -5,7 +5,8 @@ from sqlalchemy.orm import selectinload
 from app.models.image import Image
 from app.models.set import Set
 from app.models.creator import Creator
-from app.schemas.image import ImageUpdate, ImageCreate
+from app.schemas.image import ImageUpdate, ImageCreate, ImageBulkUpdate
+from app.schemas.set import BulkOperationMode
 import os
 from pathlib import Path
 from collections import defaultdict
@@ -69,6 +70,40 @@ async def update_image(db: AsyncSession, image_id: int, image_in: ImageUpdate) -
     await db.commit()
     await db.refresh(db_image)
     return db_image
+
+async def bulk_update_images(db: AsyncSession, bulk_in: ImageBulkUpdate) -> int:
+    result = await db.execute(select(Image).where(Image.id.in_(bulk_in.image_ids)))
+    db_images = result.scalars().all()
+    
+    if not db_images:
+        return 0
+    
+    # We ignore 'filename' and 'local_path' for bulk updates
+    update_fields = bulk_in.update_data.model_dump(
+        exclude_unset=True, 
+        exclude={"filename", "local_path", "phash", "width", "height", "file_size", "aspect_ratio", "aspect_ratio_label"}
+    )
+    
+    for db_img in db_images:
+        for field in update_fields:
+            if field == "tags":
+                current_tags = (db_img.tags or "").split()
+                new_tags = (update_fields[field] or "").split()
+                
+                if bulk_in.operation_mode == BulkOperationMode.APPEND:
+                    combined = sorted(list(set(current_tags + new_tags)))
+                    db_img.tags = " ".join(combined) if combined else None
+                elif bulk_in.operation_mode == BulkOperationMode.REMOVE:
+                    remaining = [t for t in current_tags if t not in new_tags]
+                    db_img.tags = " ".join(remaining) if remaining else None
+                else: # REPLACE
+                    db_img.tags = update_fields[field]
+            else:
+                setattr(db_img, field, update_fields[field])
+        db.add(db_img)
+        
+    await db.commit()
+    return len(db_images)
 
 async def delete_image(db: AsyncSession, image_id: int) -> Optional[Image]:
     db_image = await get_image(db, image_id)

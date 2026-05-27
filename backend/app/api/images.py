@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.crud import image as crud_image
-from app.schemas.image import Image, ImageUpdate, ImageCreate, DuplicateGroup, DuplicateResolutionRequest, ImageWithContext, ImagePage
+from app.schemas.image import Image, ImageUpdate, ImageCreate, ImageBulkUpdate, DuplicateGroup, DuplicateResolutionRequest, ImageWithContext, ImagePage
 from pathlib import Path
 
 router = APIRouter()
@@ -39,6 +39,16 @@ def map_image_to_context_schema(img) -> ImageWithContext:
         creator_names=[c.canonical_name for c in img.set.creators]
     )
 
+@router.post("/bulk-update", response_model=int)
+async def bulk_update_images(
+    bulk_in: ImageBulkUpdate,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update multiple images at once.
+    """
+    return await crud_image.bulk_update_images(db=db, bulk_in=bulk_in)
+
 @router.get("/", response_model=ImagePage)
 async def read_images(
     skip: int = 0,
@@ -72,7 +82,11 @@ async def read_duplicate_groups(
             score = 0
             if "Needs Organizing" not in (" ".join(img.creator_names)):
                 score += 1000
-            score += (img.width * img.height) / 1000000
+            
+            # Use 0 if width/height is missing
+            w = img.width or 0
+            h = img.height or 0
+            score += (w * h) / 1000000
             return score
             
         images_with_context.sort(key=score_img, reverse=True)

@@ -14,16 +14,12 @@ import {
     Tooltip,
     Paper,
     Divider,
-    Title,
-    ScrollArea,
-    rem
+    Title
 } from '@mantine/core';
 import { 
     IconAlertCircle, 
     IconCheck, 
     IconTrash, 
-    IconEye, 
-    IconExternalLink,
     IconLayoutGrid,
     IconColumns
 } from '@tabler/icons-react';
@@ -69,7 +65,7 @@ export function DuplicateManager() {
                 icon: <IconCheck size={16} />
             });
             refetch();
-        } catch (error) {
+        } catch {
             notifications.show({
                 title: 'Error',
                 message: 'Failed to resolve duplicates.',
@@ -260,9 +256,15 @@ function ImageVariantCard({ image, isKeep, isRecommended, onSelect }: VariantCar
                 </div>
 
                 <Stack gap={2}>
-                    <Text fw={700} size="sm" truncate="end">{image.filename}</Text>
-                    <Text size="xs" c="dimmed" truncate="end">{image.creator_names.join(' & ')}</Text>
-                    <Text size="xs" c="dimmed" fw={500}>{image.set_title}</Text>
+                    <Tooltip label={image.filename} position="top" openDelay={300} multiline w={300}>
+                        <Text fw={700} size="sm" truncate="end">{image.filename}</Text>
+                    </Tooltip>
+                    <Tooltip label={image.creator_names.join(' & ')} position="top" openDelay={300}>
+                        <Text size="xs" c="dimmed" truncate="end">{image.creator_names.join(' & ')}</Text>
+                    </Tooltip>
+                    <Tooltip label={image.set_title} position="top" openDelay={300}>
+                        <Text size="xs" c="dimmed" fw={500} truncate="end">{image.set_title}</Text>
+                    </Tooltip>
                 </Stack>
 
                 <Divider variant="dashed" />

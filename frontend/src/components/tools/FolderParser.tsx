@@ -3,6 +3,7 @@ import { IconFolder, IconSettings, IconFileSearch, IconCheck, IconX, IconInfoCir
 import { useState, useCallback, useEffect } from 'react';
 import { useImportSetApiSetsImportPost } from '../../api/generated/sets/sets';
 import { getAllFiles } from '../../utils/fileUtils';
+import { useDebouncedValue } from '@mantine/hooks';
 
 
 interface ParseResult {
@@ -16,6 +17,7 @@ interface ParseResult {
 
 export function FolderParser() {
     const [template, setTemplate] = useState('[Creator] - [Set]');
+    const [debouncedTemplate] = useDebouncedValue(template, 500);
     const [isAdvanced, setIsAdvanced] = useState(false);
     const [droppedFolders, setDroppedFolders] = useState<{name: string, path: string, files: string[]}[]>([]);
     const [results, setResults] = useState<ParseResult[]>([]);
@@ -62,9 +64,9 @@ export function FolderParser() {
     }, []);
 
     useEffect(() => {
-        const newResults = droppedFolders.map(folder => parseFolderName(folder, template, isAdvanced));
+        const newResults = droppedFolders.map(folder => parseFolderName(folder, debouncedTemplate, isAdvanced));
         setResults(newResults);
-    }, [droppedFolders, template, isAdvanced, parseFolderName]);
+    }, [droppedFolders, debouncedTemplate, isAdvanced, parseFolderName]);
 
     const handleResultChange = (index: number, field: 'creator' | 'set', value: string) => {
         setResults(prev => {
@@ -108,7 +110,8 @@ export function FolderParser() {
             const entry = item.webkitGetAsEntry();
             if (entry) {
                 const file = item.getAsFile();
-                const absolutePath = (file as any)?.path || '';
+                // We access the non-standard .path property provided by Electron on File objects
+                const absolutePath = (file as File & { path?: string })?.path || '';
                 
                 let setPath = absolutePath;
                 if (entry.isFile && absolutePath) {
@@ -159,9 +162,9 @@ export function FolderParser() {
                             })
                         }
                     });
-                } catch (err: any) {
+                } catch (err: unknown) {
                     errorCount++;
-                    const message = err.response?.data?.detail || err.message;
+                    const message = err instanceof Error ? err.message : 'Unknown error';
                     console.error(`Import failed for ${result.set}:`, message);
                 }
             }

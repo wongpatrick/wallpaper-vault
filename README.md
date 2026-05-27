@@ -2,6 +2,13 @@
 
 A production-ready desktop application for managing high-resolution wallpaper collections. 
 
+## 🌟 Vision
+Wallpaper Vault is more than just a gallery—it's a centralized hub for your digital aesthetics.
+
+*   **Host Anywhere:** Designed to run locally or be hosted on a server (like a NAS) to serve as a single source of truth for your entire network.
+*   **API-First Rotation:** Exposes randomization endpoints that can be plugged into tools like **DisplayFusion** to keep your desktop fresh without manual intervention.
+*   **The Future Client:** We're working towards a lightweight "Remote Client" version of the app. This client will connect to your remote vault from any machine, allowing you to manage your collection or even natively handle wallpaper rotation and multi-monitor setups—effectively becoming a bespoke, network-aware alternative to traditional display managers.
+
 ## 🏗️ Architecture
 This project is built using a **Decoupled Engine & Shell** architecture:
 

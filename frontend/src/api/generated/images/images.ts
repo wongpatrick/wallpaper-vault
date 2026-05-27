@@ -28,6 +28,7 @@ import type {
   DuplicateResolutionRequest,
   HTTPValidationError,
   Image,
+  ImageBulkUpdate,
   ImageCreate,
   ImagePage,
   ImageUpdate,
@@ -45,6 +46,71 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 /**
+ * Update multiple images at once.
+ * @summary Bulk Update Images
+ */
+export const bulkUpdateImagesApiImagesBulkUpdatePost = (
+    imageBulkUpdate: BodyType<ImageBulkUpdate>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<number>(
+      {url: `/api/images/bulk-update`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: imageBulkUpdate, signal
+    },
+      options);
+    }
+  
+
+
+export const getBulkUpdateImagesApiImagesBulkUpdatePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateImagesApiImagesBulkUpdatePost>>, TError,{data: BodyType<ImageBulkUpdate>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateImagesApiImagesBulkUpdatePost>>, TError,{data: BodyType<ImageBulkUpdate>}, TContext> => {
+
+const mutationKey = ['bulkUpdateImagesApiImagesBulkUpdatePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkUpdateImagesApiImagesBulkUpdatePost>>, {data: BodyType<ImageBulkUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkUpdateImagesApiImagesBulkUpdatePost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkUpdateImagesApiImagesBulkUpdatePostMutationResult = NonNullable<Awaited<ReturnType<typeof bulkUpdateImagesApiImagesBulkUpdatePost>>>
+    export type BulkUpdateImagesApiImagesBulkUpdatePostMutationBody = BodyType<ImageBulkUpdate>
+    export type BulkUpdateImagesApiImagesBulkUpdatePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Bulk Update Images
+ */
+export const useBulkUpdateImagesApiImagesBulkUpdatePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateImagesApiImagesBulkUpdatePost>>, TError,{data: BodyType<ImageBulkUpdate>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bulkUpdateImagesApiImagesBulkUpdatePost>>,
+        TError,
+        {data: BodyType<ImageBulkUpdate>},
+        TContext
+      > => {
+
+      const mutationOptions = getBulkUpdateImagesApiImagesBulkUpdatePostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * Get a paginated list of all images with optional comprehensive search and rating filter.
  * @summary Read Images
  */

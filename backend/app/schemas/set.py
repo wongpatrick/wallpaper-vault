@@ -2,13 +2,13 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 from enum import Enum
 
-from app.schemas.creator import Creator
-from app.schemas.image import Image, ImageCreate
-
 class BulkOperationMode(str, Enum):
     REPLACE = "replace"
     APPEND = "append"
     REMOVE = "remove"
+
+from app.schemas.creator import Creator
+from app.schemas.image import Image, ImageCreate
 
 class SetBase(BaseModel):
     title: Optional[str] = None
@@ -79,3 +79,7 @@ class SetBulkUpdate(BaseModel):
     set_ids: list[int]
     update_data: SetUpdate
     operation_mode: BulkOperationMode = BulkOperationMode.APPEND
+
+class SetMerge(BaseModel):
+    source_ids: list[int]
+    target_id: int

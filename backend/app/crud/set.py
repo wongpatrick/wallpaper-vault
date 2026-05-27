@@ -13,7 +13,8 @@ from app.schemas.set import (
     BatchImportRequest, 
     BatchImportResponse,
     SetBulkUpdate,
-    BulkOperationMode
+    BulkOperationMode,
+    SetMerge
 )
 from app.crud.creator import get_creator_by_name, create_creator
 from app.schemas.creator import CreatorCreate
@@ -100,7 +101,12 @@ async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Op
     return list(result.scalars().all()), total
 
 async def create_set(db: AsyncSession, set_in: SetCreate) -> Set:
-    db_set = Set(**set_in.model_dump(exclude={"creator_ids", "images"}))
+    data = set_in.model_dump(exclude={"creator_ids", "images"})
+    # Normalize empty source_url to None to avoid UNIQUE constraint issues in SQLite
+    if data.get("source_url") == "":
+        data["source_url"] = None
+        
+    db_set = Set(**data)
 
     if set_in.creator_ids:
         result = await db.execute(
@@ -191,6 +197,10 @@ async def update_set(db: AsyncSession, set_id: int, set_in: SetUpdate) -> Option
         return None
     
     update_data = set_in.model_dump(exclude_unset=True, exclude={"creator_ids"})
+    # Normalize empty source_url to None to avoid UNIQUE constraint issues in SQLite
+    if "source_url" in update_data and update_data["source_url"] == "":
+        update_data["source_url"] = None
+        
     for field in update_data:
         setattr(db_set, field, update_data[field])
     
@@ -273,6 +283,89 @@ async def bulk_update_sets(db: AsyncSession, bulk_in: SetBulkUpdate) -> int:
     return len(db_sets)
 
 
+async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[Set]:
+    import shutil
+    from pathlib import Path
+
+    # 1. Fetch target set
+    target_set = await get_set(db, target_id)
+    if not target_set:
+        return None
+    
+    target_path = Path(target_set.local_path) if target_set.local_path else None
+    
+    # 2. Iterate through source sets
+    for sid in source_ids:
+        if sid == target_id:
+            continue
+        
+        source_set = await get_set(db, sid)
+        if not source_set:
+            continue
+        
+        # Move images physically and update paths
+        if target_path:
+            for img in source_set.images:
+                old_p = Path(img.local_path) if img.local_path else None
+                if not old_p:
+                    continue
+                
+                new_p = target_path / old_p.name
+                
+                # Case 1: File is at the source location - Move it to target
+                if old_p.exists() and old_p.parent != target_path:
+                    # Handle collisions
+                    counter = 1
+                    actual_new_p = new_p
+                    while actual_new_p.exists():
+                        actual_new_p = target_path / f"{old_p.stem}_{counter}{old_p.suffix}"
+                        counter += 1
+                    
+                    try:
+                        shutil.move(str(old_p), str(actual_new_p))
+                        img.local_path = str(actual_new_p)
+                    except Exception as e:
+                        print(f"Error moving image {old_p}: {e}")
+                
+                # Case 2: File was already moved to target manually (or by partial merge)
+                elif new_p.exists():
+                    img.local_path = str(new_p)
+
+        # Re-associate images properly to avoid cascade-delete-orphan
+        images_to_move = list(source_set.images)
+        source_set.images = [] 
+        for img in images_to_move:
+            img.set_id = target_id
+            target_set.images.append(img)
+            
+        # Re-associate creators
+        for c in source_set.creators:
+            if c not in target_set.creators:
+                target_set.creators.append(c)
+                
+        # Merge tags and notes
+        if source_set.tags:
+            current_tags = set((target_set.tags or "").split())
+            new_tags = set(source_set.tags.split())
+            combined = sorted(list(current_tags | new_tags))
+            target_set.tags = " ".join(combined) if combined else None
+            
+        if source_set.notes:
+            target_set.notes = (target_set.notes or "") + "\n" + source_set.notes
+            target_set.notes = target_set.notes.strip()
+            
+        # Delete source set
+        await db.delete(source_set)
+        
+    await db.commit()
+    await db.refresh(target_set)
+    
+    # Optional: trigger renaming if title/creators changed
+    rename_set_folder_if_needed(target_set)
+    
+    return await get_set(db, target_id)
+
+
 async def bulk_delete_sets(db: AsyncSession, set_ids: list[int]) -> int:
     result = await db.execute(
         select(Set).where(Set.id.in_(set_ids))
@@ -282,6 +375,81 @@ async def bulk_delete_sets(db: AsyncSession, set_ids: list[int]) -> int:
         await db.delete(db_set)
     await db.commit()
     return len(db_sets)
+
+
+async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
+    from app.services.audit_service import calculate_phash
+    
+    db_set = await get_set(db, set_id)
+    if not db_set or not db_set.local_path:
+        return None
+    
+    folder_path = Path(db_set.local_path)
+    if not folder_path.exists() or not folder_path.is_dir():
+        return None
+    
+    image_exts = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff'}
+    
+    # 1. Scan Disk
+    disk_files = {} # path -> phash (deferred)
+    for file in folder_path.iterdir():
+        if file.is_file() and file.suffix.lower() in image_exts:
+            disk_files[str(file)] = None
+
+    # 2. Scan DB
+    db_images = {img.local_path: img for img in db_set.images if img.local_path}
+    
+    # 3. Identify Untracked and Missing
+    untracked_paths = [p for p in disk_files if p not in db_images]
+    missing_records = [img for p, img in db_images.items() if not Path(p).exists()]
+    
+    # 4. Recovery Phase (Phash Matching)
+    if untracked_paths and missing_records:
+        # Build ghost map by phash
+        ghost_map = {}
+        for ghost in missing_records:
+            if ghost.phash:
+                if ghost.phash not in ghost_map:
+                    ghost_map[ghost.phash] = []
+                ghost_map[ghost.phash].append(ghost)
+        
+        recovered_paths = set()
+        recovered_records = set()
+        
+        for path_str in untracked_paths:
+            ph = calculate_phash(Path(path_str))
+            if ph and ph in ghost_map:
+                # Find a matching ghost that hasn't been recovered yet
+                possible_ghosts = [g for g in ghost_map[ph] if g not in recovered_records]
+                if possible_ghosts:
+                    ghost = possible_ghosts[0]
+                    ghost.local_path = path_str
+                    recovered_paths.add(path_str)
+                    recovered_records.add(ghost)
+        
+        # Cleanup processed items
+        untracked_paths = [p for p in untracked_paths if p not in recovered_paths]
+        missing_records = [g for g in missing_records if g not in recovered_records]
+
+    # 5. Finalize - Add New
+    for path_str in untracked_paths:
+        p = Path(path_str)
+        ph = calculate_phash(p)
+        new_img = Image(
+            set_id=set_id,
+            filename=p.name,
+            local_path=path_str,
+            phash=ph
+        )
+        db.add(new_img)
+        
+    # 6. Finalize - Remove remaining missing
+    for ghost in missing_records:
+        await db.delete(ghost)
+        
+    await db.commit()
+    await db.refresh(db_set)
+    return await get_set(db, set_id)
 
 
 async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task_id: str = None) -> BatchImportResponse:

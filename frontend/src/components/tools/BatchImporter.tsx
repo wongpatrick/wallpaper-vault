@@ -112,7 +112,7 @@ export function BatchImporter() {
                 return match ? match : old;
             }));
             showNotification({ title: 'Queue Updated', message: 'Applied new template to current queue.', color: 'blue', status: 'info' });
-        } catch (err) {
+        } catch {
             showNotification({ title: 'Error', message: 'Failed to re-parse queue', color: 'red', status: 'error' });
         } finally {
             setIsScanning(false);
