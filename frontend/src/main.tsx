@@ -1,4 +1,5 @@
 /**
+ * @file
  * Entry point for the React application.
  * Initializes the root component with StrictMode.
  */

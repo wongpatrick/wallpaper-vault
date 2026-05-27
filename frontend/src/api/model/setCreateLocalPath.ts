@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the SetCreateLocalPath model.
  * Represents the local path payload when creating a set.
  */

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Tool for batch importing image sets into the vault.
  * Supports drag-and-drop folders and background scanning with regex-based parsing.
  */
@@ -6,7 +7,7 @@ import { Text, Card, TextInput, Group, Stack, Table, Badge, ActionIcon, Tooltip,
 import { IconSettings, IconCheck, IconX, IconCloudUpload, IconCrop, IconSearch, IconRefresh } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useBatchImportSetsApiSetsBatchImportPost } from '../../api/generated/sets/sets';
-import { useNotificationHistory } from '../../context/NotificationContext';
+import { useNotificationHistory } from '../../hooks/useNotificationHistory';
 import type { BatchImportItem } from '../../api/model';
 
 export function BatchImporter() {

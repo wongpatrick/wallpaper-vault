@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the SetBulkUpdate model.
  * Represents a bulk update payload for sets.
  */

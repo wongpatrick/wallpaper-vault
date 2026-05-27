@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for ImageCreateFileSize.
  * Represents the file size property during image creation.
  */

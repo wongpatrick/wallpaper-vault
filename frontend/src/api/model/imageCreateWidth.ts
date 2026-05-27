@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for ImageCreateWidth.
  * Represents the image width property during image creation.
  */

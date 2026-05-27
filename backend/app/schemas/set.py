@@ -11,8 +11,8 @@ class BulkOperationMode(str, Enum):
     APPEND = "append"
     REMOVE = "remove"
 
-from app.schemas.creator import Creator
-from app.schemas.image import Image, ImageCreate
+from app.schemas.creator import Creator  # noqa: E402
+from app.schemas.image import Image, ImageCreate  # noqa: E402
 
 class SetBase(BaseModel):
     title: Optional[str] = None

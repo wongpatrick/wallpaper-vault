@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageUpdateWidth.ts
  * Description: Defines the ImageUpdateWidth type for the API model.
  * Represents the updated width resolution for an image.

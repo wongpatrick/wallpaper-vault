@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Tools Page
  * Description: A unified hub providing access to various utility components (Folder Parser, Image Cropper, Batch Importer, etc.) for managing the wallpaper vault.
  */

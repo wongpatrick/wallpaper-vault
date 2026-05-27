@@ -1,4 +1,5 @@
 /**
+ * @file
  * Type definition for the set title in an audit issue.
  * Represents an optional string associated with the set involved in the issue.
  */

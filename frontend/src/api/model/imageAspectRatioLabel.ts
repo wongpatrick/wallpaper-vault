@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for ImageAspectRatioLabel.
  * Represents a human-readable label for an image's aspect ratio.
  */

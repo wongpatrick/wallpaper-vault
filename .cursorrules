@@ -1,0 +1,6 @@
+# General AI Rules
+
+Whenever you create a new file or significantly refactor an existing one, you MUST ensure there is a 2-4 line module-level docstring at the very top of the file describing its purpose.
+
+- For Python files (`.py`), use `""" ... """` at the top of the file.
+- For TypeScript/TSX files (`.ts`, `.tsx`), use a JSDoc block starting with `/**\n * @file\n ... */` at the top of the file.

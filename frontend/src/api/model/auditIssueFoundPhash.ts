@@ -1,4 +1,5 @@
 /**
+ * @file
  * Type definition for the found perceptual hash in an audit issue.
  * Represents the actual hash value calculated from the image file on disk.
  */

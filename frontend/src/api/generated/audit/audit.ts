@@ -1,4 +1,5 @@
 /**
+ * @file
  * Auto-generated API client for audit endpoints.
  * Provides React Query hooks and Axios functions for starting audits,
  * fetching current audit status, and retrieving/resolving audit issues.

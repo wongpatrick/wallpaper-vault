@@ -1,4 +1,5 @@
 /**
+ * @file
  * Dropzone component for the image cropper.
  * Allows users to drag and drop or select an image file to crop.
  */

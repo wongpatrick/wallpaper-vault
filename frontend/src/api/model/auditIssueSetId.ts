@@ -1,4 +1,5 @@
 /**
+ * @file
  * Type definition for the set ID in an audit issue.
  * Represents an optional numeric identifier for the set containing the image.
  */

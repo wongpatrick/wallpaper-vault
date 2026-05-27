@@ -1,4 +1,5 @@
 /**
+ * @file
  * Auto-generated API client for creator endpoints.
  * Includes React Query hooks and API calls for creating, updating, 
  * reading, deleting, and merging creator profiles and metadata.

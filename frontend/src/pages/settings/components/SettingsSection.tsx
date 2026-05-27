@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Settings Section Layout
  * Description: A reusable UI wrapper component for grouping related settings together with a title, description, and visual indicator for unsaved changes.
  */

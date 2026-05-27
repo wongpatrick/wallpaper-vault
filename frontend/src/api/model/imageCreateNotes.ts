@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for ImageCreateNotes.
  * Represents the optional notes field during image creation.
  */

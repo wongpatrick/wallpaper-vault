@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageRating.ts
  * Description: Defines the ImageRating type for the API model.
  * Represents a qualitative or numerical rating given to an image.

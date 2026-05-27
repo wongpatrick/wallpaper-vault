@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Creator Detail Page
  * Description: Displays detailed information about a specific creator, including their wallpaper sets, statistics, and provides functionality to edit or delete their profile.
  */
@@ -20,7 +21,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import { SetCard } from '../sets/components/SetCard';
 import { CreatorAvatar } from './components/CreatorAvatar';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { formatBytes } from '../../utils/fileUtils';
 import type { Set, CreatorWithSets } from '../../api/model';
 
@@ -42,23 +43,22 @@ export default function CreatorDetail() {
         notes: ''
     });
 
-    useEffect(() => {
-        if (creator) {
-            setEditForm(prev => {
-                // Avoid redundant updates if data is same
-                if (prev.canonical_name === creator.canonical_name && 
-                    prev.type === (creator.type || 'Artist') && 
-                    prev.notes === (creator.notes || '')) {
-                    return prev;
-                }
-                return {
-                    canonical_name: creator.canonical_name,
-                    type: creator.type || 'Artist',
-                    notes: creator.notes || ''
-                };
-            });
-        }
-    }, [creator]);
+    const [prevCreatorId, setPrevCreatorId] = useState<number | null>(null);
+    if (creator && creator.id !== prevCreatorId) {
+        setPrevCreatorId(creator.id);
+        setEditForm(prev => {
+            if (prev.canonical_name === creator.canonical_name && 
+                prev.type === (creator.type || 'Artist') && 
+                prev.notes === (creator.notes || '')) {
+                return prev;
+            }
+            return {
+                canonical_name: creator.canonical_name,
+                type: creator.type || 'Artist',
+                notes: creator.notes || ''
+            };
+        });
+    }
 
     const stats = useMemo(() => {
         if (!creator) return [];

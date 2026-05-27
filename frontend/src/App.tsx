@@ -1,4 +1,5 @@
 /**
+ * @file
  * Main application component.
  * Sets up the router, theme, global state, and background task listeners.
  */
@@ -17,7 +18,8 @@ import { createTheme, MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import { ModalsProvider } from '@mantine/modals'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { NotificationProvider, useNotificationHistory } from './context/NotificationContext'
+import { NotificationProvider } from './context/NotificationProvider'
+import { useNotificationHistory } from './hooks/useNotificationHistory'
 
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'

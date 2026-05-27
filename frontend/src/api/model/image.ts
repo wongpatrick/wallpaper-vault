@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for Image.
  * Represents the core image entity with its metadata, tags, and properties.
  */

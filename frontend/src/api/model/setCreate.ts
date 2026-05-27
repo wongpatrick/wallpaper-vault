@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the SetCreate model.
  * Represents the payload for creating a new set.
  */

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Data model for a batch import request payload.
  * Encapsulates the configuration and items required for a bulk import operation.
  */

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the SetBatchImportCreatorName model.
  * Represents the creator name during a set batch import.
  */

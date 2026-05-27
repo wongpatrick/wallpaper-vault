@@ -16,8 +16,7 @@ from app.schemas.set import (
     BatchImportRequest, 
     BatchImportResponse,
     SetBulkUpdate,
-    BulkOperationMode,
-    SetMerge
+    BulkOperationMode
 )
 from app.crud.creator import get_creator_by_name, create_creator
 from app.schemas.creator import CreatorCreate

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Auto-generated API client for health and root endpoints.
  * Provides basic connection testing and API health checking utilities.
  */

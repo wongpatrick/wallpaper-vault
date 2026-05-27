@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for ImageCreatePhash.
  * Represents the perceptual hash property during image creation.
  */

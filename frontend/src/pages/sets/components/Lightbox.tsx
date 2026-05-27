@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Lightbox Component
  * Description: Full-screen image viewer supporting keyboard navigation, metadata display, thumbnail strip, and direct image actions (edit/delete).
  */

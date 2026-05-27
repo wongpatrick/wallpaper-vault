@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Creator Create Form
  * Description: A form component for adding new artists/creators to the system, handling API submission and success/error notifications.
  */

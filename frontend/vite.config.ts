@@ -1,4 +1,5 @@
 /**
+ * @file
  * Vite configuration file.
  * Configures React, Electron plugins, and entry points for the frontend build.
  */

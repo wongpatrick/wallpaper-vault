@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Unsaved Changes Modal
  * Description: Intercepts navigation attempts (both React Router and browser window close) when settings have unsaved changes, prompting the user for confirmation.
  */

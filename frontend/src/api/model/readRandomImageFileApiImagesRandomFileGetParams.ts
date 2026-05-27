@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the ReadRandomImageFileApiImagesRandomFileGetParams model.
  * Represents parameters for fetching a random image file from the API.
  */

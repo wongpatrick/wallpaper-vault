@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the SetBatchImport model.
  * Represents a batch import operation for sets.
  */

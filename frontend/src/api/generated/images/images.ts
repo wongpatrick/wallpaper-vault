@@ -1,4 +1,5 @@
 /**
+ * @file
  * Auto-generated API client for image endpoints.
  * Exposes hooks and functions for retrieving, creating, updating, 
  * resolving duplicates, and performing bulk operations on images.

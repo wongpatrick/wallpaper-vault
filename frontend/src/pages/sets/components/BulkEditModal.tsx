@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Bulk Edit Modal (Sets)
  * Description: Modal component for applying bulk operations (artists, tags, delete) to multiple selected wallpaper sets.
  */

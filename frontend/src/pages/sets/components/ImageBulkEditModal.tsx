@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Image Bulk Edit Modal
  * Description: Modal component for applying bulk operations (ratings, tags, notes) to multiple selected images within a set.
  */

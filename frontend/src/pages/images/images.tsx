@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Images Directory Page
  * Description: Provides an infinite-scrolling gallery of all individual wallpapers with search, filtering, and lightbox viewing capabilities.
  */
@@ -8,7 +9,7 @@ import { useReadImagesApiImagesGet } from '../../api/generated/images/images';
 import { ImageGridItem } from '../sets/components/ImageGridItem';
 import { Lightbox } from '../sets/components/Lightbox';
 import { ImageEditModal } from '../sets/components/ImageEditModal';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDebouncedValue, useIntersection, useViewportSize } from '@mantine/hooks';
 import { useSearchParams } from 'react-router-dom';
 import type { Image as ImageModel } from '../../api/model';
@@ -91,7 +92,7 @@ export default function Images() {
     });
 
     // Updaters
-    const setPage = (newPageOrFn: number | ((prev: number) => number)) => {
+    const setPage = useCallback((newPageOrFn: number | ((prev: number) => number)) => {
         setSearchParams(prev => {
             const next = new URLSearchParams(prev);
             const currentPage = parseInt(next.get('page') || '1', 10);
@@ -101,7 +102,7 @@ export default function Images() {
             else next.set('page', newPage.toString());
             return next;
         }, { replace: true });
-    };
+    }, [setSearchParams]);
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setLocalSearch(e.currentTarget.value);
@@ -151,7 +152,7 @@ export default function Images() {
         if (entry?.isIntersecting && hasMore && !isFetching && !isLoading && allImages.length > 0) {
             setPage(prev => prev + 1);
         }
-    }, [entry?.isIntersecting, hasMore, isFetching, isLoading, allImages.length]);
+    }, [entry?.isIntersecting, hasMore, isFetching, isLoading, allImages.length, setPage]);
 
     return (
         <Container size="xl" px="md">

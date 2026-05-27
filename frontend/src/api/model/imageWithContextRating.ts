@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the ImageWithContextRating model.
  * Represents the rating of an image within its context.
  */

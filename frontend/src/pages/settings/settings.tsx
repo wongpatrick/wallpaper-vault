@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Settings Page
  * Description: The main application settings page, providing a form interface to manage library paths, import configurations, and system integration.
  */

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageUpdateHeight.ts
  * Description: Defines the ImageUpdateHeight type for the API model.
  * Represents the updated height resolution of an image.

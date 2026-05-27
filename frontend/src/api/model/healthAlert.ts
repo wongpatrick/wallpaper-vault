@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for HealthAlert.
  * Represents a system health issue or warning in the dashboard.
  */

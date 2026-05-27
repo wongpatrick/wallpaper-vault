@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the Set model.
  * Represents a wallpaper set entity.
  */

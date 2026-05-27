@@ -1,4 +1,5 @@
 /**
+ * @file
  * Controls for configuring crop aspect ratios.
  * Allows selecting common ratios or entering custom dimensions.
  */

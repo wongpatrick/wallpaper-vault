@@ -1,4 +1,5 @@
 /**
+ * @file
  * Type definition for the creator name in an audit issue.
  * Represents an optional string associated with the issue's image or set.
  */

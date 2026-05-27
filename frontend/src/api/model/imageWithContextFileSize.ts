@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the ImageWithContextFileSize model.
  * Represents the file size of an image within its context.
  */

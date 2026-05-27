@@ -1,8 +1,9 @@
 /**
+ * @file
  * Module: Set Detail Page
  * Description: Displays detailed information and a gallery view for a specific wallpaper set, supporting selection, bulk editing, and syncing.
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
     Title, Text, Container, Group, Badge, Loader, 
@@ -11,7 +12,7 @@ import {
 } from '@mantine/core';
 import { 
     IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
-    IconExternalLink, IconFolder, IconEdit, IconTag, IconLock, IconLockOpen, IconRefresh, IconCheck, IconX,
+    IconExternalLink, IconFolder, IconTag, IconLock, IconLockOpen, IconRefresh, IconCheck, IconX,
     IconSettings, IconPhotoEdit
 } from '@tabler/icons-react';
 import { 
@@ -61,18 +62,18 @@ export default function SetDetail() {
         tags: [] as string[]
     });
 
-    useEffect(() => {
-        if (set) {
-            setEditForm({
-                title: set.title || '',
-                notes: set.notes || '',
-                source_url: set.source_url || '',
-                local_path: set.local_path || '',
-                creator_ids: set.creators?.map(c => String(c.id)) || [],
-                tags: set.tags ? set.tags.split(',').filter(t => t.trim()) : []
-            });
-        }
-    }, [set]);
+    const [prevSetId, setPrevSetId] = useState<number | null>(null);
+    if (set && set.id !== prevSetId) {
+        setPrevSetId(set.id);
+        setEditForm({
+            title: set.title || '',
+            notes: set.notes || '',
+            source_url: set.source_url || '',
+            local_path: set.local_path || '',
+            creator_ids: set.creators?.map(c => String(c.id)) || [],
+            tags: set.tags ? set.tags.split(',').filter(t => t.trim()) : []
+        });
+    }
 
     const creatorOptions = useMemo(() => 
         creatorsData?.items?.map(c => ({ value: String(c.id), label: c.canonical_name })) || [], 

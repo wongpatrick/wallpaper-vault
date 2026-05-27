@@ -1,4 +1,5 @@
 /**
+ * @file
  * Data model for an audit start request payload.
  * Used to trigger a new library audit, with an option to enable deep scanning.
  */

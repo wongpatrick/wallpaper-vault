@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the ImageWithContextSortOrder model.
  * Represents the sort order of an image within its context.
  */

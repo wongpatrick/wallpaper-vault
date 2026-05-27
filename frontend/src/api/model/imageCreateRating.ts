@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for ImageCreateRating.
  * Represents the user rating property during image creation.
  */

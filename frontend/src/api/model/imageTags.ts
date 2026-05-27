@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageTags.ts
  * Description: Defines the ImageTags type for the API model.
  * Represents a comma-separated string or serialized list of tags for an image.

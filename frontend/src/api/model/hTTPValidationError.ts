@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for HTTPValidationError.
  * Represents validation errors returned by the FastAPI backend.
  */

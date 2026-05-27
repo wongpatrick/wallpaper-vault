@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for ImageCreateAspectRatio.
  * Represents the aspect ratio property during image creation.
  */

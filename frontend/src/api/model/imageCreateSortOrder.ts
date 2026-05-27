@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for ImageCreateSortOrder.
  * Represents the sort order property during image creation.
  */

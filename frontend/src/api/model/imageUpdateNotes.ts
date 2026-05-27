@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageUpdateNotes.ts
  * Description: Defines the ImageUpdateNotes type for the API model.
  * Represents the updated user notes or metadata for an image.

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageUpdateLocalPath.ts
  * Description: Defines the ImageUpdateLocalPath type for the API model.
  * Represents the updated local storage path of an image.

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Component that renders the interactive cropping area.
  * Handles the visual overlay, crop box, and resize handles.
  */
@@ -9,11 +10,13 @@ interface CropperAreaProps {
     image: string;
     crop: CropState;
     imageRef: React.RefObject<HTMLImageElement | null>;
+    imageWidth: number;
+    imageHeight: number;
     onMouseDown: (e: React.MouseEvent, type: 'move' | 'resize') => void;
     onImageLoad: () => void;
 }
 
-export function CropperArea({ image, crop, imageRef, onMouseDown, onImageLoad }: CropperAreaProps) {
+export function CropperArea({ image, crop, imageRef, imageWidth, imageHeight, onMouseDown, onImageLoad }: CropperAreaProps) {
     return (
         <Box 
             style={{ 
@@ -56,8 +59,8 @@ export function CropperArea({ image, crop, imageRef, onMouseDown, onImageLoad }:
                         position: 'absolute',
                         top: `-${crop.y}px`,
                         left: `-${crop.x}px`,
-                        width: imageRef.current?.clientWidth,
-                        height: imageRef.current?.clientHeight,
+                        width: imageWidth,
+                        height: imageHeight,
                         backgroundImage: `url(${image})`,
                         backgroundSize: '100% 100%',
                         pointerEvents: 'none'

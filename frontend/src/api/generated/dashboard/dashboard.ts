@@ -1,4 +1,5 @@
 /**
+ * @file
  * Auto-generated API client for dashboard endpoints.
  * Contains React Query hooks for fetching aggregated dashboard
  * statistics and system health alerts.

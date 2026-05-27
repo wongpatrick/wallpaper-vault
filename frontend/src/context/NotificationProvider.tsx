@@ -1,30 +1,13 @@
 /**
- * Module: Notification Context
- * Description: Manages the state and history of application notifications, integrating with Mantine's toast system to provide persistent notification records.
+ * @file
+ * Notification Provider component.
  */
-import { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { notifications } from '@mantine/notifications';
 import type { NotificationData } from '@mantine/notifications';
-
-export interface NotificationHistoryItem {
-  id: string;
-  title?: ReactNode;
-  message?: ReactNode;
-  color?: string;
-  timestamp: Date;
-  status?: 'completed' | 'error' | 'info' | 'success' | 'warning';
-}
-
-interface NotificationContextType {
-  history: NotificationHistoryItem[];
-  showNotification: (data: NotificationData & { status?: NotificationHistoryItem['status'] }) => void;
-  clearHistory: () => void;
-  markAllAsRead: () => void;
-  unreadCount: number;
-}
-
-const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
+import { NotificationContext } from './NotificationContext';
+import type { NotificationHistoryItem } from './NotificationContext';
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<NotificationHistoryItem[]>([]);
@@ -79,12 +62,3 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     </NotificationContext.Provider>
   );
 }
-
-export function useNotificationHistory() {
-  const context = useContext(NotificationContext);
-  if (!context) {
-    throw new Error('useNotificationHistory must be used within a NotificationProvider');
-  }
-  return context;
-}
-

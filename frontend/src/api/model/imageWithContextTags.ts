@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the ImageWithContextTags model.
  * Represents the tags associated with an image within its context.
  */

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for DuplicateGroup.
  * Represents a group of identical or similar images identified by their pHash.
  */

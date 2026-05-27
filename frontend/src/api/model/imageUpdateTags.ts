@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageUpdateTags.ts
  * Description: Defines the ImageUpdateTags type for the API model.
  * Represents the updated comma-separated string of tags for an image.

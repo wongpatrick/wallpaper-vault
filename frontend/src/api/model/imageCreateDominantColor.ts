@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for ImageCreateDominantColor.
  * Represents the dominant color property during image creation.
  */

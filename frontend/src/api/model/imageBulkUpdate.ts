@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for ImageBulkUpdate.
  * Represents the payload for updating multiple images simultaneously.
  */

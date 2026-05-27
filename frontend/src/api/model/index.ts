@@ -1,4 +1,5 @@
 /**
+ * @file
  * Exports all API model definitions.
  * Provides a centralized index for model imports.
  */

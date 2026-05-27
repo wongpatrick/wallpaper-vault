@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for ImageCreate.
  * Represents the payload required to create a new image record.
  */

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageUpdateRating.ts
  * Description: Defines the ImageUpdateRating type for the API model.
  * Represents the updated qualitative or numerical rating for an image.

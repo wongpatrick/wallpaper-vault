@@ -1,4 +1,5 @@
 /**
+ * @file
  * Type definition for a batch import parsing template.
  * Represents a string format used to extract metadata from folder paths.
  */
