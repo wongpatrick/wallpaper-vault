@@ -11,6 +11,7 @@ import { useDeleteImageApiImagesImageIdDelete } from '../../../api/generated/ima
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { useNavigate } from 'react-router-dom';
+import { ImageRating } from '../../../types/enums';
 
 interface LightboxProps {
     images: ImageModel[];
@@ -28,11 +29,11 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
     if (selectedIndex === null) return null;
 
     const currentImage = images[selectedIndex];
-    const rating = currentImage.rating || 'safe';
+    const rating = currentImage.rating || ImageRating.SAFE;
     const tags = currentImage.tags;
 
-    const borderColor = rating === 'explicit' ? 'var(--mantine-color-red-filled)' : 
-                        rating === 'questionable' ? 'var(--mantine-color-yellow-filled)' : 
+    const borderColor = rating === ImageRating.EXPLICIT ? 'var(--mantine-color-red-filled)' : 
+                        rating === ImageRating.QUESTIONABLE ? 'var(--mantine-color-yellow-filled)' : 
                         'transparent';
 
     const handlePrev = (e: React.MouseEvent) => {
@@ -96,12 +97,12 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
                     <Stack gap={0}>
                         <Group gap="xs">
                             <Text c="white" fw={600}>{currentImage.filename}</Text>
-                            {rating !== 'safe' && (
+                            {rating !== ImageRating.SAFE && (
                                 <Badge 
-                                    color={rating === 'explicit' ? 'red' : 'yellow'} 
+                                    color={rating === ImageRating.EXPLICIT ? 'red' : 'yellow'} 
                                     variant="filled" 
                                     size="xs"
-                                    leftSection={rating === 'explicit' ? <IconExclamationCircle size={10} /> : <IconAlertTriangle size={10} />}
+                                    leftSection={rating === ImageRating.EXPLICIT ? <IconExclamationCircle size={10} /> : <IconAlertTriangle size={10} />}
                                 >
                                     {rating}
                                 </Badge>
@@ -165,7 +166,7 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
                             maxHeight: '80vh', 
                             maxWidth: '100%', 
                             objectFit: 'contain',
-                            border: rating !== 'safe' ? `4px solid ${borderColor}` : 'none',
+                            border: rating !== ImageRating.SAFE ? `4px solid ${borderColor}` : 'none',
                             boxSizing: 'border-box',
                             borderRadius: '4px'
                         }}
@@ -199,9 +200,9 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
                 <Box p="md" style={{ backgroundColor: 'rgba(0,0,0,0.5)', overflowX: 'auto' }}>
                     <Group gap="xs" wrap="nowrap" justify="center">
                         {images.map((img, idx) => {
-                            const imgRating = img.rating || 'safe';
-                            const imgBorderColor = imgRating === 'explicit' ? 'var(--mantine-color-red-filled)' : 
-                                                 imgRating === 'questionable' ? 'var(--mantine-color-yellow-filled)' : 
+                            const imgRating = img.rating || ImageRating.SAFE;
+                            const imgBorderColor = imgRating === ImageRating.EXPLICIT ? 'var(--mantine-color-red-filled)' : 
+                                                 imgRating === ImageRating.QUESTIONABLE ? 'var(--mantine-color-yellow-filled)' : 
                                                  'transparent';
                             
                             return (
@@ -213,14 +214,14 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
                                         height: 40, 
                                         cursor: 'pointer', 
                                         border: selectedIndex === idx ? '2px solid var(--mantine-color-blue-filled)' : 
-                                                imgRating !== 'safe' ? `2px solid ${imgBorderColor}` : 'none',
+                                                imgRating !== ImageRating.SAFE ? `2px solid ${imgBorderColor}` : 'none',
                                         opacity: selectedIndex === idx ? 1 : 0.6,
                                         transition: 'all 0.2s',
                                         position: 'relative'
                                     }}
                                 >
                                     <Image src={getImageUrl(img.id)} height={40} fit="cover" />
-                                    {imgRating !== 'safe' && (
+                                    {imgRating !== ImageRating.SAFE && (
                                         <Box 
                                             style={{ 
                                                 position: 'absolute', 
@@ -229,7 +230,7 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
                                                 width: 8, 
                                                 height: 8, 
                                                 borderRadius: '50%', 
-                                                backgroundColor: imgRating === 'explicit' ? 'var(--mantine-color-red-filled)' : 'var(--mantine-color-yellow-filled)',
+                                                backgroundColor: imgRating === ImageRating.EXPLICIT ? 'var(--mantine-color-red-filled)' : 'var(--mantine-color-yellow-filled)',
                                                 border: '1px solid white'
                                             }} 
                                         />

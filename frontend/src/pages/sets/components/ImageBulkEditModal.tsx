@@ -6,7 +6,7 @@
 import { Modal, Stack, SegmentedControl, Text, Button, TagsInput, Textarea, Group } from '@mantine/core';
 import { IconCheck, IconTags, IconNotes } from '@tabler/icons-react';
 import { useState } from 'react';
-import { BulkOperationMode } from '../../../api/model';
+import { BulkOperationMode, ImageRating } from '../../../types/enums';
 
 interface ImageBulkEditModalProps {
     opened: boolean;
@@ -41,9 +41,9 @@ export function ImageBulkEditModal({ opened, onClose, onConfirm, loading, select
                         onChange={setRating}
                         data={[
                             { label: 'Unchanged', value: '' },
-                            { label: 'Safe', value: 'safe' },
-                            { label: 'Questionable', value: 'questionable' },
-                            { label: 'Explicit', value: 'explicit' },
+                            { label: 'Safe', value: ImageRating.SAFE },
+                            { label: 'Questionable', value: ImageRating.QUESTIONABLE },
+                            { label: 'Explicit', value: ImageRating.EXPLICIT },
                         ]}
                     />
                 </Stack>

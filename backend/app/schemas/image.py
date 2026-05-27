@@ -58,7 +58,7 @@ class DuplicateResolutionRequest(BaseModel):
     keep_image_id: int
     remove_image_ids: List[int]
 
-from app.schemas.set import BulkOperationMode  # noqa: E402
+from app.core.enums import BulkOperationMode  # noqa: E402
 
 class ImageBulkUpdate(BaseModel):
     image_ids: list[int]

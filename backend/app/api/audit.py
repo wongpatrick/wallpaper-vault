@@ -14,6 +14,7 @@ from app.models.image import Image
 from app.models.set import Set
 from app.crud.settings import get_setting
 from app.core import tasks
+from app.core.enums import TaskStatus, AuditIssueStatus, AuditIssueType
 from app.services import audit_service
 import cv2
 
@@ -28,24 +29,23 @@ async def start_audit(
     """Start a background library audit."""
     # Check for existing active audit tasks
     await db.execute(
-        select(tasks.Task).filter(tasks.Task.status.in_(["accepted", "processing"]))
+        select(tasks.Task).filter(tasks.Task.status.in_([TaskStatus.ACCEPTED, TaskStatus.PROCESSING]))
     )
     # This might catch other tasks, but since we only have audit and import, 
-    # we should ideally tag tasks. For now, let's just check.
-    # To be safer, let's check for recent tasks.
+    # we should ideally tag tasks. For now, let's check.
     
     vault_setting = await get_setting(db, "base_library_path")
     if not vault_setting or not vault_setting.value:
         raise HTTPException(status_code=400, detail="base_library_path not configured")
     
     # Clear ALL old pending/ignored issues before starting a fresh scan
-    await db.execute(delete(AuditIssue).where(AuditIssue.status.in_(["pending", "ignored"])))
+    await db.execute(delete(AuditIssue).where(AuditIssue.status.in_([AuditIssueStatus.PENDING, AuditIssueStatus.IGNORED])))
     await db.commit()
     
-    task_id = await tasks.create_task(db, status="accepted")
+    task_id = await tasks.create_task(db, status=TaskStatus.ACCEPTED)
     background_tasks.add_task(audit_service.run_library_audit, vault_setting.value, task_id)
     
-    return {"task_id": task_id, "status": "accepted"}
+    return {"task_id": task_id, "status": TaskStatus.ACCEPTED}
 
 @router.get("/current")
 async def get_current_audit(db: AsyncSession = Depends(get_db)):
@@ -53,7 +53,7 @@ async def get_current_audit(db: AsyncSession = Depends(get_db)):
     # Since we don't have task types yet, we'll look for the most recent active task
     result = await db.execute(
         select(tasks.Task)
-        .filter(tasks.Task.status.in_(["accepted", "processing"]))
+        .filter(tasks.Task.status.in_([TaskStatus.ACCEPTED, TaskStatus.PROCESSING]))
         .order_by(tasks.Task.updated_at.desc())
         .limit(1)
     )
@@ -72,7 +72,7 @@ async def get_audit_results(
     skip: int = 0,
     limit: int = 50,
     issue_type: Optional[str] = None,
-    status: str = "pending",
+    status: str = AuditIssueStatus.PENDING,
     db: AsyncSession = Depends(get_db)
 ):
     """Fetch paginated audit issues."""
@@ -106,17 +106,17 @@ async def resolve_audit_issues(
     
     for issue_id in action.issue_ids:
         issue = await db.get(AuditIssue, issue_id)
-        if not issue or issue.status != "pending":
+        if not issue or issue.status != AuditIssueStatus.PENDING:
             continue
             
         try:
-            if action.action == "purge" and issue.issue_type == "ghost":
+            if action.action == "purge" and issue.issue_type == AuditIssueType.GHOST:
                 # Delete the DB record
                 await db.execute(delete(Image).where(Image.id == issue.image_id))
-                issue.status = "resolved"
+                issue.status = AuditIssueStatus.RESOLVED
                 resolved_count += 1
                 
-            elif action.action == "repair" and issue.issue_type == "ghost" and issue.match_issue_id:
+            elif action.action == "repair" and issue.issue_type == AuditIssueType.GHOST and issue.match_issue_id:
                 # Update path to match the orphan's path
                 orphan_issue = await db.get(AuditIssue, issue.match_issue_id)
                 if orphan_issue:
@@ -125,19 +125,19 @@ async def resolve_audit_issues(
                         .where(Image.id == issue.image_id)
                         .values(local_path=orphan_issue.path)
                     )
-                    issue.status = "resolved"
-                    orphan_issue.status = "resolved"
+                    issue.status = AuditIssueStatus.RESOLVED
+                    orphan_issue.status = AuditIssueStatus.RESOLVED
                     resolved_count += 1
             
-            elif action.action == "delete_file" and issue.issue_type == "orphan":
+            elif action.action == "delete_file" and issue.issue_type == AuditIssueType.ORPHAN:
                 # Physically delete the file
                 p = Path(issue.path)
                 if p.exists():
                     p.unlink()
-                issue.status = "resolved"
+                issue.status = AuditIssueStatus.RESOLVED
                 resolved_count += 1
                 
-            elif action.action == "import" and issue.issue_type == "orphan" and issue.set_id:
+            elif action.action == "import" and issue.issue_type == AuditIssueType.ORPHAN and issue.set_id:
                 # Quick import into existing set
                 p = Path(issue.path)
                 if p.exists():
@@ -158,10 +158,10 @@ async def resolve_audit_issues(
                         phash=phash
                     )
                     db.add(new_img)
-                    issue.status = "resolved"
+                    issue.status = AuditIssueStatus.RESOLVED
                     resolved_count += 1
 
-            elif action.action == "create_and_import" and issue.issue_type == "orphan":
+            elif action.action == "create_and_import" and issue.issue_type == AuditIssueType.ORPHAN:
                 # Create a NEW set from the folder and import
                 dir_path = Path(issue.directory)
                 if dir_path.exists():
@@ -213,11 +213,11 @@ async def resolve_audit_issues(
                         phash=phash
                     )
                     db.add(new_img)
-                    issue.status = "resolved"
+                    issue.status = AuditIssueStatus.RESOLVED
                     resolved_count += 1
 
             elif action.action == "ignore":
-                issue.status = "ignored"
+                issue.status = AuditIssueStatus.IGNORED
                 resolved_count += 1
                 
         except Exception as e:

@@ -28,6 +28,12 @@ export default defineConfig([
         tags: {
           file: { initialCommentsOnly: true, mustExist: true }
         }
+      }],
+      'no-magic-numbers': ['warn', { 
+        'ignore': [-1, 0, 1, 2, 3, 4, 8, 12, 16, 20, 24, 32, 48, 64, 100], 
+        'ignoreArrayIndexes': true,
+        'enforceConst': true,
+        'detectObjects': false
       }]
     }
   },

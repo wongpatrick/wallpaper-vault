@@ -9,6 +9,7 @@ import { getImageUrl } from '../../../utils/fileUtils';
 import type { Image as ImageModel } from '../../../api/model';
 import { useTimeout } from '@mantine/hooks';
 import { useState } from 'react';
+import { ImageRating } from '../../../types/enums';
 
 interface ImageGridItemProps {
     image: ImageModel;
@@ -19,7 +20,7 @@ interface ImageGridItemProps {
 }
 
 export function ImageGridItem({ image, onClick, selectionMode, selected, onToggleSelect }: ImageGridItemProps) {
-    const rating = image.rating || 'safe';
+    const rating = image.rating || ImageRating.SAFE;
     const dominantColor = image.dominant_color;
     const [longPressed, setLongPressed] = useState(false);
     
@@ -30,8 +31,8 @@ export function ImageGridItem({ image, onClick, selectionMode, selected, onToggl
         }
     }, 500);
 
-    const borderColor = rating === 'explicit' ? 'var(--mantine-color-red-filled)' : 
-                        rating === 'questionable' ? 'var(--mantine-color-yellow-filled)' : 
+    const borderColor = rating === ImageRating.EXPLICIT ? 'var(--mantine-color-red-filled)' : 
+                        rating === ImageRating.QUESTIONABLE ? 'var(--mantine-color-yellow-filled)' : 
                         'transparent';
     
     const handleClick = (e: React.MouseEvent) => {
@@ -60,7 +61,7 @@ export function ImageGridItem({ image, onClick, selectionMode, selected, onToggl
                 display: 'block',
                 backgroundColor: 'transparent',
                 position: 'relative',
-                border: rating !== 'safe' ? `2px solid ${borderColor}` : undefined,
+                border: rating !== ImageRating.SAFE ? `2px solid ${borderColor}` : undefined,
                 boxSizing: 'border-box',
                 opacity: selectionMode && !selected ? 0.7 : 1,
                 transform: selected ? 'scale(0.95)' : 'none',
@@ -124,12 +125,12 @@ export function ImageGridItem({ image, onClick, selectionMode, selected, onToggl
                             }} 
                         />
                     )}
-                    {rating !== 'safe' && (
+                    {rating !== ImageRating.SAFE && (
                         <Badge 
-                            color={rating === 'explicit' ? 'red' : 'yellow'} 
+                            color={rating === ImageRating.EXPLICIT ? 'red' : 'yellow'} 
                             variant="filled" 
                             size="xs"
-                            leftSection={rating === 'explicit' ? <IconExclamationCircle size={10} /> : <IconAlertTriangle size={10} />}
+                            leftSection={rating === ImageRating.EXPLICIT ? <IconExclamationCircle size={10} /> : <IconAlertTriangle size={10} />}
                             styles={{ 
                                 root: { textTransform: 'uppercase', fontSize: '8px', padding: '0 4px' },
                                 section: { marginRight: 2 }
