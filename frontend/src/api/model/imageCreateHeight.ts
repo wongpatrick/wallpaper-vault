@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for ImageCreateHeight.
  * Represents the image height property during image creation.
  */

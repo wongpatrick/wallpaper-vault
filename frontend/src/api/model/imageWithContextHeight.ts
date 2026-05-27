@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the ImageWithContextHeight model.
  * Represents the height of an image within its context.
  */

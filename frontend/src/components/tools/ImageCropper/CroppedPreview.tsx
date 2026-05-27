@@ -1,4 +1,5 @@
 /**
+ * @file
  * Component for previewing a cropped image.
  * Displays the resulting image and its dimensions.
  */

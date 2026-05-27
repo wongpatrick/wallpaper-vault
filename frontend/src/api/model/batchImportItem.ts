@@ -1,4 +1,5 @@
 /**
+ * @file
  * Data model for a single batch import item.
  * Represents an individual source directory mapped to a creator and set title.
  */

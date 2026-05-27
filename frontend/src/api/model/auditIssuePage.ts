@@ -1,4 +1,5 @@
 /**
+ * @file
  * Data model for a paginated list of audit issues.
  * Contains an array of issues along with total count and pagination metadata.
  */

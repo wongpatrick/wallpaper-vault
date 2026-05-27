@@ -1,4 +1,5 @@
 /**
+ * @file
  * React hook for managing application settings form state.
  * Handles loading, saving, and syncing settings with the backend and Electron.
  */
@@ -47,9 +48,7 @@ export function useSettingsForm() {
 
     const form = useForm<SettingsForm>({
         initialValues: SETTINGS_METADATA.reduce((acc, config) => {
-            // We use type casting for initial reduced value construction
-            (acc as any)[config.key] = config.defaultValue;
-            return acc;
+            return { ...acc, [config.key]: config.defaultValue };
         }, {} as SettingsForm),
     });
 
@@ -63,10 +62,11 @@ export function useSettingsForm() {
                 if (config.storage === 'backend') {
                     const dbSetting = settings.find(s => s.key === config.key);
                     const val = dbSetting?.value ?? config.defaultValue;
-                    (values as any)[config.key] = val;
+                    Reflect.set(values, config.key, val);
                 } else if (config.storage === 'electron') {
                     if (window.electron?.getLoginSettings) {
-                        (values as any)[config.key] = await window.electron.getLoginSettings();
+                        const loginSetting = await window.electron.getLoginSettings();
+                        Reflect.set(values, config.key, loginSetting);
                     }
                 }
             }
@@ -75,7 +75,7 @@ export function useSettingsForm() {
         };
 
         initForm();
-    }, [settings]);
+    }, [settings, form]);
 
     const handleSave = async (values: SettingsForm) => {
         setIsSaving(true);

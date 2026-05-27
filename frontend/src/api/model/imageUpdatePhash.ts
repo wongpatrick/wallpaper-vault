@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageUpdatePhash.ts
  * Description: Defines the ImageUpdatePhash type for the API model.
  * Represents the updated perceptual hash for deduplicating an image.

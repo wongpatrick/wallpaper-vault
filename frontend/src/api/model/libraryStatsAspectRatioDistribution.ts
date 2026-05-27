@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the LibraryStatsAspectRatioDistribution model.
  * Represents the distribution of aspect ratios within the library.
  */

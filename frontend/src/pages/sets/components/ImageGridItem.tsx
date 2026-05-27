@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Image Grid Item
  * Description: Component for displaying a single image within a grid, featuring selection mode, rating badges, and overlay information.
  */

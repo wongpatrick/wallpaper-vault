@@ -1,4 +1,5 @@
 /**
+ * @file
  * Type definition for the expected perceptual hash in an audit issue.
  * Represents the hash value the database expected for a given image.
  */

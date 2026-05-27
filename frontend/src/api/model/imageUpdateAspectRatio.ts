@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageUpdateAspectRatio.ts
  * Description: Defines the ImageUpdateAspectRatio type for the API model.
  * Represents the updated aspect ratio value for an image.

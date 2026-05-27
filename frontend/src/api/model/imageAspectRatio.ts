@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for ImageAspectRatio.
  * Represents the calculated aspect ratio of a stored image.
  */

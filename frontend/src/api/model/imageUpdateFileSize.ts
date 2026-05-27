@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageUpdateFileSize.ts
  * Description: Defines the ImageUpdateFileSize type for the API model.
  * Represents the updated file size of an image in bytes.

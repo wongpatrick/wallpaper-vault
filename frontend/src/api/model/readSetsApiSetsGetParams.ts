@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the ReadSetsApiSetsGetParams model.
  * Represents parameters for fetching sets from the API.
  */

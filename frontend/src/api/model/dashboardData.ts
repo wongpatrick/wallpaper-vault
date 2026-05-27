@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for DashboardData.
  * Contains aggregated library statistics and health alerts for the main dashboard.
  */

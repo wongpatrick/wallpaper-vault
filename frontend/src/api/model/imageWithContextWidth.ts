@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the ImageWithContextWidth model.
  * Represents the width of an image within its context.
  */

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Auto-generated API client for settings endpoints.
  * Handles the retrieval and updating of application-wide configurations
  * and user preferences via the backend.

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Main container for the Image Cropper tool.
  * Assembles the dropzone, controls, crop area, and preview.
  */
@@ -27,7 +28,9 @@ export function ImageCropper() {
         handleImageLoad,
         performCrop,
         downloadCropped,
-        resetImage
+        downloadCropped,
+        resetImage,
+        imageDimensions
     } = useImageCropper();
 
     return (
@@ -70,6 +73,8 @@ export function ImageCropper() {
                                 image={image}
                                 crop={crop}
                                 imageRef={imageRef}
+                                imageWidth={imageDimensions.width}
+                                imageHeight={imageDimensions.height}
                                 onMouseDown={handleMouseDown}
                                 onImageLoad={handleImageLoad}
                             />
@@ -89,8 +94,8 @@ export function ImageCropper() {
                         {croppedImage && (
                             <CroppedPreview 
                                 croppedImage={croppedImage}
-                                width={canvasRef.current?.width || 0}
-                                height={canvasRef.current?.height || 0}
+                                width={crop.width}
+                                height={crop.height}
                             />
                         )}
                     </Group>

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API query parameters for retrieving audit results.
  * Used for pagination and filtering of library audit issues.
  */

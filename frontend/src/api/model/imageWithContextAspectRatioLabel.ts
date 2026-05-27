@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageWithContextAspectRatioLabel.ts
  * Description: Defines the ImageWithContextAspectRatioLabel type for the API model.
  * Represents the human-readable aspect ratio label within an ImageWithContext structure.

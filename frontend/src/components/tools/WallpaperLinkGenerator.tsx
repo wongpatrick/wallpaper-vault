@@ -1,4 +1,5 @@
 /**
+ * @file
  * Generates URLs for random wallpapers.
  * Creates paths suitable for wallpaper managers like DisplayFusion.
  */

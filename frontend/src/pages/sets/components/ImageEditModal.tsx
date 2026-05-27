@@ -1,9 +1,10 @@
 /**
+ * @file
  * Module: Image Edit Modal
  * Description: Modal component for editing metadata (rating, tags, notes, etc.) of a single image and handling its deletion.
  */
 import { Modal, Stack, TextInput, Textarea, Button, NumberInput, SegmentedControl, Text, ColorInput, Center, Box, Group } from '@mantine/core';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { IconAlertTriangle, IconExclamationCircle, IconShieldCheck, IconTrash } from '@tabler/icons-react';
 import { useUpdateImageApiImagesImageIdPatch, useDeleteImageApiImagesImageIdDelete } from '../../../api/generated/images/images';
 import { notifications } from '@mantine/notifications';
@@ -32,19 +33,19 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = 300
         tags: ''
     });
 
-    useEffect(() => {
-        if (image) {
-            setForm({
-                filename: image.filename || '',
-                notes: image.notes || '',
-                sort_order: image.sort_order || 0,
-                aspect_ratio_label: image.aspect_ratio_label || '',
-                rating: image.rating || 'safe',
-                dominant_color: image.dominant_color || '',
-                tags: image.tags || ''
-            });
-        }
-    }, [image]);
+    const [prevImageId, setPrevImageId] = useState<number | null>(null);
+    if (image && image.id !== prevImageId) {
+        setPrevImageId(image.id);
+        setForm({
+            filename: image.filename || '',
+            notes: image.notes || '',
+            sort_order: image.sort_order || 0,
+            aspect_ratio_label: image.aspect_ratio_label || '',
+            rating: image.rating || 'safe',
+            dominant_color: image.dominant_color || '',
+            tags: image.tags || ''
+        });
+    }
 
     const handleSave = async () => {
         if (!image) return;

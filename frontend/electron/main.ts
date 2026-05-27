@@ -1,4 +1,5 @@
 /**
+ * @file
  * Electron main process script.
  * Manages the application window, tray, inter-process communication, and backend spawn.
  */
@@ -72,7 +73,7 @@ function createTray() {
         console.log('Public Directory:', publicDir);
 
         const iconNames = ['tray.svg', 'favicon.svg'];
-        let trayIcon: any = null;
+        let trayIcon: Electron.NativeImage | null = null;
 
         for (const name of iconNames) {
             const iconPath = path.join(publicDir, name);

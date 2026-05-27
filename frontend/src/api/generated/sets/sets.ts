@@ -1,4 +1,5 @@
 /**
+ * @file
  * Auto-generated API client for set-related endpoints.
  * Includes capabilities for reading, creating, merging, updating, 
  * batch importing, and streaming server-sent events for image sets.

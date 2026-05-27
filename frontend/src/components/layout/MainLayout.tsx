@@ -1,4 +1,5 @@
 /**
+ * @file
  * Main application layout component.
  * Provides the application shell, including the header, sidebar, and notification center.
  */
@@ -8,7 +9,7 @@ import SideNav from "./SideNav"
 import classes from './Layout.module.css';
 import { useSidebarResizer } from "../../hooks/useSidebarResizer";
 import { IconPackage, IconPlus, IconBell, IconCheck, IconX } from "@tabler/icons-react";
-import { useNotificationHistory } from "../../context/NotificationContext";
+import { useNotificationHistory } from "../../hooks/useNotificationHistory";
 import { useState } from "react";
 
 export default function MainLayout() {

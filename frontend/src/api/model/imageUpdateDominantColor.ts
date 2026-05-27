@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageUpdateDominantColor.ts
  * Description: Defines the ImageUpdateDominantColor type for the API model.
  * Represents the updated dominant color code for an image.

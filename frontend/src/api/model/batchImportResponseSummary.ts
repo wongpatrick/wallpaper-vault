@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module defining the BatchImportResponseSummary type.
  * This auto-generated Orval model represents the summary statistics
  * returned as part of a batch import response.

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageWithContext.ts
  * Description: Defines the ImageWithContext interface for the API model.
  * Represents an image along with contextual information (like creator or set data).

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageNotes.ts
  * Description: Defines the ImageNotes type for the API model.
  * Represents user-defined or metadata notes associated with an image.

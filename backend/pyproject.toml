@@ -19,3 +19,7 @@ dependencies = [
 dev = [
     "ruff>=0.15.12",
 ]
+
+[tool.ruff.lint]
+select = ["E", "F", "D100"]
+ignore = ["D104", "E501"]

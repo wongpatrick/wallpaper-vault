@@ -1,4 +1,5 @@
 /**
+ * @file
  * TypeScript definitions for Electron inter-process communication API.
  * Declares the global Window interface for Electron bindings.
  */

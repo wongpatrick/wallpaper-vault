@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageWithContextAspectRatio.ts
  * Description: Defines the ImageWithContextAspectRatio type for the API model.
  * Represents the aspect ratio within an ImageWithContext structure.

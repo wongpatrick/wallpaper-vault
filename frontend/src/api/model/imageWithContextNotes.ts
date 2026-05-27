@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the ImageWithContextNotes model.
  * Represents the notes associated with an image within its context.
  */

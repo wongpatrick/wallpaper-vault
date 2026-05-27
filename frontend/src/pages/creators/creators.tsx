@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Creators Directory Page
  * Description: Lists all artists and creators in the system with search, filtering, pagination, and bulk merge capabilities.
  */

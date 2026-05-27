@@ -1,4 +1,5 @@
 /**
+ * @file
  * Sidebar navigation component.
  * Contains links to primary application views and quick actions like theme toggling.
  */

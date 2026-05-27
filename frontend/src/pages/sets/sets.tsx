@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Sets Directory Page
  * Description: Lists all wallpaper sets with search, filtering, pagination, and bulk management capabilities.
  */

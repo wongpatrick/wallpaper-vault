@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for DuplicateResolutionRequest.
  * Represents the payload for resolving duplicate images.
  */

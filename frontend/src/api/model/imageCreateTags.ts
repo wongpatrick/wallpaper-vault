@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for ImageCreateTags.
  * Represents the tags assigned to an image during creation.
  */

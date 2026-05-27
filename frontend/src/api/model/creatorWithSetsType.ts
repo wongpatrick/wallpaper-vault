@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for CreatorWithSetsType.
  * Represents the type information for a creator entity.
  */

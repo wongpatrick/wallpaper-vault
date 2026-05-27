@@ -1,4 +1,5 @@
 /**
+ * @file
  * Type definition for the match issue ID in an audit issue.
  * Represents an optional reference to another related issue.
  */

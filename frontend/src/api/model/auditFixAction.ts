@@ -1,4 +1,5 @@
 /**
+ * @file
  * Data model for an audit fix action.
  * Defines the shape of the payload used when resolving
  * one or multiple audit issues simultaneously.

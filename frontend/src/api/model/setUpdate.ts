@@ -1,4 +1,5 @@
 /**
+ * @file
  * API model definition for setUpdate.
  * Generated automatically from the OpenAPI schema.
  * Represents data structures used in API requests and responses.

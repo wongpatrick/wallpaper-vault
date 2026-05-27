@@ -1,4 +1,5 @@
 /**
+ * @file
  * Custom Axios instance for API communication.
  * Provides the base configuration and custom request wrapper
  * used by auto-generated API clients to interact with the backend.

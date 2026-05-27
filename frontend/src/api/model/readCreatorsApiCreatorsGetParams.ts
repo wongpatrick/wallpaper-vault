@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the ReadCreatorsApiCreatorsGetParams model.
  * Represents parameters for fetching creators from the API.
  */

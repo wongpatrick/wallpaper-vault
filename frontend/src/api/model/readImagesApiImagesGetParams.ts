@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the ReadImagesApiImagesGetParams model.
  * Represents parameters for fetching images from the API.
  */

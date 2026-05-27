@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the ImageWithContextDominantColor model.
  * Represents the dominant color of an image within its context.
  */

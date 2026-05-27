@@ -1,4 +1,5 @@
 /**
+ * @file
  * Type definition for errors encountered during a batch import item process.
  * Represents an optional string message explaining the failure reason.
  */

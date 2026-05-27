@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageUpdateFilename.ts
  * Description: Defines the ImageUpdateFilename type for the API model.
  * Represents the updated filename of an image.

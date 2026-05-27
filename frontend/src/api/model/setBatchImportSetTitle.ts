@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the SetBatchImportSetTitle model.
  * Represents the set title during a set batch import.
  */

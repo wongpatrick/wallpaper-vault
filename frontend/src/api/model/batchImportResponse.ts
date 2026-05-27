@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module defining the BatchImportResponse interface.
  * This auto-generated Orval model represents the data returned by the backend 
  * after initiating or completing a batch import operation.

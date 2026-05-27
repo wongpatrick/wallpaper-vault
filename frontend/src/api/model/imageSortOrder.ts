@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageSortOrder.ts
  * Description: Defines the ImageSortOrder type for the API model.
  * Represents the display or logical sort order for an image.

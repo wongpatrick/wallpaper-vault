@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module defining the BatchImportResponseTaskId type.
  * This auto-generated Orval model represents the background task identifier
  * associated with a batch import operation.

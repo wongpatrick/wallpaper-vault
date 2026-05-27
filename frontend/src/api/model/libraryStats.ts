@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the LibraryStats model.
  * Represents statistics and metrics for the wallpaper library.
  */

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Audits the library for integrity issues.
  * Identifies ghosts (missing files) and orphans (untracked files) and offers repair actions.
  */
@@ -62,14 +63,14 @@ export function LibraryAudit() {
         issue_type: issueType || undefined
     });
 
-    // Check for running audit on mount
-    useEffect(() => {
-        if (currentAudit?.task_id && !taskId) {
-            setTaskId(currentAudit.task_id);
-            setProgress(currentAudit.progress || 0);
-            setStatus("Resuming scan...");
-        }
-    }, [currentAudit, taskId]);
+    // Check for running audit
+    const [prevCurrentAuditId, setPrevCurrentAuditId] = useState<string | null>(null);
+    if (currentAudit?.task_id && currentAudit.task_id !== prevCurrentAuditId && !taskId) {
+        setPrevCurrentAuditId(currentAudit.task_id);
+        setTaskId(currentAudit.task_id);
+        setProgress(currentAudit.progress || 0);
+        setStatus("Resuming scan...");
+    }
 
     // Derive groups for Orphans
     const groupedOrphans = results?.items?.reduce((acc, issue) => {

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageWidth.ts
  * Description: Defines the ImageWidth type for the API model.
  * Represents the horizontal resolution of an image in pixels.

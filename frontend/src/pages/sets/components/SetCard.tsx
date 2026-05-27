@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Set Card Component
  * Description: Displays a preview card for a wallpaper set, showing its cover image, title, creators, and providing contextual actions.
  */

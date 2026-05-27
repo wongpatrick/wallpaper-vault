@@ -1,4 +1,5 @@
 /**
+ * @file
  * Data model for an individual audit issue.
  * Contains details about a discrepancy found during a library audit,
  * such as broken paths, unindexed files, or phash mismatches.

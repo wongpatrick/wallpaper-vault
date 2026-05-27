@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Application Info Section
  * Description: A read-only settings section displaying application version and technology stack information.
  */

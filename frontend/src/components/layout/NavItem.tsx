@@ -1,4 +1,5 @@
 /**
+ * @file
  * Navigation item component for the sidebar.
  * Handles active state rendering and optional collapsed view tooltips.
  */

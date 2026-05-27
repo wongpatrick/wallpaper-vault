@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageUpdateAspectRatioLabel.ts
  * Description: Defines the ImageUpdateAspectRatioLabel type for the API model.
  * Represents the updated human-readable aspect ratio label.

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageUpdate.ts
  * Description: Defines the ImageUpdate interface for the API model.
  * Used for partial updates (PATCH) to an existing Image record.

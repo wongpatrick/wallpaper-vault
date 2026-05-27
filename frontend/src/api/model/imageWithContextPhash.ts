@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the ImageWithContextPhash model.
  * Represents the perceptual hash of an image within its context.
  */

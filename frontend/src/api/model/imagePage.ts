@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imagePage.ts
  * Description: Defines the ImagePage interface for the API model.
  * Used for paginated responses of ImageWithContext items.

@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imagePhash.ts
  * Description: Defines the ImagePhash type for the API model.
  * Represents the perceptual hash of an image used for deduplication.

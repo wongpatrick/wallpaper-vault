@@ -1,4 +1,5 @@
 /**
+ * @file
  * Tool for parsing folder names into Set and Creator values.
  * Allows using simple placeholders or advanced regular expressions.
  */

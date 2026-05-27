@@ -1,4 +1,5 @@
 /**
+ * @file
  * React hook managing image cropping state and logic.
  * Handles drag, resize, and cropping operations.
  */
@@ -18,7 +19,8 @@ export function useImageCropper() {
     const [croppedImage, setCroppedImage] = useState<string | null>(null);
     const [aspectRatio, setAspectRatio] = useState<AspectRatio>('16:9');
     const [customRatio, setCustomRatio] = useState({ w: 21, h: 9 });
-    const [crop, setCrop] = useState<CropState>({ x: 50, y: 50, width: 320, height: 180 });
+    const [crop, setCrop] = useState<CropState>({ x: 0, y: 0, width: 0, height: 0 });
+    const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -65,6 +67,8 @@ export function useImageCropper() {
         const containerHeight = img.clientHeight;
 
         if (containerWidth === 0 || containerHeight === 0) return;
+
+        setImageDimensions({ width: containerWidth, height: containerHeight });
 
         let width = containerWidth * 0.8;
         let height = containerHeight * 0.8;
@@ -208,6 +212,7 @@ export function useImageCropper() {
         handleImageLoad,
         performCrop,
         downloadCropped,
-        resetImage
+        resetImage,
+        imageDimensions
     };
 }

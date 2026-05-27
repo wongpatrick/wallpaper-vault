@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: Merge Sets Modal
  * Description: Modal component for merging multiple selected sets into a single target set, including UI for target selection and confirmation.
  */

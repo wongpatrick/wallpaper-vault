@@ -1,4 +1,5 @@
 /**
+ * @file
  * Module: imageHeight.ts
  * Description: Defines the ImageHeight type for the API model.
  * Represents the vertical resolution of an image in pixels.

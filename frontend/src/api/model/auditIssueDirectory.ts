@@ -1,4 +1,5 @@
 /**
+ * @file
  * Type definition for the directory path in an audit issue.
  * Represents an optional string indicating where the issue was found.
  */

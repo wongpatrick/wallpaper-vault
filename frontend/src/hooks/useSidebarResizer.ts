@@ -1,4 +1,5 @@
 /**
+ * @file
  * React hook managing drag-to-resize sidebar functionality.
  * Controls sidebar width, snapping, and resize events.
  */

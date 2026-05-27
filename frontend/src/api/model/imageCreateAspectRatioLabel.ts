@@ -1,4 +1,5 @@
 /**
+ * @file
  * Defines the API model for ImageCreateAspectRatioLabel.
  * Represents the aspect ratio label property during image creation.
  */
