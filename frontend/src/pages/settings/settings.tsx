@@ -1,3 +1,7 @@
+/**
+ * Module: Settings Page
+ * Description: The main application settings page, providing a form interface to manage library paths, import configurations, and system integration.
+ */
 import { Title, Text, Container, Stack, LoadingOverlay, Button, Group, TextInput, Paper, Switch } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useSettingsForm, SETTING_KEYS } from './hooks/useSettingsForm';

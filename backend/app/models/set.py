@@ -1,3 +1,6 @@
+"""
+SQLAlchemy model definition for wallpaper sets (collections of images).
+"""
 from typing import Optional, TYPE_CHECKING
 from sqlalchemy import text
 from sqlalchemy.orm import relationship, Mapped, mapped_column

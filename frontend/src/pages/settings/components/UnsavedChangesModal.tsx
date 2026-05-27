@@ -1,3 +1,7 @@
+/**
+ * Module: Unsaved Changes Modal
+ * Description: Intercepts navigation attempts (both React Router and browser window close) when settings have unsaved changes, prompting the user for confirmation.
+ */
 import { Modal, Group, Text, Button } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { useBlocker } from 'react-router-dom';

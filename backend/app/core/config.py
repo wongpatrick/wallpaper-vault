@@ -1,3 +1,6 @@
+"""
+Application configuration management using Pydantic settings.
+"""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):

@@ -1,3 +1,7 @@
+/**
+ * Electron main process script.
+ * Manages the application window, tray, inter-process communication, and backend spawn.
+ */
 import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

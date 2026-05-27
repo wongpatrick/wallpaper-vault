@@ -1,3 +1,6 @@
+"""
+SQLAlchemy model definition for key-value application settings.
+"""
 from sqlalchemy import Column, String, DateTime, text
 from app.models.base import Base
 

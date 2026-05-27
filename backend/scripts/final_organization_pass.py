@@ -1,3 +1,7 @@
+"""
+Script for the final pass of image organization.
+Uses advanced pattern matching to parse filenames and sort remaining loose files into appropriate sets.
+"""
 import asyncio
 import sys
 import os

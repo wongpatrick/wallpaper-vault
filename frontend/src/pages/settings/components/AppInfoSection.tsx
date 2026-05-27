@@ -1,3 +1,7 @@
+/**
+ * Module: Application Info Section
+ * Description: A read-only settings section displaying application version and technology stack information.
+ */
 import { Text, Group } from '@mantine/core';
 import { SettingsSection } from './SettingsSection';
 

@@ -1,3 +1,6 @@
+"""
+API endpoints for running and managing library audits and issue resolutions.
+"""
 from typing import Optional
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks

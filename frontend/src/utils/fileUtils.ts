@@ -1,3 +1,7 @@
+/**
+ * Utility functions for handling file operations and URLs.
+ * Provides helpers for drag-and-drop, file sizes, and generating backend image URLs.
+ */
 import { AXIOS_INSTANCE } from "../api/axios-instance";
 
 /**

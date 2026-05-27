@@ -1,3 +1,7 @@
+"""
+Service for library auditing and health checks.
+Provides functionality for finding ghost files, orphaned files, and matching visual hashes.
+"""
 import os
 from pathlib import Path
 from sqlalchemy import select, func, delete

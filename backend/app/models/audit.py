@@ -1,3 +1,6 @@
+"""
+SQLAlchemy model definition for tracking library audit issues.
+"""
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
 from app.models.base import Base

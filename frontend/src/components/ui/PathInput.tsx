@@ -1,3 +1,7 @@
+/**
+ * Module: PathInput Component
+ * Description: Provides a text input field with a folder icon button that opens a native directory picker dialog via Electron.
+ */
 import { TextInput, ActionIcon, type TextInputProps } from '@mantine/core';
 import { IconFolder } from '@tabler/icons-react';
 

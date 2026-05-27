@@ -1,3 +1,6 @@
+"""
+API router initialization, combining all application module routers.
+"""
 from fastapi import APIRouter
 from app.api import creators
 from app.api import sets

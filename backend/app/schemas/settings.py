@@ -1,3 +1,7 @@
+"""
+Pydantic schemas for application settings.
+Defines models for managing configuration key-value pairs.
+"""
 from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime

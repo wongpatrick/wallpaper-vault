@@ -1,3 +1,7 @@
+"""
+Script to match unorganized files to existing sets.
+Uses substring matching on filenames to infer creator and set titles.
+"""
 import asyncio
 import sys
 import os

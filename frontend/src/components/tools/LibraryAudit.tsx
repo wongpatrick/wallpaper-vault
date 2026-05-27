@@ -1,3 +1,7 @@
+/**
+ * Audits the library for integrity issues.
+ * Identifies ghosts (missing files) and orphans (untracked files) and offers repair actions.
+ */
 import { useState, useEffect } from 'react';
 import { 
     Stack, 

@@ -1,3 +1,7 @@
+/**
+ * Module: Bulk Edit Modal (Sets)
+ * Description: Modal component for applying bulk operations (artists, tags, delete) to multiple selected wallpaper sets.
+ */
 import { Modal, Stack, MultiSelect, Button, Group, SegmentedControl, Text, TextInput } from '@mantine/core';
 import { useState } from 'react';
 import { useReadCreatorsApiCreatorsGet } from '../../../api/generated/creators/creators';

@@ -1,3 +1,7 @@
+/**
+ * Controls for configuring crop aspect ratios.
+ * Allows selecting common ratios or entering custom dimensions.
+ */
 import { Paper, Stack, Group, Text, SegmentedControl, NumberInput } from '@mantine/core';
 import { IconAspectRatio, IconSettings } from '@tabler/icons-react';
 import type { AspectRatio } from './useImageCropper';

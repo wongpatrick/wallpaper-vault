@@ -1,3 +1,7 @@
+"""
+Pydantic schemas for image entities.
+Defines models for creating, updating, bulk operations, and deduplication of images.
+"""
 from typing import Optional, List
 from pydantic import BaseModel, ConfigDict
 

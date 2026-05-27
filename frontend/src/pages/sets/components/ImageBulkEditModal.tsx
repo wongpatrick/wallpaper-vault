@@ -1,3 +1,7 @@
+/**
+ * Module: Image Bulk Edit Modal
+ * Description: Modal component for applying bulk operations (ratings, tags, notes) to multiple selected images within a set.
+ */
 import { Modal, Stack, SegmentedControl, Text, Button, TagsInput, Textarea, Group } from '@mantine/core';
 import { IconCheck, IconTags, IconNotes } from '@tabler/icons-react';
 import { useState } from 'react';

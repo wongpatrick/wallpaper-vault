@@ -1,3 +1,6 @@
+"""
+SQLAlchemy model definition for creator (artist) entities.
+"""
 from typing import Optional, TYPE_CHECKING
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.models.base import Base

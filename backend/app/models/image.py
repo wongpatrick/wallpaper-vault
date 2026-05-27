@@ -1,3 +1,6 @@
+"""
+SQLAlchemy model definition for individual image (wallpaper) files.
+"""
 from typing import Optional, TYPE_CHECKING
 from sqlalchemy import text, ForeignKey
 from sqlalchemy.orm import relationship, Mapped, mapped_column

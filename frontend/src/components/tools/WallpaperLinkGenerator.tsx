@@ -1,3 +1,7 @@
+/**
+ * Generates URLs for random wallpapers.
+ * Creates paths suitable for wallpaper managers like DisplayFusion.
+ */
 import { useState } from 'react';
 import { Paper, Title, Text, Stack, Select, TextInput, Group, CopyButton, ActionIcon, Tooltip, Badge } from '@mantine/core';
 import { IconCopy, IconCheck, IconExternalLink, IconWallpaper } from '@tabler/icons-react';

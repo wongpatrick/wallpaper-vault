@@ -1,3 +1,7 @@
+/**
+ * Sidebar navigation component.
+ * Contains links to primary application views and quick actions like theme toggling.
+ */
 import { ActionIcon, Group, useMantineColorScheme, Stack, Divider, Box } from '@mantine/core';
 import { IconBrush, IconDashboard, IconSettings, IconTool, IconSun, IconMoon, IconStack, IconWallpaper } from '@tabler/icons-react';
 import NavItem from './NavItem';

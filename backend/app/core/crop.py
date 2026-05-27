@@ -1,3 +1,6 @@
+"""
+Image cropping utilities, including saliency-based smart cropping for wallpapers.
+"""
 import os
 from pathlib import Path
 import cv2

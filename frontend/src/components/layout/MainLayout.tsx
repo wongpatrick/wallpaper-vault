@@ -1,3 +1,7 @@
+/**
+ * Main application layout component.
+ * Provides the application shell, including the header, sidebar, and notification center.
+ */
 import { Outlet } from "react-router-dom"
 import { AppShell, Title, Box, Button, Group, ActionIcon, Tooltip, Popover, Indicator, Stack, Text, Divider, ScrollArea, ThemeIcon } from "@mantine/core"
 import SideNav from "./SideNav"

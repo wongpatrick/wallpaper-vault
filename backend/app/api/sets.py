@@ -1,3 +1,6 @@
+"""
+API endpoints for managing wallpaper sets, including creation, import, and bulk operations.
+"""
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from fastapi.responses import StreamingResponse
 from typing import Optional

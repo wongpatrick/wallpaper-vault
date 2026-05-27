@@ -1,3 +1,7 @@
+"""
+Pydantic schemas for library tools.
+Defines models for audit issues, fix actions, and other maintenance tools.
+"""
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime

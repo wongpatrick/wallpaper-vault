@@ -1,3 +1,7 @@
+"""
+Service for importing new sets and images into the vault.
+Handles folder parsing, validation, and batch execution of media imports.
+"""
 import re
 import shutil
 import os

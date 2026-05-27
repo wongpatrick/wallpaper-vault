@@ -1,3 +1,7 @@
+/**
+ * Component that renders the interactive cropping area.
+ * Handles the visual overlay, crop box, and resize handles.
+ */
 import { Box } from '@mantine/core';
 import type { CropState } from './useImageCropper';
 

@@ -1,3 +1,6 @@
+"""
+Database queries for dashboard statistics and system health alerts.
+"""
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.models.image import Image

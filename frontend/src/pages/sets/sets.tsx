@@ -1,3 +1,7 @@
+/**
+ * Module: Sets Directory Page
+ * Description: Lists all wallpaper sets with search, filtering, pagination, and bulk management capabilities.
+ */
 import { Title, Text, Container, SimpleGrid, Loader, Center, Alert, Stack, TextInput, Group, Select, Pagination, Box, Overlay, Button, Paper, Transition, ActionIcon } from '@mantine/core';
 import { IconAlertCircle, IconSearch, IconFilter, IconCheck, IconX, IconTrash, IconTag, IconUserEdit, IconGitMerge } from '@tabler/icons-react';
 import { useReadSetsApiSetsGet, useDeleteSetApiSetsSetIdDelete, useBulkUpdateSetsApiSetsBulkUpdatePost, useBulkDeleteSetsApiSetsBulkDeletePost, useMergeSetsApiSetsMergePost } from '../../api/generated/sets/sets';

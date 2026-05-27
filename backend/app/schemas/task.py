@@ -1,3 +1,7 @@
+"""
+Pydantic schemas for background tasks.
+Defines models for representing task progress and status.
+"""
 from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime

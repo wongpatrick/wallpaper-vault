@@ -1,3 +1,7 @@
+"""
+Script to check the population of perceptual hashes.
+Counts the number of images with and without computed pHashes in the database.
+"""
 import asyncio
 import sys
 from pathlib import Path

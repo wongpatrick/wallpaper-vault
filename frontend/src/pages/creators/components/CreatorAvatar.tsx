@@ -1,3 +1,7 @@
+/**
+ * Module: Creator Avatar Component
+ * Description: Displays a profile image for a creator, falling back to a generic user icon if no image is available.
+ */
 import { Box, Image, Center } from '@mantine/core';
 import { IconUser } from '@tabler/icons-react';
 import { getImageUrl } from '../../../utils/fileUtils';

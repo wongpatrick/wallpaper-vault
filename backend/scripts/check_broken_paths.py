@@ -1,3 +1,7 @@
+"""
+Script to identify broken image paths in the database.
+Checks if the local path stored for each image points to an existing file.
+"""
 import asyncio
 import sys
 import os

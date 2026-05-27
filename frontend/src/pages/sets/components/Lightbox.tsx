@@ -1,3 +1,7 @@
+/**
+ * Module: Lightbox Component
+ * Description: Full-screen image viewer supporting keyboard navigation, metadata display, thumbnail strip, and direct image actions (edit/delete).
+ */
 import { Modal, Box, Group, Stack, Text, Button, ActionIcon, Center, Image, Badge, Tooltip } from '@mantine/core';
 import { IconWallpaper, IconX, IconChevronLeft, IconChevronRight, IconEdit, IconAlertTriangle, IconExclamationCircle, IconTrash, IconFolderOpen } from '@tabler/icons-react';
 import { getImageUrl } from '../../../utils/fileUtils';

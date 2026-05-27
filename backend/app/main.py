@@ -1,3 +1,6 @@
+"""
+Main application entry point and FastAPI configuration for the Wallpaper Vault backend.
+"""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import api_router

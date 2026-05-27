@@ -1,3 +1,7 @@
+/**
+ * Vite configuration file.
+ * Configures React, Electron plugins, and entry points for the frontend build.
+ */
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import electron from 'vite-plugin-electron'
