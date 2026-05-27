@@ -14,6 +14,10 @@ export default function NavItem({ icon: Icon, label, path, collapsed, color = "b
     const navigate = useNavigate();
     const location = useLocation();
 
+    const isActive = path === '/' 
+        ? location.pathname === '/' 
+        : location.pathname === path || location.pathname.startsWith(`${path}/`);
+
     return (
         <Tooltip
             label={label}
@@ -25,7 +29,7 @@ export default function NavItem({ icon: Icon, label, path, collapsed, color = "b
             <NavLink
                 label={collapsed ? null : label}
                 leftSection={<Icon size="1.4rem" stroke={1.5} />}
-                active={location.pathname === path}
+                active={isActive}
                 onClick={() => navigate(path)}
                 variant="light"
                 color={color}

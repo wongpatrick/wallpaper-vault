@@ -1,10 +1,11 @@
-import { Modal, Box, Group, Stack, Text, Button, ActionIcon, Center, Image, Badge } from '@mantine/core';
-import { IconWallpaper, IconX, IconChevronLeft, IconChevronRight, IconEdit, IconAlertTriangle, IconExclamationCircle, IconTrash } from '@tabler/icons-react';
+import { Modal, Box, Group, Stack, Text, Button, ActionIcon, Center, Image, Badge, Tooltip } from '@mantine/core';
+import { IconWallpaper, IconX, IconChevronLeft, IconChevronRight, IconEdit, IconAlertTriangle, IconExclamationCircle, IconTrash, IconFolderOpen } from '@tabler/icons-react';
 import { getImageUrl } from '../../../utils/fileUtils';
 import type { Image as ImageModel } from '../../../api/model';
 import { useDeleteImageApiImagesImageIdDelete } from '../../../api/generated/images/images';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
+import { useNavigate } from 'react-router-dom';
 
 interface LightboxProps {
     images: ImageModel[];
@@ -17,6 +18,7 @@ interface LightboxProps {
 
 export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit, onDelete }: LightboxProps) {
     const deleteMutation = useDeleteImageApiImagesImageIdDelete();
+    const navigate = useNavigate();
 
     if (selectedIndex === null) return null;
 
@@ -64,6 +66,13 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
         });
     };
 
+    const navigateToSet = () => {
+        if (currentImage.set_id) {
+            onClose();
+            navigate(`/sets/${currentImage.set_id}`);
+        }
+    };
+
     return (
         <Modal
             opened={selectedIndex !== null}
@@ -105,6 +114,18 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
                         </Group>
                     </Stack>
                     <Group>
+                        {currentImage.set_id && (
+                            <Tooltip label="View Set">
+                                <Button 
+                                    leftSection={<IconFolderOpen size={18} />} 
+                                    variant="subtle" 
+                                    color="gray" 
+                                    onClick={navigateToSet}
+                                >
+                                    Set
+                                </Button>
+                            </Tooltip>
+                        )}
                         <Button 
                             leftSection={<IconEdit size={18} />} 
                             variant="subtle" 

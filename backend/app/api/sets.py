@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from fastapi.responses import StreamingResponse
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 
 from app.crud import set as crud_set
-from app.schemas.set import Set, SetCreate, SetImport, BatchImportRequest, BatchImportResponse, SetUpdate, SetPage, SetBulkUpdate
+from app.schemas.set import Set, SetCreate, SetImport, BatchImportRequest, BatchImportResponse, SetUpdate, SetPage, SetBulkUpdate, SetMerge
 from app.core import tasks
+from sqlalchemy.exc import IntegrityError
 
 
 router = APIRouter()
@@ -20,7 +21,34 @@ async def create_set(
         set_in: SetCreate,
         db: AsyncSession = Depends(get_db)
 ):
-    return await crud_set.create_set(db=db, set_in=set_in)
+    try:
+        return await crud_set.create_set(db=db, set_in=set_in)
+    except IntegrityError as e:
+        error_msg = str(e.orig)
+        if "UNIQUE constraint failed" in error_msg:
+            if "sets.source_url" in error_msg:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, 
+                    detail=f"A set with the source URL '{set_in.source_url}' already exists!"
+                )
+        raise e
+
+@router.post("/merge", response_model=Set)
+async def merge_sets(
+    merge_in: SetMerge,
+    db: AsyncSession = Depends(get_db)
+):
+    if merge_in.target_id in merge_in.source_ids:
+        raise HTTPException(status_code=400, detail="Cannot merge a set into itself")
+
+    db_set = await crud_set.merge_sets(
+        db, 
+        source_ids=merge_in.source_ids, 
+        target_id=merge_in.target_id
+    )
+    if db_set is None:
+        raise HTTPException(status_code=404, detail="Target set not found")
+    return db_set
 
 @router.post("/import", response_model=Set)
 async def import_set(
@@ -80,10 +108,20 @@ async def update_set(
         set_in: SetUpdate,
         db: AsyncSession = Depends(get_db)
 ):
-    db_set = await crud_set.update_set(db, set_id=set_id, set_in=set_in)
-    if db_set is None:
-        raise HTTPException(status_code=404, detail="Set not found")
-    return db_set
+    try:
+        db_set = await crud_set.update_set(db, set_id=set_id, set_in=set_in)
+        if db_set is None:
+            raise HTTPException(status_code=404, detail="Set not found")
+        return db_set
+    except IntegrityError as e:
+        error_msg = str(e.orig)
+        if "UNIQUE constraint failed" in error_msg:
+            if "sets.source_url" in error_msg:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, 
+                    detail=f"A set with the source URL '{set_in.source_url}' already exists!"
+                )
+        raise e
 
 @router.post("/bulk-update", response_model=int)
 async def bulk_update_sets(
@@ -98,6 +136,16 @@ async def bulk_delete_sets(
         db: AsyncSession = Depends(get_db)
 ):
     return await crud_set.bulk_delete_sets(db=db, set_ids=set_ids)
+
+@router.post("/{set_id}/resync", response_model=Set)
+async def resync_set(
+    set_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    db_set = await crud_set.resync_set(db, set_id=set_id)
+    if db_set is None:
+        raise HTTPException(status_code=404, detail="Set not found or path invalid")
+    return db_set
 
 @router.delete("/{set_id}", response_model=Set)
 async def delete_set(

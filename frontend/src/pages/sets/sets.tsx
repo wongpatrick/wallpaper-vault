@@ -1,33 +1,59 @@
 import { Title, Text, Container, SimpleGrid, Loader, Center, Alert, Stack, TextInput, Group, Select, Pagination, Box, Overlay, Button, Paper, Transition, ActionIcon } from '@mantine/core';
-import { IconAlertCircle, IconSearch, IconFilter, IconCheck, IconX, IconTrash, IconTag, IconUserEdit } from '@tabler/icons-react';
-import { useReadSetsApiSetsGet, useDeleteSetApiSetsSetIdDelete, useBulkUpdateSetsApiSetsBulkUpdatePost, useBulkDeleteSetsApiSetsBulkDeletePost } from '../../api/generated/sets/sets';
+import { IconAlertCircle, IconSearch, IconFilter, IconCheck, IconX, IconTrash, IconTag, IconUserEdit, IconGitMerge } from '@tabler/icons-react';
+import { useReadSetsApiSetsGet, useDeleteSetApiSetsSetIdDelete, useBulkUpdateSetsApiSetsBulkUpdatePost, useBulkDeleteSetsApiSetsBulkDeletePost, useMergeSetsApiSetsMergePost } from '../../api/generated/sets/sets';
 import { notifications } from '@mantine/notifications';
 import { SetCard } from './components/SetCard';
 import { BulkEditModal } from './components/BulkEditModal';
-import { useState } from 'react';
+import { MergeSetsModal } from './components/MergeSetsModal';
+import { useState, useEffect } from 'react';
 import { useDebouncedValue } from '@mantine/hooks';
+import { useSearchParams } from 'react-router-dom';
 import type { SetUpdate, BulkOperationMode } from '../../api/model';
 
 const PAGE_SIZE = 12;
 
 export default function Sets() {
-    // State
-    const [page, setPage] = useState(1);
-    const [search, setSearch] = useState('');
-    const [typeFilter, setTypeFilter] = useState<string | null>(null);
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    // URL State (Source of Truth for API)
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const search = searchParams.get('search') || '';
+    const typeFilter = searchParams.get('type') || null;
     
+    // Local Search State (Immediate UI feedback)
+    const [localSearch, setLocalSearch] = useState(search);
+    const [debouncedLocalSearch] = useDebouncedValue(localSearch, 500);
+
+    // Sync URL when local search is debounced
+    useEffect(() => {
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            const currentUrlSearch = next.get('search') || '';
+            
+            if (debouncedLocalSearch !== currentUrlSearch) {
+                if (!debouncedLocalSearch) next.delete('search');
+                else next.set('search', debouncedLocalSearch);
+                next.delete('page'); // Reset to page 1
+            }
+            return next;
+        }, { replace: true });
+    }, [debouncedLocalSearch, setSearchParams]);
+
+    // Sync local search when URL changes (Back button)
+    useEffect(() => {
+        setLocalSearch(search);
+    }, [search]);
+
     // Selection State
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [modalType, setModalType] = useState<'artist' | 'tags' | 'delete' | null>(null);
-
-    // Debounce search
-    const [debouncedSearch] = useDebouncedValue(search, 300);
+    const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
 
     const { data: pageData, isLoading, isFetching, error, refetch } = useReadSetsApiSetsGet({
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
-        search: debouncedSearch || undefined,
+        search: search || undefined,
         creator_type: typeFilter || undefined
     });
 
@@ -38,18 +64,33 @@ export default function Sets() {
     const deleteMutation = useDeleteSetApiSetsSetIdDelete();
     const bulkUpdateMutation = useBulkUpdateSetsApiSetsBulkUpdatePost();
     const bulkDeleteMutation = useBulkDeleteSetsApiSetsBulkDeletePost();
+    const mergeMutation = useMergeSetsApiSetsMergePost();
+
+    // Updaters
+    const setPage = (newPage: number) => {
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            if (newPage <= 1) next.delete('page');
+            else next.set('page', newPage.toString());
+            return next;
+        }, { replace: true });
+    };
 
     // Handlers
-    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearch(e.currentTarget.value);
-        setPage(1);
+    const handleSearchChange = (val: string) => {
+        setLocalSearch(val);
         setSelectedIds(new Set());
         setSelectionMode(false);
     };
 
     const handleTypeChange = (val: string | null) => {
-        setTypeFilter(val);
-        setPage(1);
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            if (!val) next.delete('type');
+            else next.set('type', val);
+            next.delete('page');
+            return next;
+        }, { replace: true });
         setSelectedIds(new Set());
         setSelectionMode(false);
     };
@@ -132,6 +173,35 @@ export default function Sets() {
         }
     };
 
+    const handleMergeConfirm = async (targetId: number) => {
+        const sourceIds = Array.from(selectedIds).filter(id => id !== targetId);
+        try {
+            await mergeMutation.mutateAsync({
+                data: {
+                    source_ids: sourceIds,
+                    target_id: targetId
+                }
+            });
+            notifications.show({
+                title: 'Merge Success',
+                message: `Successfully merged ${sourceIds.length + 1} sets into one.`,
+                color: 'green',
+            });
+            setIsMergeModalOpen(false);
+            clearSelection();
+            refetch();
+        } catch (err) {
+            console.error('Merge failed:', err);
+            notifications.show({
+                title: 'Merge Error',
+                message: 'Failed to merge sets. Check if files are in use or on different drives.',
+                color: 'red',
+            });
+        }
+    };
+
+    const selectedSets = sets.filter(s => selectedIds.has(s.id));
+
     return (
         <Container size="xl" style={{ position: 'relative', paddingBottom: selectionMode ? 100 : 40 }}>
             <Group justify="space-between" align="flex-start" mb="xs">
@@ -154,8 +224,8 @@ export default function Sets() {
                     placeholder="Search titles or artists..."
                     label="Search entire library"
                     leftSection={<IconSearch size={16} />}
-                    value={search}
-                    onChange={handleSearchChange}
+                    value={localSearch}
+                    onChange={(e) => handleSearchChange(e.currentTarget.value)}
                 />
                 <Select
                     label="Artist type"
@@ -259,6 +329,18 @@ export default function Sets() {
                             </Group>
 
                             <Group gap="xs">
+                                {selectedIds.size >= 2 && (
+                                    <Button 
+                                        size="xs" 
+                                        variant="light" 
+                                        color="green"
+                                        leftSection={<IconGitMerge size={14} />} 
+                                        radius="xl"
+                                        onClick={() => setIsMergeModalOpen(true)}
+                                    >
+                                        Merge
+                                    </Button>
+                                )}
                                 <Button 
                                     size="xs" 
                                     variant="light" 
@@ -302,6 +384,15 @@ export default function Sets() {
                 selectedCount={selectedIds.size}
                 onConfirm={handleBulkConfirm}
                 loading={bulkUpdateMutation.isPending || bulkDeleteMutation.isPending}
+            />
+
+            {/* Merge Sets Modal */}
+            <MergeSetsModal 
+                opened={isMergeModalOpen}
+                onClose={() => setIsMergeModalOpen(false)}
+                selectedSets={selectedSets}
+                onConfirm={handleMergeConfirm}
+                loading={mergeMutation.isPending}
             />
         </Container>
     );

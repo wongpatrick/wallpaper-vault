@@ -20,7 +20,7 @@ async def create_creator(
         if "UNIQUE constraint failed" in error_msg:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
-                detail=f"A creator with the name '{creator.canonical_name}' already exists!"
+                detail=f"An artist with the name '{creator.canonical_name}' already exists!"
             )
 
         raise e 
@@ -52,10 +52,21 @@ async def update_creator(
         creator_in: crud_creator.CreatorUpdate,
         db: AsyncSession = Depends(get_db)
 ):
-    db_creator = await crud_creator.update_creator(db, creator_id=creator_id, creator_in=creator_in)
-    if db_creator is None:
-        raise HTTPException(status_code=404, detail="Creator not found")
-    return db_creator
+    try:
+        db_creator = await crud_creator.update_creator(db, creator_id=creator_id, creator_in=creator_in)
+        if db_creator is None:
+            raise HTTPException(status_code=404, detail="Creator not found")
+        return db_creator
+    except IntegrityError as e:
+        error_msg = str(e.orig)
+        if "UNIQUE constraint failed" in error_msg:
+            # We assume it's the canonical_name as it's the only unique field besides ID
+            name = creator_in.canonical_name or "this name"
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail=f"An artist with the name '{name}' already exists!"
+            )
+        raise e
 
 @router.delete("/{creator_id}", response_model=Creator)
 async def delete_creator(

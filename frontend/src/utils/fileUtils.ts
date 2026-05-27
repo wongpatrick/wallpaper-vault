@@ -20,19 +20,21 @@ export const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1579546929518-9
 /**
  * Recursively gets all files from a FileSystemEntry (drag and drop).
  */
-export async function getAllFiles(entry: any): Promise<string[]> {
+export async function getAllFiles(entry: FileSystemEntry): Promise<string[]> {
     const files: string[] = [];
     
-    async function readEntry(e: any, path = "") {
+    async function readEntry(e: FileSystemEntry, path = "") {
         if (e.isFile) {
-            const file = await new Promise<File>((resolve) => e.file(resolve));
+            const fileEntry = e as FileSystemFileEntry;
+            const file = await new Promise<File>((resolve) => fileEntry.file(resolve));
             // Only include common image extensions
             if (/\.(jpe?g|png|gif|webp|bmp|avif)$/i.test(file.name)) {
                 files.push(path ? `${path}/${file.name}` : file.name);
             }
         } else if (e.isDirectory) {
-            const reader = e.createReader();
-            const entries = await new Promise<any[]>((resolve) => {
+            const dirEntry = e as FileSystemDirectoryEntry;
+            const reader = dirEntry.createReader();
+            const entries = await new Promise<FileSystemEntry[]>((resolve) => {
                 reader.readEntries(resolve);
             });
             for (const subEntry of entries) {
@@ -43,8 +45,9 @@ export async function getAllFiles(entry: any): Promise<string[]> {
     
     // If it's the root directory being dropped, we don't want the root name in the path
     if (entry.isDirectory) {
-        const reader = entry.createReader();
-        const entries = await new Promise<any[]>((resolve) => {
+        const dirEntry = entry as FileSystemDirectoryEntry;
+        const reader = dirEntry.createReader();
+        const entries = await new Promise<FileSystemEntry[]>((resolve) => {
             reader.readEntries(resolve);
         });
         for (const subEntry of entries) {

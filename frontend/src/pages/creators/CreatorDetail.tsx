@@ -40,10 +40,18 @@ export default function CreatorDetail() {
 
     useEffect(() => {
         if (creator) {
-            setEditForm({
-                canonical_name: creator.canonical_name,
-                type: creator.type || 'Artist',
-                notes: creator.notes || ''
+            setEditForm(prev => {
+                // Avoid redundant updates if data is same
+                if (prev.canonical_name === creator.canonical_name && 
+                    prev.type === (creator.type || 'Artist') && 
+                    prev.notes === (creator.notes || '')) {
+                    return prev;
+                }
+                return {
+                    canonical_name: creator.canonical_name,
+                    type: creator.type || 'Artist',
+                    notes: creator.notes || ''
+                };
             });
         }
     }, [creator]);
@@ -105,7 +113,7 @@ export default function CreatorDetail() {
             <Button 
                 variant="subtle" 
                 leftSection={<IconArrowLeft size={16} />} 
-                onClick={() => navigate('/creators')} 
+                onClick={() => navigate(-1)} 
                 mb="lg"
                 color="gray"
             >

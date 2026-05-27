@@ -1,20 +1,47 @@
-import { Card, Image, Box, Text, Stack, Badge, Group } from '@mantine/core';
+import { Card, Image, Box, Text, Stack, Badge, Group, Checkbox } from '@mantine/core';
 import { IconAlertTriangle, IconExclamationCircle } from '@tabler/icons-react';
 import { getImageUrl } from '../../../utils/fileUtils';
 import type { Image as ImageModel } from '../../../api/model';
+import { useTimeout } from '@mantine/hooks';
+import { useState } from 'react';
 
 interface ImageGridItemProps {
     image: ImageModel;
     onClick: () => void;
+    selectionMode?: boolean;
+    selected?: boolean;
+    onToggleSelect?: () => void;
 }
 
-export function ImageGridItem({ image, onClick }: ImageGridItemProps) {
+export function ImageGridItem({ image, onClick, selectionMode, selected, onToggleSelect }: ImageGridItemProps) {
     const rating = image.rating || 'safe';
     const dominantColor = image.dominant_color;
+    const [longPressed, setLongPressed] = useState(false);
     
+    const { start, clear } = useTimeout(() => {
+        if (!selectionMode && onToggleSelect) {
+            setLongPressed(true);
+            onToggleSelect();
+        }
+    }, 500);
+
     const borderColor = rating === 'explicit' ? 'var(--mantine-color-red-filled)' : 
                         rating === 'questionable' ? 'var(--mantine-color-yellow-filled)' : 
                         'transparent';
+    
+    const handleClick = (e: React.MouseEvent) => {
+        if (longPressed) {
+            setLongPressed(false);
+            return;
+        }
+
+        if (selectionMode && onToggleSelect) {
+            e.stopPropagation();
+            onToggleSelect();
+        } else {
+            onClick();
+        }
+    };
     
     return (
         <Card
@@ -29,9 +56,26 @@ export function ImageGridItem({ image, onClick }: ImageGridItemProps) {
                 backgroundColor: 'transparent',
                 position: 'relative',
                 border: rating !== 'safe' ? `2px solid ${borderColor}` : undefined,
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                opacity: selectionMode && !selected ? 0.7 : 1,
+                transform: selected ? 'scale(0.95)' : 'none',
+                transition: 'all 0.2s ease',
+                userSelect: 'none',
+                WebkitUserSelect: 'none'
             }}
-            onClick={onClick}
+            onClick={handleClick}
+            onMouseDown={start}
+            onMouseUp={() => {
+                clear();
+            }}
+            onMouseLeave={() => {
+                clear();
+                setLongPressed(false);
+            }}
+            onTouchStart={start}
+            onTouchEnd={() => {
+                clear();
+            }}
         >
             <Image
                 src={getImageUrl(image.id)}
@@ -47,6 +91,19 @@ export function ImageGridItem({ image, onClick }: ImageGridItemProps) {
                 className="grid-image"
             />
             
+            {/* Selection Checkbox */}
+            {selectionMode && (
+                <Box style={{ position: 'absolute', top: 8, left: 8, zIndex: 10 }}>
+                    <Checkbox 
+                        checked={selected} 
+                        onChange={() => onToggleSelect?.()} 
+                        size="md"
+                        radius="xl"
+                        styles={{ input: { cursor: 'pointer' } }}
+                    />
+                </Box>
+            )}
+
             {/* Top Badges */}
             <Box style={{ position: 'absolute', top: 8, right: 8, zIndex: 5, pointerEvents: 'none' }}>
                 <Group gap={4}>

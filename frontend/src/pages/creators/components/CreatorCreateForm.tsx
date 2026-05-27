@@ -3,6 +3,7 @@ import { TextInput, Select, Textarea, Button, Stack } from '@mantine/core';
 import { useCreateCreatorApiCreatorsPost } from '../../../api/generated/creators/creators';
 import { notifications } from '@mantine/notifications';
 import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
+import type { CreatorType } from '../../../api/model';
 
 interface CreatorCreateFormProps {
     onSuccess: () => void;
@@ -25,7 +26,7 @@ export function CreatorCreateForm({ onSuccess }: CreatorCreateFormProps) {
             await createMutation.mutateAsync({
                 data: {
                     canonical_name: name.trim(),
-                    type: (type as any) || 'Artist',
+                    type: (type as CreatorType) || 'Artist',
                     notes: notes.trim() || undefined
                 }
             });
@@ -37,8 +38,13 @@ export function CreatorCreateForm({ onSuccess }: CreatorCreateFormProps) {
                 icon: <IconCheck size={16} />
             });
             onSuccess();
-        } catch (error: any) {
-            const errorMsg = error?.response?.data?.detail || 'Failed to create artist.';
+        } catch (error: unknown) {
+            let errorMsg = 'Failed to create artist.';
+            if (error && typeof error === 'object' && 'response' in error) {
+                const axiosError = error as { response?: { data?: { detail?: string } } };
+                errorMsg = axiosError.response?.data?.detail || errorMsg;
+            }
+
             notifications.show({
                 title: 'Error',
                 message: errorMsg,

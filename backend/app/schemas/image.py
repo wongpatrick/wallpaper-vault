@@ -54,6 +54,13 @@ class DuplicateResolutionRequest(BaseModel):
     keep_image_id: int
     remove_image_ids: List[int]
 
+from app.schemas.set import BulkOperationMode
+
+class ImageBulkUpdate(BaseModel):
+    image_ids: list[int]
+    update_data: ImageUpdate
+    operation_mode: BulkOperationMode = BulkOperationMode.APPEND
+
 class ImagePage(BaseModel):
     items: List[ImageWithContext]
     total: int

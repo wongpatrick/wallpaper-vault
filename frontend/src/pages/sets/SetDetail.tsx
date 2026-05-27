@@ -3,24 +3,28 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
     Title, Text, Container, Group, Badge, Loader, 
     Center, Alert, Stack, ActionIcon, Menu, Button, Modal,
-    TextInput, Textarea, MultiSelect, TagsInput, Box
+    TextInput, Textarea, MultiSelect, TagsInput, Box, Switch, Transition, Paper
 } from '@mantine/core';
 import { 
     IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
-    IconExternalLink, IconFolder, IconEdit, IconTag
+    IconExternalLink, IconFolder, IconEdit, IconTag, IconLock, IconLockOpen, IconRefresh, IconCheck, IconX,
+    IconSettings, IconPhotoEdit
 } from '@tabler/icons-react';
 import { 
     useReadSetApiSetsSetIdGet, 
     useDeleteSetApiSetsSetIdDelete,
-    useUpdateSetApiSetsSetIdPatch 
+    useUpdateSetApiSetsSetIdPatch,
+    useResyncSetApiSetsSetIdResyncPost
 } from '../../api/generated/sets/sets';
+import { useBulkUpdateImagesApiImagesBulkUpdatePost } from '../../api/generated/images/images';
 import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { ImageGridItem } from './components/ImageGridItem';
 import { Lightbox } from './components/Lightbox';
 import { ImageEditModal } from './components/ImageEditModal';
-import type { Image as ImageModel } from '../../api/model';
+import { ImageBulkEditModal } from './components/ImageBulkEditModal';
+import type { Image as ImageModel, BulkOperationMode } from '../../api/model';
 
 export default function SetDetail() {
     const { setId } = useParams<{ setId: string }>();
@@ -31,15 +35,24 @@ export default function SetDetail() {
     const { data: creatorsData } = useReadCreatorsApiCreatorsGet({ limit: 1000 });
     const deleteMutation = useDeleteSetApiSetsSetIdDelete();
     const updateMutation = useUpdateSetApiSetsSetIdPatch();
+    const resyncMutation = useResyncSetApiSetsSetIdResyncPost();
+    const bulkUpdateMutation = useBulkUpdateImagesApiImagesBulkUpdatePost();
 
     const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [enablePathEdit, setEnablePathEdit] = useState(false);
     const [editingImage, setEditingImage] = useState<ImageModel | null>(null);
+
+    // Selection State
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectedImageIds, setSelectedImageIds] = useState<Set<number>>(new Set());
+    const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
     
     const [editForm, setEditForm] = useState({
         title: '',
         notes: '',
         source_url: '',
+        local_path: '',
         creator_ids: [] as string[],
         tags: [] as string[]
     });
@@ -50,6 +63,7 @@ export default function SetDetail() {
                 title: set.title || '',
                 notes: set.notes || '',
                 source_url: set.source_url || '',
+                local_path: set.local_path || '',
                 creator_ids: set.creators?.map(c => String(c.id)) || [],
                 tags: set.tags ? set.tags.split(',').filter(t => t.trim()) : []
             });
@@ -126,7 +140,7 @@ export default function SetDetail() {
             return;
         }
         try {
-            const result = await (window.electron as any).openPath(set.local_path);
+            const result = await window.electron.openPath(set.local_path);
             if (result && result.error) {
                 notifications.show({ title: 'Folder not found', message: result.error, color: 'red' });
             }
@@ -135,20 +149,111 @@ export default function SetDetail() {
         }
     };
 
+    const handleResync = async () => {
+        try {
+            await resyncMutation.mutateAsync({ setId: Number(setId) });
+            notifications.show({
+                title: 'Resync Complete',
+                message: 'Successfully synced database with folder contents.',
+                color: 'green',
+            });
+            refetch();
+        } catch (err) {
+            console.error('Resync failed:', err);
+            notifications.show({
+                title: 'Resync Failed',
+                message: 'Could not sync folder. Ensure the path is correct and accessible.',
+                color: 'red',
+            });
+        }
+    };
+
+    const toggleImageSelect = (id: number) => {
+        const next = new Set(selectedImageIds);
+        if (next.has(id)) {
+            next.delete(id);
+        } else {
+            next.add(id);
+        }
+        setSelectedImageIds(next);
+        if (next.size > 0) setSelectionMode(true);
+    };
+
+    const handleSelectAll = () => {
+        if (!set?.images) return;
+        const allIds = new Set(set.images.map(img => img.id));
+        setSelectedImageIds(allIds);
+        setSelectionMode(true);
+    };
+
+    const clearSelection = () => {
+        setSelectedImageIds(new Set());
+        setSelectionMode(false);
+    };
+
+    const handleBulkEditConfirm = async (data: Partial<{ rating: string; tags: string; notes: string }>, mode: BulkOperationMode) => {
+        try {
+            await bulkUpdateMutation.mutateAsync({
+                data: {
+                    image_ids: Array.from(selectedImageIds),
+                    update_data: data,
+                    operation_mode: mode
+                }
+            });
+            notifications.show({
+                title: 'Success',
+                message: `Successfully updated ${selectedImageIds.size} images.`,
+                color: 'green',
+            });
+            setIsBulkEditOpen(false);
+            clearSelection();
+            refetch();
+        } catch (err) {
+            console.error('Bulk update failed:', err);
+            notifications.show({
+                title: 'Error',
+                message: 'Failed to update images in bulk.',
+                color: 'red',
+            });
+        }
+    };
+
     const creatorNames = set.creators?.map(c => c.canonical_name).join(' & ') || 'Unknown Creator';
 
     return (
-        <Container size="xl" pb="xl">
+        <Container size="xl" pb={selectionMode ? 100 : "xl"}>
             {/* Header Navigation */}
-            <Button 
-                variant="subtle" 
-                leftSection={<IconArrowLeft size={16} />} 
-                onClick={() => navigate('/sets')} 
-                mb="lg"
-                color="gray"
-            >
-                Back to Library
-            </Button>
+            <Group justify="space-between" mb="lg">
+                <Button 
+                    variant="subtle" 
+                    leftSection={<IconArrowLeft size={16} />} 
+                    onClick={() => navigate(-1)} 
+                    color="gray"
+                >
+                    Back to Library
+                </Button>
+
+                <Group gap="xs">
+                    {selectionMode && (
+                        <Button 
+                            variant="subtle" 
+                            size="sm" 
+                            onClick={handleSelectAll}
+                            disabled={selectedImageIds.size === (set.images?.length || 0)}
+                        >
+                            Select All
+                        </Button>
+                    )}
+                    <Button 
+                        variant={selectionMode ? "filled" : "light"} 
+                        color={selectionMode ? "blue" : "gray"}
+                        leftSection={selectionMode ? <IconCheck size={16} /> : null}
+                        onClick={() => selectionMode ? clearSelection() : setSelectionMode(true)}
+                    >
+                        {selectionMode ? "Finish Selecting" : "Select Items"}
+                    </Button>
+                </Group>
+            </Group>
 
             {/* Hero Section */}
             <Group justify="space-between" align="flex-start" mb="xl">
@@ -178,6 +283,15 @@ export default function SetDetail() {
 
                 <Group>
                     <Button 
+                        leftSection={<IconRefresh size={18} />} 
+                        variant="light"
+                        color="blue"
+                        onClick={handleResync}
+                        loading={resyncMutation.isPending}
+                    >
+                        Resync Folder
+                    </Button>
+                    <Button 
                         leftSection={<IconFolder size={18} />} 
                         variant="light"
                         onClick={handleOpenFolder}
@@ -185,11 +299,11 @@ export default function SetDetail() {
                         Open Folder
                     </Button>
                     <Button 
-                        leftSection={<IconEdit size={18} />} 
+                        leftSection={<IconSettings size={18} />} 
                         variant="outline"
                         onClick={() => setIsEditModalOpen(true)}
                     >
-                        Edit Metadata
+                        Edit Set Details
                     </Button>
                     <Menu shadow="md" width={200} position="bottom-end">
                         <Menu.Target>
@@ -226,10 +340,56 @@ export default function SetDetail() {
                     <ImageGridItem 
                         key={img.id} 
                         image={img} 
-                        onClick={() => setSelectedImageIndex(index)} 
+                        onClick={() => setSelectedImageIndex(index)}
+                        selectionMode={selectionMode}
+                        selected={selectedImageIds.has(img.id)}
+                        onToggleSelect={() => toggleImageSelect(img.id)}
                     />
                 ))}
             </Box>
+
+            {/* Floating Bulk Action Bar */}
+            <Transition mounted={selectionMode && selectedImageIds.size > 0} transition="slide-up" duration={400} timingFunction="ease">
+                {(styles) => (
+                    <Paper 
+                        shadow="xl" 
+                        p="md" 
+                        withBorder 
+                        style={{ 
+                            ...styles,
+                            position: 'fixed', 
+                            bottom: 20, 
+                            left: '50%', 
+                            transform: 'translateX(-50%)',
+                            zIndex: 100,
+                            borderRadius: 100,
+                            backgroundColor: 'var(--mantine-color-body)',
+                            width: 'auto',
+                            minWidth: 300
+                        }}
+                    >
+                        <Group justify="space-between" wrap="nowrap" gap="xl">
+                            <Group gap="sm">
+                                <ActionIcon variant="subtle" color="gray" onClick={clearSelection} radius="xl">
+                                    <IconX size={18} />
+                                </ActionIcon>
+                                <Text fw={600} size="sm">
+                                    {selectedImageIds.size} images selected
+                                </Text>
+                            </Group>
+
+                            <Button
+                                size="xs"
+                                variant="filled"
+                                leftSection={<IconPhotoEdit size={14} />}
+                                radius="xl"
+                                onClick={() => setIsBulkEditOpen(true)}
+                            >
+                                Bulk Edit Images
+                            </Button>                        </Group>
+                    </Paper>
+                )}
+            </Transition>
 
             {/* Lightbox Modal */}
             <Lightbox 
@@ -244,7 +404,10 @@ export default function SetDetail() {
             {/* Set Edit Modal */}
             <Modal 
                 opened={isEditModalOpen} 
-                onClose={() => setIsEditModalOpen(false)} 
+                onClose={() => {
+                    setIsEditModalOpen(false);
+                    setEnablePathEdit(false);
+                }} 
                 title="Edit Set Metadata"
                 size="lg"
                 radius="md"
@@ -282,6 +445,31 @@ export default function SetDetail() {
                         onChange={(e) => setEditForm({ ...editForm, notes: e.currentTarget.value })}
                         minRows={3}
                     />
+
+                    <Box mt="md" p="md" style={{ border: '1px red dashed', borderRadius: '8px' }}>
+                        <Group justify="space-between" mb="xs">
+                            <Text size="sm" fw={700} c="red">Danger Zone: Folder Path</Text>
+                            <Switch 
+                                checked={enablePathEdit} 
+                                onChange={(e) => setEnablePathEdit(e.currentTarget.checked)}
+                                color="red"
+                                size="sm"
+                                label="Enable manual path correction"
+                            />
+                        </Group>
+                        <Text size="xs" c="dimmed" mb="sm">
+                            Only edit this if the database mapping is incorrect (e.g. you moved the folder manually). 
+                            The backend automatically renames folders to match Title/Artist updates.
+                        </Text>
+                        <TextInput 
+                            placeholder="C:\Paths\To\Your\Set"
+                            value={editForm.local_path}
+                            onChange={(e) => setEditForm({ ...editForm, local_path: e.currentTarget.value })}
+                            disabled={!enablePathEdit}
+                            leftSection={enablePathEdit ? <IconLockOpen size={14} /> : <IconLock size={14} />}
+                        />
+                    </Box>
+
                     <Button fullWidth onClick={handleUpdate} mt="md">Save Changes</Button>
                 </Stack>
             </Modal>
@@ -292,6 +480,15 @@ export default function SetDetail() {
                 opened={!!editingImage}
                 onClose={() => setEditingImage(null)}
                 onUpdated={() => refetch()}
+            />
+
+            {/* Image Bulk Edit Modal */}
+            <ImageBulkEditModal 
+                opened={isBulkEditOpen}
+                onClose={() => setIsBulkEditOpen(false)}
+                onConfirm={handleBulkEditConfirm}
+                loading={bulkUpdateMutation.isPending}
+                selectedCount={selectedImageIds.size}
             />
 
             <style dangerouslySetInnerHTML={{ __html: `

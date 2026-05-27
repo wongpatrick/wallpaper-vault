@@ -43,7 +43,8 @@ export function useSettingsForm() {
 
     const form = useForm<SettingsForm>({
         initialValues: SETTINGS_METADATA.reduce((acc, config) => {
-            acc[config.key as keyof SettingsForm] = config.defaultValue as any;
+            // We use type casting for initial reduced value construction
+            (acc as any)[config.key] = config.defaultValue;
             return acc;
         }, {} as SettingsForm),
     });
@@ -57,10 +58,11 @@ export function useSettingsForm() {
             for (const config of SETTINGS_METADATA) {
                 if (config.storage === 'backend') {
                     const dbSetting = settings.find(s => s.key === config.key);
-                    values[config.key as keyof SettingsForm] = (dbSetting?.value ?? config.defaultValue) as any;
+                    const val = dbSetting?.value ?? config.defaultValue;
+                    (values as any)[config.key] = val;
                 } else if (config.storage === 'electron') {
                     if (window.electron?.getLoginSettings) {
-                        values[config.key as keyof SettingsForm] = (await window.electron.getLoginSettings()) as any;
+                        (values as any)[config.key] = await window.electron.getLoginSettings();
                     }
                 }
             }
@@ -74,7 +76,7 @@ export function useSettingsForm() {
     const handleSave = async (values: SettingsForm) => {
         setIsSaving(true);
         try {
-            const promises: Promise<any>[] = [];
+            const promises: Promise<unknown>[] = [];
 
             for (const config of SETTINGS_METADATA) {
                 const value = values[config.key as keyof SettingsForm];

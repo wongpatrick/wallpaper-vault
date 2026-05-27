@@ -1,8 +1,8 @@
 import { Title, Text, Container, Table, Group, Loader, Center, Alert, ActionIcon, TextInput, Select, Stack, Button, Modal, Pagination, Overlay, Box, MultiSelect } from '@mantine/core';
 import { IconAlertCircle, IconChevronRight, IconSearch, IconFilter, IconGitMerge, IconPlus } from '@tabler/icons-react';
 import { useReadCreatorsApiCreatorsGet, useMergeCreatorsApiCreatorsMergePost } from '../../api/generated/creators/creators';
-import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
 import { notifications } from '@mantine/notifications';
 import { CreatorAvatar } from './components/CreatorAvatar';
 import { CreatorCreateForm } from './components/CreatorCreateForm';
@@ -12,28 +12,72 @@ const PAGE_SIZE = 12;
 
 export default function Creators() {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     
-    // State
-    const [page, setPage] = useState(1);
-    const [search, setSearch] = useState('');
-    const [typeFilter, setTypeFilter] = useState<string | null>(null);
+    // URL State (Source of Truth for API)
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const search = searchParams.get('search') || '';
+    const typeFilter = searchParams.get('type') || null;
+
+    // Local Search State (Immediate UI feedback)
+    const [localSearch, setLocalSearch] = useState(search);
+    const [debouncedLocalSearch] = useDebouncedValue(localSearch, 500);
+
+    // Modal/Action State
     const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [sourceCreatorIds, setSourceCreatorIds] = useState<string[]>([]);
     const [targetCreatorId, setTargetCreatorId] = useState<string | null>(null);
 
-    // Debounce search to avoid API spam
-    const [debouncedSearch] = useDebouncedValue(search, 300);
-
-    // Reset page when filters change
+    // Sync URL when local search is debounced
     useEffect(() => {
-        setPage(1);
-    }, [debouncedSearch, typeFilter]);
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            const currentUrlSearch = next.get('search') || '';
+            
+            // Only update if the debounced local search actually differs from current URL
+            if (debouncedLocalSearch !== currentUrlSearch) {
+                if (!debouncedLocalSearch) next.delete('search');
+                else next.set('search', debouncedLocalSearch);
+                next.delete('page'); // Reset to page 1 on search change
+            }
+            return next;
+        }, { replace: true });
+    }, [debouncedLocalSearch, setSearchParams]);
+
+    // Sync local search when URL changes externally (e.g. Back button)
+    useEffect(() => {
+        setLocalSearch(search);
+    }, [search]);
+
+    // Updaters
+    const setPage = (newPage: number) => {
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            if (newPage <= 1) next.delete('page');
+            else next.set('page', newPage.toString());
+            return next;
+        }, { replace: true });
+    };
+
+    const handleSearchChange = (val: string) => {
+        setLocalSearch(val);
+    };
+
+    const handleTypeChange = (val: string | null) => {
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            if (!val) next.delete('type');
+            else next.set('type', val);
+            next.delete('page'); // Reset to page 1 on filter change
+            return next;
+        }, { replace: true });
+    };
 
     const { data: pageData, isLoading, isFetching, error, refetch } = useReadCreatorsApiCreatorsGet({
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
-        search: debouncedSearch || undefined,
+        search: search || undefined,
         creator_type: typeFilter || undefined
     });
     
@@ -137,8 +181,8 @@ export default function Creators() {
                     placeholder="Search by artist name..."
                     label="Search all artists"
                     leftSection={<IconSearch size={16} />}
-                    value={search}
-                    onChange={(e) => setSearch(e.currentTarget.value)}
+                    value={localSearch}
+                    onChange={(e) => handleSearchChange(e.currentTarget.value)}
                 />
                 <Select
                     label="Filter by type"
@@ -147,7 +191,7 @@ export default function Creators() {
                     data={['Artist', 'AI Generated', 'Studio', 'Photography']}
                     clearable
                     value={typeFilter}
-                    onChange={setTypeFilter}
+                    onChange={handleTypeChange}
                 />
             </Group>
             

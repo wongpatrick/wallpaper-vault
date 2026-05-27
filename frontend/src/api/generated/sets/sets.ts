@@ -32,6 +32,7 @@ import type {
   SetBulkUpdate,
   SetCreate,
   SetImport,
+  SetMerge,
   SetPage,
   SetUpdate
 } from '../../model';
@@ -294,6 +295,70 @@ export function useReadSetsApiSetsGet<TData = Awaited<ReturnType<typeof readSets
 
 
 /**
+ * @summary Merge Sets
+ */
+export const mergeSetsApiSetsMergePost = (
+    setMerge: BodyType<SetMerge>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<Set>(
+      {url: `/api/sets/merge`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: setMerge, signal
+    },
+      options);
+    }
+  
+
+
+export const getMergeSetsApiSetsMergePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeSetsApiSetsMergePost>>, TError,{data: BodyType<SetMerge>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergeSetsApiSetsMergePost>>, TError,{data: BodyType<SetMerge>}, TContext> => {
+
+const mutationKey = ['mergeSetsApiSetsMergePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergeSetsApiSetsMergePost>>, {data: BodyType<SetMerge>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  mergeSetsApiSetsMergePost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergeSetsApiSetsMergePostMutationResult = NonNullable<Awaited<ReturnType<typeof mergeSetsApiSetsMergePost>>>
+    export type MergeSetsApiSetsMergePostMutationBody = BodyType<SetMerge>
+    export type MergeSetsApiSetsMergePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Merge Sets
+ */
+export const useMergeSetsApiSetsMergePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeSetsApiSetsMergePost>>, TError,{data: BodyType<SetMerge>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof mergeSetsApiSetsMergePost>>,
+        TError,
+        {data: BodyType<SetMerge>},
+        TContext
+      > => {
+
+      const mutationOptions = getMergeSetsApiSetsMergePostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary Import Set
  */
 export const importSetApiSetsImportPost = (
@@ -765,6 +830,68 @@ export const useBulkDeleteSetsApiSetsBulkDeletePost = <TError = ErrorType<HTTPVa
       > => {
 
       const mutationOptions = getBulkDeleteSetsApiSetsBulkDeletePostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * @summary Resync Set
+ */
+export const resyncSetApiSetsSetIdResyncPost = (
+    setId: number,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<Set>(
+      {url: `/api/sets/${setId}/resync`, method: 'POST', signal
+    },
+      options);
+    }
+  
+
+
+export const getResyncSetApiSetsSetIdResyncPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resyncSetApiSetsSetIdResyncPost>>, TError,{setId: number}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof resyncSetApiSetsSetIdResyncPost>>, TError,{setId: number}, TContext> => {
+
+const mutationKey = ['resyncSetApiSetsSetIdResyncPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resyncSetApiSetsSetIdResyncPost>>, {setId: number}> = (props) => {
+          const {setId} = props ?? {};
+
+          return  resyncSetApiSetsSetIdResyncPost(setId,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResyncSetApiSetsSetIdResyncPostMutationResult = NonNullable<Awaited<ReturnType<typeof resyncSetApiSetsSetIdResyncPost>>>
+    
+    export type ResyncSetApiSetsSetIdResyncPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Resync Set
+ */
+export const useResyncSetApiSetsSetIdResyncPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resyncSetApiSetsSetIdResyncPost>>, TError,{setId: number}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resyncSetApiSetsSetIdResyncPost>>,
+        TError,
+        {setId: number},
+        TContext
+      > => {
+
+      const mutationOptions = getResyncSetApiSetsSetIdResyncPostMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }
