@@ -20,6 +20,7 @@ import { ModalsProvider } from '@mantine/modals'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NotificationProvider } from './context/NotificationProvider'
 import { useNotificationHistory } from './hooks/useNotificationHistory'
+import { TaskStatus } from './types/enums'
 
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
@@ -109,27 +110,27 @@ function GlobalTasks() {
         }> = JSON.parse(event.data);
         const taskList = Object.values(tasks);
         
-        const hasActive = taskList.some(t => t.status === 'processing' || t.status === 'accepted');
+        const hasActive = taskList.some(t => t.status === TaskStatus.PROCESSING || t.status === TaskStatus.ACCEPTED);
         setIsTaskRunning(hasActive);
 
         Object.entries(tasks).forEach(([tid, tinfo]) => {
-          if (tinfo.status === 'completed') {
+          if (tinfo.status === TaskStatus.COMPLETED) {
             showNotification({
               id: tid, // Use tid to prevent duplicate notifications for the same task
               title: 'Batch Import Complete',
               message: 'Your background import task has finished successfully.',
               color: 'green',
               autoClose: 5000,
-              status: 'completed',
+              status: TaskStatus.COMPLETED,
             });
-          } else if (tinfo.status === 'error') {
+          } else if (tinfo.status === TaskStatus.ERROR) {
             showNotification({
               id: tid,
               title: 'Batch Import Failed',
               message: 'An error occurred during the background import process.',
               color: 'red',
               autoClose: false,
-              status: 'error',
+              status: TaskStatus.ERROR,
             });
           }
         });

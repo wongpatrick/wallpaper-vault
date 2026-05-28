@@ -12,6 +12,7 @@ from app.models.set import Set
 from app.models.audit import AuditIssue
 from app.db.session import SessionLocal
 from app.core import tasks
+from app.core.enums import TaskStatus, AuditIssueType
 from app.core.crop import load_image
 import cv2
 
@@ -28,7 +29,7 @@ def calculate_phash(path: Path):
 async def run_library_audit(vault_root_str: str, task_id: str):
     async with SessionLocal() as db:
         try:
-            await tasks.update_task(db, task_id, status="processing", progress=0, total=100)
+            await tasks.update_task(db, task_id, status=TaskStatus.PROCESSING, progress=0, total=100)
             vault_root = Path(vault_root_str)
             
             # 1. Clear old pending issues for this task (if any)
@@ -50,7 +51,7 @@ async def run_library_audit(vault_root_str: str, task_id: str):
                 if not img.local_path or not os.path.exists(img.local_path):
                     ghosts.append(AuditIssue(
                         task_id=task_id,
-                        issue_type="ghost",
+                        issue_type=AuditIssueType.GHOST,
                         path=img.local_path or "UNKNOWN",
                         directory=str(Path(img.local_path).parent) if img.local_path else "UNKNOWN",
                         image_id=img.id,
@@ -95,7 +96,7 @@ async def run_library_audit(vault_root_str: str, task_id: str):
                             # Untracked file!
                             orphans.append(AuditIssue(
                                 task_id=task_id,
-                                issue_type="orphan",
+                                issue_type=AuditIssueType.ORPHAN,
                                 path=full_p,
                                 directory=dir_path,
                                 set_id=matching_set_id
@@ -116,8 +117,8 @@ async def run_library_audit(vault_root_str: str, task_id: str):
             res = await db.execute(select(AuditIssue).filter(AuditIssue.task_id == task_id))
             found_issues = res.scalars().all()
             
-            task_ghosts = [i for i in found_issues if i.issue_type == "ghost"]
-            task_orphans = [i for i in found_issues if i.issue_type == "orphan"]
+            task_ghosts = [i for i in found_issues if i.issue_type == AuditIssueType.GHOST]
+            task_orphans = [i for i in found_issues if i.issue_type == AuditIssueType.ORPHAN]
             
             if task_ghosts and task_orphans:
                 # Map ghosts by phash
@@ -136,10 +137,10 @@ async def run_library_audit(vault_root_str: str, task_id: str):
                             db.add(match)
 
             await db.commit()
-            await tasks.update_task(db, task_id, progress=100, status="completed")
+            await tasks.update_task(db, task_id, progress=100, status=TaskStatus.COMPLETED)
             print(f"Audit Complete: Found {len(ghosts)} ghosts and {len(orphans)} orphans.")
 
         except Exception as e:
             import traceback
             traceback.print_exc()
-            await tasks.update_task(db, task_id, status="error", error_message=str(e))
+            await tasks.update_task(db, task_id, status=TaskStatus.ERROR, error_message=str(e))

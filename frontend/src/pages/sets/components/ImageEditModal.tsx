@@ -10,6 +10,7 @@ import { useUpdateImageApiImagesImageIdPatch, useDeleteImageApiImagesImageIdDele
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import type { Image as ImageModel, ImageUpdate } from '../../../api/model';
+import { ImageRating } from '../../../types/enums';
 
 interface ImageEditModalProps {
     image: ImageModel | null;
@@ -28,7 +29,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = 300
         notes: '',
         sort_order: 0,
         aspect_ratio_label: '',
-        rating: 'safe',
+        rating: ImageRating.SAFE,
         dominant_color: '',
         tags: ''
     });
@@ -41,7 +42,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = 300
             notes: image.notes || '',
             sort_order: image.sort_order || 0,
             aspect_ratio_label: image.aspect_ratio_label || '',
-            rating: image.rating || 'safe',
+            rating: image.rating || ImageRating.SAFE,
             dominant_color: image.dominant_color || '',
             tags: image.tags || ''
         });
@@ -99,7 +100,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = 300
                 
                 <Text size="sm" fw={500} mb={-10}>Content Rating</Text>
                 <SegmentedControl
-                    value={form.rating || 'safe'}
+                    value={form.rating || ImageRating.SAFE}
                     onChange={(v) => setForm({ ...form, rating: v })}
                     data={[
                         { 
@@ -109,7 +110,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = 300
                                     <Box>Safe</Box>
                                 </Center>
                             ), 
-                            value: 'safe' 
+                            value: ImageRating.SAFE 
                         },
                         { 
                             label: (
@@ -118,7 +119,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = 300
                                     <Box>Questionable</Box>
                                 </Center>
                             ), 
-                            value: 'questionable' 
+                            value: ImageRating.QUESTIONABLE 
                         },
                         { 
                             label: (
@@ -127,7 +128,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = 300
                                     <Box>Explicit</Box>
                                 </Center>
                             ), 
-                            value: 'explicit' 
+                            value: ImageRating.EXPLICIT 
                         },
                     ]}
                 />

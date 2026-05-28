@@ -4,12 +4,7 @@ Defines models for creating, updating, importing, and bulk managing sets.
 """
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
-from enum import Enum
-
-class BulkOperationMode(str, Enum):
-    REPLACE = "replace"
-    APPEND = "append"
-    REMOVE = "remove"
+from app.core.enums import BulkOperationMode
 
 from app.schemas.creator import Creator  # noqa: E402
 from app.schemas.image import Image, ImageCreate  # noqa: E402

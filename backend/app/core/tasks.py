@@ -9,6 +9,7 @@ from datetime import datetime
 from sqlalchemy import select, update
 from app.db.session import SessionLocal
 from app.models.task import Task
+from app.core.enums import TaskStatus
 
 class TaskBroadcaster:
     def __init__(self):
@@ -36,7 +37,7 @@ class TaskBroadcaster:
 
 broadcaster = TaskBroadcaster()
 
-async def create_task(db_session, status: str = "accepted") -> str:
+async def create_task(db_session, status: str = TaskStatus.ACCEPTED) -> str:
     task_id = str(uuid.uuid4())
     new_task = Task(id=task_id, status=status)
     db_session.add(new_task)
@@ -90,7 +91,7 @@ async def event_stream():
         # Initial State Sync: Query DB for all non-completed tasks
         async with SessionLocal() as db:
             result = await db.execute(
-                select(Task).where(Task.status.in_(["accepted", "processing"]))
+                select(Task).where(Task.status.in_([TaskStatus.ACCEPTED, TaskStatus.PROCESSING]))
             )
             active_tasks = result.scalars().all()
             if active_tasks:
@@ -117,8 +118,8 @@ async def event_stream():
 async def cleanup_zombie_tasks():
     """Mark all 'processing' tasks as 'error' on startup"""
     async with SessionLocal() as db:
-        stmt = update(Task).where(Task.status == "processing").values(
-            status="error", 
+        stmt = update(Task).where(Task.status == TaskStatus.PROCESSING).values(
+            status=TaskStatus.ERROR, 
             error_message="Process interrupted by server restart"
         )
         await db.execute(stmt)

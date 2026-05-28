@@ -4,3 +4,9 @@ Whenever you create a new file or significantly refactor an existing one, you MU
 
 - For Python files (`.py`), use `""" ... """` at the top of the file.
 - For TypeScript/TSX files (`.ts`, `.tsx`), use a JSDoc block starting with `/**\n * @file\n ... */` at the top of the file.
+
+# Code Quality Rules
+
+1. **No Magic Strings or Numbers**: Do not hardcode domain statuses, configurations, or repetitive literal values. 
+   - Backend: Define them in `backend/app/core/enums.py` using `StrEnum` or `Enum`.
+   - Frontend: Define them in `frontend/src/types/enums.ts` using `as const` objects.

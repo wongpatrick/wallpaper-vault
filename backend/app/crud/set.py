@@ -15,9 +15,9 @@ from app.schemas.set import (
     SetUpdate,
     BatchImportRequest, 
     BatchImportResponse,
-    SetBulkUpdate,
-    BulkOperationMode
+    SetBulkUpdate
 )
+from app.core.enums import BulkOperationMode, TaskStatus
 from app.crud.creator import get_creator_by_name, create_creator
 from app.schemas.creator import CreatorCreate
 from app.crud.settings import get_setting
@@ -523,10 +523,10 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task
 async def run_batch_import_background(batch_in: BatchImportRequest, task_id: str):
     async with SessionLocal() as db:
         try:
-            await tasks.update_task(db, task_id, status="processing")
+            await tasks.update_task(db, task_id, status=TaskStatus.PROCESSING)
             await batch_import_sets(db, batch_in, task_id=task_id)
-            await tasks.update_task(db, task_id, status="completed")
+            await tasks.update_task(db, task_id, status=TaskStatus.COMPLETED)
         except Exception as e:
             import traceback
             traceback.print_exc()
-            await tasks.update_task(db, task_id, status="error", error_message=str(e))
+            await tasks.update_task(db, task_id, status=TaskStatus.ERROR, error_message=str(e))

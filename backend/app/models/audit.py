@@ -4,13 +4,14 @@ SQLAlchemy model definition for tracking library audit issues.
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
 from app.models.base import Base
+from app.core.enums import AuditIssueStatus
 
 class AuditIssue(Base):
     __tablename__ = "audit_issues"
 
     id = Column(Integer, primary_key=True, index=True)
     task_id = Column(String, index=True)
-    issue_type = Column(String)  # "ghost" or "orphan"
+    issue_type = Column(String)  # Uses AuditIssueType
     path = Column(Text)
     directory = Column(Text, index=True) # Parent folder for grouping
     
@@ -29,5 +30,5 @@ class AuditIssue(Base):
     # Match tracking
     match_issue_id = Column(Integer, nullable=True) # Points to another AuditIssue
     
-    status = Column(String, default="pending") # "pending", "resolved", "ignored"
+    status = Column(String, default=AuditIssueStatus.PENDING)
     created_at = Column(DateTime, server_default=func.now())

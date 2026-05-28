@@ -5,6 +5,7 @@ from typing import Optional, TYPE_CHECKING
 from sqlalchemy import text, ForeignKey
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.models.base import Base
+from app.core.enums import ImageRating
 
 if TYPE_CHECKING:
     from app.models.set import Set
@@ -24,7 +25,7 @@ class Image(Base):
     aspect_ratio_label: Mapped[Optional[str]] = mapped_column()
     sort_order: Mapped[Optional[int]] = mapped_column()
     notes:      Mapped[Optional[str]] = mapped_column()
-    rating:     Mapped[Optional[str]] = mapped_column(server_default=text("'safe'"))
+    rating:     Mapped[Optional[str]] = mapped_column(server_default=text(f"'{ImageRating.SAFE}'"))
     dominant_color: Mapped[Optional[str]] = mapped_column()
     tags:       Mapped[Optional[str]] = mapped_column()
     date_added: Mapped[str] = mapped_column(server_default=text("(date('now'))"))
