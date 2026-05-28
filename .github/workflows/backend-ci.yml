@@ -7,11 +7,9 @@ on:
       - 'backend/**'
   pull_request:
     branches: [ "main" ]
-    paths:
-      - 'backend/**'
 
 jobs:
-  lint:
+  backend-lint:
     runs-on: ubuntu-latest
     defaults:
       run:
