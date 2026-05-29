@@ -7,6 +7,8 @@ import { useState } from 'react';
 import { Paper, Title, Text, Stack, Select, TextInput, Group, CopyButton, ActionIcon, Tooltip, Badge } from '@mantine/core';
 import { IconCopy, IconCheck, IconExternalLink, IconWallpaper } from '@tabler/icons-react';
 
+import { API_BASE_URL } from '../../config';
+
 export function WallpaperLinkGenerator() {
     const [ratio, setRatio] = useState<string | null>('16x9');
     const [tags, setTags] = useState('');
@@ -14,7 +16,8 @@ export function WallpaperLinkGenerator() {
     // We assume the API is on the same host but different port, or handled via proxy
     // For local dev with DisplayFusion, we should probably use the actual window.location.origin
     // but often DisplayFusion needs the absolute IP/hostname.
-    const baseUrl = `${window.location.protocol}//${window.location.hostname}:8000/api/images/random`;
+    // We use the centralized API_BASE_URL instead of hardcoding the port.
+    const baseUrl = `${API_BASE_URL}/api/images/random`;
     
     // Clean up tags: split by comma, trim, filter empty, then join with slashes
     const cleanTagsPath = tags

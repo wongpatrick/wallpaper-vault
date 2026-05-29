@@ -34,8 +34,9 @@ import {
     useResolveDuplicatesApiImagesDuplicatesResolvePost 
 } from '../../api/generated/images/images';
 import type { DuplicateGroup, ImageWithContext } from '../../api/model';
+import { API_BASE_URL } from '../../config';
 
-const API_BASE = 'http://localhost:8000/api';
+const API_BASE = `${API_BASE_URL}/api`;
 
 export function DuplicateManager() {
     const { 

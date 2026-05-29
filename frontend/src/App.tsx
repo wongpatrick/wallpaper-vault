@@ -21,6 +21,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NotificationProvider } from './context/NotificationProvider'
 import { useNotificationHistory } from './hooks/useNotificationHistory'
 import { TaskStatus } from './types/enums'
+import { API_BASE_URL } from './config'
 
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
@@ -98,7 +99,7 @@ function GlobalTasks() {
 
   useEffect(() => {
     // Note: In a real production app, this URL should be configurable
-    const eventSource = new EventSource('http://localhost:8000/api/sets/events');
+    const eventSource = new EventSource(`${API_BASE_URL}/api/sets/events`);
 
     eventSource.onmessage = (event) => {
       try {

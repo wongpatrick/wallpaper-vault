@@ -28,7 +28,6 @@ export function ImageCropper() {
         handleImageLoad,
         performCrop,
         downloadCropped,
-        downloadCropped,
         resetImage,
         imageDimensions
     } = useImageCropper();
