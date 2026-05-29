@@ -14,7 +14,10 @@ from app.db.session import SessionLocal
 from app.core import tasks
 from app.core.enums import TaskStatus, AuditIssueType
 from app.core.crop import load_image
+import structlog
 import cv2
+
+logger = structlog.get_logger(__name__)
 
 def calculate_phash(path: Path):
     try:
@@ -36,7 +39,7 @@ async def run_library_audit(vault_root_str: str, task_id: str):
             await db.execute(delete(AuditIssue).where(AuditIssue.task_id == task_id))
             
             # 2. GHOST HUNT (DB -> Disk)
-            print("Audit: Starting Ghost Hunt...")
+            logger.info("Audit: Starting Ghost Hunt...")
             total_images = (await db.execute(select(func.count(Image.id)))).scalar()
             await tasks.update_task(db, task_id, progress=5, total=100, status="Scanning Database...")
             
@@ -68,7 +71,7 @@ async def run_library_audit(vault_root_str: str, task_id: str):
                 await db.flush()
 
             # 3. ORPHAN HUNT (Disk -> DB)
-            print("Audit: Starting Orphan Hunt...")
+            logger.info("Audit: Starting Orphan Hunt...")
             await tasks.update_task(db, task_id, progress=45, status="Scanning Filesystem...")
             
             image_exts = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff'}
@@ -110,7 +113,7 @@ async def run_library_audit(vault_root_str: str, task_id: str):
                 await db.flush()
 
             # 4. PHASH MATCHING (The Safeguard)
-            print("Audit: Performing Visual Matching...")
+            logger.info("Audit: Performing Visual Matching...")
             await tasks.update_task(db, task_id, progress=85, status="Matching Visual Hashes...")
             
             # Load ghosts and orphans we just found
@@ -138,9 +141,8 @@ async def run_library_audit(vault_root_str: str, task_id: str):
 
             await db.commit()
             await tasks.update_task(db, task_id, progress=100, status=TaskStatus.COMPLETED)
-            print(f"Audit Complete: Found {len(ghosts)} ghosts and {len(orphans)} orphans.")
+            logger.info("Audit Complete", ghosts_found=len(ghosts), orphans_found=len(orphans))
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            logger.exception("Error running library audit", error=str(e))
             await tasks.update_task(db, task_id, status=TaskStatus.ERROR, error_message=str(e))

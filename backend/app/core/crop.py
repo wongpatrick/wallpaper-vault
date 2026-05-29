@@ -5,6 +5,9 @@ import os
 from pathlib import Path
 import cv2
 import numpy as np
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 # Simple orientation constants (simplified rule: height > width => vertical)
 VERT_AR = 9.0 / 16.0      # vertical: 9:16
@@ -19,8 +22,8 @@ def load_image(path):
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img is not None:
             return img
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to load image", path=path, error=str(e), exc_info=True)
     return None
 
 def save_image_buffer(path, img):

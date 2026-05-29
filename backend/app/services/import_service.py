@@ -6,6 +6,9 @@ import re
 import shutil
 import os
 from pathlib import Path
+import structlog
+
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.set import BatchImportRequest, BatchImportItem
 from app.crud.settings import get_setting
@@ -15,6 +18,8 @@ from app.models.image import Image
 from app.models.set import Set
 from app.core.crop import collect_image_paths, process_image, load_image
 from app.core.utils import sanitize_filename
+
+logger = structlog.get_logger(__name__)
 
 async def gather_candidates(db: AsyncSession, batch_in: BatchImportRequest) -> list[dict]:
     """Phase 1: Gather potential folders for import."""
@@ -60,7 +65,7 @@ def compile_parsing_regex(template: str) -> re.Pattern | None:
                 count += 1
         return re.compile(f"^{pattern}$")
     except Exception as e:
-        print(f"Error compiling template: {e}")
+        logger.error("Error compiling template", error=str(e), exc_info=True)
         return None
 
 async def parse_and_validate_candidates(

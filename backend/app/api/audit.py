@@ -16,7 +16,10 @@ from app.crud.settings import get_setting
 from app.core import tasks
 from app.core.enums import TaskStatus, AuditIssueStatus, AuditIssueType
 from app.services import audit_service
+import structlog
 import cv2
+
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -221,7 +224,7 @@ async def resolve_audit_issues(
                 resolved_count += 1
                 
         except Exception as e:
-            print(f"Error resolving issue {issue_id}: {e}")
+            logger.error("Error resolving issue", issue_id=issue_id, error=str(e), exc_info=True)
             continue
 
     await db.commit()

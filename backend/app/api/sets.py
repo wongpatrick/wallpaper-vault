@@ -11,6 +11,9 @@ from app.crud import set as crud_set
 from app.schemas.set import Set, SetCreate, SetImport, BatchImportRequest, BatchImportResponse, SetUpdate, SetPage, SetBulkUpdate, SetMerge
 from app.core import tasks
 from sqlalchemy.exc import IntegrityError
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 router = APIRouter()
@@ -25,7 +28,9 @@ async def create_set(
         db: AsyncSession = Depends(get_db)
 ):
     try:
-        return await crud_set.create_set(db=db, set_in=set_in)
+        db_set = await crud_set.create_set(db=db, set_in=set_in)
+        logger.info("Created set", set_id=db_set.id, title=db_set.title)
+        return db_set
     except IntegrityError as e:
         error_msg = str(e.orig)
         if "UNIQUE constraint failed" in error_msg:
@@ -51,6 +56,7 @@ async def merge_sets(
     )
     if db_set is None:
         raise HTTPException(status_code=404, detail="Target set not found")
+    logger.info("Merged sets", source_ids=merge_in.source_ids, target_id=merge_in.target_id)
     return db_set
 
 @router.post("/import", response_model=Set)
@@ -58,7 +64,9 @@ async def import_set(
         set_in: SetImport,
         db: AsyncSession = Depends(get_db)
 ):
-    return await crud_set.import_set(db=db, set_in=set_in)
+    db_set = await crud_set.import_set(db=db, set_in=set_in)
+    logger.info("Imported set", set_id=db_set.id, title=db_set.title)
+    return db_set
 
 @router.post("/batch-import", response_model=BatchImportResponse)
 async def batch_import_sets(
@@ -77,6 +85,7 @@ async def batch_import_sets(
     task_id = await tasks.create_task(db_session=db, status="accepted")
     background_tasks.add_task(crud_set.run_batch_import_background, batch_in, task_id)
     
+    logger.info("Started batch import background task", task_id=task_id)
     return BatchImportResponse(
         items=[], 
         task_id=task_id, 
@@ -115,6 +124,7 @@ async def update_set(
         db_set = await crud_set.update_set(db, set_id=set_id, set_in=set_in)
         if db_set is None:
             raise HTTPException(status_code=404, detail="Set not found")
+        logger.info("Updated set", set_id=set_id)
         return db_set
     except IntegrityError as e:
         error_msg = str(e.orig)
@@ -131,14 +141,18 @@ async def bulk_update_sets(
         bulk_in: SetBulkUpdate,
         db: AsyncSession = Depends(get_db)
 ):
-    return await crud_set.bulk_update_sets(db=db, bulk_in=bulk_in)
+    count = await crud_set.bulk_update_sets(db=db, bulk_in=bulk_in)
+    logger.info("Bulk updated sets", count=count, mode=bulk_in.operation_mode)
+    return count
 
 @router.post("/bulk-delete", response_model=int)
 async def bulk_delete_sets(
         set_ids: list[int],
         db: AsyncSession = Depends(get_db)
 ):
-    return await crud_set.bulk_delete_sets(db=db, set_ids=set_ids)
+    count = await crud_set.bulk_delete_sets(db=db, set_ids=set_ids)
+    logger.info("Bulk deleted sets", count=count)
+    return count
 
 @router.post("/{set_id}/resync", response_model=Set)
 async def resync_set(
@@ -148,6 +162,7 @@ async def resync_set(
     db_set = await crud_set.resync_set(db, set_id=set_id)
     if db_set is None:
         raise HTTPException(status_code=404, detail="Set not found or path invalid")
+    logger.info("Resynced set", set_id=set_id)
     return db_set
 
 @router.delete("/{set_id}", response_model=Set)
@@ -158,4 +173,5 @@ async def delete_set(
     db_set = await crud_set.delete_set(db, set_id=set_id)
     if db_set is None:
         raise HTTPException(status_code=404, detail="Set not found")
+    logger.info("Deleted set", set_id=set_id)
     return db_set
