@@ -9,6 +9,9 @@ from app.db.session import get_db
 from app.crud import image as crud_image
 from app.schemas.image import Image, ImageUpdate, ImageCreate, ImageBulkUpdate, DuplicateGroup, DuplicateResolutionRequest, ImageWithContext, ImagePage
 from pathlib import Path
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -50,7 +53,9 @@ async def bulk_update_images(
     """
     Update multiple images at once.
     """
-    return await crud_image.bulk_update_images(db=db, bulk_in=bulk_in)
+    count = await crud_image.bulk_update_images(db=db, bulk_in=bulk_in)
+    logger.info("Bulk updated images", count=count, mode=bulk_in.operation_mode)
+    return count
 
 @router.get("/", response_model=ImagePage)
 async def read_images(
@@ -118,10 +123,12 @@ async def resolve_duplicates(
             keep_id=request.keep_image_id, 
             remove_ids=request.remove_image_ids
         )
+        logger.info("Resolved duplicates", keep_id=request.keep_image_id, removed_count=removed, space_saved_bytes=saved)
         return {"status": "success", "removed_count": removed, "space_saved_bytes": saved}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.exception("Unexpected error resolving duplicates", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/random/file/{ratio}/tags/{tags:path}/image.jpg")
@@ -253,6 +260,7 @@ async def update_image(
     db_image = await crud_image.update_image(db, image_id=image_id, image_in=image_in)
     if db_image is None:
         raise HTTPException(status_code=404, detail="Image not found")
+    logger.info("Updated image", image_id=image_id)
     return map_image_to_schema(db_image)
 
 @router.delete("/{image_id}", response_model=Image)
@@ -263,6 +271,7 @@ async def delete_image(
     db_image = await crud_image.delete_image(db, image_id=image_id)
     if db_image is None:
         raise HTTPException(status_code=404, detail="Image not found")
+    logger.info("Deleted image", image_id=image_id)
     return map_image_to_schema(db_image)
 
 @router.get("/file/{image_id}")
@@ -287,4 +296,5 @@ async def create_image_for_set(
     db: AsyncSession = Depends(get_db)
 ):
     db_image = await crud_image.create_image(db, image_in=image_in, set_id=set_id)
+    logger.info("Created image for set", set_id=set_id, image_id=db_image.id)
     return map_image_to_schema(db_image)
