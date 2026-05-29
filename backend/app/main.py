@@ -6,12 +6,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import api_router
 from app.core.tasks import cleanup_zombie_tasks
 from app.core.logging import setup_logging
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 app = FastAPI()
 
 @app.on_event("startup")
 async def startup_event():
     setup_logging()
+    logger.info("Application starting up...")
     await cleanup_zombie_tasks()
 
 app.add_middleware(

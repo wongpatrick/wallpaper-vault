@@ -10,6 +10,9 @@ from sqlalchemy import select, update
 from app.db.session import SessionLocal
 from app.models.task import Task
 from app.core.enums import TaskStatus
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 class TaskBroadcaster:
     def __init__(self):
@@ -52,6 +55,7 @@ async def create_task(db_session, status: str = TaskStatus.ACCEPTED) -> str:
         "total": 0,
         "updated_at": new_task.updated_at
     })
+    logger.info("Created background task", task_id=task_id, status=status)
     return task_id
 
 async def update_task(db_session, task_id: str, status: str = None, progress: int = None, total: int = None, error_message: str = None):
@@ -82,6 +86,10 @@ async def update_task(db_session, task_id: str, status: str = None, progress: in
                 "error_message": updated_task.error_message,
                 "updated_at": updated_task.updated_at
             })
+            
+            # Log significant state changes
+            if updated_task.status in [TaskStatus.COMPLETED, TaskStatus.ERROR]:
+                logger.info("Background task finished", task_id=updated_task.id, status=updated_task.status)
 
 async def event_stream():
     """Generator for Server-Sent Events using Pub/Sub with initial DB sync"""
@@ -122,5 +130,7 @@ async def cleanup_zombie_tasks():
             status=TaskStatus.ERROR, 
             error_message="Process interrupted by server restart"
         )
-        await db.execute(stmt)
+        result = await db.execute(stmt)
         await db.commit()
+        if result.rowcount > 0:
+            logger.info("Cleaned up zombie tasks", count=result.rowcount)
