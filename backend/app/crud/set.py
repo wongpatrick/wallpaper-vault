@@ -25,6 +25,9 @@ from app.core import tasks
 from app.db.session import SessionLocal
 from pathlib import Path
 import re
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 def sanitize_folder_name(name: str) -> str:
     # Remove invalid characters: \ / : * ? " < > |
@@ -57,7 +60,7 @@ def rename_set_folder_if_needed(db_set: Set):
                         img_new_path = new_path / img_old_path.name
                         img.local_path = str(img_new_path)
             except Exception as e:
-                print(f"Error renaming set folder: {e}")
+                logger.error("Error renaming set folder", error=str(e), exc_info=True)
                 # We don't raise here to prevent blocking the metadata update if FS fails
 
 async def get_set(db: AsyncSession, set_id: int):
@@ -327,7 +330,7 @@ async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) ->
                         shutil.move(str(old_p), str(actual_new_p))
                         img.local_path = str(actual_new_p)
                     except Exception as e:
-                        print(f"Error moving image {old_p}: {e}")
+                        logger.error("Error moving image", path=str(old_p), error=str(e), exc_info=True)
                 
                 # Case 2: File was already moved to target manually (or by partial merge)
                 elif new_p.exists():

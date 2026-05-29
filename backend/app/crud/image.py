@@ -13,6 +13,9 @@ from app.core.enums import BulkOperationMode
 import os
 from pathlib import Path
 from collections import defaultdict
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 async def get_random_image(
     db: AsyncSession, 
@@ -167,7 +170,7 @@ async def resolve_duplicates(db: AsyncSession, keep_id: int, remove_ids: List[in
                 try:
                     os.unlink(p)
                 except Exception as e:
-                    print(f"Error deleting file {p}: {e}")
+                    logger.error("Error deleting file", path=str(p), error=str(e), exc_info=True)
             
             # Delete DB record
             await db.delete(db_image)

@@ -5,11 +5,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import api_router
 from app.core.tasks import cleanup_zombie_tasks
+from app.core.logging import setup_logging
 
 app = FastAPI()
 
 @app.on_event("startup")
 async def startup_event():
+    setup_logging()
     await cleanup_zombie_tasks()
 
 app.add_middleware(
