@@ -4,6 +4,7 @@
  * Provides helpers for drag-and-drop, file sizes, and generating backend image URLs.
  */
 import { AXIOS_INSTANCE } from "../api/axios-instance";
+import { API_BASE_URL } from "../config";
 
 /**
  * Generates the full URL for an image file served by the backend.
@@ -13,7 +14,7 @@ import { AXIOS_INSTANCE } from "../api/axios-instance";
 export const getImageUrl = (imageId: number | string | undefined | null): string => {
     if (!imageId) return 'https://placehold.co/600x400?text=No+Image';
     
-    const baseURL = AXIOS_INSTANCE.defaults.baseURL || 'http://localhost:8000';
+    const baseURL = AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
     return `${baseURL}/api/images/file/${imageId}`;
 };
 

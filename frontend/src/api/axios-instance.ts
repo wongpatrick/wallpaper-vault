@@ -5,9 +5,10 @@
  * used by auto-generated API clients to interact with the backend.
  */
 import Axios, { AxiosError, type AxiosRequestConfig } from 'axios';
+import { API_BASE_URL } from '../config';
 
 export const AXIOS_INSTANCE = Axios.create({
-    baseURL: 'http://localhost:8000'
+    baseURL: API_BASE_URL
 });
 
 export const customInstance = <T>(

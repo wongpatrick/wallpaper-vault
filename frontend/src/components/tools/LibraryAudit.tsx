@@ -40,6 +40,7 @@ import {
     useGetCurrentAuditApiAuditCurrentGet
 } from '../../api/generated/audit/audit';
 import type { AuditIssue, AuditFixAction } from '../../api/model';
+import { API_BASE_URL } from '../../config';
 
 export function LibraryAudit() {
     const [taskId, setTaskId] = useState<string | null>(null);
@@ -98,7 +99,7 @@ export function LibraryAudit() {
     useEffect(() => {
         if (!taskId) return;
 
-        const eventSource = new EventSource('http://localhost:8000/api/sets/events');
+        const eventSource = new EventSource(`${API_BASE_URL}/api/sets/events`);
         
         eventSource.onmessage = (event) => {
             const data = JSON.parse(event.data);
