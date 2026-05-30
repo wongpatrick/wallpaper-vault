@@ -13,7 +13,7 @@ router = APIRouter()
 @router.get("/", response_model=List[schema_settings.Setting])
 async def read_settings(
     db: AsyncSession = Depends(get_db)
-):
+) -> List[schema_settings.Setting]:
     """
     Retrieve all settings.
     """
@@ -23,7 +23,7 @@ async def read_settings(
 async def read_setting(
     key: str,
     db: AsyncSession = Depends(get_db)
-):
+) -> schema_settings.Setting:
     """
     Get a specific setting by key.
     """
@@ -37,7 +37,7 @@ async def update_setting(
     key: str,
     setting: schema_settings.SettingUpdate,
     db: AsyncSession = Depends(get_db)
-):
+) -> schema_settings.Setting:
     """
     Update or create a setting.
     """

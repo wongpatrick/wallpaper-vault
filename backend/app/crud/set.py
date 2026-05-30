@@ -33,7 +33,7 @@ def sanitize_folder_name(name: str) -> str:
     # Remove invalid characters: \ / : * ? " < > |
     return re.sub(r'[\\/:*?"<>|]', '', name).strip()
 
-def rename_set_folder_if_needed(db_set: Set):
+def rename_set_folder_if_needed(db_set: Set) -> None:
     if not db_set.local_path:
         return
         
@@ -63,7 +63,7 @@ def rename_set_folder_if_needed(db_set: Set):
                 logger.error("Error renaming set folder", error=str(e), exc_info=True)
                 # We don't raise here to prevent blocking the metadata update if FS fails
 
-async def get_set(db: AsyncSession, set_id: int):
+async def get_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     result = await db.execute(
         select(Set).options(
             selectinload(Set.creators),
@@ -73,7 +73,7 @@ async def get_set(db: AsyncSession, set_id: int):
     return result.scalar_one_or_none()
 
 
-async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Optional[str] = None, creator_type: Optional[str] = None):
+async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Optional[str] = None, creator_type: Optional[str] = None) -> tuple[list[Set], int]:
     # Base query for sets
     query = select(Set)
     
@@ -137,7 +137,7 @@ async def create_set(db: AsyncSession, set_in: SetCreate) -> Set:
     result = await db.execute(query)
     return result.scalar_one()
 
-async def get_set_by_title_and_creator(db: AsyncSession, title: str, creator_id: int):
+async def get_set_by_title_and_creator(db: AsyncSession, title: str, creator_id: int) -> Optional[Set]:
     result = await db.execute(
         select(Set)
         .join(Set.creators)
@@ -188,7 +188,7 @@ async def import_set(db: AsyncSession, set_in: SetImport) -> Set:
     result = await db.execute(query)
     return result.scalar_one()
 
-async def delete_set(db: AsyncSession, set_id: int):
+async def delete_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     db_set = await get_set(db, set_id)
     if db_set:
         await db.delete(db_set)
@@ -485,7 +485,7 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task
     h_label_raw = h_ratio_setting.value if h_ratio_setting else "16/9"
     v_label_raw = v_ratio_setting.value if v_ratio_setting else "9/16"
     
-    def parse_ratio(r_str, default):
+    def parse_ratio(r_str: str, default: float) -> float:
         try:
             if "/" in r_str:
                 num, den = r_str.split("/")
@@ -523,7 +523,7 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task
         await tasks.update_task(db, task_id, progress=total_items, total=total_items)
     return BatchImportResponse(items=final_results)
 
-async def run_batch_import_background(batch_in: BatchImportRequest, task_id: str):
+async def run_batch_import_background(batch_in: BatchImportRequest, task_id: str) -> None:
     async with SessionLocal() as db:
         try:
             await tasks.update_task(db, task_id, status=TaskStatus.PROCESSING)

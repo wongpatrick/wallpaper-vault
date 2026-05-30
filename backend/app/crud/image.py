@@ -123,7 +123,7 @@ async def delete_image(db: AsyncSession, image_id: int) -> Optional[Image]:
         await db.commit()
     return db_image
 
-async def get_duplicate_groups(db: AsyncSession):
+async def get_duplicate_groups(db: AsyncSession) -> list[dict]:
     # 1. Find phashe that appear more than once
     subquery = (
         select(Image.phash)
@@ -151,7 +151,7 @@ async def get_duplicate_groups(db: AsyncSession):
 
     return groups_dict
 
-async def resolve_duplicates(db: AsyncSession, keep_id: int, remove_ids: List[int]):
+async def resolve_duplicates(db: AsyncSession, keep_id: int, remove_ids: List[int]) -> dict:
     # Verify keep_id exists
     keep_img = await get_image(db, keep_id)
     if not keep_img:

@@ -12,7 +12,7 @@ router = APIRouter()
 @router.get("/", response_model=DashboardData)
 async def read_dashboard_data(
     db: AsyncSession = Depends(get_db)
-):
+) -> DashboardData:
     """
     Retrieve aggregated dashboard statistics and health alerts.
     """

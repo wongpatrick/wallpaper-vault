@@ -35,7 +35,7 @@ async def _attach_stats(creator_obj: Creator) -> Creator:
     )
     return creator_obj
 
-async def get_creator(db: AsyncSession, creator_id: int):
+async def get_creator(db: AsyncSession, creator_id: int) -> Optional[Creator]:
     result = await db.execute(
         select(Creator)
         .options(
@@ -49,13 +49,13 @@ async def get_creator(db: AsyncSession, creator_id: int):
         await _attach_stats(creator_obj)
     return creator_obj
 
-async def get_creator_by_name(db: AsyncSession, name: str):
+async def get_creator_by_name(db: AsyncSession, name: str) -> Optional[Creator]:
     result = await db.execute(
         select(Creator).filter(Creator.canonical_name == name)
     )
     return result.scalar_one_or_none()
 
-async def get_creators(db: AsyncSession, skip: int = 0, limit: int = 100, search: Optional[str] = None, creator_type: Optional[str] = None):
+async def get_creators(db: AsyncSession, skip: int = 0, limit: int = 100, search: Optional[str] = None, creator_type: Optional[str] = None) -> tuple[list[Creator], int]:
     # Base query for creators
     query = select(Creator)
     
@@ -81,14 +81,14 @@ async def get_creators(db: AsyncSession, skip: int = 0, limit: int = 100, search
         await _attach_stats(c)
     return creators, total
 
-async def create_creator(db: AsyncSession, creator: CreatorCreate):
+async def create_creator(db: AsyncSession, creator: CreatorCreate) -> Creator:
     db_creator = Creator(**creator.model_dump())
     db.add(db_creator)
     await db.commit()
     await db.refresh(db_creator)
     return db_creator
 
-async def update_creator(db: AsyncSession, creator_id: int, creator_in: CreatorUpdate):
+async def update_creator(db: AsyncSession, creator_id: int, creator_in: CreatorUpdate) -> Optional[Creator]:
     db_creator = await db.get(Creator, creator_id)
     if not db_creator:
         return None
@@ -102,14 +102,14 @@ async def update_creator(db: AsyncSession, creator_id: int, creator_in: CreatorU
     await db.refresh(db_creator)
     return await get_creator(db, creator_id)
 
-async def delete_creator(db: AsyncSession, creator_id: int):
+async def delete_creator(db: AsyncSession, creator_id: int) -> Optional[Creator]:
     db_creator = await db.get(Creator, creator_id)
     if db_creator:
         await db.delete(db_creator)
         await db.commit()
     return db_creator
 
-async def merge_creators(db: AsyncSession, source_ids: list[int], target_id: int):
+async def merge_creators(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[Creator]:
     # Load target (with sets to ensure we don't duplicate associations)
     target = await get_creator(db, target_id)
     if not target:

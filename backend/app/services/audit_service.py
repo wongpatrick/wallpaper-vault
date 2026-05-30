@@ -2,6 +2,7 @@
 Service for library auditing and health checks.
 Provides functionality for finding ghost files, orphaned files, and matching visual hashes.
 """
+from typing import Optional
 import os
 from pathlib import Path
 from sqlalchemy import select, func, delete
@@ -19,7 +20,7 @@ import cv2
 
 logger = structlog.get_logger(__name__)
 
-def calculate_phash(path: Path):
+def calculate_phash(path: Path) -> Optional[str]:
     try:
         img = load_image(path)
         if img is None:
@@ -29,7 +30,7 @@ def calculate_phash(path: Path):
     except Exception:
         return None
 
-async def run_library_audit(vault_root_str: str, task_id: str):
+async def run_library_audit(vault_root_str: str, task_id: str) -> None:
     async with SessionLocal() as db:
         try:
             await tasks.update_task(db, task_id, status=TaskStatus.PROCESSING, progress=0, total=100)

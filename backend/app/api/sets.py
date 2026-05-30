@@ -19,14 +19,14 @@ logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 @router.get("/events")
-async def event_stream():
+async def event_stream() -> StreamingResponse:
     return StreamingResponse(tasks.event_stream(), media_type="text/event-stream")
 
 @router.post("/", response_model=Set)
 async def create_set(
         set_in: SetCreate,
         db: AsyncSession = Depends(get_db)
-):
+) -> Set:
     try:
         db_set = await crud_set.create_set(db=db, set_in=set_in)
         logger.info("Created set", set_id=db_set.id, title=db_set.title)
@@ -45,7 +45,7 @@ async def create_set(
 async def merge_sets(
     merge_in: SetMerge,
     db: AsyncSession = Depends(get_db)
-):
+) -> Set:
     if merge_in.target_id in merge_in.source_ids:
         raise HTTPException(status_code=400, detail="Cannot merge a set into itself")
 
@@ -63,7 +63,7 @@ async def merge_sets(
 async def import_set(
         set_in: SetImport,
         db: AsyncSession = Depends(get_db)
-):
+) -> Set:
     db_set = await crud_set.import_set(db=db, set_in=set_in)
     logger.info("Imported set", set_id=db_set.id, title=db_set.title)
     return db_set
@@ -73,7 +73,7 @@ async def batch_import_sets(
         batch_in: BatchImportRequest,
         background_tasks: BackgroundTasks,
         db: AsyncSession = Depends(get_db)
-):
+) -> BatchImportResponse:
     """
     Unified route to scan, parse, and optionally execute batch imports.
     If dry_run=True, it only scans and returns parsed items.
@@ -100,7 +100,7 @@ async def read_sets(
         search: Optional[str] = None,
         creator_type: Optional[str] = None,
         db: AsyncSession = Depends(get_db)
-):
+) -> SetPage:
     sets, total = await crud_set.get_sets(db, skip=skip, limit=limit, search=search, creator_type=creator_type)
     return SetPage(items=sets, total=total, skip=skip, limit=limit)
 
@@ -108,7 +108,7 @@ async def read_sets(
 async def read_set(
         set_id: int,
         db: AsyncSession = Depends(get_db)
-):
+) -> Set:
     db_set = await crud_set.get_set(db, set_id=set_id)
     if db_set is None:
         raise HTTPException(status_code=404, detail="Set not found")
@@ -119,7 +119,7 @@ async def update_set(
         set_id: int,
         set_in: SetUpdate,
         db: AsyncSession = Depends(get_db)
-):
+) -> Set:
     try:
         db_set = await crud_set.update_set(db, set_id=set_id, set_in=set_in)
         if db_set is None:
@@ -140,7 +140,7 @@ async def update_set(
 async def bulk_update_sets(
         bulk_in: SetBulkUpdate,
         db: AsyncSession = Depends(get_db)
-):
+) -> int:
     count = await crud_set.bulk_update_sets(db=db, bulk_in=bulk_in)
     logger.info("Bulk updated sets", count=count, mode=bulk_in.operation_mode)
     return count
@@ -149,7 +149,7 @@ async def bulk_update_sets(
 async def bulk_delete_sets(
         set_ids: list[int],
         db: AsyncSession = Depends(get_db)
-):
+) -> int:
     count = await crud_set.bulk_delete_sets(db=db, set_ids=set_ids)
     logger.info("Bulk deleted sets", count=count)
     return count
@@ -158,7 +158,7 @@ async def bulk_delete_sets(
 async def resync_set(
     set_id: int,
     db: AsyncSession = Depends(get_db)
-):
+) -> Set:
     db_set = await crud_set.resync_set(db, set_id=set_id)
     if db_set is None:
         raise HTTPException(status_code=404, detail="Set not found or path invalid")
@@ -169,7 +169,7 @@ async def resync_set(
 async def delete_set(
         set_id: int,
         db: AsyncSession = Depends(get_db)
-):
+) -> Set:
     db_set = await crud_set.delete_set(db, set_id=set_id)
     if db_set is None:
         raise HTTPException(status_code=404, detail="Set not found")

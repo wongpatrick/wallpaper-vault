@@ -1,6 +1,7 @@
 """
 API endpoints for running and managing library audits and issue resolutions.
 """
+from typing import Any
 from typing import Optional
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
@@ -28,7 +29,7 @@ async def start_audit(
     request: AuditStartRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
-):
+) -> dict[str, str]:
     """Start a background library audit."""
     # Check for existing active audit tasks
     await db.execute(
@@ -51,7 +52,7 @@ async def start_audit(
     return {"task_id": task_id, "status": TaskStatus.ACCEPTED}
 
 @router.get("/current")
-async def get_current_audit(db: AsyncSession = Depends(get_db)):
+async def get_current_audit(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Find the currently running audit task if any."""
     # Since we don't have task types yet, we'll look for the most recent active task
     result = await db.execute(
@@ -77,7 +78,7 @@ async def get_audit_results(
     issue_type: Optional[str] = None,
     status: str = AuditIssueStatus.PENDING,
     db: AsyncSession = Depends(get_db)
-):
+) -> AuditIssuePage:
     """Fetch paginated audit issues."""
     query = select(AuditIssue).filter(AuditIssue.status == status)
     
@@ -100,7 +101,7 @@ async def get_audit_results(
 async def resolve_audit_issues(
     action: AuditFixAction,
     db: AsyncSession = Depends(get_db)
-):
+) -> dict[str, Any]:
     """Execute bulk resolution actions."""
     if not action.issue_ids:
         return {"status": "success", "count": 0}
