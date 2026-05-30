@@ -8,7 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
     Title, Text, Container, Group, Badge, Loader, 
     Center, Alert, Stack, ActionIcon, Menu, Button, Modal,
-    TextInput, Textarea, MultiSelect, TagsInput, Box, Switch, Transition, Paper
+    TextInput, Textarea, MultiSelect, Box, Switch, Transition, Paper
 } from '@mantine/core';
 import { 
     IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
@@ -29,6 +29,7 @@ import { ImageGridItem } from './components/ImageGridItem';
 import { Lightbox } from './components/Lightbox';
 import { ImageEditModal } from './components/ImageEditModal';
 import { ImageBulkEditModal } from './components/ImageBulkEditModal';
+import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
 import type { Image as ImageModel, BulkOperationMode } from '../../api/model';
 
 export default function SetDetail() {
@@ -71,7 +72,7 @@ export default function SetDetail() {
             source_url: set.source_url || '',
             local_path: set.local_path || '',
             creator_ids: set.creators?.map(c => String(c.id)) || [],
-            tags: set.tags ? set.tags.split(',').filter(t => t.trim()) : []
+            tags: set.tags ? set.tags.split(/\s+/).filter(t => t.trim()) : []
         });
     }
 
@@ -105,7 +106,7 @@ export default function SetDetail() {
                 data: {
                     ...editForm,
                     creator_ids: editForm.creator_ids.map(Number),
-                    tags: editForm.tags.join(',')
+                    tags: editForm.tags.join(' ')
                 }
             });
             notifications.show({ title: 'Success', message: 'Set metadata updated', color: 'green' });
@@ -277,7 +278,7 @@ export default function SetDetail() {
                     {/* Metadata Badges */}
                     {set.tags && (
                         <Group gap="xs" mt="sm">
-                            {set.tags.split(',').filter(t => t.trim()).map(tag => (
+                            {set.tags.split(/\s+/).filter(t => t.trim()).map(tag => (
                                 <Badge key={tag} variant="light" color="gray" leftSection={<IconTag size={12} />}>
                                     {tag}
                                 </Badge>
@@ -432,7 +433,7 @@ export default function SetDetail() {
                         searchable
                         clearable
                     />
-                    <TagsInput 
+                    <TagAutocompleteInput 
                         label="Tags"
                         placeholder="Add tags..."
                         value={editForm.tags}

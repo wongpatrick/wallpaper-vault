@@ -289,7 +289,10 @@ async def get_image_file(
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Image file not found on disk")
     
-    return FileResponse(str(file_path))
+    return FileResponse(
+        str(file_path),
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 @router.post("/set/{set_id}", response_model=Image)
 async def create_image_for_set(

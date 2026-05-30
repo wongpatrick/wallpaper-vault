@@ -1,17 +1,18 @@
 /**
  * @file
  * Module: Lightbox Component
- * Description: Full-screen image viewer supporting keyboard navigation, metadata display, thumbnail strip, and direct image actions (edit/delete).
+ * Description: Full-screen image viewer supporting keyboard navigation, metadata display, filmstrip thumbnail navigation, and direct image actions (edit/delete).
  */
 import { Modal, Box, Group, Stack, Text, Button, ActionIcon, Center, Image, Badge, Tooltip } from '@mantine/core';
 import { IconWallpaper, IconX, IconChevronLeft, IconChevronRight, IconEdit, IconAlertTriangle, IconExclamationCircle, IconTrash, IconFolderOpen } from '@tabler/icons-react';
-import { getImageUrl } from '../../../utils/fileUtils';
+import { getImageUrl, getThumbnailUrl } from '../../../utils/fileUtils';
 import type { Image as ImageModel } from '../../../api/model';
 import { useDeleteImageApiImagesImageIdDelete } from '../../../api/generated/images/images';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { useNavigate } from 'react-router-dom';
 import { ImageRating } from '../../../types/enums';
+import { useMemo, useEffect } from 'react';
 
 interface LightboxProps {
     images: ImageModel[];
@@ -20,15 +21,58 @@ interface LightboxProps {
     onSelectIndex: (index: number) => void;
     onEdit: (image: ImageModel) => void;
     onDelete?: () => void;
+    totalCount?: number;
 }
 
 const BYTES_PER_KB = 1024;
-const OPACITY_DIMMED = 0.6;
+const OPACITY_DIMMED = 0.5;
 const OPACITY_FULL = 1;
+const FILMSTRIP_VISIBLE = 7; // Number of thumbnails visible at a time
+const FILMSTRIP_HALF = Math.floor(FILMSTRIP_VISIBLE / 2);
+const THUMB_WIDTH = 160;
+const THUMB_HEIGHT = 100;
+const THUMB_GAP = 8;
 
-export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit, onDelete }: LightboxProps) {
+export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit, onDelete, totalCount }: LightboxProps) {
     const deleteMutation = useDeleteImageApiImagesImageIdDelete();
     const navigate = useNavigate();
+
+    // Compute the visible filmstrip window
+    const filmstripWindow = useMemo(() => {
+        if (selectedIndex === null) return [];
+        
+        let start = selectedIndex - FILMSTRIP_HALF;
+        let end = selectedIndex + FILMSTRIP_HALF;
+        
+        // Clamp to bounds
+        if (start < 0) {
+            end = Math.min(end - start, images.length - 1);
+            start = 0;
+        }
+        if (end >= images.length) {
+            start = Math.max(start - (end - images.length + 1), 0);
+            end = images.length - 1;
+        }
+        
+        const window: { index: number; image: ImageModel }[] = [];
+        for (let i = start; i <= end; i++) {
+            window.push({ index: i, image: images[i] });
+        }
+        return window;
+    }, [selectedIndex, images]);
+
+    // Prefetch adjacent full-res images for instant navigation
+    useEffect(() => {
+        if (selectedIndex === null) return;
+        
+        const prefetchIndices = [selectedIndex - 1, selectedIndex + 1];
+        prefetchIndices.forEach(idx => {
+            if (idx >= 0 && idx < images.length) {
+                const img = new window.Image();
+                img.src = getImageUrl(images[idx].id);
+            }
+        });
+    }, [selectedIndex, images]);
 
     if (selectedIndex === null) return null;
 
@@ -118,7 +162,7 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
                             </Text>
                             {tags && (
                                 <Text c="blue.4" size="xs" italic>
-                                    #{tags.split(',').map((t: string) => t.trim()).join(' #')}
+                                    #{tags.split(/[\s,]+/).filter(Boolean).join(' #')}
                                 </Text>
                             )}
                         </Group>
@@ -167,7 +211,7 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
                     <Image
                         src={getImageUrl(currentImage.id)}
                         style={{ 
-                            maxHeight: '80vh', 
+                            maxHeight: '75vh', 
                             maxWidth: '100%', 
                             objectFit: 'contain',
                             border: rating !== ImageRating.SAFE ? `4px solid ${borderColor}` : 'none',
@@ -200,45 +244,57 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
                     <IconChevronRight size={48} />
                 </ActionIcon>
 
-                {/* Thumbnails Strip */}
-                <Box p="md" style={{ backgroundColor: 'rgba(0,0,0,0.5)', overflowX: 'auto' }}>
-                    <Group gap="xs" wrap="nowrap" justify="center">
-                        {images.map((img, idx) => {
+                {/* Filmstrip Thumbnail Navigation */}
+                <Box 
+                    p="md" 
+                    style={{ 
+                        backgroundColor: 'rgba(0,0,0,0.6)', 
+                        backdropFilter: 'blur(8px)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 8
+                    }}
+                >
+                    {/* Position Counter */}
+                    <Text c="gray.4" size="xs" fw={600}>
+                        {selectedIndex + 1} / {totalCount || images.length}
+                    </Text>
+
+                    {/* Filmstrip */}
+                    <Group gap={THUMB_GAP} wrap="nowrap" justify="center">
+                        {filmstripWindow.map(({ index, image: img }) => {
                             const imgRating = img.rating || ImageRating.SAFE;
-                            const imgBorderColor = imgRating === ImageRating.EXPLICIT ? 'var(--mantine-color-red-filled)' : 
-                                                 imgRating === ImageRating.QUESTIONABLE ? 'var(--mantine-color-yellow-filled)' : 
-                                                 'transparent';
+                            const isActive = index === selectedIndex;
                             
                             return (
                                 <Box 
                                     key={img.id} 
-                                    onClick={() => onSelectIndex(idx)}
+                                    onClick={() => onSelectIndex(index)}
                                     style={{ 
-                                        width: 60, 
-                                        height: 40, 
+                                        width: THUMB_WIDTH, 
+                                        height: THUMB_HEIGHT, 
                                         cursor: 'pointer', 
-                                        border: selectedIndex === idx ? '2px solid var(--mantine-color-blue-filled)' : 
-                                                imgRating !== ImageRating.SAFE ? `2px solid ${imgBorderColor}` : 'none',
-                                        opacity: selectedIndex === idx ? OPACITY_FULL : OPACITY_DIMMED,
-                                        transition: 'all 0.2s',
-                                        position: 'relative'
+                                        borderRadius: 6,
+                                        overflow: 'hidden',
+                                        border: isActive 
+                                            ? '3px solid var(--mantine-color-blue-filled)' 
+                                            : imgRating !== ImageRating.SAFE 
+                                                ? `2px solid ${imgRating === ImageRating.EXPLICIT ? 'var(--mantine-color-red-filled)' : 'var(--mantine-color-yellow-filled)'}`
+                                                : '2px solid transparent',
+                                        opacity: isActive ? OPACITY_FULL : OPACITY_DIMMED,
+                                        transition: 'all 0.2s ease',
+                                        flexShrink: 0,
+                                        transform: isActive ? 'scale(1.05)' : 'scale(1)',
                                     }}
                                 >
-                                    <Image src={getImageUrl(img.id)} height={40} fit="cover" />
-                                    {imgRating !== ImageRating.SAFE && (
-                                        <Box 
-                                            style={{ 
-                                                position: 'absolute', 
-                                                top: 2, 
-                                                right: 2, 
-                                                width: 8, 
-                                                height: 8, 
-                                                borderRadius: '50%', 
-                                                backgroundColor: imgRating === ImageRating.EXPLICIT ? 'var(--mantine-color-red-filled)' : 'var(--mantine-color-yellow-filled)',
-                                                border: '1px solid white'
-                                            }} 
-                                        />
-                                    )}
+                                    <Image 
+                                        src={getThumbnailUrl(img.id, 'sm')} 
+                                        height={THUMB_HEIGHT} 
+                                        width={THUMB_WIDTH}
+                                        fit="cover" 
+                                        style={{ display: 'block' }}
+                                    />
                                 </Box>
                             );
                         })}

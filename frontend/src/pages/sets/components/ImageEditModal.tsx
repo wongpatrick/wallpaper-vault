@@ -4,13 +4,14 @@
  * Description: Modal component for editing metadata (rating, tags, notes, etc.) of a single image and handling its deletion.
  */
 import { Modal, Stack, TextInput, Textarea, Button, NumberInput, SegmentedControl, Text, ColorInput, Center, Box, Group } from '@mantine/core';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { IconAlertTriangle, IconExclamationCircle, IconShieldCheck, IconTrash } from '@tabler/icons-react';
 import { useUpdateImageApiImagesImageIdPatch, useDeleteImageApiImagesImageIdDelete } from '../../../api/generated/images/images';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import type { Image as ImageModel, ImageUpdate } from '../../../api/model';
 import { ImageRating } from '../../../types/enums';
+import { TagAutocompleteInput } from '../../../components/ui/TagAutocompleteInput';
 
 interface ImageEditModalProps {
     image: ImageModel | null;
@@ -91,6 +92,8 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
         });
     };
 
+    const tagsArray = React.useMemo(() => form.tags ? form.tags.split(/\s+/).filter(t => t.trim()) : [], [form.tags]);
+
     return (
         <Modal opened={opened} onClose={onClose} title="Edit Image Metadata" radius="md" zIndex={zIndex}>
             <Stack gap="md">
@@ -135,12 +138,12 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
                     ]}
                 />
 
-                <TextInput 
+                <TagAutocompleteInput 
                     label="Tags" 
-                    placeholder="e.g. dark, landscape, minimalist"
+                    placeholder="e.g. dark landscape minimalist"
                     description="Granular tags for this specific image"
-                    value={form.tags || ''} 
-                    onChange={(e) => setForm({ ...form, tags: e.currentTarget.value })}
+                    value={tagsArray} 
+                    onChange={(tags) => setForm({ ...form, tags: tags.join(' ') })}
                 />
 
                 <ColorInput 

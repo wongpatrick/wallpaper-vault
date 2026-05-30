@@ -248,6 +248,7 @@ export default function Images() {
                 onClose={() => setSelectedImageIndex(null)}
                 onSelectIndex={setSelectedImageIndex}
                 onEdit={(img) => setEditingImage(img)}
+                totalCount={pageData?.total}
                 onDelete={() => {
                     setAllImages([]);
                     setPage(1);
