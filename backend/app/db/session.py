@@ -1,6 +1,7 @@
 """
 Database session management and asynchronous SQLAlchemy engine setup.
 """
+from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from app.core.config import settings
 
@@ -18,6 +19,6 @@ SessionLocal = async_sessionmaker(
     autoflush=False,
 )
 
-async def get_db():
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with SessionLocal() as session:
         yield session

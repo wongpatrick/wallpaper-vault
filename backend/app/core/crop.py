@@ -1,6 +1,7 @@
 """
 Image cropping utilities, including saliency-based smart cropping for wallpapers.
 """
+from typing import Optional
 import os
 from pathlib import Path
 import cv2
@@ -13,7 +14,7 @@ logger = structlog.get_logger(__name__)
 VERT_AR = 9.0 / 16.0      # vertical: 9:16
 HORZ_AR = 16.0 / 10.0     # horizontal: 16:10
 
-def load_image(path):
+def load_image(path: str | Path) -> Optional[np.ndarray]:
     path = os.path.normpath(str(path))
     try:
         with open(path, 'rb') as f:
@@ -26,7 +27,7 @@ def load_image(path):
         logger.warning("Failed to load image", path=path, error=str(e), exc_info=True)
     return None
 
-def save_image_buffer(path, img):
+def save_image_buffer(path: str | Path, img: np.ndarray) -> bool:
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
 
@@ -42,10 +43,10 @@ def save_image_buffer(path, img):
         buf.tofile(f)
     return True
 
-def save_image(path, img):
+def save_image(path: str | Path, img: np.ndarray) -> bool:
     return save_image_buffer(path, img)
 
-def compute_saliency_map(img_gray):
+def compute_saliency_map(img_gray: np.ndarray) -> Optional[np.ndarray]:
     saliency = cv2.saliency.StaticSaliencySpectralResidual_create()
     (success, sal_map) = saliency.computeSaliency(img_gray)
     if not success or sal_map is None:
@@ -53,12 +54,12 @@ def compute_saliency_map(img_gray):
     sal_map = (sal_map * 255).astype('uint8')
     return sal_map
 
-def window_sum(ii, x, y, cw, ch):
+def window_sum(ii: np.ndarray, x: int, y: int, cw: int, ch: int) -> float:
     x2 = x + cw
     y2 = y + ch
     return float(ii[y2, x2] - ii[y, x2] - ii[y2, x] + ii[y, x])
 
-def best_crop_coords(W, H, cw, ch, sal_map_uint8):
+def best_crop_coords(W: int, H: int, cw: int, ch: int, sal_map_uint8: Optional[np.ndarray]) -> tuple[int, int]:
     if sal_map_uint8 is None:
         return max(0, (W - cw) // 2), max(0, (H - ch) // 2)
 
@@ -95,13 +96,13 @@ def best_crop_coords(W, H, cw, ch, sal_map_uint8):
 
     return best_x, best_y
 
-def orientation_for_dims(cw, ch, vert_ar=VERT_AR, horz_ar=HORZ_AR):
+def orientation_for_dims(cw: int, ch: int, vert_ar: float=VERT_AR, horz_ar: float=HORZ_AR) -> str:
     ratio = cw / ch if ch else 0
     vert_diff = abs(ratio - vert_ar)
     horz_diff = abs(ratio - horz_ar)
     return "vertical" if vert_diff <= horz_diff else "horizontal"
 
-def process_image(img_path, out_path, target_w=1920, target_h=1080, exact=False, downscale_max=1200, sort_output=True, auto_orient=False, vert_ar=VERT_AR, horz_ar=HORZ_AR, horz_label="horizontal", vert_label="vertical"):
+def process_image(img_path: str | Path, out_path: str | Path, target_w: int=1920, target_h: int=1080, exact: bool=False, downscale_max: int=1200, sort_output: bool=True, auto_orient: bool=False, vert_ar: float=VERT_AR, horz_ar: float=HORZ_AR, horz_label: str="horizontal", vert_label: str="vertical") -> tuple[bool, Optional[str]]:
     img = load_image(img_path)
     if img is None:
         return False, None
@@ -179,7 +180,7 @@ def process_image(img_path, out_path, target_w=1920, target_h=1080, exact=False,
 
     return True, str(final_out_path)
 
-def collect_image_paths(input_path, recursive=True):
+def collect_image_paths(input_path: str | Path, recursive: bool=True) -> list[str]:
     image_exts = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp"}
     p = Path(input_path)
     if p.is_dir():

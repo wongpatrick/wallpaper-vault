@@ -15,7 +15,7 @@ router = APIRouter()
 async def create_creator(
         creator: CreatorCreate,
         db: AsyncSession = Depends(get_db)
-):
+) -> Creator:
     try:
         return await crud_creator.create_creator(db=db, creator=creator)
     except IntegrityError as e:
@@ -35,7 +35,7 @@ async def read_creators(
         search: Optional[str] = None,
         creator_type: Optional[str] = None,
         db: AsyncSession = Depends(get_db)
-):
+) -> CreatorPage:
     creators, total = await crud_creator.get_creators(db, skip=skip, limit=limit, search=search, creator_type=creator_type)
     return CreatorPage(items=creators, total=total, skip=skip, limit=limit)
 
@@ -43,7 +43,7 @@ async def read_creators(
 async def read_creator(
         creator_id: int,
         db: AsyncSession = Depends(get_db)
-):
+) -> CreatorWithSets:
     db_creator = await crud_creator.get_creator(db, creator_id=creator_id)
     if db_creator is None:
         raise HTTPException(status_code=404, detail="Creator not found")
@@ -54,7 +54,7 @@ async def update_creator(
         creator_id: int,
         creator_in: crud_creator.CreatorUpdate,
         db: AsyncSession = Depends(get_db)
-):
+) -> Creator:
     try:
         db_creator = await crud_creator.update_creator(db, creator_id=creator_id, creator_in=creator_in)
         if db_creator is None:
@@ -75,7 +75,7 @@ async def update_creator(
 async def delete_creator(
         creator_id: int,
         db: AsyncSession = Depends(get_db)
-):
+) -> Creator:
     db_creator = await crud_creator.delete_creator(db, creator_id=creator_id)
     if db_creator is None:
         raise HTTPException(status_code=404, detail="Creator not found")
@@ -85,7 +85,7 @@ async def delete_creator(
 async def merge_creators(
     merge_in: CreatorMerge,
     db: AsyncSession = Depends(get_db)
-):
+) -> Creator:
     if merge_in.target_id in merge_in.source_ids:
         raise HTTPException(status_code=400, detail="Cannot merge an artist into itself")
 

@@ -5,7 +5,7 @@ import logging
 import sys
 import structlog
 
-def setup_logging():
+def setup_logging() -> None:
     # Define structlog processors
     shared_processors = [
         structlog.stdlib.add_logger_name,

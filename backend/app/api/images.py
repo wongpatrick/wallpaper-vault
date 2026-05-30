@@ -1,6 +1,7 @@
 """
 API endpoints for fetching, updating, and managing images and their duplicates.
 """
+from typing import Any
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -8,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.crud import image as crud_image
 from app.schemas.image import Image, ImageUpdate, ImageCreate, ImageBulkUpdate, DuplicateGroup, DuplicateResolutionRequest, ImageWithContext, ImagePage
+from app.models.image import Image as ImageModel
 from pathlib import Path
 import structlog
 
@@ -15,7 +17,7 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
-def map_image_to_schema(img) -> Image:
+def map_image_to_schema(img: "ImageModel") -> Image:
     """Helper to ensure image model is correctly mapped to schema with string dates."""
     return Image(
         id=img.id,
@@ -36,7 +38,7 @@ def map_image_to_schema(img) -> Image:
         date_added=str(img.date_added)
     )
 
-def map_image_to_context_schema(img) -> ImageWithContext:
+def map_image_to_context_schema(img: "ImageModel") -> ImageWithContext:
     """Helper to map image with set/creator context."""
     base = map_image_to_schema(img)
     return ImageWithContext(
@@ -49,7 +51,7 @@ def map_image_to_context_schema(img) -> ImageWithContext:
 async def bulk_update_images(
     bulk_in: ImageBulkUpdate,
     db: AsyncSession = Depends(get_db)
-):
+) -> int:
     """
     Update multiple images at once.
     """
@@ -64,7 +66,7 @@ async def read_images(
     search: Optional[str] = None,
     rating: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
-):
+) -> ImagePage:
     """
     Get a paginated list of all images with optional comprehensive search and rating filter.
     """
@@ -75,7 +77,7 @@ async def read_images(
 @router.get("/duplicates/groups", response_model=List[DuplicateGroup])
 async def read_duplicate_groups(
     db: AsyncSession = Depends(get_db)
-):
+) -> List[DuplicateGroup]:
     """
     Get all groups of duplicate images.
     """
@@ -86,7 +88,7 @@ async def read_duplicate_groups(
         images_with_context = [map_image_to_context_schema(img) for img in img_list]
         
         # Sort: Highest resolution first
-        def score_img(img):
+        def score_img(img: ImageWithContext) -> float:
             score = 0
             if "Needs Organizing" not in (" ".join(img.creator_names)):
                 score += 1000
@@ -113,7 +115,7 @@ async def read_duplicate_groups(
 async def resolve_duplicates(
     request: DuplicateResolutionRequest,
     db: AsyncSession = Depends(get_db)
-):
+) -> dict[str, Any]:
     """
     Resolve a duplicate group by keeping one image and removing others.
     """
@@ -136,7 +138,7 @@ async def read_random_image_file_path_tags(
     ratio: str,
     tags: str,
     db: AsyncSession = Depends(get_db)
-):
+) -> FileResponse:
     """
     Get a random image file based on ratio and tags in the path (DisplayFusion compatible).
     """
@@ -163,7 +165,7 @@ async def read_random_image_file_path_tags(
 async def read_random_image_file_path(
     ratio: str,
     db: AsyncSession = Depends(get_db)
-):
+) -> FileResponse:
     """
     Get a random image file based on ratio in the path (DisplayFusion compatible).
     """
@@ -192,7 +194,7 @@ async def read_random_image(
     min_h: Optional[int] = Query(None, alias="min_height"),
     creator_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db)
-):
+) -> Image:
     """
     Get a random image based on filters.
     """
@@ -216,7 +218,7 @@ async def read_random_image_file(
     min_h: Optional[int] = Query(None, alias="min_height"),
     creator_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db)
-):
+) -> FileResponse:
     """
     Get a random image file based on filters.
     """
@@ -245,7 +247,7 @@ async def read_random_image_file(
 async def read_image(
     image_id: int,
     db: AsyncSession = Depends(get_db)
-):
+) -> Image:
     db_image = await crud_image.get_image(db, image_id=image_id)
     if db_image is None:
         raise HTTPException(status_code=404, detail="Image not found")
@@ -256,7 +258,7 @@ async def update_image(
     image_id: int,
     image_in: ImageUpdate,
     db: AsyncSession = Depends(get_db)
-):
+) -> Image:
     db_image = await crud_image.update_image(db, image_id=image_id, image_in=image_in)
     if db_image is None:
         raise HTTPException(status_code=404, detail="Image not found")
@@ -267,7 +269,7 @@ async def update_image(
 async def delete_image(
     image_id: int,
     db: AsyncSession = Depends(get_db)
-):
+) -> Image:
     db_image = await crud_image.delete_image(db, image_id=image_id)
     if db_image is None:
         raise HTTPException(status_code=404, detail="Image not found")
@@ -278,7 +280,7 @@ async def delete_image(
 async def get_image_file(
     image_id: int,
     db: AsyncSession = Depends(get_db)
-):
+) -> FileResponse:
     db_image = await crud_image.get_image(db, image_id=image_id)
     if db_image is None:
         raise HTTPException(status_code=404, detail="Image not found")
@@ -294,7 +296,7 @@ async def create_image_for_set(
     set_id: int,
     image_in: ImageCreate,
     db: AsyncSession = Depends(get_db)
-):
+) -> Image:
     db_image = await crud_image.create_image(db, image_in=image_in, set_id=set_id)
     logger.info("Created image for set", set_id=set_id, image_id=db_image.id)
     return map_image_to_schema(db_image)

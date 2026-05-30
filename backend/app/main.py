@@ -13,7 +13,7 @@ logger = structlog.get_logger(__name__)
 app = FastAPI()
 
 @app.on_event("startup")
-async def startup_event():
+async def startup_event() -> None:
     setup_logging()
     logger.info("Application starting up...")
     await cleanup_zombie_tasks()
@@ -28,6 +28,6 @@ app.add_middleware(
 app.include_router(api_router, prefix="/api")
 
 @app.get("/", tags=["Health"])
-async def root():
+async def root() -> dict[str, str]:
     # Basic Healthcheck endpoint 
     return {"status": "ok", "message": "Wallpaper Vault API is running"}

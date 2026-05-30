@@ -1,6 +1,8 @@
 """
 Background task management and server-sent events (SSE) broadcasting system.
 """
+from typing import AsyncGenerator, Optional
+from sqlalchemy.ext.asyncio import AsyncSession
 import asyncio
 import json
 import uuid
@@ -23,10 +25,10 @@ class TaskBroadcaster:
         self.subscribers.add(queue)
         return queue
 
-    def unsubscribe(self, queue: asyncio.Queue):
+    def unsubscribe(self, queue: asyncio.Queue) -> None:
         self.subscribers.discard(queue)
 
-    async def broadcast(self, task_data: Dict[str, Any]):
+    async def broadcast(self, task_data: Dict[str, Any]) -> None:
         if not self.subscribers:
             return
         
@@ -40,7 +42,7 @@ class TaskBroadcaster:
 
 broadcaster = TaskBroadcaster()
 
-async def create_task(db_session, status: str = TaskStatus.ACCEPTED) -> str:
+async def create_task(db_session: AsyncSession, status: str = TaskStatus.ACCEPTED) -> str:
     task_id = str(uuid.uuid4())
     new_task = Task(id=task_id, status=status)
     db_session.add(new_task)
@@ -58,7 +60,7 @@ async def create_task(db_session, status: str = TaskStatus.ACCEPTED) -> str:
     logger.info("Created background task", task_id=task_id, status=status)
     return task_id
 
-async def update_task(db_session, task_id: str, status: str = None, progress: int = None, total: int = None, error_message: str = None):
+async def update_task(db_session: AsyncSession, task_id: str, status: Optional[str] = None, progress: Optional[int] = None, total: Optional[int] = None, error_message: Optional[str] = None) -> Optional[Task]:
     update_data = {}
     if status: 
         update_data["status"] = status
@@ -91,7 +93,7 @@ async def update_task(db_session, task_id: str, status: str = None, progress: in
             if updated_task.status in [TaskStatus.COMPLETED, TaskStatus.ERROR]:
                 logger.info("Background task finished", task_id=updated_task.id, status=updated_task.status)
 
-async def event_stream():
+async def event_stream() -> AsyncGenerator[str, None]:
     """Generator for Server-Sent Events using Pub/Sub with initial DB sync"""
     queue = broadcaster.subscribe()
     
@@ -123,7 +125,7 @@ async def event_stream():
     finally:
         broadcaster.unsubscribe(queue)
 
-async def cleanup_zombie_tasks():
+async def cleanup_zombie_tasks() -> None:
     """Mark all 'processing' tasks as 'error' on startup"""
     async with SessionLocal() as db:
         stmt = update(Task).where(Task.status == TaskStatus.PROCESSING).values(
