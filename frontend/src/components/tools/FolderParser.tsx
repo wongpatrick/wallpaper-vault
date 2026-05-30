@@ -20,9 +20,11 @@ interface ParseResult {
     files: string[];
 }
 
+const DEBOUNCE_MS = 500;
+
 export function FolderParser() {
     const [template, setTemplate] = useState('[Creator] - [Set]');
-    const [debouncedTemplate] = useDebouncedValue(template, 500);
+    const [debouncedTemplate] = useDebouncedValue(template, DEBOUNCE_MS);
     const [isAdvanced, setIsAdvanced] = useState(false);
     const [droppedFolders, setDroppedFolders] = useState<{name: string, path: string, files: string[]}[]>([]);
     const [results, setResults] = useState<ParseResult[]>([]);

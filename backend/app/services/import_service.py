@@ -81,7 +81,7 @@ async def parse_and_validate_candidates(
         name = cand["name"]
         creator = cand.get("creator_name")
         title = cand.get("set_title")
-        isValid = True
+        is_valid = True
         
         if not creator or not title:
             if regex:
@@ -99,19 +99,19 @@ async def parse_and_validate_candidates(
                     elif "set" in m.groupdict():
                         title = title or m.group("set")
                 else:
-                    isValid = False
+                    is_valid = False
             else:
-                isValid = False
+                is_valid = False
 
         item_result = BatchImportItem(
             source_path=path,
             creator_name=creator or "Unknown",
             set_title=title or "Unknown",
-            isValid=isValid,
+            is_valid=is_valid,
             status="pending"
         )
         
-        if isValid and creator and title:
+        if is_valid and creator and title:
             raw_names = re.split(r'\s+&\s+', item_result.creator_name)
             creator_names = [n.strip() for n in raw_names if n.strip()]
             
@@ -139,7 +139,7 @@ async def execute_import_item(
 ) -> BatchImportItem:
     """Phase 3: Process images and save to database for a single item."""
     from app.crud.set import get_set_by_title_and_creator
-    if not item.isValid:
+    if not item.is_valid:
         item.status = "error"
         item.error = "Invalid parsing"
         return item

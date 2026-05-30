@@ -20,7 +20,9 @@ interface ImageEditModalProps {
     zIndex?: number;
 }
 
-export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = 3000 }: ImageEditModalProps) {
+const MODAL_Z_INDEX = 3000;
+
+export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MODAL_Z_INDEX }: ImageEditModalProps) {
     const updateMutation = useUpdateImageApiImagesImageIdPatch();
     const deleteMutation = useDeleteImageApiImagesImageIdDelete();
     

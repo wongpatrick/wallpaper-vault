@@ -26,7 +26,7 @@ export default function Creators() {
 
     // Local Search State (Immediate UI feedback)
     const [localSearch, setLocalSearch] = useState(search);
-    const [debouncedLocalSearch] = useDebouncedValue(localSearch, 500);
+    const [debouncedLocalSearch] = useDebouncedValue(localSearch, SEARCH_DEBOUNCE_MS);
 
     // Modal/Action State
     const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);

@@ -22,6 +22,10 @@ interface LightboxProps {
     onDelete?: () => void;
 }
 
+const BYTES_PER_KB = 1024;
+const OPACITY_DIMMED = 0.6;
+const OPACITY_FULL = 1;
+
 export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit, onDelete }: LightboxProps) {
     const deleteMutation = useDeleteImageApiImagesImageIdDelete();
     const navigate = useNavigate();
@@ -110,7 +114,7 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
                         </Group>
                         <Group gap={8}>
                             <Text c="gray.5" size="xs">
-                                {currentImage.width} x {currentImage.height} • {((currentImage.file_size || 0) / 1024 / 1024).toFixed(2)} MB
+                                {currentImage.width} x {currentImage.height} • {((currentImage.file_size || 0) / BYTES_PER_KB / BYTES_PER_KB).toFixed(2)} MB
                             </Text>
                             {tags && (
                                 <Text c="blue.4" size="xs" italic>
@@ -215,7 +219,7 @@ export function Lightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit
                                         cursor: 'pointer', 
                                         border: selectedIndex === idx ? '2px solid var(--mantine-color-blue-filled)' : 
                                                 imgRating !== ImageRating.SAFE ? `2px solid ${imgBorderColor}` : 'none',
-                                        opacity: selectedIndex === idx ? 1 : 0.6,
+                                        opacity: selectedIndex === idx ? OPACITY_FULL : OPACITY_DIMMED,
                                         transition: 'all 0.2s',
                                         position: 'relative'
                                     }}

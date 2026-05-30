@@ -14,6 +14,9 @@ export interface CropState {
     height: number;
 }
 
+const INITIAL_CROP_RATIO = 0.8;
+const MIN_CROP_SIZE = 50;
+
 export function useImageCropper() {
     const [image, setImage] = useState<string | null>(null);
     const [croppedImage, setCroppedImage] = useState<string | null>(null);
@@ -70,8 +73,8 @@ export function useImageCropper() {
 
         setImageDimensions({ width: containerWidth, height: containerHeight });
 
-        let width = containerWidth * 0.8;
-        let height = containerHeight * 0.8;
+        let width = containerWidth * INITIAL_CROP_RATIO;
+        let height = containerHeight * INITIAL_CROP_RATIO;
 
         const ratio = getRatio();
         if (aspectRatio !== 'free') {
@@ -117,8 +120,8 @@ export function useImageCropper() {
                 y: Math.max(0, Math.min(img.clientHeight - prev.height, initialCrop.y + deltaY))
             }));
         } else if (isResizing) {
-            let newWidth = Math.max(50, initialCrop.width + deltaX);
-            let newHeight = Math.max(50, initialCrop.height + deltaY);
+            let newWidth = Math.max(MIN_CROP_SIZE, initialCrop.width + deltaX);
+            let newHeight = Math.max(MIN_CROP_SIZE, initialCrop.height + deltaY);
 
             if (aspectRatio !== 'free') {
                 const ratio = getRatio();

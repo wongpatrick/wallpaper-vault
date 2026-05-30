@@ -18,6 +18,8 @@ interface SetCardProps {
     onToggleSelect?: () => void;
 }
 
+const ICON_SIZE_PX = 14;
+
 export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect }: SetCardProps) {
     const navigate = useNavigate();
     
@@ -120,13 +122,13 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
                         <Menu.Dropdown onClick={(e) => e.stopPropagation()}>
                             <Menu.Label>Actions</Menu.Label>
                             <Menu.Item 
-                                leftSection={<IconExternalLink style={{ width: rem(14), height: rem(14) }} />}
+                                leftSection={<IconExternalLink style={{ width: rem(ICON_SIZE_PX), height: rem(ICON_SIZE_PX) }} />}
                                 onClick={() => navigate(`/sets/${set.id}`)}
                             >
                                 View Details
                             </Menu.Item>
                             <Menu.Item 
-                                leftSection={<IconFolder style={{ width: rem(14), height: rem(14) }} />}
+                                leftSection={<IconFolder style={{ width: rem(ICON_SIZE_PX), height: rem(ICON_SIZE_PX) }} />}
                                 onClick={handleOpenFolder}
                             >
                                 Open Folder
@@ -135,7 +137,7 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
                             <Menu.Label color="red">Danger zone</Menu.Label>
                             <Menu.Item 
                                 color="red" 
-                                leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />}
+                                leftSection={<IconTrash style={{ width: rem(ICON_SIZE_PX), height: rem(ICON_SIZE_PX) }} />}
                                 onClick={() => onDelete(set.id)}
                             >
                                 Delete Set

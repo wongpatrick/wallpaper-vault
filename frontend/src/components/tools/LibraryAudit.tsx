@@ -42,6 +42,9 @@ import {
 import type { AuditIssue, AuditFixAction } from '../../api/model';
 import { API_BASE_URL } from '../../config';
 
+const ITEM_HEIGHT_PX = 35;
+const MAX_SCROLL_HEIGHT_PX = 150;
+
 export function LibraryAudit() {
     const [taskId, setTaskId] = useState<string | null>(null);
     const [progress, setProgress] = useState(0);
@@ -311,7 +314,7 @@ export function LibraryAudit() {
                                                         </Group>
                                                     </Group>
                                                     
-                                                    <ScrollArea h={Math.min(items.length * 35, 150)} scrollbarSize={6}>
+                                                    <ScrollArea h={Math.min(items.length * ITEM_HEIGHT_PX, MAX_SCROLL_HEIGHT_PX)} scrollbarSize={6}>
                                                         <Stack gap={2}>
                                                             {items.map(item => (
                                                                 <Group 
