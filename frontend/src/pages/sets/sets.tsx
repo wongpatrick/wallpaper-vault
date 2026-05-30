@@ -16,6 +16,9 @@ import { useSearchParams } from 'react-router-dom';
 import type { SetUpdate, BulkOperationMode } from '../../api/model';
 
 const PAGE_SIZE = 12;
+const SEARCH_DEBOUNCE_MS = 500;
+const PADDING_DEFAULT_PX = 40;
+const PADDING_SELECTION_MODE_PX = 100;
 
 export default function Sets() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -27,7 +30,7 @@ export default function Sets() {
     
     // Local Search State (Immediate UI feedback)
     const [localSearch, setLocalSearch] = useState(search);
-    const [debouncedLocalSearch] = useDebouncedValue(localSearch, 500);
+    const [debouncedLocalSearch] = useDebouncedValue(localSearch, SEARCH_DEBOUNCE_MS);
 
     // Sync URL when local search is debounced
     useEffect(() => {
@@ -208,7 +211,7 @@ export default function Sets() {
     const selectedSets = sets.filter(s => selectedIds.has(s.id));
 
     return (
-        <Container size="xl" style={{ position: 'relative', paddingBottom: selectionMode ? 100 : 40 }}>
+        <Container size="xl" style={{ position: 'relative', paddingBottom: selectionMode ? PADDING_SELECTION_MODE_PX : PADDING_DEFAULT_PX }}>
             <Group justify="space-between" align="flex-start" mb="xs">
                 <Stack gap={0}>
                     <Title order={1}>📚 Wallpaper Sets</Title>

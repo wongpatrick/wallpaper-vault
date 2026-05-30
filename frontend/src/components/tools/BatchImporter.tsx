@@ -10,6 +10,9 @@ import { useBatchImportSetsApiSetsBatchImportPost } from '../../api/generated/se
 import { useNotificationHistory } from '../../hooks/useNotificationHistory';
 import type { BatchImportItem } from '../../api/model';
 
+const OPACITY_DIMMED = 0.6;
+const OPACITY_FULL = 1;
+
 export function BatchImporter() {
     const [template, setTemplate] = useState('Coser@[Creator] - [Set]');
     const [results, setResults] = useState<BatchImportItem[]>([]);
@@ -293,7 +296,7 @@ export function BatchImporter() {
                             </Table.Thead>
                             <Table.Tbody>
                                 {results.map((result, index) => (
-                                    <Table.Tr key={index} style={{ opacity: (result.status === 'success' || result.status === 'duplicate') ? 0.6 : 1 }}>
+                                    <Table.Tr key={index} style={{ opacity: (result.status === 'success' || result.status === 'duplicate') ? OPACITY_DIMMED : OPACITY_FULL }}>
                                         <Table.Td>
                                             <Stack gap={0}>
                                                 <Text size="sm" fw={500}>{result.source_path.split(/[\\/]/).pop()}</Text>

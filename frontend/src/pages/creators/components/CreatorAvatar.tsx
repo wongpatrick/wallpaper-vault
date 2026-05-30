@@ -12,7 +12,10 @@ interface CreatorAvatarProps {
     size?: number;
 }
 
-export function CreatorAvatar({ imageId, size = 60 }: CreatorAvatarProps) {
+const DEFAULT_AVATAR_SIZE = 60;
+const ICON_SCALE_FACTOR = 0.5;
+
+export function CreatorAvatar({ imageId, size = DEFAULT_AVATAR_SIZE }: CreatorAvatarProps) {
     // If no image, show generic icon
     if (!imageId) {
         return (
@@ -21,7 +24,7 @@ export function CreatorAvatar({ imageId, size = 60 }: CreatorAvatarProps) {
                 bg="blue.1" 
                 style={{ borderRadius: '8px', overflow: 'hidden' }}
             >
-                <IconUser size={size * 0.5} color="var(--mantine-color-blue-6)" />
+                <IconUser size={size * ICON_SCALE_FACTOR} color="var(--mantine-color-blue-6)" />
             </Center>
         );
     }

@@ -15,6 +15,10 @@ import { useSearchParams } from 'react-router-dom';
 import type { Image as ImageModel } from '../../api/model';
 
 const PAGE_SIZE = 100;
+const SEARCH_DEBOUNCE_MS = 500;
+const BREAKPOINT_SM = 600;
+const BREAKPOINT_MD = 900;
+const BREAKPOINT_LG = 1200;
 
 export default function Images() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -26,7 +30,7 @@ export default function Images() {
 
     // Local Search State (Immediate UI feedback)
     const [localSearch, setLocalSearch] = useState(search);
-    const [debouncedLocalSearch] = useDebouncedValue(localSearch, 500);
+    const [debouncedLocalSearch] = useDebouncedValue(localSearch, SEARCH_DEBOUNCE_MS);
 
     // Sync URL when local search is debounced
     useEffect(() => {
@@ -56,9 +60,9 @@ export default function Images() {
 
     // Responsive column count
     const columnCount = useMemo(() => {
-        if (width < 600) return 1;
-        if (width < 900) return 2;
-        if (width < 1200) return 3;
+        if (width < BREAKPOINT_SM) return 1;
+        if (width < BREAKPOINT_MD) return 2;
+        if (width < BREAKPOINT_LG) return 3;
         return 4;
     }, [width]);
 

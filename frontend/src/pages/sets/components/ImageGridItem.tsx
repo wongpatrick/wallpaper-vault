@@ -19,6 +19,10 @@ interface ImageGridItemProps {
     onToggleSelect?: () => void;
 }
 
+const SCROLL_DEBOUNCE_MS = 500;
+const OPACITY_UNSELECTED = 0.7;
+const OPACITY_FULL = 1;
+
 export function ImageGridItem({ image, onClick, selectionMode, selected, onToggleSelect }: ImageGridItemProps) {
     const rating = image.rating || ImageRating.SAFE;
     const dominantColor = image.dominant_color;
@@ -29,7 +33,7 @@ export function ImageGridItem({ image, onClick, selectionMode, selected, onToggl
             setLongPressed(true);
             onToggleSelect();
         }
-    }, 500);
+    }, SCROLL_DEBOUNCE_MS);
 
     const borderColor = rating === ImageRating.EXPLICIT ? 'var(--mantine-color-red-filled)' : 
                         rating === ImageRating.QUESTIONABLE ? 'var(--mantine-color-yellow-filled)' : 
@@ -63,7 +67,7 @@ export function ImageGridItem({ image, onClick, selectionMode, selected, onToggl
                 position: 'relative',
                 border: rating !== ImageRating.SAFE ? `2px solid ${borderColor}` : undefined,
                 boxSizing: 'border-box',
-                opacity: selectionMode && !selected ? 0.7 : 1,
+                opacity: selectionMode && !selected ? OPACITY_UNSELECTED : OPACITY_FULL,
                 transform: selected ? 'scale(0.95)' : 'none',
                 transition: 'all 0.2s ease',
                 userSelect: 'none',

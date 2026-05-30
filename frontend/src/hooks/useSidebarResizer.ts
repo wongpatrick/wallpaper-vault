@@ -11,6 +11,8 @@ const COLLAPSED_WIDTH = 80;
 const EXPANDED_DEFAULT_WIDTH = 280;
 const SNAP_THRESHOLD = 150;
 
+const SNAP_THRESHOLD_PX = 50;
+
 export function useSidebarResizer() {
     const [width, setWidth] = useState(EXPANDED_DEFAULT_WIDTH);
     const [isResizing, setIsResizing] = useState(false);
@@ -33,7 +35,7 @@ export function useSidebarResizer() {
         setWidth((prevWidth) => {
             if (prevWidth < SNAP_THRESHOLD) {
                 return COLLAPSED_WIDTH;
-            } else if (prevWidth < EXPANDED_DEFAULT_WIDTH + 50) {
+            } else if (prevWidth < EXPANDED_DEFAULT_WIDTH + SNAP_THRESHOLD_PX) {
                 return EXPANDED_DEFAULT_WIDTH;
             }
             return prevWidth;

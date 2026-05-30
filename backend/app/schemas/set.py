@@ -3,7 +3,7 @@ Pydantic schemas for set entities.
 Defines models for creating, updating, importing, and bulk managing sets.
 """
 from typing import Optional
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from app.core.enums import BulkOperationMode
 
 from app.schemas.creator import Creator  # noqa: E402
@@ -41,7 +41,7 @@ class BatchImportItem(BaseModel):
     set_title: str
     status: str = "pending"
     error: Optional[str] = None
-    isValid: bool = True
+    is_valid: bool = Field(default=True, alias="isValid")
 
 class BatchImportRequest(BaseModel):
     items: list[SetBatchImport] = []

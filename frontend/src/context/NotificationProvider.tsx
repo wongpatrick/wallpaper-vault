@@ -9,12 +9,17 @@ import type { NotificationData } from '@mantine/notifications';
 import { NotificationContext } from './NotificationContext';
 import type { NotificationHistoryItem } from './NotificationContext';
 
+const BASE_36 = 36;
+const ID_START_INDEX = 2;
+const ID_END_INDEX = 9;
+const MAX_HISTORY_LENGTH = 50;
+
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<NotificationHistoryItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const showNotification = useCallback((data: NotificationData & { status?: NotificationHistoryItem['status'] }) => {
-    const id = data.id || Math.random().toString(36).substring(2, 9);
+    const id = data.id || Math.random().toString(BASE_36).substring(ID_START_INDEX, ID_END_INDEX);
     
     // Show mantine notification (UI Toast)
     notifications.show({ ...data, id });
@@ -32,7 +37,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                 status: data.status,
             },
             ...filtered,
-        ].slice(0, 50);
+        ].slice(0, MAX_HISTORY_LENGTH);
     });
     
     setUnreadCount(prev => prev + 1);

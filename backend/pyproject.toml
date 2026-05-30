@@ -1,7 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "FastAPI backend for Wallpaper Vault — manages a SQLite-backed wallpaper library with saliency-aware cropping, batch import, and audit tools."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -10,7 +10,6 @@ dependencies = [
     "pydantic-settings>=2.13.1",
     "sqlalchemy>=2.0.48",
     "uvicorn[standard]>=0.42.0",
-    "opencv-python>=4.11.0.86",
     "numpy>=2.2.3",
     "opencv-contrib-python>=4.13.0.92",
     "structlog>=25.5.0",

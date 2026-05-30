@@ -14,6 +14,7 @@ import { CreatorCreateForm } from './components/CreatorCreateForm';
 import { useDebouncedValue } from '@mantine/hooks';
 
 const PAGE_SIZE = 12;
+const SEARCH_DEBOUNCE_MS = 500;
 
 export default function Creators() {
     const navigate = useNavigate();
@@ -26,7 +27,7 @@ export default function Creators() {
 
     // Local Search State (Immediate UI feedback)
     const [localSearch, setLocalSearch] = useState(search);
-    const [debouncedLocalSearch] = useDebouncedValue(localSearch, 500);
+    const [debouncedLocalSearch] = useDebouncedValue(localSearch, SEARCH_DEBOUNCE_MS);
 
     // Modal/Action State
     const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);

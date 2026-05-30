@@ -262,7 +262,8 @@ app.whenReady().then(() => {
     startBackend();
     createWindow();
     // Delay tray creation by 1s to allow OS/GPU systems to stabilize
-    setTimeout(createTray, 1000);
+    const TRAY_CREATION_DELAY_MS = 1000;
+    setTimeout(createTray, TRAY_CREATION_DELAY_MS);
 });
 
 app.on('activate', () => {

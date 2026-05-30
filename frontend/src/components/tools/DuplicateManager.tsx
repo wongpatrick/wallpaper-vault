@@ -38,6 +38,9 @@ import { API_BASE_URL } from '../../config';
 
 const API_BASE = `${API_BASE_URL}/api`;
 
+const BYTES_PER_KB = 1024;
+const THRESHOLD_MB = 1000;
+
 export function DuplicateManager() {
     const { 
         data: groups, 
@@ -277,9 +280,9 @@ function ImageVariantCard({ image, isKeep, isRecommended, onSelect }: VariantCar
 
                 <Group justify="space-between">
                     <Text size="xs" fw={700}>{image.width} × {image.height}</Text>
-                    <Text size="xs" c="dimmed">{(image.file_size || 0) / 1024 > 1000 
-                        ? `${((image.file_size || 0) / 1024 / 1024).toFixed(1)} MB` 
-                        : `${((image.file_size || 0) / 1024).toFixed(0)} KB`}</Text>
+                    <Text size="xs" c="dimmed">{(image.file_size || 0) / BYTES_PER_KB > THRESHOLD_MB 
+                        ? `${((image.file_size || 0) / BYTES_PER_KB / BYTES_PER_KB).toFixed(1)} MB` 
+                        : `${((image.file_size || 0) / BYTES_PER_KB).toFixed(0)} KB`}</Text>
                 </Group>
 
                 <Button 
