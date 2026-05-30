@@ -16,6 +16,9 @@ import { useSearchParams } from 'react-router-dom';
 import type { SetUpdate, BulkOperationMode } from '../../api/model';
 
 const PAGE_SIZE = 12;
+const SEARCH_DEBOUNCE_MS = 500;
+const PADDING_DEFAULT_PX = 40;
+const PADDING_SELECTION_MODE_PX = 100;
 
 export default function Sets() {
     const [searchParams, setSearchParams] = useSearchParams();

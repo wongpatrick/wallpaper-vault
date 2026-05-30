@@ -14,6 +14,7 @@ import { CreatorCreateForm } from './components/CreatorCreateForm';
 import { useDebouncedValue } from '@mantine/hooks';
 
 const PAGE_SIZE = 12;
+const SEARCH_DEBOUNCE_MS = 500;
 
 export default function Creators() {
     const navigate = useNavigate();

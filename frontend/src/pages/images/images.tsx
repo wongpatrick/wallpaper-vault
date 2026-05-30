@@ -15,6 +15,10 @@ import { useSearchParams } from 'react-router-dom';
 import type { Image as ImageModel } from '../../api/model';
 
 const PAGE_SIZE = 100;
+const SEARCH_DEBOUNCE_MS = 500;
+const BREAKPOINT_SM = 600;
+const BREAKPOINT_MD = 900;
+const BREAKPOINT_LG = 1200;
 
 export default function Images() {
     const [searchParams, setSearchParams] = useSearchParams();
