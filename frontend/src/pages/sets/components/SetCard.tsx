@@ -7,7 +7,7 @@ import { Card, Image, Group, Stack, Text, Menu, ActionIcon, Badge, rem, Checkbox
 import { IconDotsVertical, IconExternalLink, IconFolder, IconTrash } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
-import { getImageUrl, FALLBACK_IMAGE } from '../../../utils/fileUtils';
+import { getThumbnailUrl, FALLBACK_IMAGE } from '../../../utils/fileUtils';
 import type { Set } from '../../../api/model';
 
 interface SetCardProps {
@@ -62,7 +62,7 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
     };
 
     const coverImageId = set.images && set.images.length > 0 ? set.images[0].id : null;
-    const coverUrl = coverImageId ? getImageUrl(coverImageId) : FALLBACK_IMAGE;
+    const coverUrl = coverImageId ? getThumbnailUrl(coverImageId, 'sm') : FALLBACK_IMAGE;
     const creatorNames = set.creators?.map(c => c.canonical_name).join(' & ') || 'Unknown Creator';
 
     return (

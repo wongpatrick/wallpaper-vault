@@ -8,6 +8,8 @@ from app.api import settings
 from app.api import images
 from app.api import dashboard
 from app.api import audit
+from app.api import tags
+from app.api import thumbnails
 
 api_router = APIRouter()
 
@@ -17,3 +19,5 @@ api_router.include_router(settings.router, prefix="/settings", tags=["settings"]
 api_router.include_router(images.router, prefix="/images", tags=["images"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
+api_router.include_router(tags.router, prefix="/tags", tags=["tags"])
+api_router.include_router(thumbnails.router, prefix="/images", tags=["thumbnails"])

@@ -5,7 +5,7 @@
  */
 import { Card, Image, Box, Text, Stack, Badge, Group, Checkbox } from '@mantine/core';
 import { IconAlertTriangle, IconExclamationCircle } from '@tabler/icons-react';
-import { getImageUrl } from '../../../utils/fileUtils';
+import { getThumbnailUrl } from '../../../utils/fileUtils';
 import type { Image as ImageModel } from '../../../api/model';
 import { useTimeout } from '@mantine/hooks';
 import { useState } from 'react';
@@ -88,7 +88,7 @@ export function ImageGridItem({ image, onClick, selectionMode, selected, onToggl
             }}
         >
             <Image
-                src={getImageUrl(image.id)}
+                src={getThumbnailUrl(image.id, 'md')}
                 alt={image.filename}
                 loading="lazy"
                 radius={0}

@@ -3,10 +3,11 @@
  * Module: Bulk Edit Modal (Sets)
  * Description: Modal component for applying bulk operations (artists, tags, delete) to multiple selected wallpaper sets.
  */
-import { Modal, Stack, MultiSelect, Button, Group, SegmentedControl, Text, TextInput } from '@mantine/core';
+import { Modal, Stack, MultiSelect, Button, Group, SegmentedControl, Text } from '@mantine/core';
 import { useState } from 'react';
 import { useReadCreatorsApiCreatorsGet } from '../../../api/generated/creators/creators';
 import type { SetUpdate, BulkOperationMode } from '../../../api/model';
+import { TagAutocompleteInput } from '../../../components/ui/TagAutocompleteInput';
 
 interface BulkEditModalProps {
     opened: boolean;
@@ -20,7 +21,7 @@ interface BulkEditModalProps {
 export function BulkEditModal({ opened, onClose, type, selectedCount, onConfirm, loading }: BulkEditModalProps) {
     const [mode, setMode] = useState<'append' | 'replace' | 'remove'>('append');
     const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
-    const [tags, setTags] = useState('');
+    const [tags, setTags] = useState<string[]>([]);
 
     const { data: creatorsData } = useReadCreatorsApiCreatorsGet({ limit: 1000 }, { query: { enabled: opened && type === 'artist' } });
     const creatorOptions = (creatorsData?.items || []).map(c => ({
@@ -32,7 +33,7 @@ export function BulkEditModal({ opened, onClose, type, selectedCount, onConfirm,
         if (type === 'artist') {
             onConfirm({ creator_ids: selectedCreators.map(id => parseInt(id)) }, mode);
         } else if (type === 'tags') {
-            onConfirm({ tags }, mode);
+            onConfirm({ tags: tags.join(' ') }, mode);
         } else {
             onConfirm({} as SetUpdate, 'replace' as BulkOperationMode); // Delete mode
         }
@@ -76,12 +77,12 @@ export function BulkEditModal({ opened, onClose, type, selectedCount, onConfirm,
                 )}
 
                 {type === 'tags' && (
-                    <TextInput
+                    <TagAutocompleteInput
                         label="Tags"
-                        placeholder="e.g. nature minimal 4k"
-                        description="Space-separated tags"
+                        placeholder="Add tags..."
+                        description="Tags to apply to selected sets"
                         value={tags}
-                        onChange={(e) => setTags(e.currentTarget.value)}
+                        onChange={setTags}
                     />
                 )}
 

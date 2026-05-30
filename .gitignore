@@ -4,6 +4,7 @@
 *.db-wal
 *.sqlite
 *.sqlite3
+db/thumbs/
 
 # wallpaper files — track structure, not the images themselves
 wallpapers/

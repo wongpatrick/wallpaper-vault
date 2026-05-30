@@ -19,6 +19,19 @@ export const getImageUrl = (imageId: number | string | undefined | null): string
 };
 
 /**
+ * Generates the URL for a resized thumbnail of an image.
+ * @param imageId The ID of the image in the database.
+ * @param size 'sm' (200px wide) or 'md' (400px wide).
+ * @returns A string URL for the thumbnail.
+ */
+export const getThumbnailUrl = (imageId: number | string | undefined | null, size: 'sm' | 'md' = 'sm'): string => {
+    if (!imageId) return 'https://placehold.co/600x400?text=No+Image';
+    
+    const baseURL = AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
+    return `${baseURL}/api/images/thumb/${imageId}?size=${size}`;
+};
+
+/**
  * A standard fallback image for when a set has no images.
  */
 export const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=1000&auto=format&fit=crop';
