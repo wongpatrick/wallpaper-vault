@@ -1,3 +1,6 @@
+"""
+CRUD operations for retrieving unique tags from images and sets.
+"""
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select

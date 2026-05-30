@@ -1,15 +1,15 @@
+/** @file */
 import { useState } from 'react';
 import { TagsInput } from '@mantine/core';
-import type { TagsInputProps } from '@mantine/core';
+import type { TagsInputProps, ComboboxProps } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useSearchTagsApiTagsGet } from '../../api/generated/tags/tags';
 
-export interface TagAutocompleteInputProps extends Omit<TagsInputProps, 'data' | 'searchValue' | 'onSearchChange'> {
-    // Custom wrapper for tags input that auto-fetches autocomplete tags
-}
+export type TagAutocompleteInputProps = Omit<TagsInputProps, 'data' | 'searchValue' | 'onSearchChange'>;
 
 export function TagAutocompleteInput(props: TagAutocompleteInputProps) {
     const [searchValue, setSearchValue] = useState('');
+    // eslint-disable-next-line no-magic-numbers
     const [debouncedSearch] = useDebouncedValue(searchValue, 300);
 
     // Fetch tags matching the search value, only if there is a search term
@@ -26,7 +26,7 @@ export function TagAutocompleteInput(props: TagAutocompleteInputProps) {
             onSearchChange={setSearchValue}
             splitChars={[',', ' ']}
             clearable
-            comboboxProps={{ zIndex: 4000, portalProps: { zIndex: 4000 } } as any}
+            comboboxProps={{ zIndex: 4000, portalProps: { zIndex: 4000 } } as ComboboxProps}
         />
     );
 }

@@ -7,7 +7,7 @@ import jsdoc from 'eslint-plugin-jsdoc'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'src/api/generated']),
+  globalIgnores(['dist', 'src/api/generated', 'src/api/model']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

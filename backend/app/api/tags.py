@@ -1,3 +1,6 @@
+"""
+API endpoints for searching and retrieving tags.
+"""
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
