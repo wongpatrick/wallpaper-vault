@@ -16,8 +16,9 @@ async def search_tags(
     db: AsyncSession = Depends(get_db)
 ) -> List[str]:
     """
-    Get a list of unique tags matching the search query.
-    Aggregates tags from both Images and Sets.
+    Retrieve a list of unique tags matching the search query.
+    
+    Aggregates tags from both Images and Sets, returning a deduplicated, alphabetically sorted list. Useful for building autocomplete dropdowns or tag clouds in the UI.
     """
     tags = await crud_tag.get_unique_tags(db, search=q, limit=limit)
     return tags

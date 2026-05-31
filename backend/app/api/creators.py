@@ -16,6 +16,11 @@ async def create_creator(
         creator: CreatorCreate,
         db: AsyncSession = Depends(get_db)
 ) -> Creator:
+    """
+    Create a new creator (artist) profile.
+    
+    Validates that the canonical name is unique to prevent duplicates.
+    """
     try:
         return await crud_creator.create_creator(db=db, creator=creator)
     except IntegrityError as e:
@@ -42,6 +47,11 @@ async def read_creators(
         creator_type: Optional[str] = None,
         db: AsyncSession = Depends(get_db)
 ) -> CreatorPage:
+    """
+    Retrieve a paginated list of all creators.
+    
+    Supports text search against canonical names and filtering by creator type (e.g., photographer, illustrator).
+    """
     creators, total = await crud_creator.get_creators(db, skip=skip, limit=limit, search=search, creator_type=creator_type)
     return CreatorPage(items=creators, total=total, skip=skip, limit=limit)
 
@@ -98,6 +108,11 @@ async def merge_creators(
     merge_in: CreatorMerge,
     db: AsyncSession = Depends(get_db)
 ) -> Creator:
+    """
+    Merge multiple duplicate creators into a single primary creator.
+    
+    All sets associated with the source IDs will be reassigned to the target ID. The source creator records will then be permanently deleted.
+    """
     if merge_in.target_id in merge_in.source_ids:
         raise HTTPException(status_code=400, detail="Cannot merge an artist into itself")
 

@@ -30,7 +30,11 @@ async def start_audit(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
 ) -> dict[str, str]:
-    """Start a background library audit."""
+    """
+    Start a background library audit to detect filesystem and database inconsistencies.
+    
+    The audit scans for 'ghost' records (database entries missing files) and 'orphan' files (files missing database records). It clears any previously pending issues before starting a fresh scan.
+    """
     # Check for existing active audit tasks
     await db.execute(
         select(tasks.Task).filter(tasks.Task.status.in_([TaskStatus.ACCEPTED, TaskStatus.PROCESSING]))
@@ -102,7 +106,11 @@ async def resolve_audit_issues(
     action: AuditFixAction,
     db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
-    """Execute bulk resolution actions."""
+    """
+    Execute bulk resolution actions for discovered audit issues.
+    
+    Supports various fix strategies like 'purge' (delete DB record), 'repair' (fix paths), 'delete_file' (remove from disk), 'import' (add to existing set), and 'create_and_import' (create new set and import).
+    """
     if not action.issue_ids:
         return {"status": "success", "count": 0}
 

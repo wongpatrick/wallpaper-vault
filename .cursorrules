@@ -1,12 +1,46 @@
-# General AI Rules
+# Wallpaper Vault - AI Instructions
 
+This file serves as the single source of truth for AI agents (Cursor, Copilot, Cline, Antigravity) working on the Wallpaper Vault project. You MUST adhere to these architectural guidelines, rules, and conventions.
+
+## 🏗️ Architecture
+
+*   **Backend**: FastAPI + Async SQLAlchemy (Python 3.14+, uv).
+*   **Frontend**: React 19 (Vite) + TypeScript + Mantine UI v7.
+*   **Desktop App**: Electron.
+*   **Communication**: Server-Sent Events (SSE) for background tasks. Orval for frontend API client generation.
+
+## 🚨 Core Rules
+
+### 1. API-First Workflow
+All API changes must start by updating the FastAPI endpoints and models in Python.
+1. Update the backend code.
+2. The `openapi.json` will automatically update.
+3. You **MUST** run `npm run generate` in the `frontend` directory (which uses Orval) to create the React Query hooks and types.
+4. **NEVER** manually edit the generated frontend API client files.
+
+### 2. TypeScript Strictness
+*   **Never use `any`** in TypeScript. You must always define proper types or interfaces.
+
+### 3. Pydantic
+*   Always use **Pydantic V2** (`pydantic.Field`, `model_validate`, `model_dump`, etc.) in the backend.
+
+### 4. No Magic Strings or Numbers
+Do not hardcode domain statuses, configurations, or repetitive literal values.
+*   **Backend**: Define them in `backend/app/core/enums.py` using `StrEnum` or `Enum`.
+*   **Frontend**: Define them in `frontend/src/types/enums.ts` using `as const` objects.
+
+## 🎨 Conventions
+
+### 1. Styling
+*   Use **Mantine UI v7** components exclusively.
+*   Avoid writing raw CSS unless absolutely necessary for highly complex or custom layouts.
+
+### 2. Separation of Concerns
+Strictly enforce the boundary between `crud/` and `services/` in the backend:
+*   **`crud/`**: Handles ONLY simple, pure database queries (select, insert, update, delete).
+*   **`services/`**: Handles everything else (file system operations, complex multi-model transactions, external API calls, task queues, and general business logic).
+
+### 3. Documentation
 Whenever you create a new file or significantly refactor an existing one, you MUST ensure there is a 2-4 line module-level docstring at the very top of the file describing its purpose.
-
-- For Python files (`.py`), use `""" ... """` at the top of the file.
-- For TypeScript/TSX files (`.ts`, `.tsx`), use a JSDoc block starting with `/**\n * @file\n ... */` at the top of the file.
-
-# Code Quality Rules
-
-1. **No Magic Strings or Numbers**: Do not hardcode domain statuses, configurations, or repetitive literal values. 
-   - Backend: Define them in `backend/app/core/enums.py` using `StrEnum` or `Enum`.
-   - Frontend: Define them in `frontend/src/types/enums.ts` using `as const` objects.
+*   **Python (`.py`)**: Use `""" ... """` at the top of the file.
+*   **TypeScript/TSX (`.ts`, `.tsx`)**: Use a JSDoc block starting with `/**\n * @file\n ... */` at the top of the file.
