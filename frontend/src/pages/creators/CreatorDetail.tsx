@@ -16,7 +16,8 @@ import {
 import { 
     useReadCreatorApiCreatorsCreatorIdGet, 
     useUpdateCreatorApiCreatorsCreatorIdPatch,
-    useDeleteCreatorApiCreatorsCreatorIdDelete
+    useDeleteCreatorApiCreatorsCreatorIdDelete,
+    useMergeCreatorsApiCreatorsMergePost
 } from '../../api/generated/creators/creators';
 import { notifications } from '@mantine/notifications';
 import { SetCard } from '../sets/components/SetCard';
@@ -42,6 +43,9 @@ export default function CreatorDetail() {
         type: '',
         notes: ''
     });
+
+    const mergeMutation = useMergeCreatorsApiCreatorsMergePost();
+    const [mergePrompt, setMergePrompt] = useState<{ show: boolean, targetId: number | null }>({ show: false, targetId: null });
 
     const [prevCreatorId, setPrevCreatorId] = useState<number | null>(null);
     if (creator && creator.id !== prevCreatorId) {
@@ -96,8 +100,36 @@ export default function CreatorDetail() {
             notifications.show({ title: 'Success', message: 'Creator updated', color: 'green' });
             setIsEditModalOpen(false);
             refetch();
+        } catch (error: unknown) {
+            const err = error as { response?: { status?: number, data?: { detail?: Record<string, unknown> | string } } };
+            const detail = err.response?.data?.detail;
+            
+            // eslint-disable-next-line no-magic-numbers
+            if (err.response?.status === 409 && detail && typeof detail === 'object' && 'conflicting_id' in detail) {
+                setMergePrompt({ show: true, targetId: detail.conflicting_id as number });
+                setIsEditModalOpen(false);
+                return;
+            }
+
+            const message = typeof detail === 'string' ? detail : (detail?.message || 'Could not update creator');
+            notifications.show({ title: 'Error', message, color: 'red' });
+        }
+    };
+
+    const handleMergeConfirm = async () => {
+        if (!mergePrompt.targetId) return;
+        try {
+            await mergeMutation.mutateAsync({
+                data: {
+                    source_ids: [Number(creatorId)],
+                    target_id: mergePrompt.targetId
+                }
+            });
+            notifications.show({ title: 'Success', message: 'Artists merged successfully', color: 'green' });
+            setMergePrompt({ show: false, targetId: null });
+            navigate(`/creators/${mergePrompt.targetId}`);
         } catch {
-            notifications.show({ title: 'Error', message: 'Could not update creator', color: 'red' });
+            notifications.show({ title: 'Error', message: 'Could not merge artists', color: 'red' });
         }
     };
 
@@ -225,6 +257,27 @@ export default function CreatorDetail() {
                         minRows={3}
                     />
                     <Button fullWidth onClick={handleUpdate} mt="md">Save Changes</Button>
+                </Stack>
+            </Modal>
+
+            {/* Merge Confirmation Modal */}
+            <Modal
+                opened={mergePrompt.show}
+                onClose={() => setMergePrompt({ show: false, targetId: null })}
+                title="Artist Already Exists"
+                radius="md"
+            >
+                <Stack gap="md">
+                    <Alert icon={<IconAlertCircle size="1rem" />} color="yellow">
+                        An artist with the name "{editForm.canonical_name}" already exists. Do you want to merge this artist into the existing one?
+                    </Alert>
+                    <Text size="sm" c="dimmed">
+                        This will transfer all wallpaper sets to the existing artist and delete this profile.
+                    </Text>
+                    <Group grow>
+                        <Button variant="default" onClick={() => setMergePrompt({ show: false, targetId: null })}>Cancel</Button>
+                        <Button color="yellow" onClick={handleMergeConfirm}>Merge Artists</Button>
+                    </Group>
                 </Stack>
             </Modal>
         </Container>
