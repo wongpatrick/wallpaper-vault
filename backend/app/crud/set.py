@@ -33,7 +33,7 @@ def sanitize_folder_name(name: str) -> str:
     # Remove invalid characters: \ / : * ? " < > |
     return re.sub(r'[\\/:*?"<>|]', '', name).strip()
 
-def rename_set_folder_if_needed(db_set: Set) -> None:
+def rename_set_folder_if_needed(db_set: Set, raise_errors: bool = False) -> None:
     if not db_set.local_path:
         return
         
@@ -61,7 +61,9 @@ def rename_set_folder_if_needed(db_set: Set) -> None:
                         img.local_path = str(img_new_path)
             except Exception as e:
                 logger.error("Error renaming set folder", error=str(e), exc_info=True)
-                # We don't raise here to prevent blocking the metadata update if FS fails
+                if raise_errors:
+                    raise Exception(f"Failed to rename folder for set '{db_set.title}': {str(e)}")
+                # We don't raise here by default to prevent blocking the metadata update if FS fails
 
 async def get_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     result = await db.execute(
