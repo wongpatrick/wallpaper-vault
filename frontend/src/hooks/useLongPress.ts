@@ -1,11 +1,12 @@
 /** @file useLongPress.ts */
 import { useCallback, useRef } from 'react';
 
+const DEFAULT_LONG_PRESS_DELAY = 500;
+
 export function useLongPress(
     onLongPress: (e: React.MouseEvent | React.TouchEvent) => void,
     onClick: (e: React.MouseEvent | React.TouchEvent) => void,
-    // eslint-disable-next-line no-magic-numbers
-    { shouldPreventDefault = true, delay = 500 } = {}
+    { shouldPreventDefault = true, delay = DEFAULT_LONG_PRESS_DELAY } = {}
 ) {
     const timeout = useRef<NodeJS.Timeout>();
     const target = useRef<EventTarget>();
