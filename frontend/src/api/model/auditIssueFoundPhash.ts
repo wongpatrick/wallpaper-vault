@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * The actual perceptual hash calculated during the scan.
+ */
 export type AuditIssueFoundPhash = string | null;

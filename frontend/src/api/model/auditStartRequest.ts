@@ -6,5 +6,6 @@
  */
 
 export interface AuditStartRequest {
+  /** If true, recalculates file hashes to verify integrity rather than just checking existence. */
   deep_scan?: boolean;
 }

@@ -17,20 +17,36 @@ import type { ImageDominantColor } from './imageDominantColor';
 import type { ImageTags } from './imageTags';
 
 export interface Image {
+  /** The original filename of the image. */
   filename: string;
+  /** The absolute local path to the image file on disk. */
   local_path: string;
+  /** Perceptual hash used to detect visually similar or duplicate images. */
   phash?: ImagePhash;
+  /** Image width in pixels. */
   width?: ImageWidth;
+  /** Image height in pixels. */
   height?: ImageHeight;
+  /** Image file size in bytes. */
   file_size?: ImageFileSize;
+  /** Calculated aspect ratio (width / height). */
   aspect_ratio?: ImageAspectRatio;
+  /** Human-readable aspect ratio label (e.g., '16:9', 'Ultrawide'). */
   aspect_ratio_label?: ImageAspectRatioLabel;
+  /** Display order within a set. Lower numbers appear first. */
   sort_order?: ImageSortOrder;
+  /** User-provided notes or description for the image. */
   notes?: ImageNotes;
+  /** Content rating (e.g., 'safe', 'questionable', 'explicit'). */
   rating?: ImageRating;
+  /** Hex code of the image's dominant color extracted during import. */
   dominant_color?: ImageDominantColor;
+  /** Comma-separated string of descriptive tags. */
   tags?: ImageTags;
+  /** Unique database identifier for the image. */
   id: number;
+  /** ID of the set this image belongs to. */
   set_id: number;
+  /** Timestamp when the image was added to the database. */
   date_added: string;
 }

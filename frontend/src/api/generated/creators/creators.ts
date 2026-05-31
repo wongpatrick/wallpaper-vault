@@ -43,6 +43,9 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 /**
+ * Create a new creator (artist) profile.
+
+Validates that the canonical name is unique to prevent duplicates.
  * @summary Create Creator
  */
 export const createCreatorApiCreatorsPost = (
@@ -107,6 +110,9 @@ export const useCreateCreatorApiCreatorsPost = <TError = ErrorType<HTTPValidatio
       return useMutation(mutationOptions, queryClient);
     }
     /**
+ * Retrieve a paginated list of all creators.
+
+Supports text search against canonical names and filtering by creator type (e.g., photographer, illustrator).
  * @summary Read Creators
  */
 export const readCreatorsApiCreatorsGet = (
@@ -417,6 +423,9 @@ export const useDeleteCreatorApiCreatorsCreatorIdDelete = <TError = ErrorType<HT
       return useMutation(mutationOptions, queryClient);
     }
     /**
+ * Merge multiple duplicate creators into a single primary creator.
+
+All sets associated with the source IDs will be reassigned to the target ID. The source creator records will then be permanently deleted.
  * @summary Merge Creators
  */
 export const mergeCreatorsApiCreatorsMergePost = (

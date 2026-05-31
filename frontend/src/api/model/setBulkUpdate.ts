@@ -8,7 +8,10 @@ import type { SetUpdate } from './setUpdate';
 import type { BulkOperationMode } from './bulkOperationMode';
 
 export interface SetBulkUpdate {
+  /** List of set IDs to apply the bulk update to. */
   set_ids: number[];
+  /** The data to apply to all selected sets. */
   update_data: SetUpdate;
+  /** How to apply list-like fields (APPEND or OVERWRITE). */
   operation_mode?: BulkOperationMode;
 }

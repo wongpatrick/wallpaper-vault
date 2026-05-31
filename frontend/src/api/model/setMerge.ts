@@ -6,6 +6,8 @@
  */
 
 export interface SetMerge {
+  /** List of set IDs to merge. These sets will be deleted. */
   source_ids: number[];
+  /** The ID of the set that will receive all images from the source sets. */
   target_id: number;
 }

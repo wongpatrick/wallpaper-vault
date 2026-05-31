@@ -7,9 +7,14 @@
 import type { LibraryStatsAspectRatioDistribution } from './libraryStatsAspectRatioDistribution';
 
 export interface LibraryStats {
+  /** Total number of images in the vault. */
   total_images: number;
+  /** Total number of sets in the vault. */
   total_sets: number;
+  /** Total number of unique creators. */
   total_creators: number;
+  /** Total disk space used by all images in bytes. */
   total_size_bytes: number;
+  /** Histogram mapping aspect ratio labels to the count of images. */
   aspect_ratio_distribution: LibraryStatsAspectRatioDistribution;
 }

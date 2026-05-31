@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * User-provided notes or biography for the creator.
+ */
 export type CreatorUpdateNotes = string | null;

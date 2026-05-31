@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * User-provided notes or context for the set.
+ */
 export type SetUpdateNotes = string | null;

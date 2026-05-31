@@ -7,8 +7,12 @@
 import type { Set } from './set';
 
 export interface SetPage {
+  /** Paginated list of sets. */
   items: Set[];
+  /** Total number of sets matching the query. */
   total: number;
+  /** Number of items skipped. */
   skip: number;
+  /** Maximum number of items returned. */
   limit: number;
 }

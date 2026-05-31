@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Image height in pixels.
+ */
 export type ImageUpdateHeight = number | null;

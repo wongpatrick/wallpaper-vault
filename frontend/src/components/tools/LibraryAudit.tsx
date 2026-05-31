@@ -39,7 +39,7 @@ import {
     useResolveAuditIssuesApiAuditResolvePost,
     useGetCurrentAuditApiAuditCurrentGet
 } from '../../api/generated/audit/audit';
-import type { AuditIssue, AuditFixAction } from '../../api/model';
+import type { AuditIssue } from '../../api/model';
 import { API_BASE_URL } from '../../config';
 
 const ITEM_HEIGHT_PX = 35;
@@ -69,10 +69,12 @@ export function LibraryAudit() {
 
     // Check for running audit
     const [prevCurrentAuditId, setPrevCurrentAuditId] = useState<string | null>(null);
-    if (currentAudit?.task_id && currentAudit.task_id !== prevCurrentAuditId && !taskId) {
-        setPrevCurrentAuditId(currentAudit.task_id);
-        setTaskId(currentAudit.task_id);
-        setProgress(currentAudit.progress || 0);
+    const current = currentAudit as { task_id?: string; progress?: number; status?: string } | undefined;
+    
+    if (current?.task_id && current.task_id !== prevCurrentAuditId && !taskId) {
+        setPrevCurrentAuditId(current.task_id);
+        setTaskId(current.task_id);
+        setProgress(current.progress || 0);
         setStatus("Resuming scan...");
     }
 
@@ -137,7 +139,7 @@ export function LibraryAudit() {
             await resolveMutation.mutateAsync({
                 data: {
                     issue_ids: ids,
-                    action: action as AuditFixAction
+                    action: action
                 }
             });
             notifications.show({ title: 'Success', message: `Action '${action}' executed.`, color: 'green' });
@@ -266,9 +268,9 @@ export function LibraryAudit() {
                                                 withBorder 
                                                 p="xs" 
                                                 radius="sm" 
-                                                style={(theme) => ({
-                                                    backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[6] : theme.white
-                                                })}
+                                                style={{
+                                                    backgroundColor: 'var(--mantine-color-body)'
+                                                }}
                                             >
                                                 <Stack gap="xs">
                                                     <Group justify="space-between">
@@ -322,11 +324,11 @@ export function LibraryAudit() {
                                                                     justify="space-between" 
                                                                     wrap="nowrap" 
                                                                     py={2}
-                                                                    style={(theme) => ({
+                                                                    style={{
                                                                         borderRadius: 4,
                                                                         padding: '0 8px',
-                                                                        background: theme.colorScheme === 'dark' ? theme.colors.dark[5] : theme.colors.gray[0]
-                                                                    })}
+                                                                        background: 'var(--mantine-color-default)'
+                                                                    }}
                                                                 >
                                                                     <Text size="xs" truncate="end" c="dimmed" style={{ flex: 1 }}>{item.path.split(/[\\/]/).pop()}</Text>
                                                                     <Group gap={2}>
@@ -366,13 +368,13 @@ export function LibraryAudit() {
                     </Table.ScrollContainer>
 
                     {results && results.total > 20 && (
-                        <Pagination 
-                            total={Math.ceil(results.total / 20)} 
-                            value={page} 
-                            onChange={setPage} 
-                            mt="md" 
-                            justify="center" 
-                        />
+                        <Group justify="center" mt="md">
+                            <Pagination 
+                                total={Math.ceil(results.total / 20)} 
+                                value={page} 
+                                onChange={setPage} 
+                            />
+                        </Group>
                     )}
                 </Stack>
             </Card>

@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Content rating (e.g., 'safe', 'questionable', 'explicit').
+ */
 export type ImageRating = string | null;

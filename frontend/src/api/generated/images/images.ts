@@ -28,6 +28,7 @@ import type {
   DuplicateResolutionRequest,
   HTTPValidationError,
   Image,
+  ImageBulkMove,
   ImageBulkUpdate,
   ImageCreate,
   ImagePage,
@@ -47,7 +48,9 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 /**
- * Update multiple images at once.
+ * Apply a bulk update to multiple images simultaneously.
+
+This endpoint takes a list of image IDs and a data payload, applying the changes to all specified images in a single transaction. List-like fields (e.g. tags) can be appended or overwritten based on the operation_mode.
  * @summary Bulk Update Images
  */
 export const bulkUpdateImagesApiImagesBulkUpdatePost = (
@@ -112,7 +115,74 @@ export const useBulkUpdateImagesApiImagesBulkUpdatePost = <TError = ErrorType<HT
       return useMutation(mutationOptions, queryClient);
     }
     /**
- * Get a paginated list of all images with optional comprehensive search and rating filter.
+ * Move multiple images to a different set.
+ * @summary Bulk Move Images
+ */
+export const bulkMoveImagesApiImagesBulkMovePost = (
+    imageBulkMove: BodyType<ImageBulkMove>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<number>(
+      {url: `/api/images/bulk-move`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: imageBulkMove, signal
+    },
+      options);
+    }
+  
+
+
+export const getBulkMoveImagesApiImagesBulkMovePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkMoveImagesApiImagesBulkMovePost>>, TError,{data: BodyType<ImageBulkMove>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkMoveImagesApiImagesBulkMovePost>>, TError,{data: BodyType<ImageBulkMove>}, TContext> => {
+
+const mutationKey = ['bulkMoveImagesApiImagesBulkMovePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkMoveImagesApiImagesBulkMovePost>>, {data: BodyType<ImageBulkMove>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkMoveImagesApiImagesBulkMovePost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkMoveImagesApiImagesBulkMovePostMutationResult = NonNullable<Awaited<ReturnType<typeof bulkMoveImagesApiImagesBulkMovePost>>>
+    export type BulkMoveImagesApiImagesBulkMovePostMutationBody = BodyType<ImageBulkMove>
+    export type BulkMoveImagesApiImagesBulkMovePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Bulk Move Images
+ */
+export const useBulkMoveImagesApiImagesBulkMovePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkMoveImagesApiImagesBulkMovePost>>, TError,{data: BodyType<ImageBulkMove>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bulkMoveImagesApiImagesBulkMovePost>>,
+        TError,
+        {data: BodyType<ImageBulkMove>},
+        TContext
+      > => {
+
+      const mutationOptions = getBulkMoveImagesApiImagesBulkMovePostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Retrieve a paginated list of all images in the vault.
+
+Supports comprehensive filtering via `search` (matching filename, tags, or notes) and `rating`. Returns images enriched with context like their parent set title and associated creators.
  * @summary Read Images
  */
 export const readImagesApiImagesGet = (
@@ -299,7 +369,9 @@ export function useReadDuplicateGroupsApiImagesDuplicatesGroupsGet<TData = Await
 
 
 /**
- * Resolve a duplicate group by keeping one image and removing others.
+ * Resolve a group of visually identical duplicate images.
+
+This endpoint retains the specified `keep_image_id` and permanently deletes the files and database records for all `remove_image_ids`. Use this carefully as deletion is irreversible.
  * @summary Resolve Duplicates
  */
 export const resolveDuplicatesApiImagesDuplicatesResolvePost = (

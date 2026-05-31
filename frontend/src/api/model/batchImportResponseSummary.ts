@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Summary statistics of the import operation.
+ */
 export type BatchImportResponseSummary = { [key: string]: unknown };

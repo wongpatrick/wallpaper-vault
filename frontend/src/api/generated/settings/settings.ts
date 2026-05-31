@@ -224,7 +224,9 @@ export function useReadSettingApiSettingsKeyGet<TData = Awaited<ReturnType<typeo
 
 
 /**
- * Update or create a setting.
+ * Update or create an application configuration setting.
+
+If the setting key already exists, its value and description are updated. If it does not exist, a new configuration key is created. This allows dynamic reconfiguration of paths and app behavior.
  * @summary Update Setting
  */
 export const updateSettingApiSettingsKeyPut = (

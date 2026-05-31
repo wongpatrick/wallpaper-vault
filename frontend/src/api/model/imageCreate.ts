@@ -17,17 +17,30 @@ import type { ImageCreateDominantColor } from './imageCreateDominantColor';
 import type { ImageCreateTags } from './imageCreateTags';
 
 export interface ImageCreate {
+  /** The original filename of the image. */
   filename: string;
+  /** The absolute local path to the image file on disk. */
   local_path: string;
+  /** Perceptual hash used to detect visually similar or duplicate images. */
   phash?: ImageCreatePhash;
+  /** Image width in pixels. */
   width?: ImageCreateWidth;
+  /** Image height in pixels. */
   height?: ImageCreateHeight;
+  /** Image file size in bytes. */
   file_size?: ImageCreateFileSize;
+  /** Calculated aspect ratio (width / height). */
   aspect_ratio?: ImageCreateAspectRatio;
+  /** Human-readable aspect ratio label (e.g., '16:9', 'Ultrawide'). */
   aspect_ratio_label?: ImageCreateAspectRatioLabel;
+  /** Display order within a set. Lower numbers appear first. */
   sort_order?: ImageCreateSortOrder;
+  /** User-provided notes or description for the image. */
   notes?: ImageCreateNotes;
+  /** Content rating (e.g., 'safe', 'questionable', 'explicit'). */
   rating?: ImageCreateRating;
+  /** Hex code of the image's dominant color extracted during import. */
   dominant_color?: ImageCreateDominantColor;
+  /** Comma-separated string of descriptive tags. */
   tags?: ImageCreateTags;
 }

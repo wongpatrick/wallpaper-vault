@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Updated list of creator IDs for this set.
+ */
 export type SetUpdateCreatorIds = number[] | null;

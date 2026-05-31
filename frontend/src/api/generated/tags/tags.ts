@@ -33,8 +33,9 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 /**
- * Get a list of unique tags matching the search query.
-Aggregates tags from both Images and Sets.
+ * Retrieve a list of unique tags matching the search query.
+
+Aggregates tags from both Images and Sets, returning a deduplicated, alphabetically sorted list. Useful for building autocomplete dropdowns or tag clouds in the UI.
  * @summary Search Tags
  */
 export const searchTagsApiTagsGet = (

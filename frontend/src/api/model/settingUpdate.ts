@@ -7,6 +7,8 @@
 import type { SettingUpdateDescription } from './settingUpdateDescription';
 
 export interface SettingUpdate {
+  /** The new value for the setting. */
   value: string;
+  /** Updated description. */
   description?: SettingUpdateDescription;
 }

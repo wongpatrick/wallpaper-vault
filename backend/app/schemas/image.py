@@ -70,3 +70,7 @@ class ImagePage(BaseModel):
     total: int = Field(..., description="Total number of images matching the query.")
     skip: int = Field(..., description="Number of items skipped.")
     limit: int = Field(..., description="Maximum number of items returned.")
+
+class ImageBulkMove(BaseModel):
+    image_ids: List[int] = Field(..., description="List of image IDs to move.")
+    target_set_id: int = Field(..., description="The ID of the destination set.")

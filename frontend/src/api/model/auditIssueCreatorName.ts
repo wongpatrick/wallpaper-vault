@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Name of the associated creator for UI display.
+ */
 export type AuditIssueCreatorName = string | null;

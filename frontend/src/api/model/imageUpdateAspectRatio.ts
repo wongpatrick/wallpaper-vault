@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Calculated aspect ratio.
+ */
 export type ImageUpdateAspectRatio = number | null;

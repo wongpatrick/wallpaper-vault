@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * The expected perceptual hash if known.
+ */
 export type AuditIssueExpectedPhash = string | null;

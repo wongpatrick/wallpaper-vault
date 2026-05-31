@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * ID of a representative image to use as the creator's avatar/cover.
+ */
 export type CreatorStatsPreviewImageId = number | null;

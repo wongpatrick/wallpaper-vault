@@ -13,12 +13,20 @@ import type { SetCreateTags } from './setCreateTags';
 import type { ImageCreate } from './imageCreate';
 
 export interface SetCreate {
+  /** The display title of the set. */
   title?: SetCreateTitle;
+  /** Original URL where the set was downloaded from. */
   source_url?: SetCreateSourceUrl;
+  /** Local filesystem path where the set's files reside. */
   local_path?: SetCreateLocalPath;
+  /** Perceptual hash representative of the set (usually the cover image). */
   phash?: SetCreatePhash;
+  /** User-provided notes or context for the set. */
   notes?: SetCreateNotes;
+  /** Comma-separated descriptive tags for the set. */
   tags?: SetCreateTags;
+  /** List of creator IDs to associate with this set. */
   creator_ids?: number[];
+  /** List of images to create and associate with this set. */
   images?: ImageCreate[];
 }

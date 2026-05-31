@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Perceptual hash used to detect visually similar or duplicate images.
+ */
 export type ImagePhash = string | null;

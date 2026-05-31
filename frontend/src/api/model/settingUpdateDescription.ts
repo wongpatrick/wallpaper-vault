@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Updated description.
+ */
 export type SettingUpdateDescription = string | null;

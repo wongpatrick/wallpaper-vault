@@ -43,7 +43,9 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 /**
- * Start a background library audit.
+ * Start a background library audit to detect filesystem and database inconsistencies.
+
+The audit scans for 'ghost' records (database entries missing files) and 'orphan' files (files missing database records). It clears any previously pending issues before starting a fresh scan.
  * @summary Start Audit
  */
 export const startAuditApiAuditStartPost = (
@@ -295,7 +297,9 @@ export function useGetAuditResultsApiAuditResultsGet<TData = Awaited<ReturnType<
 
 
 /**
- * Execute bulk resolution actions.
+ * Execute bulk resolution actions for discovered audit issues.
+
+Supports various fix strategies like 'purge' (delete DB record), 'repair' (fix paths), 'delete_file' (remove from disk), 'import' (add to existing set), and 'create_and_import' (create new set and import).
  * @summary Resolve Audit Issues
  */
 export const resolveAuditIssuesApiAuditResolvePost = (

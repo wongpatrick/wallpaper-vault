@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Image file size in bytes.
+ */
 export type ImageFileSize = number | null;

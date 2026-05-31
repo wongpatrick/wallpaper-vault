@@ -6,6 +6,8 @@
  */
 
 export interface DuplicateResolutionRequest {
+  /** The ID of the image to keep. All others will be deleted. */
   keep_image_id: number;
+  /** List of image IDs to permanently delete from disk and database. */
   remove_image_ids: number[];
 }

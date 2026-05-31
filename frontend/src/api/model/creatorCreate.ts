@@ -8,7 +8,10 @@ import type { CreatorCreateType } from './creatorCreateType';
 import type { CreatorCreateNotes } from './creatorCreateNotes';
 
 export interface CreatorCreate {
+  /** The primary, normalized name of the artist/creator. */
   canonical_name: string;
+  /** Type of creator (e.g., 'photographer', 'illustrator', 'cosplayer'). */
   type?: CreatorCreateType;
+  /** User-provided notes or biography for the creator. */
   notes?: CreatorCreateNotes;
 }

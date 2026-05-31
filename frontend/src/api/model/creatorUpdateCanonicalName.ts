@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * The primary, normalized name of the artist/creator.
+ */
 export type CreatorUpdateCanonicalName = string | null;

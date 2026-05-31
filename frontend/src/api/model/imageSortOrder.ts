@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Display order within a set. Lower numbers appear first.
+ */
 export type ImageSortOrder = number | null;

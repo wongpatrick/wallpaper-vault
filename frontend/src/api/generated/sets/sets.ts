@@ -295,6 +295,9 @@ export function useReadSetsApiSetsGet<TData = Awaited<ReturnType<typeof readSets
 
 
 /**
+ * Merge multiple source sets into a single target set.
+
+All images from the source sets will be reassigned to the target set. The source sets will then be permanently deleted. Use this to consolidate duplicate or fragmented collections.
  * @summary Merge Sets
  */
 export const mergeSetsApiSetsMergePost = (
@@ -423,8 +426,9 @@ export const useImportSetApiSetsImportPost = <TError = ErrorType<HTTPValidationE
       return useMutation(mutationOptions, queryClient);
     }
     /**
- * Unified route to scan, parse, and optionally execute batch imports.
-If dry_run=True, it only scans and returns parsed items.
+ * Unified route to scan, parse, and optionally execute batch imports of directories.
+
+If `dry_run=True`, it only scans the provided paths, attempts to parse creator/set names using the `parsing_template`, and returns a preview of what would be imported. If `dry_run=False`, it launches the actual import process as an asynchronous background task.
  * @summary Batch Import Sets
  */
 export const batchImportSetsApiSetsBatchImportPost = (
@@ -834,6 +838,9 @@ export const useBulkDeleteSetsApiSetsBulkDeletePost = <TError = ErrorType<HTTPVa
       return useMutation(mutationOptions, queryClient);
     }
     /**
+ * Resynchronize a set with its local filesystem directory.
+
+Scans the `local_path` associated with the set. Any new image files found in the directory that aren't already in the database will be imported and added to the set.
  * @summary Resync Set
  */
 export const resyncSetApiSetsSetIdResyncPost = (

@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.models.image import Image
 from app.models.set import Set
 from app.models.creator import Creator
-from app.schemas.image import ImageUpdate, ImageCreate, ImageBulkUpdate
+from app.schemas.image import ImageUpdate, ImageCreate, ImageBulkUpdate, ImageBulkMove
 from app.core.enums import BulkOperationMode
 import os
 from pathlib import Path
@@ -324,3 +324,71 @@ async def get_images(
     
     result = await db.execute(items_query)
     return list(result.scalars().all()), total
+
+async def bulk_move_images(db: AsyncSession, move_in: ImageBulkMove) -> int:
+    """Moves images from their current sets to a target set, both on disk and in DB.
+
+    Args:
+        db: Database session.
+        move_in: Schema containing the target set ID and list of image IDs.
+
+    Returns:
+        The number of images successfully moved.
+    """
+    import shutil
+    
+    # 1. Fetch target set
+    from app.crud.set import get_set
+    target_set = await get_set(db, move_in.target_set_id)
+    if not target_set:
+        raise ValueError("Target set not found")
+        
+    target_path = Path(target_set.local_path) if target_set.local_path else None
+    if target_path and not target_path.exists():
+        target_path.mkdir(parents=True, exist_ok=True)
+        
+    # 2. Fetch images to move
+    result = await db.execute(
+        select(Image).where(Image.id.in_(move_in.image_ids))
+    )
+    db_images = result.scalars().all()
+    
+    if not db_images:
+        return 0
+        
+    moved_count = 0
+    for img in db_images:
+        # Skip if already in the target set
+        if img.set_id == target_set.id:
+            continue
+            
+        old_p = Path(img.local_path) if img.local_path else None
+        
+        # If target has a path and image has a path, move physically
+        if target_path and old_p:
+            new_p = target_path / old_p.name
+            
+            if old_p.exists() and old_p.parent != target_path:
+                # Handle collisions
+                counter = 1
+                actual_new_p = new_p
+                while actual_new_p.exists():
+                    actual_new_p = target_path / f"{old_p.stem}_{counter}{old_p.suffix}"
+                    counter += 1
+                
+                try:
+                    shutil.move(str(old_p), str(actual_new_p))
+                    img.local_path = str(actual_new_p)
+                except Exception as e:
+                    logger.error("Error moving image", path=str(old_p), error=str(e), exc_info=True)
+                    continue
+            elif new_p.exists():
+                img.local_path = str(new_p)
+                
+        # Update DB
+        img.set_id = target_set.id
+        db.add(img)
+        moved_count += 1
+        
+    await db.commit()
+    return moved_count

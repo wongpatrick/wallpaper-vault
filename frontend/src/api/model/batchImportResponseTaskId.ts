@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Background task ID if the import was queued asynchronously.
+ */
 export type BatchImportResponseTaskId = string | null;

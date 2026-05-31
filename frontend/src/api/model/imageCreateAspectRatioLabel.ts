@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Human-readable aspect ratio label (e.g., '16:9', 'Ultrawide').
+ */
 export type ImageCreateAspectRatioLabel = string | null;

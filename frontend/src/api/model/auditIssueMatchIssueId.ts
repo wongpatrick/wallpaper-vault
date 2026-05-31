@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * ID of a related issue if they are paired (e.g., a moved file).
+ */
 export type AuditIssueMatchIssueId = number | null;

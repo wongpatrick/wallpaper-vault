@@ -10,8 +10,12 @@ import type { BatchImportResponseTaskId } from './batchImportResponseTaskId';
 import type { BatchImportResponseStatus } from './batchImportResponseStatus';
 
 export interface BatchImportResponse {
+  /** Status of each imported item. */
   items: BatchImportItem[];
+  /** Summary statistics of the import operation. */
   summary?: BatchImportResponseSummary;
+  /** Background task ID if the import was queued asynchronously. */
   task_id?: BatchImportResponseTaskId;
+  /** Overall status of the batch import request. */
   status?: BatchImportResponseStatus;
 }

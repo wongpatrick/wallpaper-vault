@@ -9,7 +9,10 @@ import type { CreatorUpdateType } from './creatorUpdateType';
 import type { CreatorUpdateNotes } from './creatorUpdateNotes';
 
 export interface CreatorUpdate {
+  /** The primary, normalized name of the artist/creator. */
   canonical_name?: CreatorUpdateCanonicalName;
+  /** Type of creator (e.g., 'photographer', 'illustrator', 'cosplayer'). */
   type?: CreatorUpdateType;
+  /** User-provided notes or biography for the creator. */
   notes?: CreatorUpdateNotes;
 }

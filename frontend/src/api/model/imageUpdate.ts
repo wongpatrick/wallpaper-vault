@@ -19,17 +19,30 @@ import type { ImageUpdateDominantColor } from './imageUpdateDominantColor';
 import type { ImageUpdateTags } from './imageUpdateTags';
 
 export interface ImageUpdate {
+  /** The original filename of the image. */
   filename?: ImageUpdateFilename;
+  /** User-provided notes or description for the image. */
   notes?: ImageUpdateNotes;
+  /** Display order within a set. */
   sort_order?: ImageUpdateSortOrder;
+  /** Perceptual hash. */
   phash?: ImageUpdatePhash;
+  /** Image width in pixels. */
   width?: ImageUpdateWidth;
+  /** Image height in pixels. */
   height?: ImageUpdateHeight;
+  /** Image file size in bytes. */
   file_size?: ImageUpdateFileSize;
+  /** Calculated aspect ratio. */
   aspect_ratio?: ImageUpdateAspectRatio;
+  /** Human-readable aspect ratio label. */
   aspect_ratio_label?: ImageUpdateAspectRatioLabel;
+  /** The absolute local path to the image file. */
   local_path?: ImageUpdateLocalPath;
+  /** Content rating. */
   rating?: ImageUpdateRating;
+  /** Hex code of the dominant color. */
   dominant_color?: ImageUpdateDominantColor;
+  /** Comma-separated tags. */
   tags?: ImageUpdateTags;
 }

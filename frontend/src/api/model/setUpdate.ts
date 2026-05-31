@@ -13,11 +13,18 @@ import type { SetUpdateTags } from './setUpdateTags';
 import type { SetUpdateCreatorIds } from './setUpdateCreatorIds';
 
 export interface SetUpdate {
+  /** The display title of the set. */
   title?: SetUpdateTitle;
+  /** Original URL where the set was downloaded from. */
   source_url?: SetUpdateSourceUrl;
+  /** Local filesystem path where the set's files reside. */
   local_path?: SetUpdateLocalPath;
+  /** Perceptual hash representative of the set (usually the cover image). */
   phash?: SetUpdatePhash;
+  /** User-provided notes or context for the set. */
   notes?: SetUpdateNotes;
+  /** Comma-separated descriptive tags for the set. */
   tags?: SetUpdateTags;
+  /** Updated list of creator IDs for this set. */
   creator_ids?: SetUpdateCreatorIds;
 }

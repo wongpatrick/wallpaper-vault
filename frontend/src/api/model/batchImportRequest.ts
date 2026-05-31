@@ -8,9 +8,14 @@ import type { SetBatchImport } from './setBatchImport';
 import type { BatchImportRequestParsingTemplate } from './batchImportRequestParsingTemplate';
 
 export interface BatchImportRequest {
+  /** List of directories to import. */
   items?: SetBatchImport[];
+  /** If true, automatically scans the configured auto-import directory. */
   scan_auto_path?: boolean;
+  /** If true, only returns what would happen without actually importing. */
   dry_run?: boolean;
+  /** Regex template used to extract Creator and Set names from the directory structure (e.g., '[Creator] - [Set]'). */
   parsing_template?: BatchImportRequestParsingTemplate;
+  /** Default value for delete_source applied to scanned items. */
   delete_source_default?: boolean;
 }

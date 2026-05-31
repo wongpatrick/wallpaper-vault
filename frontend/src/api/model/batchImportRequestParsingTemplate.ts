@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Regex template used to extract Creator and Set names from the directory structure (e.g., '[Creator] - [Set]').
+ */
 export type BatchImportRequestParsingTemplate = string | null;

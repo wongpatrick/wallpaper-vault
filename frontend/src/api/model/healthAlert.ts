@@ -6,9 +6,14 @@
  */
 
 export interface HealthAlert {
+  /** Unique identifier for this type of alert. */
   id: string;
+  /** Severity level of the alert: 'critical', 'warning', or 'optimization'. */
   severity: string;
+  /** Human-readable description of the issue. */
   message: string;
+  /** Number of items affected by this issue. */
   count: number;
+  /** Navigation path to the tool or view where the issue can be resolved. */
   link: string;
 }
