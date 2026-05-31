@@ -428,31 +428,51 @@ async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) ->
         
         # Move images physically and update paths
         if target_path:
-            for img in source_set.images:
-                old_p = Path(img.local_path) if img.local_path else None
-                if not old_p:
-                    continue
-                
-                new_p = target_path / old_p.name
-                
-                # Case 1: File is at the source location - Move it to target
-                if old_p.exists() and old_p.parent != target_path:
-                    # Handle collisions
-                    counter = 1
-                    actual_new_p = new_p
-                    while actual_new_p.exists():
-                        actual_new_p = target_path / f"{old_p.stem}_{counter}{old_p.suffix}"
-                        counter += 1
+            moved_files = []
+            try:
+                for img in source_set.images:
+                    old_p = Path(img.local_path) if img.local_path else None
+                    if not old_p:
+                        continue
                     
-                    try:
+                    new_p = target_path / old_p.name
+                    
+                    # Case 1: File is at the source location - Move it to target
+                    if old_p.exists() and old_p.parent != target_path:
+                        # Handle collisions
+                        counter = 1
+                        actual_new_p = new_p
+                        while actual_new_p.exists():
+                            actual_new_p = target_path / f"{old_p.stem}_{counter}{old_p.suffix}"
+                            counter += 1
+                        
                         shutil.move(str(old_p), str(actual_new_p))
+                        moved_files.append((old_p, actual_new_p))
                         img.local_path = str(actual_new_p)
-                    except Exception as e:
-                        logger.error("Error moving image", path=str(old_p), error=str(e), exc_info=True)
-                
-                # Case 2: File was already moved to target manually (or by partial merge)
-                elif new_p.exists():
-                    img.local_path = str(new_p)
+                    
+                    # Case 2: File was already moved to target manually (or by partial merge)
+                    elif new_p.exists():
+                        img.local_path = str(new_p)
+
+                source_path = Path(source_set.local_path) if source_set.local_path else None
+                if source_path and source_path.exists() and source_path.is_dir():
+                    ignored_files = {'.DS_Store', 'Thumbs.db', 'desktop.ini'}
+                    remaining_files = [f for f in source_path.iterdir() if f.name not in ignored_files]
+                    
+                    if remaining_files:
+                        raise Exception(f"Source directory '{source_path.name}' is not empty. Remaining files: {[f.name for f in remaining_files]}")
+                        
+                    for f in source_path.iterdir():
+                        if f.is_file() and f.name in ignored_files:
+                            f.unlink()
+                    source_path.rmdir()
+            except Exception as e:
+                # Rollback file moves
+                for old_p, actual_new_p in moved_files:
+                    if actual_new_p.exists():
+                        shutil.move(str(actual_new_p), str(old_p))
+                from fastapi import HTTPException
+                raise HTTPException(status_code=400, detail=f"Merge failed: {str(e)}")
 
         # Re-associate images properly to avoid cascade-delete-orphan
         images_to_move = list(source_set.images)

@@ -22,6 +22,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import { SetCard } from '../../components/sets/SetCard';
 import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
+import { MergeSetsDialog } from '../../components/sets/MergeSetsDialog';
 import { useState, useMemo } from 'react';
 import { formatBytes } from '../../utils/fileUtils';
 import type { Set, CreatorWithSets } from '../../api/model';
@@ -41,6 +42,7 @@ export default function CreatorDetail() {
     const deleteMutation = useDeleteCreatorApiCreatorsCreatorIdDelete();
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isMergeSetsModalOpen, setIsMergeSetsModalOpen] = useState(false);
     const [editForm, setEditForm] = useState({
         canonical_name: '',
         type: '',
@@ -218,7 +220,14 @@ export default function CreatorDetail() {
             </SimpleGrid>
 
             {/* Artist's Sets */}
-            <Title order={2} mb="lg">Collection by {creator.canonical_name}</Title>
+            <Group justify="space-between" align="flex-end" mb="lg">
+                <Title order={2}>Collection by {creator.canonical_name}</Title>
+                {creator.sets && creator.sets.length > 1 && (
+                    <Button variant="light" leftSection={<IconLayersIntersect size={16} />} onClick={() => setIsMergeSetsModalOpen(true)}>
+                        Merge Sets
+                    </Button>
+                )}
+            </Group>
             
             {creator.sets && creator.sets.length > 0 ? (
                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
@@ -282,6 +291,13 @@ export default function CreatorDetail() {
                     </Group>
                 </Stack>
             </Modal>
+
+            <MergeSetsDialog 
+                opened={isMergeSetsModalOpen} 
+                onClose={() => setIsMergeSetsModalOpen(false)} 
+                sets={creator.sets || []}
+                onSuccess={() => refetch()}
+            />
         </Container>
     );
 }
