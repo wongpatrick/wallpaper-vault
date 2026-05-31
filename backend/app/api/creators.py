@@ -19,6 +19,7 @@ async def create_creator(
     try:
         return await crud_creator.create_creator(db=db, creator=creator)
     except IntegrityError as e:
+        await db.rollback()
         error_msg = str(e.orig)
         if "UNIQUE constraint failed" in error_msg:
             existing = await crud_creator.get_creator_by_name(db, creator.canonical_name)
@@ -66,6 +67,7 @@ async def update_creator(
             raise HTTPException(status_code=404, detail="Creator not found")
         return db_creator
     except IntegrityError as e:
+        await db.rollback()
         error_msg = str(e.orig)
         if "UNIQUE constraint failed" in error_msg:
             # We assume it's the canonical_name as it's the only unique field besides ID
