@@ -89,13 +89,17 @@ async def create_creator(db: AsyncSession, creator: CreatorCreate) -> Creator:
     return db_creator
 
 async def update_creator(db: AsyncSession, creator_id: int, creator_in: CreatorUpdate) -> Optional[Creator]:
-    db_creator = await db.get(Creator, creator_id)
+    db_creator = await get_creator(db, creator_id)
     if not db_creator:
         return None
     
     update_data = creator_in.model_dump(exclude_unset=True)
     for field in update_data:
         setattr(db_creator, field, update_data[field])
+        
+    from app.crud.set import rename_set_folder_if_needed
+    for s in db_creator.sets:
+        rename_set_folder_if_needed(s, raise_errors=True)
     
     db.add(db_creator)
     await db.commit()
@@ -115,6 +119,8 @@ async def merge_creators(db: AsyncSession, source_ids: list[int], target_id: int
     if not target:
         return None
 
+    from app.crud.set import rename_set_folder_if_needed
+    
     for sid in source_ids:
         # Load source with its sets
         source = await get_creator(db, sid)
@@ -125,6 +131,9 @@ async def merge_creators(db: AsyncSession, source_ids: list[int], target_id: int
         for s in source.sets:
             if target not in s.creators:
                 s.creators.append(target)
+            if source in s.creators:
+                s.creators.remove(source)
+            rename_set_folder_if_needed(s, raise_errors=True)
                 
         # Delete the source creator (SQLAlchemy handles many-to-many cleanup)
         await db.delete(source)
