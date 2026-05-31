@@ -26,6 +26,8 @@ import { useState, useMemo } from 'react';
 import { formatBytes } from '../../utils/fileUtils';
 import type { Set, CreatorWithSets } from '../../api/model';
 
+const HTTP_STATUS_CONFLICT = 409;
+
 export default function CreatorDetail() {
     const { creatorId } = useParams<{ creatorId: string }>();
     const navigate = useNavigate();
@@ -104,8 +106,7 @@ export default function CreatorDetail() {
             const err = error as { response?: { status?: number, data?: { detail?: Record<string, unknown> | string } } };
             const detail = err.response?.data?.detail;
             
-            // eslint-disable-next-line no-magic-numbers
-            if (err.response?.status === 409 && detail && typeof detail === 'object' && 'conflicting_id' in detail) {
+            if (err.response?.status === HTTP_STATUS_CONFLICT && detail && typeof detail === 'object' && 'conflicting_id' in detail) {
                 setMergePrompt({ show: true, targetId: detail.conflicting_id as number });
                 setIsEditModalOpen(false);
                 return;
