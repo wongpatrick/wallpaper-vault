@@ -30,10 +30,30 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 def sanitize_folder_name(name: str) -> str:
+    """Removes invalid characters from a string to make it safe for directory names.
+
+    Args:
+        name: The original string.
+
+    Returns:
+        The sanitized string, safe for file paths.
+    """
     # Remove invalid characters: \ / : * ? " < > |
     return re.sub(r'[\\/:*?"<>|]', '', name).strip()
 
 def rename_set_folder_if_needed(db_set: Set, raise_errors: bool = False) -> None:
+    """Checks and renames a set's physical folder to match convention.
+
+    Convention: '[Creators] - [Sanitized Title]'
+    Also updates the local_path of the Set and all its associated Images.
+
+    Args:
+        db_set: The Set object whose folder might need renaming.
+        raise_errors: If True, raises exceptions on filesystem errors.
+
+    Raises:
+        Exception: If rename fails and raise_errors is True.
+    """
     if not db_set.local_path:
         return
         
@@ -66,6 +86,15 @@ def rename_set_folder_if_needed(db_set: Set, raise_errors: bool = False) -> None
                 # We don't raise here by default to prevent blocking the metadata update if FS fails
 
 async def get_set(db: AsyncSession, set_id: int) -> Optional[Set]:
+    """Retrieves a specific set by its ID, including creators and images.
+
+    Args:
+        db: Database session.
+        set_id: ID of the set.
+
+    Returns:
+        The Set object if found, otherwise None.
+    """
     result = await db.execute(
         select(Set).options(
             selectinload(Set.creators),
@@ -76,6 +105,18 @@ async def get_set(db: AsyncSession, set_id: int) -> Optional[Set]:
 
 
 async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Optional[str] = None, creator_type: Optional[str] = None) -> tuple[list[Set], int]:
+    """Retrieves a paginated list of sets, with optional filtering.
+
+    Args:
+        db: Database session.
+        skip: Number of records to skip.
+        limit: Maximum number of records to return.
+        search: Optional search term matching title or creator names.
+        creator_type: Optional creator type filter.
+
+    Returns:
+        A tuple containing a list of Set objects and the total match count.
+    """
     # Base query for sets
     query = select(Set)
     
@@ -108,6 +149,15 @@ async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Op
     return list(result.scalars().all()), total
 
 async def create_set(db: AsyncSession, set_in: SetCreate) -> Set:
+    """Creates a new Set record and associates requested creators and images.
+
+    Args:
+        db: Database session.
+        set_in: The creation schema containing set details.
+
+    Returns:
+        The newly created Set object.
+    """
     data = set_in.model_dump(exclude={"creator_ids", "images"})
     # Normalize empty source_url to None to avoid UNIQUE constraint issues in SQLite
     if data.get("source_url") == "":
@@ -140,6 +190,16 @@ async def create_set(db: AsyncSession, set_in: SetCreate) -> Set:
     return result.scalar_one()
 
 async def get_set_by_title_and_creator(db: AsyncSession, title: str, creator_id: int) -> Optional[Set]:
+    """Checks if a set already exists with a specific title for a given creator.
+
+    Args:
+        db: Database session.
+        title: Title of the set.
+        creator_id: ID of the creator.
+
+    Returns:
+        The matching Set object, or None if not found.
+    """
     result = await db.execute(
         select(Set)
         .join(Set.creators)
@@ -149,6 +209,18 @@ async def get_set_by_title_and_creator(db: AsyncSession, title: str, creator_id:
     return result.scalar_one_or_none()
 
 async def import_set(db: AsyncSession, set_in: SetImport) -> Set:
+    """Imports a set, automatically resolving or creating creators by name.
+
+    Args:
+        db: Database session.
+        set_in: Import schema containing set details and creator names.
+
+    Raises:
+        HTTPException: If the set already exists for a specified creator.
+
+    Returns:
+        The imported Set object.
+    """
     db_creators = []
     for name in set_in.creator_names:
         creator = await get_creator_by_name(db, name)
@@ -191,6 +263,15 @@ async def import_set(db: AsyncSession, set_in: SetImport) -> Set:
     return result.scalar_one()
 
 async def delete_set(db: AsyncSession, set_id: int) -> Optional[Set]:
+    """Deletes a set record from the database.
+
+    Args:
+        db: Database session.
+        set_id: ID of the set to delete.
+
+    Returns:
+        The deleted Set object, or None if not found.
+    """
     db_set = await get_set(db, set_id)
     if db_set:
         await db.delete(db_set)
@@ -199,6 +280,16 @@ async def delete_set(db: AsyncSession, set_id: int) -> Optional[Set]:
 
 
 async def update_set(db: AsyncSession, set_id: int, set_in: SetUpdate) -> Optional[Set]:
+    """Updates an existing set and manages physical folder renaming.
+
+    Args:
+        db: Database session.
+        set_id: ID of the set to update.
+        set_in: The set update schema with modified data.
+
+    Returns:
+        The updated Set object, or None if not found.
+    """
     db_set = await get_set(db, set_id)
     if not db_set:
         return None
@@ -230,6 +321,18 @@ async def update_set(db: AsyncSession, set_id: int, set_in: SetUpdate) -> Option
 
 
 async def bulk_update_sets(db: AsyncSession, bulk_in: SetBulkUpdate) -> int:
+    """Performs bulk updates on multiple sets.
+
+    Handles appending, removing, or replacing tags and creators across sets,
+    and ensures folder renaming logic fires where applicable.
+
+    Args:
+        db: Database session.
+        bulk_in: Schema containing the sets to update and the modifications.
+
+    Returns:
+        The number of sets successfully updated.
+    """
     # 1. Fetch all target sets with creators and images
     result = await db.execute(
         select(Set).options(selectinload(Set.creators), selectinload(Set.images)).where(Set.id.in_(bulk_in.set_ids))
@@ -291,6 +394,19 @@ async def bulk_update_sets(db: AsyncSession, bulk_in: SetBulkUpdate) -> int:
 
 
 async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[Set]:
+    """Merges multiple source sets into a single target set.
+
+    Physically moves images on disk, updates database paths, combines tags
+    and notes, and merges creators. Deletes source sets afterward.
+
+    Args:
+        db: Database session.
+        source_ids: List of source set IDs to merge.
+        target_id: ID of the destination set.
+
+    Returns:
+        The updated target Set object, or None if the target was not found.
+    """
     import shutil
     from pathlib import Path
 
@@ -374,6 +490,15 @@ async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) ->
 
 
 async def bulk_delete_sets(db: AsyncSession, set_ids: list[int]) -> int:
+    """Deletes multiple sets from the database.
+
+    Args:
+        db: Database session.
+        set_ids: List of set IDs to delete.
+
+    Returns:
+        The number of sets successfully deleted.
+    """
     result = await db.execute(
         select(Set).where(Set.id.in_(set_ids))
     )
@@ -385,6 +510,18 @@ async def bulk_delete_sets(db: AsyncSession, set_ids: list[int]) -> int:
 
 
 async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
+    """Resynchronizes a set's database records with its physical folder.
+
+    Adds tracked images that appear on disk, removes missing ones from DB,
+    and resolves files that were renamed or moved (using phash matching).
+
+    Args:
+        db: Database session.
+        set_id: ID of the set to resync.
+
+    Returns:
+        The updated Set object, or None if it lacks a valid local path.
+    """
     from app.services.audit_service import calculate_phash
     
     db_set = await get_set(db, set_id)
@@ -460,6 +597,19 @@ async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
 
 
 async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task_id: str = None) -> BatchImportResponse:
+    """Executes a batch import process for multiple folders.
+
+    Parses candidate folders, validates them, and optionally imports and crops
+    images to the vault location.
+
+    Args:
+        db: Database session.
+        batch_in: Request payload detailing paths and import behaviors.
+        task_id: Optional ID for progress tracking.
+
+    Returns:
+        A response object detailing the success/failure of each imported item.
+    """
     from app.services import import_service
     # 1. Gather
     candidates = await import_service.gather_candidates(db, batch_in)
@@ -526,6 +676,15 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task
     return BatchImportResponse(items=final_results)
 
 async def run_batch_import_background(batch_in: BatchImportRequest, task_id: str) -> None:
+    """Entry point for running batch imports as a background task.
+
+    Manages its own database session and updates the task status upon
+    completion or error.
+
+    Args:
+        batch_in: Request payload for the batch import.
+        task_id: The ID of the task to update.
+    """
     async with SessionLocal() as db:
         try:
             await tasks.update_task(db, task_id, status=TaskStatus.PROCESSING)

@@ -9,6 +9,16 @@ from app.models.creator import Creator
 from app.schemas.dashboard import LibraryStats, HealthAlert, DashboardData
 
 async def get_library_stats(db: AsyncSession) -> LibraryStats:
+    """Aggregates overarching statistics for the entire library.
+
+    Calculates totals for images, sets, creators, disk usage, and aspect ratio distribution.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        A LibraryStats object containing the aggregated metrics.
+    """
     # 1. Total counts and size
     stats_query = select(
         func.count(Image.id).label("total_images"),
@@ -45,6 +55,16 @@ async def get_library_stats(db: AsyncSession) -> LibraryStats:
     )
 
 async def get_health_alerts(db: AsyncSession) -> list[HealthAlert]:
+    """Generates health alerts for the system based on data integrity and quality.
+
+    Checks for issues like 'Unknown' artists, missing perceptual hashes, and untagged sets.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        A list of HealthAlert objects detailing potential system issues.
+    """
     alerts = []
     
     # 1. Critical: Broken Paths (This is expensive if we check disk, so let's check for missing required metadata first)
@@ -90,6 +110,14 @@ async def get_health_alerts(db: AsyncSession) -> list[HealthAlert]:
     return alerts
 
 async def get_dashboard_data(db: AsyncSession) -> DashboardData:
+    """Combines library stats and health alerts into a unified dashboard response.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        A DashboardData object containing both stats and health alerts.
+    """
     stats = await get_library_stats(db)
     alerts = await get_health_alerts(db)
     return DashboardData(

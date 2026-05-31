@@ -25,6 +25,19 @@ async def get_random_image(
     min_height: Optional[int] = None,
     creator_id: Optional[int] = None
 ) -> Optional[Image]:
+    """Retrieves a single random image based on optional filters.
+
+    Args:
+        db: Database session.
+        tags: Optional list of tags to filter by.
+        aspect_ratio_label: Optional aspect ratio label (e.g., '16:9').
+        min_width: Minimum image width in pixels.
+        min_height: Minimum image height in pixels.
+        creator_id: Optional creator ID to filter by.
+
+    Returns:
+        A random Image object matching the filters, or None if no match is found.
+    """
     query = select(Image).join(Image.set)
     
     if tags:
@@ -49,14 +62,42 @@ async def get_random_image(
     return result.scalar_one_or_none()
 
 async def get_image(db: AsyncSession, image_id: int) -> Optional[Image]:
+    """Retrieves an image by its ID.
+
+    Args:
+        db: Database session.
+        image_id: ID of the image to retrieve.
+
+    Returns:
+        The Image object if found, otherwise None.
+    """
     result = await db.execute(select(Image).filter(Image.id == image_id))
     return result.scalar_one_or_none()
 
 async def get_images_by_set(db: AsyncSession, set_id: int) -> list[Image]:
+    """Retrieves all images associated with a specific set.
+
+    Args:
+        db: Database session.
+        set_id: ID of the set.
+
+    Returns:
+        A list of Image objects belonging to the set, ordered by sort_order.
+    """
     result = await db.execute(select(Image).filter(Image.set_id == set_id).order_by(Image.sort_order))
     return list(result.scalars().all())
 
 async def create_image(db: AsyncSession, image_in: ImageCreate, set_id: int) -> Image:
+    """Creates a new image record in the database.
+
+    Args:
+        db: Database session.
+        image_in: Image creation schema containing image data.
+        set_id: ID of the set this image belongs to.
+
+    Returns:
+        The newly created Image object.
+    """
     db_image = Image(**image_in.model_dump(), set_id=set_id)
     db.add(db_image)
     await db.commit()
@@ -64,6 +105,16 @@ async def create_image(db: AsyncSession, image_in: ImageCreate, set_id: int) -> 
     return db_image
 
 async def update_image(db: AsyncSession, image_id: int, image_in: ImageUpdate) -> Optional[Image]:
+    """Updates an existing image record.
+
+    Args:
+        db: Database session.
+        image_id: ID of the image to update.
+        image_in: Image update schema containing updated data.
+
+    Returns:
+        The updated Image object, or None if the image was not found.
+    """
     db_image = await get_image(db, image_id)
     if not db_image:
         return None
@@ -78,6 +129,18 @@ async def update_image(db: AsyncSession, image_id: int, image_in: ImageUpdate) -
     return db_image
 
 async def bulk_update_images(db: AsyncSession, bulk_in: ImageBulkUpdate) -> int:
+    """Performs a bulk update on multiple image records.
+
+    Handles tag modifications according to the specified BulkOperationMode
+    (APPEND, REMOVE, REPLACE) while ignoring immutable fields like filename or phash.
+
+    Args:
+        db: Database session.
+        bulk_in: Bulk update schema containing target IDs and update data.
+
+    Returns:
+        The number of images successfully updated.
+    """
     result = await db.execute(select(Image).where(Image.id.in_(bulk_in.image_ids)))
     db_images = result.scalars().all()
     
@@ -112,6 +175,15 @@ async def bulk_update_images(db: AsyncSession, bulk_in: ImageBulkUpdate) -> int:
     return len(db_images)
 
 async def delete_image(db: AsyncSession, image_id: int) -> Optional[Image]:
+    """Deletes an image from the database and removes its file from disk.
+
+    Args:
+        db: Database session.
+        image_id: ID of the image to delete.
+
+    Returns:
+        The deleted Image object, or None if it was not found.
+    """
     db_image = await get_image(db, image_id)
     if db_image:
         # Delete file from disk
@@ -124,6 +196,14 @@ async def delete_image(db: AsyncSession, image_id: int) -> Optional[Image]:
     return db_image
 
 async def get_duplicate_groups(db: AsyncSession) -> list[dict]:
+    """Identifies and groups images that share the same perceptual hash (phash).
+
+    Args:
+        db: Database session.
+
+    Returns:
+        A dictionary mapping a phash string to a list of duplicate Image objects.
+    """
     # 1. Find phashe that appear more than once
     subquery = (
         select(Image.phash)
@@ -152,6 +232,19 @@ async def get_duplicate_groups(db: AsyncSession) -> list[dict]:
     return groups_dict
 
 async def resolve_duplicates(db: AsyncSession, keep_id: int, remove_ids: List[int]) -> dict:
+    """Resolves a group of duplicates by keeping one image and deleting the rest.
+
+    Args:
+        db: Database session.
+        keep_id: ID of the image to retain.
+        remove_ids: List of image IDs to delete.
+
+    Returns:
+        A tuple containing (removed_count, space_saved_in_bytes).
+
+    Raises:
+        ValueError: If the keep_id image is not found.
+    """
     # Verify keep_id exists
     keep_img = await get_image(db, keep_id)
     if not keep_img:
@@ -186,6 +279,18 @@ async def get_images(
     search: Optional[str] = None,
     rating: Optional[str] = None
 ) -> tuple[List[Image], int]:
+    """Retrieves a paginated list of images, optionally filtered by search terms or rating.
+
+    Args:
+        db: Database session.
+        skip: Number of records to skip (for pagination).
+        limit: Maximum number of records to return.
+        search: Optional search term matching filename, set title, tags, or creator name.
+        rating: Optional rating to filter by.
+
+    Returns:
+        A tuple containing the list of Image objects and the total count of matches.
+    """
     query = select(Image).join(Image.set)
     
     if rating:
