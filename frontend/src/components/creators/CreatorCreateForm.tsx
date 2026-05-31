@@ -5,10 +5,11 @@
  */
 import { useState } from 'react';
 import { TextInput, Select, Textarea, Button, Stack } from '@mantine/core';
-import { useCreateCreatorApiCreatorsPost } from '../../../api/generated/creators/creators';
+import { useCreateCreatorApiCreatorsPost } from '../../api/generated/creators/creators';
 import { notifications } from '@mantine/notifications';
 import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
-import type { CreatorType } from '../../../api/model';
+import type { CreatorType } from '../../api/model';
+import { CREATOR_TYPES } from '../../types/enums';
 
 interface CreatorCreateFormProps {
     onSuccess: () => void;
@@ -75,7 +76,7 @@ export function CreatorCreateForm({ onSuccess }: CreatorCreateFormProps) {
                 <Select
                     label="Type"
                     placeholder="Select artist type"
-                    data={['Artist', 'AI Generated', 'Studio', 'Photography']}
+                    data={CREATOR_TYPES}
                     value={type}
                     onChange={setType}
                 />

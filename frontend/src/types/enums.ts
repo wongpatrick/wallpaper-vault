@@ -41,3 +41,5 @@ export const BulkOperationMode = {
 } as const;
 
 export type BulkOperationMode = typeof BulkOperationMode[keyof typeof BulkOperationMode];
+
+export const CREATOR_TYPES = ['Artist', 'AI Generated', 'Studio', 'Photography', 'Cosplayer', 'Model', 'Unknown'] as const;

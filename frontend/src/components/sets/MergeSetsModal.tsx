@@ -6,7 +6,7 @@
 import { Modal, Stack, Radio, Text, Button, Alert, Group, Paper } from '@mantine/core';
 import { IconAlertCircle, IconGitMerge } from '@tabler/icons-react';
 import { useState } from 'react';
-import type { Set as SetModel } from '../../../api/model';
+import type { Set as SetModel } from '../../api/model';
 
 interface MergeSetsModalProps {
     opened: boolean;

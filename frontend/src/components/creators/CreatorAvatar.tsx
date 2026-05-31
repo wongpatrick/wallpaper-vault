@@ -5,7 +5,7 @@
  */
 import { Box, Image, Center } from '@mantine/core';
 import { IconUser } from '@tabler/icons-react';
-import { getImageUrl } from '../../../utils/fileUtils';
+import { getImageUrl } from '../../utils/fileUtils';
 
 interface CreatorAvatarProps {
     imageId: number | null | undefined;
