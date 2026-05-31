@@ -39,6 +39,8 @@ async def update_setting(
     db: AsyncSession = Depends(get_db)
 ) -> schema_settings.Setting:
     """
-    Update or create a setting.
+    Update or create an application configuration setting.
+    
+    If the setting key already exists, its value and description are updated. If it does not exist, a new configuration key is created. This allows dynamic reconfiguration of paths and app behavior.
     """
     return await crud_settings.update_setting(db, key=key, setting=setting)

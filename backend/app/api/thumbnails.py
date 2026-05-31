@@ -39,8 +39,9 @@ async def get_image_thumbnail(
     db: AsyncSession = Depends(get_db),
 ) -> FileResponse:
     """
-    Return a cached JPEG thumbnail for the given image, generating it on the
-    fly from the original file if no cached version exists.
+    Serve a cached JPEG thumbnail for the requested image ID.
+    
+    If the thumbnail does not exist in the on-disk cache (`db/thumbs/`), it is generated on-the-fly from the original high-resolution image using OpenCV and then served. Future requests will serve the cached file directly.
     """
     # 1. Look up the image record
     db_image = await crud_image.get_image(db, image_id=image_id)

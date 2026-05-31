@@ -46,6 +46,11 @@ async def merge_sets(
     merge_in: SetMerge,
     db: AsyncSession = Depends(get_db)
 ) -> Set:
+    """
+    Merge multiple source sets into a single target set.
+    
+    All images from the source sets will be reassigned to the target set. The source sets will then be permanently deleted. Use this to consolidate duplicate or fragmented collections.
+    """
     if merge_in.target_id in merge_in.source_ids:
         raise HTTPException(status_code=400, detail="Cannot merge a set into itself")
 
@@ -75,8 +80,9 @@ async def batch_import_sets(
         db: AsyncSession = Depends(get_db)
 ) -> BatchImportResponse:
     """
-    Unified route to scan, parse, and optionally execute batch imports.
-    If dry_run=True, it only scans and returns parsed items.
+    Unified route to scan, parse, and optionally execute batch imports of directories.
+    
+    If `dry_run=True`, it only scans the provided paths, attempts to parse creator/set names using the `parsing_template`, and returns a preview of what would be imported. If `dry_run=False`, it launches the actual import process as an asynchronous background task.
     """
     if batch_in.dry_run:
         return await crud_set.batch_import_sets(db=db, batch_in=batch_in)
@@ -159,6 +165,11 @@ async def resync_set(
     set_id: int,
     db: AsyncSession = Depends(get_db)
 ) -> Set:
+    """
+    Resynchronize a set with its local filesystem directory.
+    
+    Scans the `local_path` associated with the set. Any new image files found in the directory that aren't already in the database will be imported and added to the set.
+    """
     db_set = await crud_set.resync_set(db, set_id=set_id)
     if db_set is None:
         raise HTTPException(status_code=404, detail="Set not found or path invalid")

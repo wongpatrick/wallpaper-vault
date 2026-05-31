@@ -53,7 +53,9 @@ async def bulk_update_images(
     db: AsyncSession = Depends(get_db)
 ) -> int:
     """
-    Update multiple images at once.
+    Apply a bulk update to multiple images simultaneously.
+    
+    This endpoint takes a list of image IDs and a data payload, applying the changes to all specified images in a single transaction. List-like fields (e.g. tags) can be appended or overwritten based on the operation_mode.
     """
     count = await crud_image.bulk_update_images(db=db, bulk_in=bulk_in)
     logger.info("Bulk updated images", count=count, mode=bulk_in.operation_mode)
@@ -68,7 +70,9 @@ async def read_images(
     db: AsyncSession = Depends(get_db)
 ) -> ImagePage:
     """
-    Get a paginated list of all images with optional comprehensive search and rating filter.
+    Retrieve a paginated list of all images in the vault.
+    
+    Supports comprehensive filtering via `search` (matching filename, tags, or notes) and `rating`. Returns images enriched with context like their parent set title and associated creators.
     """
     images, total = await crud_image.get_images(db, skip=skip, limit=limit, search=search, rating=rating)
     items = [map_image_to_context_schema(img) for img in images]
@@ -117,7 +121,9 @@ async def resolve_duplicates(
     db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
     """
-    Resolve a duplicate group by keeping one image and removing others.
+    Resolve a group of visually identical duplicate images.
+    
+    This endpoint retains the specified `keep_image_id` and permanently deletes the files and database records for all `remove_image_ids`. Use this carefully as deletion is irreversible.
     """
     try:
         removed, saved = await crud_image.resolve_duplicates(
