@@ -15,6 +15,14 @@ VERT_AR = 9.0 / 16.0      # vertical: 9:16
 HORZ_AR = 16.0 / 10.0     # horizontal: 16:10
 
 def load_image(path: str | Path) -> Optional[np.ndarray]:
+    """Loads an image from the filesystem.
+
+    Args:
+        path: Path to the image file.
+
+    Returns:
+        The loaded image as a NumPy array (BGR format), or None if loading fails.
+    """
     path = os.path.normpath(str(path))
     try:
         with open(path, 'rb') as f:
@@ -28,6 +36,15 @@ def load_image(path: str | Path) -> Optional[np.ndarray]:
     return None
 
 def save_image_buffer(path: str | Path, img: np.ndarray) -> bool:
+    """Saves an image buffer to the filesystem.
+
+    Args:
+        path: Target file path.
+        img: The image as a NumPy array.
+
+    Returns:
+        True if the image was successfully saved, False otherwise.
+    """
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
 
@@ -44,9 +61,26 @@ def save_image_buffer(path: str | Path, img: np.ndarray) -> bool:
     return True
 
 def save_image(path: str | Path, img: np.ndarray) -> bool:
+    """Convenience wrapper around save_image_buffer.
+
+    Args:
+        path: Target file path.
+        img: The image as a NumPy array.
+
+    Returns:
+        True if the image was successfully saved, False otherwise.
+    """
     return save_image_buffer(path, img)
 
 def compute_saliency_map(img_gray: np.ndarray) -> Optional[np.ndarray]:
+    """Computes a saliency map using Spectral Residual approach.
+
+    Args:
+        img_gray: Grayscale input image.
+
+    Returns:
+        The computed saliency map normalized to 0-255 uint8, or None if computation fails.
+    """
     saliency = cv2.saliency.StaticSaliencySpectralResidual_create()
     (success, sal_map) = saliency.computeSaliency(img_gray)
     if not success or sal_map is None:
@@ -55,11 +89,38 @@ def compute_saliency_map(img_gray: np.ndarray) -> Optional[np.ndarray]:
     return sal_map
 
 def window_sum(ii: np.ndarray, x: int, y: int, cw: int, ch: int) -> float:
+    """Computes the sum of pixels within a window using an integral image.
+
+    Args:
+        ii: Integral image.
+        x: Top-left x-coordinate of the window.
+        y: Top-left y-coordinate of the window.
+        cw: Width of the window.
+        ch: Height of the window.
+
+    Returns:
+        The sum of pixel values inside the specified window.
+    """
     x2 = x + cw
     y2 = y + ch
     return float(ii[y2, x2] - ii[y, x2] - ii[y2, x] + ii[y, x])
 
 def best_crop_coords(W: int, H: int, cw: int, ch: int, sal_map_uint8: Optional[np.ndarray]) -> tuple[int, int]:
+    """Finds the optimal crop coordinates based on a saliency map.
+
+    It searches for a crop window that maximizes the sum of saliency 
+    while minimizing the distance to the saliency center of mass.
+
+    Args:
+        W: Width of the original image.
+        H: Height of the original image.
+        cw: Target crop width.
+        ch: Target crop height.
+        sal_map_uint8: Precomputed saliency map (uint8).
+
+    Returns:
+        A tuple (x, y) representing the top-left corner of the best crop window.
+    """
     if sal_map_uint8 is None:
         return max(0, (W - cw) // 2), max(0, (H - ch) // 2)
 
@@ -97,12 +158,42 @@ def best_crop_coords(W: int, H: int, cw: int, ch: int, sal_map_uint8: Optional[n
     return best_x, best_y
 
 def orientation_for_dims(cw: int, ch: int, vert_ar: float=VERT_AR, horz_ar: float=HORZ_AR) -> str:
+    """Determines the best matching orientation (vertical/horizontal) for given dimensions.
+
+    Args:
+        cw: Crop width.
+        ch: Crop height.
+        vert_ar: Target vertical aspect ratio.
+        horz_ar: Target horizontal aspect ratio.
+
+    Returns:
+        A string, either 'vertical' or 'horizontal'.
+    """
     ratio = cw / ch if ch else 0
     vert_diff = abs(ratio - vert_ar)
     horz_diff = abs(ratio - horz_ar)
     return "vertical" if vert_diff <= horz_diff else "horizontal"
 
 def process_image(img_path: str | Path, out_path: str | Path, target_w: int=1920, target_h: int=1080, exact: bool=False, downscale_max: int=1200, sort_output: bool=True, auto_orient: bool=False, vert_ar: float=VERT_AR, horz_ar: float=HORZ_AR, horz_label: str="horizontal", vert_label: str="vertical") -> tuple[bool, Optional[str]]:
+    """Processes and crops an image to a target resolution or aspect ratio using saliency.
+
+    Args:
+        img_path: Path to the input image.
+        out_path: Desired path for the output image.
+        target_w: Target width.
+        target_h: Target height.
+        exact: If True, enforce exact target dimensions.
+        downscale_max: Max dimension for internal saliency processing downscaling.
+        sort_output: Whether to sort the output (unused here but kept for API compatibility).
+        auto_orient: Whether to automatically decide horizontal/vertical crop.
+        vert_ar: Aspect ratio used for vertical crops.
+        horz_ar: Aspect ratio used for horizontal crops.
+        horz_label: Label prefix for horizontal crops.
+        vert_label: Label prefix for vertical crops.
+
+    Returns:
+        A tuple containing a success boolean and the final output path (or None if failed).
+    """
     img = load_image(img_path)
     if img is None:
         return False, None
@@ -181,6 +272,15 @@ def process_image(img_path: str | Path, out_path: str | Path, target_w: int=1920
     return True, str(final_out_path)
 
 def collect_image_paths(input_path: str | Path, recursive: bool=True) -> list[str]:
+    """Collects paths to all supported image files in a directory or single file path.
+
+    Args:
+        input_path: Target directory or file path.
+        recursive: Whether to search recursively in subdirectories.
+
+    Returns:
+        A list of string paths to image files.
+    """
     image_exts = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp"}
     p = Path(input_path)
     if p.is_dir():

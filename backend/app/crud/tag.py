@@ -12,9 +12,18 @@ async def get_unique_tags(
     search: Optional[str] = None, 
     limit: int = 50
 ) -> List[str]:
-    """
-    Fetch unique tags from both Images and Sets.
-    Tags are stored as space-separated strings in the database.
+    """Fetches unique tags aggregated from both Images and Sets.
+
+    Tags are stored as space-separated strings in the database. This function
+    extracts, splits, deduplicates, and optionally filters them.
+
+    Args:
+        db: Database session.
+        search: Optional string to filter tags by (case-insensitive).
+        limit: Maximum number of unique tags to return.
+
+    Returns:
+        A sorted list of unique tag strings.
     """
     image_tags_query = select(Image.tags).filter(Image.tags.is_not(None), Image.tags != "")
     set_tags_query = select(Set.tags).filter(Set.tags.is_not(None), Set.tags != "")

@@ -12,7 +12,17 @@ from app.models.set import Set
 from app.schemas.creator import CreatorCreate, CreatorUpdate, CreatorStats
 
 async def _attach_stats(creator_obj: Creator) -> Creator:
-    """Helper to calculate stats for a creator object."""
+    """Helper to calculate and attach statistics to a Creator object.
+
+    Computes total sets, total images, combined file size, primary aspect
+    ratio, and selects a preview image.
+
+    Args:
+        creator_obj: The Creator object to compute stats for.
+
+    Returns:
+        The updated Creator object with `.stats` populated.
+    """
     images = []
     # Creators might have many sets, each with many images.
     # Note: creator_obj.sets MUST be loaded for this to work.
@@ -36,6 +46,17 @@ async def _attach_stats(creator_obj: Creator) -> Creator:
     return creator_obj
 
 async def get_creator(db: AsyncSession, creator_id: int) -> Optional[Creator]:
+    """Retrieves a creator by their ID, including associated sets and images.
+
+    Also populates the creator's statistical metrics.
+
+    Args:
+        db: Database session.
+        creator_id: ID of the creator to retrieve.
+
+    Returns:
+        The Creator object if found, otherwise None.
+    """
     result = await db.execute(
         select(Creator)
         .options(
@@ -50,12 +71,35 @@ async def get_creator(db: AsyncSession, creator_id: int) -> Optional[Creator]:
     return creator_obj
 
 async def get_creator_by_name(db: AsyncSession, name: str) -> Optional[Creator]:
+    """Retrieves a creator by their exact canonical name.
+
+    Args:
+        db: Database session.
+        name: The exact canonical name to search for.
+
+    Returns:
+        The Creator object if found, otherwise None.
+    """
     result = await db.execute(
         select(Creator).filter(Creator.canonical_name == name)
     )
     return result.scalar_one_or_none()
 
 async def get_creators(db: AsyncSession, skip: int = 0, limit: int = 100, search: Optional[str] = None, creator_type: Optional[str] = None) -> tuple[list[Creator], int]:
+    """Retrieves a paginated list of creators, with optional filtering.
+
+    Populates statistical metrics for each returned creator.
+
+    Args:
+        db: Database session.
+        skip: Number of records to skip (pagination).
+        limit: Maximum number of records to return.
+        search: Optional string to match against creator canonical names.
+        creator_type: Optional string to filter by creator type.
+
+    Returns:
+        A tuple containing a list of Creator objects and the total count.
+    """
     # Base query for creators
     query = select(Creator)
     
@@ -82,6 +126,15 @@ async def get_creators(db: AsyncSession, skip: int = 0, limit: int = 100, search
     return creators, total
 
 async def create_creator(db: AsyncSession, creator: CreatorCreate) -> Creator:
+    """Creates a new creator record in the database.
+
+    Args:
+        db: Database session.
+        creator: The creator schema containing new creator data.
+
+    Returns:
+        The newly created Creator object.
+    """
     db_creator = Creator(**creator.model_dump())
     db.add(db_creator)
     await db.commit()
@@ -89,6 +142,18 @@ async def create_creator(db: AsyncSession, creator: CreatorCreate) -> Creator:
     return db_creator
 
 async def update_creator(db: AsyncSession, creator_id: int, creator_in: CreatorUpdate) -> Optional[Creator]:
+    """Updates an existing creator record and manages dependent resources.
+
+    If the canonical name is updated, associated set folders are renamed.
+
+    Args:
+        db: Database session.
+        creator_id: ID of the creator to update.
+        creator_in: The creator update schema with modified data.
+
+    Returns:
+        The updated Creator object, or None if not found.
+    """
     db_creator = await get_creator(db, creator_id)
     if not db_creator:
         return None
@@ -107,6 +172,17 @@ async def update_creator(db: AsyncSession, creator_id: int, creator_in: CreatorU
     return await get_creator(db, creator_id)
 
 async def delete_creator(db: AsyncSession, creator_id: int) -> Optional[Creator]:
+    """Deletes a creator record from the database.
+
+    Note: This does not delete associated sets or images.
+
+    Args:
+        db: Database session.
+        creator_id: ID of the creator to delete.
+
+    Returns:
+        The deleted Creator object, or None if not found.
+    """
     db_creator = await db.get(Creator, creator_id)
     if db_creator:
         await db.delete(db_creator)
@@ -114,6 +190,19 @@ async def delete_creator(db: AsyncSession, creator_id: int) -> Optional[Creator]
     return db_creator
 
 async def merge_creators(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[Creator]:
+    """Merges multiple source creators into a single target creator.
+
+    Re-associates all sets from the source creators to the target creator,
+    renames affected set folders, and deletes the source creators.
+
+    Args:
+        db: Database session.
+        source_ids: List of creator IDs to merge and delete.
+        target_id: ID of the creator to merge everything into.
+
+    Returns:
+        The updated target Creator object, or None if the target was not found.
+    """
     # Load target (with sets to ensure we don't duplicate associations)
     target = await get_creator(db, target_id)
     if not target:
