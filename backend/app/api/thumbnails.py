@@ -64,8 +64,10 @@ async def get_image_thumbnail(
         # cv2.imread fails on Windows with Unicode paths, so we use numpy + imdecode
         import numpy as np
         
-        # Read the file bytes directly to bypass OpenCV's path encoding issues
-        img_array = np.fromfile(str(original_path), np.uint8)
+        # Safely read the file using a context manager to ensure the handle is immediately closed
+        with open(original_path, "rb") as f:
+            img_array = np.frombuffer(f.read(), dtype=np.uint8)
+            
         img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
         
         if img is None:

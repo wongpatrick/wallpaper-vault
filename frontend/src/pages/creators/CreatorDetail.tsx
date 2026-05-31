@@ -7,11 +7,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
     Title, Text, Container, SimpleGrid, Group, Badge, Loader, 
     Center, Alert, Stack, ActionIcon, Menu, Button, Card, 
-    TextInput, Select, Textarea, Modal, Paper
+    TextInput, Select, Textarea, Modal, Paper, Transition
 } from '@mantine/core';
 import { 
     IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
-    IconEdit, IconDatabase, IconPhoto, IconLayersIntersect, IconAspectRatio
+    IconEdit, IconDatabase, IconPhoto, IconLayersIntersect, IconAspectRatio,
+    IconCheck, IconX, IconTag, IconUserEdit, IconGitMerge
 } from '@tabler/icons-react';
 import { 
     useReadCreatorApiCreatorsCreatorIdGet, 
@@ -19,12 +20,15 @@ import {
     useDeleteCreatorApiCreatorsCreatorIdDelete,
     useMergeCreatorsApiCreatorsMergePost
 } from '../../api/generated/creators/creators';
+import { useBulkUpdateSetsApiSetsBulkUpdatePost, useBulkDeleteSetsApiSetsBulkDeletePost, useMergeSetsApiSetsMergePost } from '../../api/generated/sets/sets';
 import { notifications } from '@mantine/notifications';
 import { SetCard } from '../../components/sets/SetCard';
 import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
+import { SetBulkEditModal } from '../../components/sets/SetBulkEditModal';
+import { MergeSetsModal } from '../../components/sets/MergeSetsModal';
 import { useState, useMemo } from 'react';
 import { formatBytes } from '../../utils/fileUtils';
-import type { Set, CreatorWithSets } from '../../api/model';
+import type { Set, CreatorWithSets, SetUpdate, BulkOperationMode } from '../../api/model';
 import { CREATOR_TYPES } from '../../types/enums';
 
 const HTTP_STATUS_CONFLICT = 409;
@@ -49,6 +53,65 @@ export default function CreatorDetail() {
 
     const mergeMutation = useMergeCreatorsApiCreatorsMergePost();
     const [mergePrompt, setMergePrompt] = useState<{ show: boolean, targetId: number | null }>({ show: false, targetId: null });
+
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<globalThis.Set<number>>(new globalThis.Set());
+    const [modalType, setModalType] = useState<'artist' | 'tags' | 'delete' | null>(null);
+    const [isMergeSetsModalOpen, setIsMergeSetsModalOpen] = useState(false);
+
+    const bulkUpdateSetsMutation = useBulkUpdateSetsApiSetsBulkUpdatePost();
+    const bulkDeleteSetsMutation = useBulkDeleteSetsApiSetsBulkDeletePost();
+    const mergeSetsMutation = useMergeSetsApiSetsMergePost();
+
+    const toggleSelect = (id: number) => {
+        const next = new globalThis.Set(selectedIds);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setSelectedIds(next);
+        if (next.size > 0) setSelectionMode(true);
+    };
+
+    const clearSelection = () => {
+        setSelectedIds(new globalThis.Set());
+        setSelectionMode(false);
+    };
+
+    const handleBulkConfirm = async (data: SetUpdate, mode: BulkOperationMode) => {
+        const ids = Array.from(selectedIds);
+        try {
+            if (modalType === 'delete') {
+                await bulkDeleteSetsMutation.mutateAsync({ data: ids });
+                notifications.show({ title: 'Success', message: `Successfully deleted ${ids.length} sets.`, color: 'blue' });
+            } else {
+                await bulkUpdateSetsMutation.mutateAsync({
+                    data: { set_ids: ids, update_data: data, operation_mode: mode }
+                });
+                notifications.show({ title: 'Success', message: `Successfully updated ${ids.length} sets.`, color: 'blue' });
+            }
+            setModalType(null);
+            clearSelection();
+            refetch();
+        } catch (err) {
+            console.error(err);
+            notifications.show({ title: 'Error', message: 'Bulk operation failed.', color: 'red' });
+        }
+    };
+
+    const handleMergeSetsConfirm = async (targetId: number) => {
+        const sourceIds = Array.from(selectedIds).filter(id => id !== targetId);
+        try {
+            await mergeSetsMutation.mutateAsync({
+                data: { source_ids: sourceIds, target_id: targetId }
+            });
+            notifications.show({ title: 'Merge Success', message: `Successfully merged ${sourceIds.length + 1} sets into one.`, color: 'green' });
+            setIsMergeSetsModalOpen(false);
+            clearSelection();
+            refetch();
+        } catch (err) {
+            console.error(err);
+            notifications.show({ title: 'Merge Error', message: 'Failed to merge sets.', color: 'red' });
+        }
+    };
 
     const [prevCreatorId, setPrevCreatorId] = useState<number | null>(null);
     if (creator && creator.id !== prevCreatorId) {
@@ -147,7 +210,7 @@ export default function CreatorDetail() {
     };
 
     return (
-        <Container size="xl" pb="xl">
+        <Container size="xl" pb={selectionMode ? 100 : "xl"}>
             <Button 
                 variant="subtle" 
                 leftSection={<IconArrowLeft size={16} />} 
@@ -218,12 +281,35 @@ export default function CreatorDetail() {
             </SimpleGrid>
 
             {/* Artist's Sets */}
-            <Title order={2} mb="lg">Collection by {creator.canonical_name}</Title>
+            <Group justify="space-between" align="center" mb="lg">
+                <Title order={2}>Collection by {creator.canonical_name}</Title>
+                <Button 
+                    variant={selectionMode ? "filled" : "light"} 
+                    color={selectionMode ? "blue" : "gray"}
+                    leftSection={selectionMode ? <IconCheck size={16} /> : null}
+                    onClick={() => selectionMode ? clearSelection() : setSelectionMode(true)}
+                >
+                    {selectionMode ? "Finish Selecting" : "Select Items"}
+                </Button>
+            </Group>
             
             {creator.sets && creator.sets.length > 0 ? (
                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
                     {creator.sets.map((set: Set) => (
-                        <SetCard key={set.id} set={set} onDelete={() => {}} />
+                        <SetCard 
+                            key={set.id} 
+                            set={set} 
+                            onDelete={() => {}} 
+                            selectionMode={selectionMode}
+                            selected={selectedIds.has(set.id)}
+                            onToggleSelect={() => toggleSelect(set.id)}
+                            onLongPress={() => {
+                                if (!selectionMode) {
+                                    setSelectionMode(true);
+                                    setSelectedIds(new globalThis.Set([set.id]));
+                                }
+                            }}
+                        />
                     ))}
                 </SimpleGrid>
             ) : (
@@ -282,6 +368,84 @@ export default function CreatorDetail() {
                     </Group>
                 </Stack>
             </Modal>
+
+            {/* Floating Bulk Action Bar */}
+            <Transition mounted={selectionMode && selectedIds.size > 0} transition="slide-up" duration={400} timingFunction="ease">
+                {(styles) => (
+                    <Paper 
+                        shadow="xl" 
+                        p="md" 
+                        withBorder 
+                        style={{ 
+                            ...styles,
+                            position: 'fixed', 
+                            bottom: 20, 
+                            left: '50%', 
+                            transform: 'translateX(-50%)',
+                            zIndex: 100,
+                            borderRadius: 100,
+                            backgroundColor: 'var(--mantine-color-body)',
+                            width: 'auto',
+                            minWidth: 400
+                        }}
+                    >
+                        <Group justify="space-between" wrap="nowrap">
+                            <Group gap="sm">
+                                <ActionIcon variant="subtle" color="gray" onClick={clearSelection} radius="xl">
+                                    <IconX size={18} />
+                                </ActionIcon>
+                                <Text fw={600} size="sm">
+                                    {selectedIds.size} items selected
+                                </Text>
+                            </Group>
+
+                            <Group gap="xs">
+                                {selectedIds.size >= 2 && (
+                                    <Button 
+                                        size="xs" 
+                                        variant="light" 
+                                        color="green"
+                                        leftSection={<IconGitMerge size={14} />} 
+                                        radius="xl"
+                                        onClick={() => setIsMergeSetsModalOpen(true)}
+                                    >
+                                        Merge
+                                    </Button>
+                                )}
+                                <Button size="xs" variant="light" leftSection={<IconUserEdit size={14} />} radius="xl" onClick={() => setModalType('artist')}>
+                                    Artist
+                                </Button>
+                                <Button size="xs" variant="light" leftSection={<IconTag size={14} />} radius="xl" onClick={() => setModalType('tags')}>
+                                    Tags
+                                </Button>
+                                <Button size="xs" variant="light" color="red" leftSection={<IconTrash size={14} />} radius="xl" onClick={() => setModalType('delete')}>
+                                    Delete
+                                </Button>
+                            </Group>
+                        </Group>
+                    </Paper>
+                )}
+            </Transition>
+
+            {/* Bulk Edit Modal */}
+            <SetBulkEditModal 
+                key={modalType || 'none'}
+                opened={modalType !== null}
+                onClose={() => setModalType(null)}
+                type={modalType || 'artist'}
+                selectedCount={selectedIds.size}
+                onConfirm={handleBulkConfirm}
+                loading={bulkUpdateSetsMutation.isPending || bulkDeleteSetsMutation.isPending}
+            />
+
+            {/* Merge Sets Modal */}
+            <MergeSetsModal 
+                opened={isMergeSetsModalOpen}
+                onClose={() => setIsMergeSetsModalOpen(false)}
+                selectedSets={(creator.sets || []).filter(s => selectedIds.has(s.id))}
+                onConfirm={handleMergeSetsConfirm}
+                loading={mergeSetsMutation.isPending}
+            />
         </Container>
     );
 }

@@ -256,18 +256,24 @@ async def resolve_duplicates(db: AsyncSession, keep_id: int, remove_ids: List[in
     for rid in remove_ids:
         db_image = await get_image(db, rid)
         if db_image:
+            file_deleted = False
             # Delete file
             p = Path(db_image.local_path)
             if p.exists():
-                space_saved += p.stat().st_size
+                file_size = p.stat().st_size
                 try:
                     os.unlink(p)
+                    space_saved += file_size
+                    file_deleted = True
                 except Exception as e:
                     logger.error("Error deleting file", path=str(p), error=str(e), exc_info=True)
+            else:
+                file_deleted = True
             
-            # Delete DB record
-            await db.delete(db_image)
-            removed_count += 1
+            if file_deleted:
+                # Delete DB record
+                await db.delete(db_image)
+                removed_count += 1
     
     await db.commit()
     return removed_count, space_saved

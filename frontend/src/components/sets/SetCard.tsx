@@ -8,6 +8,7 @@ import { IconDotsVertical, IconExternalLink, IconFolder, IconTrash } from '@tabl
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 import { getThumbnailUrl, FALLBACK_IMAGE } from '../../utils/fileUtils';
+import { useLongPress } from '../../hooks/useLongPress';
 import type { Set } from '../../api/model';
 
 interface SetCardProps {
@@ -16,11 +17,12 @@ interface SetCardProps {
     selectionMode?: boolean;
     selected?: boolean;
     onToggleSelect?: () => void;
+    onLongPress?: () => void;
 }
 
 const ICON_SIZE_PX = 14;
 
-export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect }: SetCardProps) {
+export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect, onLongPress }: SetCardProps) {
     const navigate = useNavigate();
     
     const handleCardClick = () => {
@@ -30,6 +32,16 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
             navigate(`/sets/${set.id}`);
         }
     };
+
+    const longPressProps = useLongPress(
+        () => {
+            if (onLongPress) {
+                onLongPress();
+            }
+        },
+        handleCardClick,
+        { delay: 400 }
+    );
 
     const handleOpenFolder = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -74,9 +86,10 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
             style={{ 
                 cursor: 'pointer',
                 borderColor: selected ? 'var(--mantine-color-blue-filled)' : undefined,
-                transition: 'border-color 0.2s ease'
+                transition: 'border-color 0.2s ease',
+                userSelect: 'none'
             }}
-            onClick={handleCardClick}
+            {...longPressProps}
         >
             <Card.Section style={{ position: 'relative' }}>
                 {selectionMode && (
