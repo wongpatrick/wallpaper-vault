@@ -7,8 +7,12 @@
 import type { Creator } from './creator';
 
 export interface CreatorPage {
+  /** Paginated list of creators. */
   items: Creator[];
+  /** Total number of creators matching the query. */
   total: number;
+  /** Number of items skipped. */
   skip: number;
+  /** Maximum number of items returned. */
   limit: number;
 }

@@ -74,18 +74,18 @@ export function WallpaperLinkGenerator() {
                         withBorder 
                         p="xs" 
                         radius="sm" 
-                        style={(theme) => ({
-                            backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[6] : theme.colors.gray[0],
-                        })}
+                        style={{
+                            backgroundColor: 'var(--mantine-color-default)',
+                        }}
                     >
                         <Group justify="space-between" wrap="nowrap">
                             <Text 
                                 size="xs" 
                                 truncate 
-                                style={(theme) => ({ 
+                                style={{ 
                                     fontFamily: 'monospace',
-                                    color: theme.colorScheme === 'dark' ? theme.colors.blue[4] : theme.colors.blue[9]
-                                })}
+                                    color: 'var(--mantine-color-blue-filled)'
+                                }}
                             >
                                 {pathUrl}
                             </Text>
@@ -116,18 +116,18 @@ export function WallpaperLinkGenerator() {
                         withBorder 
                         p="xs" 
                         radius="sm" 
-                        style={(theme) => ({
-                            backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[6] : theme.colors.gray[0],
-                        })}
+                        style={{
+                            backgroundColor: 'var(--mantine-color-default)',
+                        }}
                     >
                         <Group justify="space-between" wrap="nowrap">
                             <Text 
                                 size="xs" 
                                 truncate 
-                                style={(theme) => ({ 
+                                style={{ 
                                     fontFamily: 'monospace',
-                                    color: theme.colorScheme === 'dark' ? theme.colors.blue[4] : theme.colors.blue[9]
-                                })}
+                                    color: 'var(--mantine-color-blue-filled)'
+                                }}
                             >
                                 {queryUrl}
                             </Text>

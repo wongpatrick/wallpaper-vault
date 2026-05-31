@@ -7,10 +7,16 @@
 import type { BatchImportItemError } from './batchImportItemError';
 
 export interface BatchImportItem {
+  /** Path of the item being imported. */
   source_path: string;
+  /** Resolved creator name for this item. */
   creator_name: string;
+  /** Resolved set title for this item. */
   set_title: string;
+  /** Current import status (e.g., 'pending', 'success', 'error'). */
   status?: string;
+  /** Error message if the import failed. */
   error?: BatchImportItemError;
+  /** Indicates if the item passed pre-import validation. */
   isValid?: boolean;
 }

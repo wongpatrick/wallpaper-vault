@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Hex code of the dominant color.
+ */
 export type ImageUpdateDominantColor = string | null;

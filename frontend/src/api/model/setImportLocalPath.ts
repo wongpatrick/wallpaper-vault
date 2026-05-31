@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Path to the directory containing the set.
+ */
 export type SetImportLocalPath = string | null;

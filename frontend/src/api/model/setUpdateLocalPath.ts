@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Local filesystem path where the set's files reside.
+ */
 export type SetUpdateLocalPath = string | null;

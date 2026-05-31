@@ -7,8 +7,12 @@
 import type { SettingDescription } from './settingDescription';
 
 export interface Setting {
+  /** The stringified value of the setting. */
   value: string;
+  /** Human-readable explanation of what this setting controls. */
   description?: SettingDescription;
+  /** Unique string key identifying the setting. */
   key: string;
+  /** Timestamp when the setting was last modified. */
   updated_at: string;
 }

@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * The parent directory of the file, useful for grouping.
+ */
 export type AuditIssueDirectory = string | null;

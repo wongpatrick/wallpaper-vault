@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Perceptual hash representative of the set (usually the cover image).
+ */
 export type SetPhash = string | null;

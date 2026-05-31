@@ -30,6 +30,9 @@ Do not hardcode domain statuses, configurations, magic numbers, or repetitive li
 *   **Backend**: Define shared/global constants in `backend/app/core/enums.py` using `StrEnum` or `Enum`.
 *   **Frontend**: Define shared/global constants in `frontend/src/types/enums.ts` using `as const` objects.
 
+### 5. Verification
+*   **Always run linters** (e.g., `npm run lint` in frontend, and `ruff check .` in backend) before considering a task complete to ensure no errors were introduced.
+
 ## 🎨 Conventions
 
 ### 1. Styling

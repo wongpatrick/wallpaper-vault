@@ -6,4 +6,7 @@
  */
 import type { CreatorStats } from './creatorStats';
 
+/**
+ * Aggregated statistics for the creator's portfolio.
+ */
 export type CreatorWithSetsStats = CreatorStats | null;

@@ -9,9 +9,14 @@ import type { CreatorNotes } from './creatorNotes';
 import type { CreatorStatsProperty } from './creatorStatsProperty';
 
 export interface Creator {
+  /** The primary, normalized name of the artist/creator. */
   canonical_name: string;
+  /** Type of creator (e.g., 'photographer', 'illustrator', 'cosplayer'). */
   type?: CreatorType;
+  /** User-provided notes or biography for the creator. */
   notes?: CreatorNotes;
+  /** Unique database identifier for the creator. */
   id: number;
+  /** Aggregated statistics for the creator's portfolio. */
   stats?: CreatorStatsProperty;
 }

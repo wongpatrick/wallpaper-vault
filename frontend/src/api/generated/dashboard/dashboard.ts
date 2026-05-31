@@ -32,7 +32,9 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 /**
- * Retrieve aggregated dashboard statistics and health alerts.
+ * Retrieve aggregated dashboard statistics and system health alerts.
+
+Provides high-level library stats (total images, sets, creators, disk usage) alongside actionable health alerts (e.g., missing thumbnails, orphaned files) that require user attention.
  * @summary Read Dashboard Data
  */
 export const readDashboardDataApiDashboardGet = (

@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Title of the associated set for UI display.
+ */
 export type AuditIssueSetTitle = string | null;

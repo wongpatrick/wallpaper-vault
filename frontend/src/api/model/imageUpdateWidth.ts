@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Image width in pixels.
+ */
 export type ImageUpdateWidth = number | null;

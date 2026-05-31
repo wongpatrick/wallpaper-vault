@@ -8,6 +8,8 @@ import type { LibraryStats } from './libraryStats';
 import type { HealthAlert } from './healthAlert';
 
 export interface DashboardData {
+  /** Aggregated statistics for the entire library. */
   stats: LibraryStats;
+  /** Active health and maintenance alerts requiring user attention. */
   health_alerts: HealthAlert[];
 }

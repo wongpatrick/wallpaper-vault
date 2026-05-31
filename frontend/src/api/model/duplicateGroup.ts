@@ -7,7 +7,10 @@
 import type { ImageWithContext } from './imageWithContext';
 
 export interface DuplicateGroup {
+  /** The perceptual hash shared by this group of duplicates. */
   phash: string;
+  /** List of visually similar images in this group. */
   images: ImageWithContext[];
+  /** The ID of the image recommended to be kept (usually highest resolution). */
   recommended_keep_id: number;
 }

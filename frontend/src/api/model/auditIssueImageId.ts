@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * The DB image ID if applicable (e.g., for ghost records).
+ */
 export type AuditIssueImageId = number | null;

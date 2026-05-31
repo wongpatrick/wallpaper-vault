@@ -8,9 +8,14 @@ import type { SetBatchImportCreatorName } from './setBatchImportCreatorName';
 import type { SetBatchImportSetTitle } from './setBatchImportSetTitle';
 
 export interface SetBatchImport {
+  /** Absolute path to the directory to import. */
   source_path: string;
+  /** Explicit creator name to assign. If null, attempts to extract from path. */
   creator_name?: SetBatchImportCreatorName;
+  /** Explicit set title to assign. If null, attempts to extract from path. */
   set_title?: SetBatchImportSetTitle;
+  /** If true, the source directory will be permanently deleted after a successful import. */
   delete_source?: boolean;
+  /** Whether to automatically orient images based on EXIF data during import. */
   auto_orient?: boolean;
 }

@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Type of creator (e.g., 'photographer', 'illustrator', 'cosplayer').
+ */
 export type CreatorCreateType = string | null;

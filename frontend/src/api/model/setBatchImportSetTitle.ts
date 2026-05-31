@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Explicit set title to assign. If null, attempts to extract from path.
+ */
 export type SetBatchImportSetTitle = string | null;

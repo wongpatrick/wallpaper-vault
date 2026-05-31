@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Histogram mapping aspect ratio labels to the count of images.
+ */
 export type LibraryStatsAspectRatioDistribution = {[key: string]: number};

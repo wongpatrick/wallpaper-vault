@@ -27,6 +27,36 @@ async def create_set(
         set_in: SetCreate,
         db: AsyncSession = Depends(get_db)
 ) -> Set:
+    from pathlib import Path
+    from app.crud import settings as crud_settings
+    
+    # Auto-generate local_path if not provided
+    if not set_in.local_path:
+        base_path_setting = await crud_settings.get_setting(db, "base_library_path")
+        if base_path_setting and base_path_setting.value:
+            base_dir = Path(base_path_setting.value)
+            
+            # Retrieve creators to form folder name
+            creator_names = []
+            if set_in.creator_ids:
+                from sqlalchemy import select
+                from app.models.creator import Creator
+                result = await db.execute(select(Creator).where(Creator.id.in_(set_in.creator_ids)))
+                creators = result.scalars().all()
+                creator_names = [c.canonical_name for c in creators]
+                
+            creators_str = " & ".join(creator_names) if creator_names else "Unknown"
+            sanitized_title = crud_set.sanitize_folder_name(set_in.title) if set_in.title else "Untitled"
+            new_folder_name = f"{creators_str} - {sanitized_title}"
+            
+            new_path = base_dir / new_folder_name
+            try:
+                new_path.mkdir(parents=True, exist_ok=True)
+                set_in.local_path = str(new_path)
+            except Exception as e:
+                logger.error("Failed to create auto-generated set folder", path=str(new_path), error=str(e))
+                # Proceed even if folder creation fails, though we may lack local_path
+
     try:
         db_set = await crud_set.create_set(db=db, set_in=set_in)
         logger.info("Created set", set_id=db_set.id, title=db_set.title)

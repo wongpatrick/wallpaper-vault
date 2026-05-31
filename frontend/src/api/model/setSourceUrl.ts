@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Original URL where the set was downloaded from.
+ */
 export type SetSourceUrl = string | null;

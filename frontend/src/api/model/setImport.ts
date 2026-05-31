@@ -9,9 +9,14 @@ import type { ImageCreate } from './imageCreate';
 import type { SetImportNotes } from './setImportNotes';
 
 export interface SetImport {
+  /** Title of the imported set. */
   title: string;
+  /** List of creator names extracted during import. */
   creator_names?: string[];
+  /** Path to the directory containing the set. */
   local_path?: SetImportLocalPath;
+  /** Images found during the import process. */
   images?: ImageCreate[];
+  /** Auto-generated or extracted notes. */
   notes?: SetImportNotes;
 }

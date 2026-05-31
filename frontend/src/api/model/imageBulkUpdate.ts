@@ -8,7 +8,10 @@ import type { ImageUpdate } from './imageUpdate';
 import type { BulkOperationMode } from './bulkOperationMode';
 
 export interface ImageBulkUpdate {
+  /** List of image IDs to apply the bulk update to. */
   image_ids: number[];
+  /** The data to apply to all selected images. */
   update_data: ImageUpdate;
+  /** How to apply list-like fields (e.g., tags). APPEND or OVERWRITE. */
   operation_mode?: BulkOperationMode;
 }

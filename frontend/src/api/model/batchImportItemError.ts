@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Error message if the import failed.
+ */
 export type BatchImportItemError = string | null;

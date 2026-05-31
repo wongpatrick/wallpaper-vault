@@ -14,18 +14,32 @@ import type { AuditIssueSetTitle } from './auditIssueSetTitle';
 import type { AuditIssueCreatorName } from './auditIssueCreatorName';
 
 export interface AuditIssue {
+  /** ID of the audit task that discovered this issue. */
   task_id: string;
+  /** Type of issue: 'ghost' (DB record with no file) or 'orphan' (file with no DB record). */
   issue_type: string;
+  /** The file path associated with the issue. */
   path: string;
+  /** The parent directory of the file, useful for grouping. */
   directory?: AuditIssueDirectory;
+  /** The DB image ID if applicable (e.g., for ghost records). */
   image_id?: AuditIssueImageId;
+  /** The DB set ID if applicable. */
   set_id?: AuditIssueSetId;
+  /** The expected perceptual hash if known. */
   expected_phash?: AuditIssueExpectedPhash;
+  /** The actual perceptual hash calculated during the scan. */
   found_phash?: AuditIssueFoundPhash;
+  /** ID of a related issue if they are paired (e.g., a moved file). */
   match_issue_id?: AuditIssueMatchIssueId;
+  /** Resolution status: 'pending', 'resolved', 'ignored'. */
   status?: string;
+  /** Unique identifier for the audit issue. */
   id: number;
+  /** When the issue was discovered. */
   created_at: string;
+  /** Title of the associated set for UI display. */
   set_title?: AuditIssueSetTitle;
+  /** Name of the associated creator for UI display. */
   creator_name?: AuditIssueCreatorName;
 }

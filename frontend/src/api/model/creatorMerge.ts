@@ -6,6 +6,8 @@
  */
 
 export interface CreatorMerge {
+  /** List of duplicate creator IDs that will be merged into the target and then deleted. */
   source_ids: number[];
+  /** The ID of the primary creator that will absorb the source creators. */
   target_id: number;
 }

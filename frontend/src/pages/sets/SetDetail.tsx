@@ -13,7 +13,7 @@ import {
 import { 
     IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
     IconExternalLink, IconFolder, IconTag, IconLock, IconLockOpen, IconRefresh, IconCheck, IconX,
-    IconSettings, IconPhotoEdit
+    IconSettings, IconPhotoEdit, IconArrowRight
 } from '@tabler/icons-react';
 import { 
     useReadSetApiSetsSetIdGet, 
@@ -29,6 +29,7 @@ import { ImageGridItem } from '../../components/images/ImageGridItem';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { ImageBulkEditModal } from '../../components/images/ImageBulkEditModal';
+import { ImageMoveModal } from '../../components/images/ImageMoveModal';
 import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
 import type { Image as ImageModel, BulkOperationMode } from '../../api/model';
 
@@ -53,6 +54,7 @@ export default function SetDetail() {
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectedImageIds, setSelectedImageIds] = useState<Set<number>>(new Set());
     const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+    const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
     
     const [editForm, setEditForm] = useState({
         title: '',
@@ -224,6 +226,11 @@ export default function SetDetail() {
         }
     };
 
+    const handleMoveSuccess = () => {
+        clearSelection();
+        refetch();
+    };
+
     const creatorNames = set.creators?.map(c => c.canonical_name).join(' & ') || 'Unknown Creator';
 
     return (
@@ -384,15 +391,27 @@ export default function SetDetail() {
                                 </Text>
                             </Group>
 
-                            <Button
-                                size="xs"
-                                variant="filled"
-                                leftSection={<IconPhotoEdit size={14} />}
-                                radius="xl"
-                                onClick={() => setIsBulkEditOpen(true)}
-                            >
-                                Bulk Edit Images
-                            </Button>                        </Group>
+                            <Group gap="xs">
+                                <Button
+                                    size="xs"
+                                    variant="light"
+                                    leftSection={<IconArrowRight size={14} />}
+                                    radius="xl"
+                                    onClick={() => setIsMoveModalOpen(true)}
+                                >
+                                    Move to Set
+                                </Button>
+                                <Button
+                                    size="xs"
+                                    variant="filled"
+                                    leftSection={<IconPhotoEdit size={14} />}
+                                    radius="xl"
+                                    onClick={() => setIsBulkEditOpen(true)}
+                                >
+                                    Bulk Edit
+                                </Button>
+                            </Group>
+                        </Group>
                     </Paper>
                 )}
             </Transition>
@@ -495,6 +514,14 @@ export default function SetDetail() {
                 onConfirm={handleBulkEditConfirm}
                 loading={bulkUpdateMutation.isPending}
                 selectedCount={selectedImageIds.size}
+            />
+
+            {/* Image Move Modal */}
+            <ImageMoveModal 
+                opened={isMoveModalOpen}
+                onClose={() => setIsMoveModalOpen(false)}
+                selectedImageIds={Array.from(selectedImageIds)}
+                onSuccess={handleMoveSuccess}
             />
 
             <style dangerouslySetInnerHTML={{ __html: `

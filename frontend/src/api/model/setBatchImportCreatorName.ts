@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Explicit creator name to assign. If null, attempts to extract from path.
+ */
 export type SetBatchImportCreatorName = string | null;

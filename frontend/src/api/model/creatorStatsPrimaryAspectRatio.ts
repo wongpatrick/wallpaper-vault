@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * The most common aspect ratio among this creator's images.
+ */
 export type CreatorStatsPrimaryAspectRatio = string | null;

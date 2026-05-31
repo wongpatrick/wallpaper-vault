@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * User-provided notes or description for the image.
+ */
 export type ImageUpdateNotes = string | null;

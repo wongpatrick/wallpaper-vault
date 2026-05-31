@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Hex code of the image's dominant color extracted during import.
+ */
 export type ImageCreateDominantColor = string | null;

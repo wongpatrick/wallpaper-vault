@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Human-readable aspect ratio label.
+ */
 export type ImageUpdateAspectRatioLabel = string | null;

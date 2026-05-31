@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Comma-separated string of descriptive tags.
+ */
 export type ImageWithContextTags = string | null;

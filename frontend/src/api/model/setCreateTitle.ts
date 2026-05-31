@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * The display title of the set.
+ */
 export type SetCreateTitle = string | null;

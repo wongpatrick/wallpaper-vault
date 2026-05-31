@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Comma-separated descriptive tags for the set.
+ */
 export type SetUpdateTags = string | null;

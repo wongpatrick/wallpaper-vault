@@ -7,8 +7,12 @@
 import type { ImageWithContext } from './imageWithContext';
 
 export interface ImagePage {
+  /** Paginated list of images. */
   items: ImageWithContext[];
+  /** Total number of images matching the query. */
   total: number;
+  /** Number of items skipped. */
   skip: number;
+  /** Maximum number of items returned. */
   limit: number;
 }

@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.crud import image as crud_image
-from app.schemas.image import Image, ImageUpdate, ImageCreate, ImageBulkUpdate, DuplicateGroup, DuplicateResolutionRequest, ImageWithContext, ImagePage
+from app.schemas.image import Image, ImageUpdate, ImageCreate, ImageBulkUpdate, ImageBulkMove, DuplicateGroup, DuplicateResolutionRequest, ImageWithContext, ImagePage
 from app.models.image import Image as ImageModel
 from pathlib import Path
 import structlog
@@ -59,6 +59,18 @@ async def bulk_update_images(
     """
     count = await crud_image.bulk_update_images(db=db, bulk_in=bulk_in)
     logger.info("Bulk updated images", count=count, mode=bulk_in.operation_mode)
+    return count
+
+@router.post("/bulk-move", response_model=int)
+async def bulk_move_images(
+    move_in: ImageBulkMove,
+    db: AsyncSession = Depends(get_db)
+) -> int:
+    """
+    Move multiple images to a different set.
+    """
+    count = await crud_image.bulk_move_images(db=db, move_in=move_in)
+    logger.info("Bulk moved images", count=count, target_set_id=move_in.target_set_id)
     return count
 
 @router.get("/", response_model=ImagePage)

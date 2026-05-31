@@ -17,22 +17,40 @@ import type { ImageWithContextDominantColor } from './imageWithContextDominantCo
 import type { ImageWithContextTags } from './imageWithContextTags';
 
 export interface ImageWithContext {
+  /** The original filename of the image. */
   filename: string;
+  /** The absolute local path to the image file on disk. */
   local_path: string;
+  /** Perceptual hash used to detect visually similar or duplicate images. */
   phash?: ImageWithContextPhash;
+  /** Image width in pixels. */
   width?: ImageWithContextWidth;
+  /** Image height in pixels. */
   height?: ImageWithContextHeight;
+  /** Image file size in bytes. */
   file_size?: ImageWithContextFileSize;
+  /** Calculated aspect ratio (width / height). */
   aspect_ratio?: ImageWithContextAspectRatio;
+  /** Human-readable aspect ratio label (e.g., '16:9', 'Ultrawide'). */
   aspect_ratio_label?: ImageWithContextAspectRatioLabel;
+  /** Display order within a set. Lower numbers appear first. */
   sort_order?: ImageWithContextSortOrder;
+  /** User-provided notes or description for the image. */
   notes?: ImageWithContextNotes;
+  /** Content rating (e.g., 'safe', 'questionable', 'explicit'). */
   rating?: ImageWithContextRating;
+  /** Hex code of the image's dominant color extracted during import. */
   dominant_color?: ImageWithContextDominantColor;
+  /** Comma-separated string of descriptive tags. */
   tags?: ImageWithContextTags;
+  /** Unique database identifier for the image. */
   id: number;
+  /** ID of the set this image belongs to. */
   set_id: number;
+  /** Timestamp when the image was added to the database. */
   date_added: string;
+  /** The title of the set this image belongs to. */
   set_title: string;
+  /** List of creator names associated with this image's set. */
   creator_names: string[];
 }

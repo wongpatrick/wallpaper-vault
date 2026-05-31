@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * The DB set ID if applicable.
+ */
 export type AuditIssueSetId = number | null;

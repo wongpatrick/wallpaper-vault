@@ -8,9 +8,14 @@ import type { CreatorStatsPrimaryAspectRatio } from './creatorStatsPrimaryAspect
 import type { CreatorStatsPreviewImageId } from './creatorStatsPreviewImageId';
 
 export interface CreatorStats {
+  /** Total number of sets associated with this creator. */
   total_sets?: number;
+  /** Total number of individual images across all sets for this creator. */
   total_images?: number;
+  /** Total combined file size of all images for this creator in bytes. */
   total_size_bytes?: number;
+  /** The most common aspect ratio among this creator's images. */
   primary_aspect_ratio?: CreatorStatsPrimaryAspectRatio;
+  /** ID of a representative image to use as the creator's avatar/cover. */
   preview_image_id?: CreatorStatsPreviewImageId;
 }

@@ -6,6 +6,8 @@
  */
 
 export interface AuditFixAction {
+  /** List of issue IDs to apply the fix to. */
   issue_ids: number[];
+  /** The resolution action: 'purge', 'import', 'repair', 'delete_file', 'ignore'. */
   action: string;
 }

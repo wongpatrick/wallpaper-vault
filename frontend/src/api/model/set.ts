@@ -14,14 +14,24 @@ import type { Creator } from './creator';
 import type { Image } from './image';
 
 export interface Set {
+  /** The display title of the set. */
   title?: SetTitle;
+  /** Original URL where the set was downloaded from. */
   source_url?: SetSourceUrl;
+  /** Local filesystem path where the set's files reside. */
   local_path?: SetLocalPath;
+  /** Perceptual hash representative of the set (usually the cover image). */
   phash?: SetPhash;
+  /** User-provided notes or context for the set. */
   notes?: SetNotes;
+  /** Comma-separated descriptive tags for the set. */
   tags?: SetTags;
+  /** Unique database identifier for the set. */
   id: number;
+  /** Timestamp when the set was added to the vault. */
   date_added: string;
+  /** List of creators associated with this set. */
   creators?: Creator[];
+  /** List of images contained in this set. */
   images?: Image[];
 }

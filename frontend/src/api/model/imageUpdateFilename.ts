@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * The original filename of the image.
+ */
 export type ImageUpdateFilename = string | null;
