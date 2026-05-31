@@ -5,11 +5,11 @@
  */
 import { Modal, Stack, MultiSelect, Button, Group, SegmentedControl, Text } from '@mantine/core';
 import { useState } from 'react';
-import { useReadCreatorsApiCreatorsGet } from '../../../api/generated/creators/creators';
-import type { SetUpdate, BulkOperationMode } from '../../../api/model';
-import { TagAutocompleteInput } from '../../../components/ui/TagAutocompleteInput';
+import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
+import type { SetUpdate, BulkOperationMode } from '../../api/model';
+import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
 
-interface BulkEditModalProps {
+interface SetBulkEditModalProps {
     opened: boolean;
     onClose: () => void;
     type: 'artist' | 'tags' | 'delete';
@@ -18,7 +18,7 @@ interface BulkEditModalProps {
     loading?: boolean;
 }
 
-export function BulkEditModal({ opened, onClose, type, selectedCount, onConfirm, loading }: BulkEditModalProps) {
+export function SetBulkEditModal({ opened, onClose, type, selectedCount, onConfirm, loading }: SetBulkEditModalProps) {
     const [mode, setMode] = useState<'append' | 'replace' | 'remove'>('append');
     const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
     const [tags, setTags] = useState<string[]>([]);

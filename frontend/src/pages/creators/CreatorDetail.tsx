@@ -20,11 +20,12 @@ import {
     useMergeCreatorsApiCreatorsMergePost
 } from '../../api/generated/creators/creators';
 import { notifications } from '@mantine/notifications';
-import { SetCard } from '../sets/components/SetCard';
-import { CreatorAvatar } from './components/CreatorAvatar';
+import { SetCard } from '../../components/sets/SetCard';
+import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
 import { useState, useMemo } from 'react';
 import { formatBytes } from '../../utils/fileUtils';
 import type { Set, CreatorWithSets } from '../../api/model';
+import { CREATOR_TYPES } from '../../types/enums';
 
 const HTTP_STATUS_CONFLICT = 409;
 
@@ -112,7 +113,7 @@ export default function CreatorDetail() {
                 return;
             }
 
-            const message = typeof detail === 'string' ? detail : (detail?.message || 'Could not update creator');
+            const message = typeof detail === 'string' ? detail : ((detail?.message as string) || 'Could not update creator');
             notifications.show({ title: 'Error', message, color: 'red' });
         }
     };
@@ -246,7 +247,7 @@ export default function CreatorDetail() {
                     />
                     <Select 
                         label="Creator Type"
-                        data={['Artist', 'AI Generated', 'Studio', 'Photography', 'Unknown']}
+                        data={CREATOR_TYPES as unknown as string[]}
                         value={editForm.type}
                         onChange={(v) => setEditForm({ ...editForm, type: v || '' })}
                     />

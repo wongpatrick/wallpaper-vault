@@ -25,10 +25,10 @@ import { useBulkUpdateImagesApiImagesBulkUpdatePost } from '../../api/generated/
 import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
-import { ImageGridItem } from './components/ImageGridItem';
-import { Lightbox } from './components/Lightbox';
-import { ImageEditModal } from './components/ImageEditModal';
-import { ImageBulkEditModal } from './components/ImageBulkEditModal';
+import { ImageGridItem } from '../../components/images/ImageGridItem';
+import { ImageLightbox } from '../../components/images/ImageLightbox';
+import { ImageEditModal } from '../../components/images/ImageEditModal';
+import { ImageBulkEditModal } from '../../components/images/ImageBulkEditModal';
 import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
 import type { Image as ImageModel, BulkOperationMode } from '../../api/model';
 
@@ -397,8 +397,8 @@ export default function SetDetail() {
                 )}
             </Transition>
 
-            {/* Lightbox Modal */}
-            <Lightbox 
+            {/* ImageLightbox Modal */}
+            <ImageLightbox 
                 images={set.images || []}
                 selectedIndex={selectedImageIndex}
                 onClose={() => setSelectedImageIndex(null)}

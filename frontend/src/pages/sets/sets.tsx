@@ -7,9 +7,10 @@ import { Title, Text, Container, SimpleGrid, Loader, Center, Alert, Stack, TextI
 import { IconAlertCircle, IconSearch, IconFilter, IconCheck, IconX, IconTrash, IconTag, IconUserEdit, IconGitMerge } from '@tabler/icons-react';
 import { useReadSetsApiSetsGet, useDeleteSetApiSetsSetIdDelete, useBulkUpdateSetsApiSetsBulkUpdatePost, useBulkDeleteSetsApiSetsBulkDeletePost, useMergeSetsApiSetsMergePost } from '../../api/generated/sets/sets';
 import { notifications } from '@mantine/notifications';
-import { SetCard } from './components/SetCard';
-import { BulkEditModal } from './components/BulkEditModal';
-import { MergeSetsModal } from './components/MergeSetsModal';
+import { SetCard } from '../../components/sets/SetCard';
+import { SetBulkEditModal } from '../../components/sets/SetBulkEditModal';
+import { CREATOR_TYPES } from '../../types/enums';
+import { MergeSetsModal } from '../../components/sets/MergeSetsModal';
 import { useState, useEffect } from 'react';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useSearchParams } from 'react-router-dom';
@@ -239,7 +240,7 @@ export default function Sets() {
                     label="Artist type"
                     placeholder="All types"
                     leftSection={<IconFilter size={16} />}
-                    data={['Artist', 'AI Generated', 'Studio', 'Photography']}
+                    data={CREATOR_TYPES as unknown as string[]}
                     clearable
                     value={typeFilter}
                     onChange={handleTypeChange}
@@ -384,7 +385,7 @@ export default function Sets() {
             </Transition>
 
             {/* Bulk Edit Modal */}
-            <BulkEditModal 
+            <SetBulkEditModal 
                 key={modalType || 'none'}
                 opened={modalType !== null}
                 onClose={() => setModalType(null)}

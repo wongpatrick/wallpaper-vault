@@ -7,10 +7,11 @@ import { Title, Text, Container, Table, Group, Loader, Center, Alert, ActionIcon
 import { IconAlertCircle, IconChevronRight, IconSearch, IconFilter, IconGitMerge, IconPlus } from '@tabler/icons-react';
 import { useReadCreatorsApiCreatorsGet, useMergeCreatorsApiCreatorsMergePost } from '../../api/generated/creators/creators';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { CREATOR_TYPES } from '../../types/enums';
 import { useState, useMemo, useEffect } from 'react';
 import { notifications } from '@mantine/notifications';
-import { CreatorAvatar } from './components/CreatorAvatar';
-import { CreatorCreateForm } from './components/CreatorCreateForm';
+import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
+import { CreatorCreateForm } from '../../components/creators/CreatorCreateForm';
 import { useDebouncedValue } from '@mantine/hooks';
 
 const PAGE_SIZE = 12;
@@ -194,7 +195,7 @@ export default function Creators() {
                     label="Filter by type"
                     placeholder="All types"
                     leftSection={<IconFilter size={16} />}
-                    data={['Artist', 'AI Generated', 'Studio', 'Photography']}
+                    data={CREATOR_TYPES as unknown as string[]}
                     clearable
                     value={typeFilter}
                     onChange={handleTypeChange}

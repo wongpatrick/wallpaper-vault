@@ -6,9 +6,9 @@
 import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Box, SimpleGrid, SegmentedControl } from '@mantine/core';
 import { IconAlertCircle, IconSearch } from '@tabler/icons-react';
 import { useReadImagesApiImagesGet } from '../../api/generated/images/images';
-import { ImageGridItem } from '../sets/components/ImageGridItem';
-import { Lightbox } from '../sets/components/Lightbox';
-import { ImageEditModal } from '../sets/components/ImageEditModal';
+import { ImageGridItem } from '../../components/images/ImageGridItem';
+import { ImageLightbox } from '../../components/images/ImageLightbox';
+import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDebouncedValue, useIntersection, useViewportSize } from '@mantine/hooks';
 import { useSearchParams } from 'react-router-dom';
@@ -242,7 +242,7 @@ export default function Images() {
             </Box>
 
             {/* View Image */}
-            <Lightbox
+            <ImageLightbox
                 images={allImages}
                 selectedIndex={selectedImageIndex}
                 onClose={() => setSelectedImageIndex(null)}

@@ -7,8 +7,8 @@ import { Card, Image, Group, Stack, Text, Menu, ActionIcon, Badge, rem, Checkbox
 import { IconDotsVertical, IconExternalLink, IconFolder, IconTrash } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
-import { getThumbnailUrl, FALLBACK_IMAGE } from '../../../utils/fileUtils';
-import type { Set } from '../../../api/model';
+import { getThumbnailUrl, FALLBACK_IMAGE } from '../../utils/fileUtils';
+import type { Set } from '../../api/model';
 
 interface SetCardProps {
     set: Set;
