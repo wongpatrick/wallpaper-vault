@@ -25,9 +25,10 @@ All API changes must start by updating the FastAPI endpoints and models in Pytho
 *   Always use **Pydantic V2** (`pydantic.Field`, `model_validate`, `model_dump`, etc.) in the backend.
 
 ### 4. No Magic Strings or Numbers
-Do not hardcode domain statuses, configurations, or repetitive literal values.
-*   **Backend**: Define them in `backend/app/core/enums.py` using `StrEnum` or `Enum`.
-*   **Frontend**: Define them in `frontend/src/types/enums.ts` using `as const` objects.
+Do not hardcode domain statuses, configurations, magic numbers, or repetitive literal values.
+*   **NEVER cheat the linter**. Do not use `// eslint-disable-next-line no-magic-numbers` or similar comments to bypass the rules. Always extract magic numbers into well-named constants.
+*   **Backend**: Define shared/global constants in `backend/app/core/enums.py` using `StrEnum` or `Enum`.
+*   **Frontend**: Define shared/global constants in `frontend/src/types/enums.ts` using `as const` objects.
 
 ## 🎨 Conventions
 
