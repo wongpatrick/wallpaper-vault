@@ -285,6 +285,12 @@ export default function Sets() {
                                             selectionMode={selectionMode}
                                             selected={selectedIds.has(set.id)}
                                             onToggleSelect={() => toggleSelect(set.id)}
+                                            onLongPress={() => {
+                                                if (!selectionMode) {
+                                                    setSelectionMode(true);
+                                                    setSelectedIds(new Set([set.id]));
+                                                }
+                                            }}
                                         />
                                     ))}
                                 </SimpleGrid>

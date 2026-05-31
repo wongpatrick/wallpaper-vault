@@ -408,6 +408,7 @@ async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) ->
         The updated target Set object, or None if the target was not found.
     """
     import shutil
+    import os
     from pathlib import Path
 
     # 1. Fetch target set
@@ -417,6 +418,13 @@ async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) ->
     
     target_path = Path(target_set.local_path) if target_set.local_path else None
     
+    # Ensure target path directory exists if it's set
+    if target_path and not target_path.exists():
+        try:
+            target_path.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            logger.error("Could not create target directory", path=str(target_path), error=str(e))
+    
     # 2. Iterate through source sets
     for sid in source_ids:
         if sid == target_id:
@@ -425,8 +433,19 @@ async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) ->
         source_set = await get_set(db, sid)
         if not source_set:
             continue
+            
+        # If target set has no physical path, adopt the path of the first source set that does
+        if not target_path and source_set.local_path:
+            target_path = Path(source_set.local_path)
+            target_set.local_path = str(target_path)
+            if not target_path.exists():
+                try:
+                    target_path.mkdir(parents=True, exist_ok=True)
+                except Exception as e:
+                    logger.error("Could not create adopted target directory", path=str(target_path), error=str(e))
         
         # Move images physically and update paths
+        failed_images = []
         if target_path:
             for img in source_set.images:
                 old_p = Path(img.local_path) if img.local_path else None
@@ -449,14 +468,18 @@ async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) ->
                         img.local_path = str(actual_new_p)
                     except Exception as e:
                         logger.error("Error moving image", path=str(old_p), error=str(e), exc_info=True)
+                        failed_images.append(img)
                 
                 # Case 2: File was already moved to target manually (or by partial merge)
                 elif new_p.exists():
                     img.local_path = str(new_p)
 
         # Re-associate images properly to avoid cascade-delete-orphan
-        images_to_move = list(source_set.images)
-        source_set.images = [] 
+        images_to_move = [img for img in source_set.images if img not in failed_images]
+        
+        # Remove successfully moved images from source_set
+        source_set.images = failed_images
+        
         for img in images_to_move:
             img.set_id = target_id
             target_set.images.append(img)
@@ -477,8 +500,19 @@ async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) ->
             target_set.notes = (target_set.notes or "") + "\n" + source_set.notes
             target_set.notes = target_set.notes.strip()
             
-        # Delete source set
-        await db.delete(source_set)
+        source_path = source_set.local_path
+            
+        # Delete source set from DB ONLY if all images were successfully moved
+        if not failed_images:
+            await db.delete(source_set)
+            
+            # Try to delete the physical source directory if it's now empty
+            if source_path and target_path and str(Path(source_path)) != str(target_path):
+                try:
+                    os.rmdir(source_path)
+                except OSError:
+                    # Directory not empty or permissions error; perfectly fine to leave it.
+                    pass
         
     await db.commit()
     await db.refresh(target_set)
@@ -576,6 +610,11 @@ async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
         missing_records = [g for g in missing_records if g not in recovered_records]
 
     # 5. Finalize - Add New
+    from app.core.enums import ImageRating
+    
+    # User requested that all new files default to QUESTIONABLE to enforce manual verification
+    default_rating = ImageRating.QUESTIONABLE
+
     for path_str in untracked_paths:
         p = Path(path_str)
         ph = calculate_phash(p)
@@ -583,7 +622,8 @@ async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
             set_id=set_id,
             filename=p.name,
             local_path=path_str,
-            phash=ph
+            phash=ph,
+            rating=default_rating
         )
         db.add(new_img)
         
