@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from unittest.mock import patch
 
 @pytest.mark.asyncio
 async def test_audit_start_no_path(client: AsyncClient):
@@ -14,7 +15,8 @@ async def test_audit_start_no_path(client: AsyncClient):
     assert "not configured" in response.text
 
 @pytest.mark.asyncio
-async def test_audit_start_and_status(client: AsyncClient):
+@patch("app.api.audit.audit_service.run_library_audit")
+async def test_audit_start_and_status(mock_run, client: AsyncClient):
     """
     Test starting an audit and checking its status.
     """

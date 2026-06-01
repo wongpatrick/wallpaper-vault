@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from unittest.mock import patch
 import tempfile
 from pathlib import Path
 import cv2
@@ -44,7 +45,8 @@ async def test_batch_import_dry_run(client: AsyncClient, mock_import_dir: Path):
     assert item["set_title"] == "Awesome Set"
 
 @pytest.mark.asyncio
-async def test_batch_import_background_task(client: AsyncClient, mock_import_dir: Path):
+@patch("app.api.sets.crud_set.run_batch_import_background")
+async def test_batch_import_background_task(mock_run, client: AsyncClient, mock_import_dir: Path):
     """Test that executing a batch import spawns a task."""
     
     # Requires base library path
