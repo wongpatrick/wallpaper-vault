@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 import tempfile
 from pathlib import Path
 import cv2
@@ -10,7 +11,6 @@ def temp_vault():
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
 
-from sqlalchemy.ext.asyncio import AsyncSession
 
 @pytest.mark.asyncio
 async def test_audit_create_and_import(client: AsyncClient, temp_vault: Path, db_session: AsyncSession):

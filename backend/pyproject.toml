@@ -27,3 +27,6 @@ dev = [
 [tool.ruff.lint]
 select = ["E", "F", "D100", "PLR2004"]
 ignore = ["D104", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["D100", "PLR2004"]
