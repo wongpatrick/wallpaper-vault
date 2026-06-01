@@ -24,3 +24,6 @@ jobs:
           
       - name: Run Ruff
         run: uv run ruff check .
+
+      - name: Run Pytest
+        run: uv run pytest --cov=app tests/
