@@ -15,7 +15,7 @@ from app.models.image import Image
 from app.models.set import Set
 from app.crud.settings import get_setting
 from app.core import tasks
-from app.core.enums import TaskStatus, AuditIssueStatus, AuditIssueType
+from app.core.enums import TaskStatus, AuditIssueStatus, AuditIssueType, ImageRating
 from app.services import audit_service
 import structlog
 import cv2
@@ -167,7 +167,8 @@ async def resolve_audit_issues(
                         width=w, height=h,
                         file_size=p.stat().st_size,
                         aspect_ratio=float(w)/float(h) if h != 0 else 0,
-                        phash=phash
+                        phash=phash,
+                        rating=ImageRating.QUESTIONABLE
                     )
                     db.add(new_img)
                     issue.status = AuditIssueStatus.RESOLVED
@@ -222,7 +223,8 @@ async def resolve_audit_issues(
                         width=w, height=h,
                         file_size=p.stat().st_size,
                         aspect_ratio=float(w)/float(h) if h != 0 else 0,
-                        phash=phash
+                        phash=phash,
+                        rating=ImageRating.QUESTIONABLE
                     )
                     db.add(new_img)
                     issue.status = AuditIssueStatus.RESOLVED
