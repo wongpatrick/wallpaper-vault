@@ -1,3 +1,8 @@
+/**
+ * @file
+ * Module: Floating Selection Bar
+ * Description: Reusable component to show a floating bar for bulk actions when items are selected.
+ */
 import { Paper, Group, ActionIcon, Text, Transition } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
@@ -11,13 +16,15 @@ interface FloatingSelectionBarProps {
     minWidth?: number | string;
 }
 
+const DEFAULT_MIN_WIDTH = 400;
+
 export function FloatingSelectionBar({ 
     mounted,
     selectedCount, 
     onClear, 
     children, 
     itemLabel = "items",
-    minWidth = 400 
+    minWidth = DEFAULT_MIN_WIDTH 
 }: FloatingSelectionBarProps) {
     return (
         <Transition mounted={mounted} transition="slide-up" duration={400} timingFunction="ease">
