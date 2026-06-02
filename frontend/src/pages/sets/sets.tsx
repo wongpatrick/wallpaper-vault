@@ -3,7 +3,7 @@
  * Module: Sets Directory Page
  * Description: Lists all wallpaper sets with search, filtering, pagination, and bulk management capabilities.
  */
-import { Title, Text, Container, SimpleGrid, Loader, Center, Alert, Stack, TextInput, Group, Select, Pagination, Box, Overlay, Button } from '@mantine/core';
+import { Title, Text, Container, SimpleGrid, Loader, Center, Alert, Stack, TextInput, Group, Select, Box, Overlay, Button } from '@mantine/core';
 import { IconAlertCircle, IconSearch, IconFilter, IconCheck, IconTrash, IconTag, IconUserEdit, IconGitMerge } from '@tabler/icons-react';
 import { useReadSetsApiSetsGet, useDeleteSetApiSetsSetIdDelete, useBulkUpdateSetsApiSetsBulkUpdatePost, useBulkDeleteSetsApiSetsBulkDeletePost, useMergeSetsApiSetsMergePost } from '../../api/generated/sets/sets';
 import { notifications } from '@mantine/notifications';
@@ -16,6 +16,7 @@ import { useState, useEffect } from 'react';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useSearchParams } from 'react-router-dom';
 import type { SetUpdate, BulkOperationMode } from '../../api/model';
+import { PaginationWithSkip } from '../../components/ui/PaginationWithSkip';
 
 const PAGE_SIZE = 12;
 const SEARCH_DEBOUNCE_MS = 500;
@@ -310,7 +311,7 @@ export default function Sets() {
 
             {totalPages > 1 && (
                 <Center mt="xl" pb="xl">
-                    <Pagination total={totalPages} value={page} onChange={setPage} withEdges />
+                    <PaginationWithSkip total={totalPages} value={page} onChange={setPage} withEdges />
                 </Center>
             )}
 

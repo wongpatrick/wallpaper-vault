@@ -17,7 +17,6 @@ import {
     Paper,
     Title,
     Progress,
-    Pagination,
     Select,
     Center,
     ScrollArea
@@ -41,6 +40,7 @@ import {
 } from '../../api/generated/audit/audit';
 import type { AuditIssue } from '../../api/model';
 import { API_BASE_URL } from '../../config';
+import { PaginationWithSkip } from '../ui/PaginationWithSkip';
 
 const ITEM_HEIGHT_PX = 35;
 const MAX_SCROLL_HEIGHT_PX = 150;
@@ -369,7 +369,7 @@ export function LibraryAudit() {
 
                     {results && results.total > 20 && (
                         <Group justify="center" mt="md">
-                            <Pagination 
+                            <PaginationWithSkip 
                                 total={Math.ceil(results.total / 20)} 
                                 value={page} 
                                 onChange={setPage} 
