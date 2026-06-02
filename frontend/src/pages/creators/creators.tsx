@@ -3,7 +3,7 @@
  * Module: Creators Directory Page
  * Description: Lists all artists and creators in the system with search, filtering, pagination, and bulk merge capabilities.
  */
-import { Title, Text, Container, Table, Group, Loader, Center, Alert, ActionIcon, TextInput, Select, Stack, Button, Modal, Pagination, Overlay, Box, MultiSelect } from '@mantine/core';
+import { Title, Text, Container, Table, Group, Loader, Center, Alert, ActionIcon, TextInput, Select, Stack, Button, Modal, Overlay, Box, MultiSelect } from '@mantine/core';
 import { IconAlertCircle, IconChevronRight, IconSearch, IconFilter, IconGitMerge, IconPlus } from '@tabler/icons-react';
 import { useReadCreatorsApiCreatorsGet, useMergeCreatorsApiCreatorsMergePost } from '../../api/generated/creators/creators';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -13,6 +13,7 @@ import { notifications } from '@mantine/notifications';
 import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
 import { CreatorCreateForm } from '../../components/creators/CreatorCreateForm';
 import { useDebouncedValue } from '@mantine/hooks';
+import { PaginationWithSkip } from '../../components/ui/PaginationWithSkip';
 
 const PAGE_SIZE = 12;
 const SEARCH_DEBOUNCE_MS = 500;
@@ -251,7 +252,7 @@ export default function Creators() {
 
             {totalPages > 1 && (
                 <Center mt="xl" pb="xl">
-                    <Pagination total={totalPages} value={page} onChange={setPage} withEdges />
+                    <PaginationWithSkip total={totalPages} value={page} onChange={setPage} withEdges />
                 </Center>
             )}
 
