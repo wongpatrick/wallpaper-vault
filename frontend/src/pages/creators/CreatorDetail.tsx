@@ -7,12 +7,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
     Title, Text, Container, SimpleGrid, Group, Badge, Loader, 
     Center, Alert, Stack, ActionIcon, Menu, Button, Card, 
-    TextInput, Select, Textarea, Modal, Paper, Transition
+    TextInput, Select, Textarea, Modal, Paper
 } from '@mantine/core';
 import { 
     IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
     IconEdit, IconDatabase, IconPhoto, IconLayersIntersect, IconAspectRatio,
-    IconCheck, IconX, IconTag, IconUserEdit, IconGitMerge
+    IconCheck, IconTag, IconUserEdit, IconGitMerge
 } from '@tabler/icons-react';
 import { 
     useReadCreatorApiCreatorsCreatorIdGet, 
@@ -26,6 +26,7 @@ import { SetCard } from '../../components/sets/SetCard';
 import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
 import { SetBulkEditModal } from '../../components/sets/SetBulkEditModal';
 import { MergeSetsModal } from '../../components/sets/MergeSetsModal';
+import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
 import { useState, useMemo } from 'react';
 import { formatBytes } from '../../utils/fileUtils';
 import type { Set, CreatorWithSets, SetUpdate, BulkOperationMode } from '../../api/model';
@@ -370,62 +371,35 @@ export default function CreatorDetail() {
             </Modal>
 
             {/* Floating Bulk Action Bar */}
-            <Transition mounted={selectionMode && selectedIds.size > 0} transition="slide-up" duration={400} timingFunction="ease">
-                {(styles) => (
-                    <Paper 
-                        shadow="xl" 
-                        p="md" 
-                        withBorder 
-                        style={{ 
-                            ...styles,
-                            position: 'fixed', 
-                            bottom: 20, 
-                            left: '50%', 
-                            transform: 'translateX(-50%)',
-                            zIndex: 100,
-                            borderRadius: 100,
-                            backgroundColor: 'var(--mantine-color-body)',
-                            width: 'auto',
-                            minWidth: 400
-                        }}
+            <FloatingSelectionBar 
+                mounted={selectionMode && selectedIds.size > 0} 
+                selectedCount={selectedIds.size} 
+                onClear={clearSelection}
+                itemLabel="items"
+                minWidth={400}
+            >
+                {selectedIds.size >= 2 && (
+                    <Button 
+                        size="xs" 
+                        variant="light" 
+                        color="green"
+                        leftSection={<IconGitMerge size={14} />} 
+                        radius="xl"
+                        onClick={() => setIsMergeSetsModalOpen(true)}
                     >
-                        <Group justify="space-between" wrap="nowrap">
-                            <Group gap="sm">
-                                <ActionIcon variant="subtle" color="gray" onClick={clearSelection} radius="xl">
-                                    <IconX size={18} />
-                                </ActionIcon>
-                                <Text fw={600} size="sm">
-                                    {selectedIds.size} items selected
-                                </Text>
-                            </Group>
-
-                            <Group gap="xs">
-                                {selectedIds.size >= 2 && (
-                                    <Button 
-                                        size="xs" 
-                                        variant="light" 
-                                        color="green"
-                                        leftSection={<IconGitMerge size={14} />} 
-                                        radius="xl"
-                                        onClick={() => setIsMergeSetsModalOpen(true)}
-                                    >
-                                        Merge
-                                    </Button>
-                                )}
-                                <Button size="xs" variant="light" leftSection={<IconUserEdit size={14} />} radius="xl" onClick={() => setModalType('artist')}>
-                                    Artist
-                                </Button>
-                                <Button size="xs" variant="light" leftSection={<IconTag size={14} />} radius="xl" onClick={() => setModalType('tags')}>
-                                    Tags
-                                </Button>
-                                <Button size="xs" variant="light" color="red" leftSection={<IconTrash size={14} />} radius="xl" onClick={() => setModalType('delete')}>
-                                    Delete
-                                </Button>
-                            </Group>
-                        </Group>
-                    </Paper>
+                        Merge
+                    </Button>
                 )}
-            </Transition>
+                <Button size="xs" variant="light" leftSection={<IconUserEdit size={14} />} radius="xl" onClick={() => setModalType('artist')}>
+                    Artist
+                </Button>
+                <Button size="xs" variant="light" leftSection={<IconTag size={14} />} radius="xl" onClick={() => setModalType('tags')}>
+                    Tags
+                </Button>
+                <Button size="xs" variant="light" color="red" leftSection={<IconTrash size={14} />} radius="xl" onClick={() => setModalType('delete')}>
+                    Delete
+                </Button>
+            </FloatingSelectionBar>
 
             {/* Bulk Edit Modal */}
             <SetBulkEditModal 

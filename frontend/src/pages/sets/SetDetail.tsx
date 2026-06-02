@@ -8,11 +8,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
     Title, Text, Container, Group, Badge, Loader, 
     Center, Alert, Stack, ActionIcon, Menu, Button, Modal,
-    TextInput, Textarea, MultiSelect, Box, Switch, Transition, Paper
+    TextInput, Textarea, MultiSelect, Box, Switch
 } from '@mantine/core';
 import { 
     IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
-    IconExternalLink, IconFolder, IconTag, IconLock, IconLockOpen, IconRefresh, IconCheck, IconX,
+    IconExternalLink, IconFolder, IconTag, IconLock, IconLockOpen, IconRefresh, IconCheck,
     IconSettings, IconPhotoEdit, IconArrowRight
 } from '@tabler/icons-react';
 import { 
@@ -31,6 +31,7 @@ import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { ImageBulkEditModal } from '../../components/images/ImageBulkEditModal';
 import { ImageMoveModal } from '../../components/images/ImageMoveModal';
 import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
+import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
 import type { Image as ImageModel, BulkOperationMode } from '../../api/model';
 
 export default function SetDetail() {
@@ -362,59 +363,32 @@ export default function SetDetail() {
             </Box>
 
             {/* Floating Bulk Action Bar */}
-            <Transition mounted={selectionMode && selectedImageIds.size > 0} transition="slide-up" duration={400} timingFunction="ease">
-                {(styles) => (
-                    <Paper 
-                        shadow="xl" 
-                        p="md" 
-                        withBorder 
-                        style={{ 
-                            ...styles,
-                            position: 'fixed', 
-                            bottom: 20, 
-                            left: '50%', 
-                            transform: 'translateX(-50%)',
-                            zIndex: 100,
-                            borderRadius: 100,
-                            backgroundColor: 'var(--mantine-color-body)',
-                            width: 'auto',
-                            minWidth: 300
-                        }}
-                    >
-                        <Group justify="space-between" wrap="nowrap" gap="xl">
-                            <Group gap="sm">
-                                <ActionIcon variant="subtle" color="gray" onClick={clearSelection} radius="xl">
-                                    <IconX size={18} />
-                                </ActionIcon>
-                                <Text fw={600} size="sm">
-                                    {selectedImageIds.size} images selected
-                                </Text>
-                            </Group>
-
-                            <Group gap="xs">
-                                <Button
-                                    size="xs"
-                                    variant="light"
-                                    leftSection={<IconArrowRight size={14} />}
-                                    radius="xl"
-                                    onClick={() => setIsMoveModalOpen(true)}
-                                >
-                                    Move to Set
-                                </Button>
-                                <Button
-                                    size="xs"
-                                    variant="filled"
-                                    leftSection={<IconPhotoEdit size={14} />}
-                                    radius="xl"
-                                    onClick={() => setIsBulkEditOpen(true)}
-                                >
-                                    Bulk Edit
-                                </Button>
-                            </Group>
-                        </Group>
-                    </Paper>
-                )}
-            </Transition>
+            <FloatingSelectionBar
+                mounted={selectionMode && selectedImageIds.size > 0}
+                selectedCount={selectedImageIds.size}
+                onClear={clearSelection}
+                itemLabel="images"
+                minWidth={300}
+            >
+                <Button
+                    size="xs"
+                    variant="light"
+                    leftSection={<IconArrowRight size={14} />}
+                    radius="xl"
+                    onClick={() => setIsMoveModalOpen(true)}
+                >
+                    Move to Set
+                </Button>
+                <Button
+                    size="xs"
+                    variant="filled"
+                    leftSection={<IconPhotoEdit size={14} />}
+                    radius="xl"
+                    onClick={() => setIsBulkEditOpen(true)}
+                >
+                    Bulk Edit
+                </Button>
+            </FloatingSelectionBar>
 
             {/* ImageLightbox Modal */}
             <ImageLightbox 
