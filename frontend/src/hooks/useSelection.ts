@@ -1,3 +1,6 @@
+/**
+ * @file useSelection hook
+ */
 import { useState } from 'react';
 
 export function useSelection<T = number>() {

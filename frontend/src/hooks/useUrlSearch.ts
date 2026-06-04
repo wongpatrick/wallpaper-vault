@@ -1,8 +1,13 @@
+/**
+ * @file useUrlSearch hook
+ */
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useDebouncedValue } from '@mantine/hooks';
 
-export function useUrlSearch(debounceMs = 500) {
+const DEFAULT_DEBOUNCE_MS = 500;
+
+export function useUrlSearch(debounceMs = DEFAULT_DEBOUNCE_MS) {
     const [searchParams, setSearchParams] = useSearchParams();
     
     // URL State (Source of Truth for API)

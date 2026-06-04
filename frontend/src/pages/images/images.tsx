@@ -10,7 +10,7 @@ import { ImageGridItem } from '../../components/images/ImageGridItem';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useDebouncedValue, useIntersection, useViewportSize } from '@mantine/hooks';
+import { useIntersection, useViewportSize } from '@mantine/hooks';
 import { useSearchParams } from 'react-router-dom';
 import { useUrlSearch } from '../../hooks/useUrlSearch';
 import type { Image as ImageModel } from '../../api/model';
@@ -104,6 +104,7 @@ export default function Images() {
     // Accumulate results and handle updates
     useEffect(() => {
         if (pageData?.items) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setAllImages(prev => {
                 if (page === 1) {
                     return pageData.items!;

@@ -1,3 +1,6 @@
+/**
+ * @file useUrlPagination hook
+ */
 import { useSearchParams } from 'react-router-dom';
 
 export function useUrlPagination(pageSize: number) {
