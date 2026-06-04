@@ -99,6 +99,7 @@ export function ImageMoveModal({ opened, onClose, selectedImageIds, onSuccess }:
         <>
             <Modal 
                 opened={opened} 
+                trapFocus={!isCreateModalOpen}
                 onClose={() => {
                     setTargetSetId(null);
                     setSearchValue('');

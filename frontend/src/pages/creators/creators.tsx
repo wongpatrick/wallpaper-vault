@@ -8,11 +8,12 @@ import { IconAlertCircle, IconChevronRight, IconSearch, IconFilter, IconGitMerge
 import { useReadCreatorsApiCreatorsGet, useMergeCreatorsApiCreatorsMergePost } from '../../api/generated/creators/creators';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CREATOR_TYPES } from '../../types/enums';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { notifications } from '@mantine/notifications';
 import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
 import { CreatorCreateForm } from '../../components/creators/CreatorCreateForm';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useUrlSearch } from '../../hooks/useUrlSearch';
+import { useUrlPagination } from '../../hooks/useUrlPagination';
 import { PaginationWithSkip } from '../../components/ui/PaginationWithSkip';
 
 const PAGE_SIZE = 12;
@@ -21,15 +22,11 @@ const SEARCH_DEBOUNCE_MS = 500;
 export default function Creators() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
+    const { search, localSearch, setLocalSearch } = useUrlSearch(SEARCH_DEBOUNCE_MS);
+    const { page, setPage, totalPages: getTotalPages } = useUrlPagination(PAGE_SIZE);
     
     // URL State (Source of Truth for API)
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const search = searchParams.get('search') || '';
     const typeFilter = searchParams.get('type') || null;
-
-    // Local Search State (Immediate UI feedback)
-    const [localSearch, setLocalSearch] = useState(search);
-    const [debouncedLocalSearch] = useDebouncedValue(localSearch, SEARCH_DEBOUNCE_MS);
 
     // Modal/Action State
     const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
@@ -37,36 +34,8 @@ export default function Creators() {
     const [sourceCreatorIds, setSourceCreatorIds] = useState<string[]>([]);
     const [targetCreatorId, setTargetCreatorId] = useState<string | null>(null);
 
-    // Sync URL when local search is debounced
-    useEffect(() => {
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev);
-            const currentUrlSearch = next.get('search') || '';
-            
-            // Only update if the debounced local search actually differs from current URL
-            if (debouncedLocalSearch !== currentUrlSearch) {
-                if (!debouncedLocalSearch) next.delete('search');
-                else next.set('search', debouncedLocalSearch);
-                next.delete('page'); // Reset to page 1 on search change
-            }
-            return next;
-        }, { replace: true });
-    }, [debouncedLocalSearch, setSearchParams]);
-
-    // Sync local search when URL changes externally (e.g. Back button)
-    useEffect(() => {
-        setLocalSearch(search);
-    }, [search]);
-
     // Updaters
-    const setPage = (newPage: number) => {
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev);
-            if (newPage <= 1) next.delete('page');
-            else next.set('page', newPage.toString());
-            return next;
-        }, { replace: true });
-    };
+
 
     const handleSearchChange = (val: string) => {
         setLocalSearch(val);
@@ -102,7 +71,7 @@ export default function Creators() {
 
     const creators = pageData?.items || [];
     const totalCount = pageData?.total || 0;
-    const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+    const totalPages = getTotalPages(totalCount);
 
     const mergeMutation = useMergeCreatorsApiCreatorsMergePost();
 

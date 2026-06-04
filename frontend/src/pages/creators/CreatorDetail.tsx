@@ -4,6 +4,7 @@
  * Description: Displays detailed information about a specific creator, including their wallpaper sets, statistics, and provides functionality to edit or delete their profile.
  */
 import { useParams, useNavigate } from 'react-router-dom';
+import { useSelection } from '../../hooks/useSelection';
 import { 
     Title, Text, Container, SimpleGrid, Group, Badge, Loader, 
     Center, Alert, Stack, ActionIcon, Menu, Button, Card, 
@@ -29,7 +30,7 @@ import { MergeSetsModal } from '../../components/sets/MergeSetsModal';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
 import { useState, useMemo } from 'react';
 import { formatBytes } from '../../utils/fileUtils';
-import type { Set, CreatorWithSets, SetUpdate, BulkOperationMode } from '../../api/model';
+import type { Set as SetModel, CreatorWithSets, SetUpdate, BulkOperationMode } from '../../api/model';
 import { CREATOR_TYPES } from '../../types/enums';
 
 const HTTP_STATUS_CONFLICT = 409;
@@ -46,6 +47,7 @@ export default function CreatorDetail() {
     const deleteMutation = useDeleteCreatorApiCreatorsCreatorIdDelete();
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [editForm, setEditForm] = useState({
         canonical_name: '',
         type: '',
@@ -55,8 +57,7 @@ export default function CreatorDetail() {
     const mergeMutation = useMergeCreatorsApiCreatorsMergePost();
     const [mergePrompt, setMergePrompt] = useState<{ show: boolean, targetId: number | null }>({ show: false, targetId: null });
 
-    const [selectionMode, setSelectionMode] = useState(false);
-    const [selectedIds, setSelectedIds] = useState<globalThis.Set<number>>(new globalThis.Set());
+    const { selectionMode, setSelectionMode, selectedIds, toggle: toggleSelect, clear: clearSelection, startSelectionWith } = useSelection();
     const [modalType, setModalType] = useState<'artist' | 'tags' | 'delete' | null>(null);
     const [isMergeSetsModalOpen, setIsMergeSetsModalOpen] = useState(false);
 
@@ -64,18 +65,7 @@ export default function CreatorDetail() {
     const bulkDeleteSetsMutation = useBulkDeleteSetsApiSetsBulkDeletePost();
     const mergeSetsMutation = useMergeSetsApiSetsMergePost();
 
-    const toggleSelect = (id: number) => {
-        const next = new globalThis.Set(selectedIds);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        setSelectedIds(next);
-        if (next.size > 0) setSelectionMode(true);
-    };
 
-    const clearSelection = () => {
-        setSelectedIds(new globalThis.Set());
-        setSelectionMode(false);
-    };
 
     const handleBulkConfirm = async (data: SetUpdate, mode: BulkOperationMode) => {
         const ids = Array.from(selectedIds);
@@ -199,11 +189,11 @@ export default function CreatorDetail() {
         }
     };
 
-    const handleDelete = async () => {
-        if (!window.confirm('Are you sure? This will NOT delete their wallpapers, but they will be marked as "Unknown Creator".')) return;
+    const confirmDelete = async () => {
         try {
             await deleteMutation.mutateAsync({ creatorId: Number(creatorId) });
             notifications.show({ title: 'Creator deleted', message: 'Artist removed from database', color: 'blue' });
+            setIsDeleteModalOpen(false);
             navigate('/creators');
         } catch {
             notifications.show({ title: 'Error', message: 'Could not delete creator', color: 'red' });
@@ -247,7 +237,7 @@ export default function CreatorDetail() {
                             </Menu.Target>
                             <Menu.Dropdown>
                                 <Menu.Label>Management</Menu.Label>
-                                <Menu.Item leftSection={<IconTrash size={14} />} color="red" onClick={handleDelete}>
+                                <Menu.Item leftSection={<IconTrash size={14} />} color="red" onClick={() => setIsDeleteModalOpen(true)}>
                                     Delete Artist
                                 </Menu.Item>
                             </Menu.Dropdown>
@@ -296,7 +286,7 @@ export default function CreatorDetail() {
             
             {creator.sets && creator.sets.length > 0 ? (
                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
-                    {creator.sets.map((set: Set) => (
+                    {creator.sets.map((set: SetModel) => (
                         <SetCard 
                             key={set.id} 
                             set={set} 
@@ -306,8 +296,7 @@ export default function CreatorDetail() {
                             onToggleSelect={() => toggleSelect(set.id)}
                             onLongPress={() => {
                                 if (!selectionMode) {
-                                    setSelectionMode(true);
-                                    setSelectedIds(new globalThis.Set([set.id]));
+                                    startSelectionWith(set.id);
                                 }
                             }}
                         />
@@ -420,6 +409,27 @@ export default function CreatorDetail() {
                 onConfirm={handleMergeSetsConfirm}
                 loading={mergeSetsMutation.isPending}
             />
+
+            {/* Delete Confirmation Modal */}
+            <Modal
+                opened={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                title="Delete Artist"
+                radius="md"
+            >
+                <Stack gap="md">
+                    <Alert icon={<IconAlertCircle size="1rem" />} color="red" variant="light">
+                        Are you sure you want to delete this artist?
+                    </Alert>
+                    <Text size="sm" c="dimmed">
+                        This will NOT delete their wallpapers, but they will be marked as "Unknown Creator". This action cannot be undone.
+                    </Text>
+                    <Group grow>
+                        <Button variant="default" onClick={() => setIsDeleteModalOpen(false)}>Cancel</Button>
+                        <Button color="red" onClick={confirmDelete} loading={deleteMutation.isPending}>Delete</Button>
+                    </Group>
+                </Stack>
+            </Modal>
         </Container>
     );
 }

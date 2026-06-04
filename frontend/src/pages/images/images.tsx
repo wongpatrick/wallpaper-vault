@@ -10,8 +10,9 @@ import { ImageGridItem } from '../../components/images/ImageGridItem';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useDebouncedValue, useIntersection, useViewportSize } from '@mantine/hooks';
+import { useIntersection, useViewportSize } from '@mantine/hooks';
 import { useSearchParams } from 'react-router-dom';
+import { useUrlSearch } from '../../hooks/useUrlSearch';
 import type { Image as ImageModel } from '../../api/model';
 
 const PAGE_SIZE = 100;
@@ -22,35 +23,11 @@ const BREAKPOINT_LG = 1200;
 
 export default function Images() {
     const [searchParams, setSearchParams] = useSearchParams();
+    const { search, localSearch, setLocalSearch } = useUrlSearch(SEARCH_DEBOUNCE_MS);
 
     // URL State (Source of Truth for API)
-    const search = searchParams.get('search') || '';
     const ratingFilter = searchParams.get('rating') || 'all';
     const page = parseInt(searchParams.get('page') || '1', 10);
-
-    // Local Search State (Immediate UI feedback)
-    const [localSearch, setLocalSearch] = useState(search);
-    const [debouncedLocalSearch] = useDebouncedValue(localSearch, SEARCH_DEBOUNCE_MS);
-
-    // Sync URL when local search is debounced
-    useEffect(() => {
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev);
-            const currentUrlSearch = next.get('search') || '';
-            
-            if (debouncedLocalSearch !== currentUrlSearch) {
-                if (!debouncedLocalSearch) next.delete('search');
-                else next.set('search', debouncedLocalSearch);
-                next.delete('page'); // Reset to page 1
-            }
-            return next;
-        }, { replace: true });
-    }, [debouncedLocalSearch, setSearchParams]);
-
-    // Sync local search when URL changes (Back button)
-    useEffect(() => {
-        setLocalSearch(search);
-    }, [search]);
 
     // Accumulate all images for infinite scroll
     const [allImages, setAllImages] = useState<ImageModel[]>([]);
@@ -127,6 +104,7 @@ export default function Images() {
     // Accumulate results and handle updates
     useEffect(() => {
         if (pageData?.items) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setAllImages(prev => {
                 if (page === 1) {
                     return pageData.items!;

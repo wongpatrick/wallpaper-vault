@@ -5,6 +5,7 @@
  */
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useSelection } from '../../hooks/useSelection';
 import { 
     Title, Text, Container, Group, Badge, Loader, 
     Center, Alert, Stack, ActionIcon, Menu, Button, Modal,
@@ -52,8 +53,7 @@ export default function SetDetail() {
     const [editingImage, setEditingImage] = useState<ImageModel | null>(null);
 
     // Selection State
-    const [selectionMode, setSelectionMode] = useState(false);
-    const [selectedImageIds, setSelectedImageIds] = useState<Set<number>>(new Set());
+    const { selectionMode, setSelectionMode, selectedIds: selectedImageIds, toggle: toggleImageSelect, selectAll, clear: clearSelection } = useSelection();
     const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
     const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
     
@@ -177,27 +177,9 @@ export default function SetDetail() {
         }
     };
 
-    const toggleImageSelect = (id: number) => {
-        const next = new Set(selectedImageIds);
-        if (next.has(id)) {
-            next.delete(id);
-        } else {
-            next.add(id);
-        }
-        setSelectedImageIds(next);
-        if (next.size > 0) setSelectionMode(true);
-    };
-
     const handleSelectAll = () => {
         if (!set?.images) return;
-        const allIds = new Set(set.images.map(img => img.id));
-        setSelectedImageIds(allIds);
-        setSelectionMode(true);
-    };
-
-    const clearSelection = () => {
-        setSelectedImageIds(new Set());
-        setSelectionMode(false);
+        selectAll(set.images.map(img => img.id));
     };
 
     const handleBulkEditConfirm = async (data: Partial<{ rating: string; tags: string; notes: string }>, mode: BulkOperationMode) => {
