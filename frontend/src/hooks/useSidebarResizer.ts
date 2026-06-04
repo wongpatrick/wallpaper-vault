@@ -28,8 +28,8 @@ export function useSidebarResizer() {
     const stopResizing = useCallback(() => {
         setIsResizing(false);
         isResizingRef.current = false;
-        document.body.style.cursor = 'default';
-        document.body.style.userSelect = 'auto';
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
 
         // Snapping logic
         setWidth((prevWidth) => {

@@ -132,6 +132,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
             opened={selectedIndex !== null}
             onClose={onClose}
             fullScreen
+            trapFocus={false}
             padding={0}
             withCloseButton={false}
             styles={{

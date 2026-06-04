@@ -12,9 +12,11 @@ import { SetBulkEditModal } from '../../components/sets/SetBulkEditModal';
 import { CREATOR_TYPES } from '../../types/enums';
 import { MergeSetsModal } from '../../components/sets/MergeSetsModal';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
-import { useState, useEffect } from 'react';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useUrlSearch } from '../../hooks/useUrlSearch';
+import { useUrlPagination } from '../../hooks/useUrlPagination';
+import { useSelection } from '../../hooks/useSelection';
 import type { SetUpdate, BulkOperationMode } from '../../api/model';
 import { PaginationWithSkip } from '../../components/ui/PaginationWithSkip';
 
@@ -25,39 +27,14 @@ const PADDING_SELECTION_MODE_PX = 100;
 
 export default function Sets() {
     const [searchParams, setSearchParams] = useSearchParams();
+    const { search, localSearch, setLocalSearch } = useUrlSearch(SEARCH_DEBOUNCE_MS);
+    const { page, setPage, totalPages: getTotalPages } = useUrlPagination(PAGE_SIZE);
 
     // URL State (Source of Truth for API)
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const search = searchParams.get('search') || '';
     const typeFilter = searchParams.get('type') || null;
     
-    // Local Search State (Immediate UI feedback)
-    const [localSearch, setLocalSearch] = useState(search);
-    const [debouncedLocalSearch] = useDebouncedValue(localSearch, SEARCH_DEBOUNCE_MS);
-
-    // Sync URL when local search is debounced
-    useEffect(() => {
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev);
-            const currentUrlSearch = next.get('search') || '';
-            
-            if (debouncedLocalSearch !== currentUrlSearch) {
-                if (!debouncedLocalSearch) next.delete('search');
-                else next.set('search', debouncedLocalSearch);
-                next.delete('page'); // Reset to page 1
-            }
-            return next;
-        }, { replace: true });
-    }, [debouncedLocalSearch, setSearchParams]);
-
-    // Sync local search when URL changes (Back button)
-    useEffect(() => {
-        setLocalSearch(search);
-    }, [search]);
-
     // Selection State
-    const [selectionMode, setSelectionMode] = useState(false);
-    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+    const { selectionMode, setSelectionMode, selectedIds, toggle: toggleSelect, selectAll, clear: clearSelection, startSelectionWith } = useSelection();
     const [modalType, setModalType] = useState<'artist' | 'tags' | 'delete' | null>(null);
     const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
 
@@ -70,28 +47,17 @@ export default function Sets() {
 
     const sets = pageData?.items || [];
     const totalCount = pageData?.total || 0;
-    const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+    const totalPages = getTotalPages(totalCount);
 
     const deleteMutation = useDeleteSetApiSetsSetIdDelete();
     const bulkUpdateMutation = useBulkUpdateSetsApiSetsBulkUpdatePost();
     const bulkDeleteMutation = useBulkDeleteSetsApiSetsBulkDeletePost();
     const mergeMutation = useMergeSetsApiSetsMergePost();
 
-    // Updaters
-    const setPage = (newPage: number) => {
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev);
-            if (newPage <= 1) next.delete('page');
-            else next.set('page', newPage.toString());
-            return next;
-        }, { replace: true });
-    };
-
     // Handlers
     const handleSearchChange = (val: string) => {
         setLocalSearch(val);
-        setSelectedIds(new Set());
-        setSelectionMode(false);
+        clearSelection();
     };
 
     const handleTypeChange = (val: string | null) => {
@@ -102,8 +68,7 @@ export default function Sets() {
             next.delete('page');
             return next;
         }, { replace: true });
-        setSelectedIds(new Set());
-        setSelectionMode(false);
+        clearSelection();
     };
 
     const handleDelete = async (setId: number) => {
@@ -124,28 +89,7 @@ export default function Sets() {
         }
     };
 
-    const toggleSelect = (id: number) => {
-        const next = new Set(selectedIds);
-        if (next.has(id)) {
-            next.delete(id);
-        } else {
-            next.add(id);
-        }
-        setSelectedIds(next);
-        if (next.size > 0) setSelectionMode(true);
-    };
 
-    const selectAllVisible = () => {
-        const next = new Set(selectedIds);
-        sets.forEach(s => next.add(s.id));
-        setSelectedIds(next);
-        setSelectionMode(true);
-    };
-
-    const clearSelection = () => {
-        setSelectedIds(new Set());
-        setSelectionMode(false);
-    };
 
     const handleBulkConfirm = async (data: SetUpdate, mode: BulkOperationMode) => {
         const ids = Array.from(selectedIds);
@@ -272,7 +216,7 @@ export default function Sets() {
                             <>
                                 <Group mb="md" justify="space-between" visibleFrom="sm">
                                     {selectionMode && (
-                                        <Button variant="subtle" size="xs" onClick={selectAllVisible}>
+                                        <Button variant="subtle" size="xs" onClick={() => selectAll(sets.map(s => s.id))}>
                                             Select all on this page
                                         </Button>
                                     )}
@@ -289,8 +233,7 @@ export default function Sets() {
                                             onToggleSelect={() => toggleSelect(set.id)}
                                             onLongPress={() => {
                                                 if (!selectionMode) {
-                                                    setSelectionMode(true);
-                                                    setSelectedIds(new Set([set.id]));
+                                                    startSelectionWith(set.id);
                                                 }
                                             }}
                                         />
