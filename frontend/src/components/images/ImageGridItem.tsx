@@ -7,8 +7,7 @@ import { Card, Image, Box, Text, Stack, Badge, Group, Checkbox } from '@mantine/
 import { IconAlertTriangle, IconExclamationCircle } from '@tabler/icons-react';
 import { getThumbnailUrl } from '../../utils/fileUtils';
 import type { Image as ImageModel } from '../../api/model';
-import { useTimeout } from '@mantine/hooks';
-import { useState } from 'react';
+import { useLongPress } from '../../hooks/useLongPress';
 import { ImageRating } from '../../types/enums';
 
 interface ImageGridItemProps {
@@ -26,25 +25,12 @@ const OPACITY_FULL = 1;
 export function ImageGridItem({ image, onClick, selectionMode, selected, onToggleSelect }: ImageGridItemProps) {
     const rating = image.rating || ImageRating.SAFE;
     const dominantColor = image.dominant_color;
-    const [longPressed, setLongPressed] = useState(false);
     
-    const { start, clear } = useTimeout(() => {
-        if (!selectionMode && onToggleSelect) {
-            setLongPressed(true);
-            onToggleSelect();
-        }
-    }, SCROLL_DEBOUNCE_MS);
-
     const borderColor = rating === ImageRating.EXPLICIT ? 'var(--mantine-color-red-filled)' : 
                         rating === ImageRating.QUESTIONABLE ? 'var(--mantine-color-yellow-filled)' : 
                         'transparent';
-    
-    const handleClick = (e: React.MouseEvent) => {
-        if (longPressed) {
-            setLongPressed(false);
-            return;
-        }
 
+    const handleItemClick = (e: React.MouseEvent | React.TouchEvent) => {
         if (selectionMode && onToggleSelect) {
             e.stopPropagation();
             onToggleSelect();
@@ -52,6 +38,16 @@ export function ImageGridItem({ image, onClick, selectionMode, selected, onToggl
             onClick();
         }
     };
+
+    const longPressProps = useLongPress(
+        () => {
+            if (!selectionMode && onToggleSelect) {
+                onToggleSelect();
+            }
+        },
+        handleItemClick,
+        { delay: SCROLL_DEBOUNCE_MS }
+    );
     
     return (
         <Card
@@ -73,19 +69,7 @@ export function ImageGridItem({ image, onClick, selectionMode, selected, onToggl
                 userSelect: 'none',
                 WebkitUserSelect: 'none'
             }}
-            onClick={handleClick}
-            onMouseDown={start}
-            onMouseUp={() => {
-                clear();
-            }}
-            onMouseLeave={() => {
-                clear();
-                setLongPressed(false);
-            }}
-            onTouchStart={start}
-            onTouchEnd={() => {
-                clear();
-            }}
+            {...longPressProps}
         >
             <Image
                 src={getThumbnailUrl(image.id, 'md')}

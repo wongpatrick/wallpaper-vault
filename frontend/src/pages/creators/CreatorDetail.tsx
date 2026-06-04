@@ -13,7 +13,7 @@ import {
 import { 
     IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
     IconEdit, IconDatabase, IconPhoto, IconLayersIntersect, IconAspectRatio,
-    IconCheck, IconTag, IconUserEdit, IconGitMerge
+    IconCheck
 } from '@tabler/icons-react';
 import { 
     useReadCreatorApiCreatorsCreatorIdGet, 
@@ -21,16 +21,13 @@ import {
     useDeleteCreatorApiCreatorsCreatorIdDelete,
     useMergeCreatorsApiCreatorsMergePost
 } from '../../api/generated/creators/creators';
-import { useBulkUpdateSetsApiSetsBulkUpdatePost, useBulkDeleteSetsApiSetsBulkDeletePost, useMergeSetsApiSetsMergePost } from '../../api/generated/sets/sets';
 import { notifications } from '@mantine/notifications';
 import { SetCard } from '../../components/sets/SetCard';
 import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
-import { SetBulkEditModal } from '../../components/sets/SetBulkEditModal';
-import { MergeSetsModal } from '../../components/sets/MergeSetsModal';
-import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
+import { SetBulkOperations } from '../../components/sets/SetBulkOperations';
 import { useState, useMemo } from 'react';
 import { formatBytes } from '../../utils/fileUtils';
-import type { Set as SetModel, CreatorWithSets, SetUpdate, BulkOperationMode } from '../../api/model';
+import type { Set as SetModel, CreatorWithSets } from '../../api/model';
 import { CREATOR_TYPES } from '../../types/enums';
 
 const HTTP_STATUS_CONFLICT = 409;
@@ -58,51 +55,10 @@ export default function CreatorDetail() {
     const [mergePrompt, setMergePrompt] = useState<{ show: boolean, targetId: number | null }>({ show: false, targetId: null });
 
     const { selectionMode, setSelectionMode, selectedIds, toggle: toggleSelect, clear: clearSelection, startSelectionWith } = useSelection();
-    const [modalType, setModalType] = useState<'artist' | 'tags' | 'delete' | null>(null);
-    const [isMergeSetsModalOpen, setIsMergeSetsModalOpen] = useState(false);
-
-    const bulkUpdateSetsMutation = useBulkUpdateSetsApiSetsBulkUpdatePost();
-    const bulkDeleteSetsMutation = useBulkDeleteSetsApiSetsBulkDeletePost();
-    const mergeSetsMutation = useMergeSetsApiSetsMergePost();
 
 
 
-    const handleBulkConfirm = async (data: SetUpdate, mode: BulkOperationMode) => {
-        const ids = Array.from(selectedIds);
-        try {
-            if (modalType === 'delete') {
-                await bulkDeleteSetsMutation.mutateAsync({ data: ids });
-                notifications.show({ title: 'Success', message: `Successfully deleted ${ids.length} sets.`, color: 'blue' });
-            } else {
-                await bulkUpdateSetsMutation.mutateAsync({
-                    data: { set_ids: ids, update_data: data, operation_mode: mode }
-                });
-                notifications.show({ title: 'Success', message: `Successfully updated ${ids.length} sets.`, color: 'blue' });
-            }
-            setModalType(null);
-            clearSelection();
-            refetch();
-        } catch (err) {
-            console.error(err);
-            notifications.show({ title: 'Error', message: 'Bulk operation failed.', color: 'red' });
-        }
-    };
 
-    const handleMergeSetsConfirm = async (targetId: number) => {
-        const sourceIds = Array.from(selectedIds).filter(id => id !== targetId);
-        try {
-            await mergeSetsMutation.mutateAsync({
-                data: { source_ids: sourceIds, target_id: targetId }
-            });
-            notifications.show({ title: 'Merge Success', message: `Successfully merged ${sourceIds.length + 1} sets into one.`, color: 'green' });
-            setIsMergeSetsModalOpen(false);
-            clearSelection();
-            refetch();
-        } catch (err) {
-            console.error(err);
-            notifications.show({ title: 'Merge Error', message: 'Failed to merge sets.', color: 'red' });
-        }
-    };
 
     const [prevCreatorId, setPrevCreatorId] = useState<number | null>(null);
     if (creator && creator.id !== prevCreatorId) {
@@ -359,55 +315,12 @@ export default function CreatorDetail() {
                 </Stack>
             </Modal>
 
-            {/* Floating Bulk Action Bar */}
-            <FloatingSelectionBar 
-                mounted={selectionMode && selectedIds.size > 0} 
-                selectedCount={selectedIds.size} 
-                onClear={clearSelection}
-                itemLabel="items"
-                minWidth={400}
-            >
-                {selectedIds.size >= 2 && (
-                    <Button 
-                        size="xs" 
-                        variant="light" 
-                        color="green"
-                        leftSection={<IconGitMerge size={14} />} 
-                        radius="xl"
-                        onClick={() => setIsMergeSetsModalOpen(true)}
-                    >
-                        Merge
-                    </Button>
-                )}
-                <Button size="xs" variant="light" leftSection={<IconUserEdit size={14} />} radius="xl" onClick={() => setModalType('artist')}>
-                    Artist
-                </Button>
-                <Button size="xs" variant="light" leftSection={<IconTag size={14} />} radius="xl" onClick={() => setModalType('tags')}>
-                    Tags
-                </Button>
-                <Button size="xs" variant="light" color="red" leftSection={<IconTrash size={14} />} radius="xl" onClick={() => setModalType('delete')}>
-                    Delete
-                </Button>
-            </FloatingSelectionBar>
-
-            {/* Bulk Edit Modal */}
-            <SetBulkEditModal 
-                key={modalType || 'none'}
-                opened={modalType !== null}
-                onClose={() => setModalType(null)}
-                type={modalType || 'artist'}
-                selectedCount={selectedIds.size}
-                onConfirm={handleBulkConfirm}
-                loading={bulkUpdateSetsMutation.isPending || bulkDeleteSetsMutation.isPending}
-            />
-
-            {/* Merge Sets Modal */}
-            <MergeSetsModal 
-                opened={isMergeSetsModalOpen}
-                onClose={() => setIsMergeSetsModalOpen(false)}
+            <SetBulkOperations 
+                selectedIds={selectedIds}
+                clearSelection={clearSelection}
+                selectionMode={selectionMode}
+                refetch={refetch}
                 selectedSets={(creator.sets || []).filter(s => selectedIds.has(s.id))}
-                onConfirm={handleMergeSetsConfirm}
-                loading={mergeSetsMutation.isPending}
             />
 
             {/* Delete Confirmation Modal */}
