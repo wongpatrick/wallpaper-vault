@@ -3,7 +3,7 @@
  * Tool for resolving duplicate images in the library.
  * Allows comparing identical images side-by-side and selecting which to keep based on resolution/size.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
     Stack, 
     Text, 
@@ -19,7 +19,8 @@ import {
     Tooltip,
     Paper,
     Divider,
-    Title
+    Title,
+    Pagination
 } from '@mantine/core';
 import { 
     IconAlertCircle, 
@@ -53,6 +54,16 @@ export function DuplicateManager() {
 
     const [resolving, setResolving] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'columns'>('grid');
+    const [page, setPage] = useState(1);
+    
+    const ITEMS_PER_PAGE = 10;
+    const totalPages = groups ? Math.ceil(groups.length / ITEMS_PER_PAGE) : 0;
+
+    useEffect(() => {
+        if (groups && page > totalPages && totalPages > 0) {
+            setPage(totalPages);
+        }
+    }, [groups, page, totalPages]);
 
     const handleResolve = async (group: DuplicateGroup, keepId: number) => {
         const removeIds = group.images
@@ -116,6 +127,8 @@ export function DuplicateManager() {
         );
     }
 
+    const paginatedGroups = groups?.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE) || [];
+
     return (
         <Stack gap="xl">
             <Group justify="space-between">
@@ -144,12 +157,12 @@ export function DuplicateManager() {
                             </ActionIcon>
                         </ActionIcon.Group>
                     </Tooltip>
-                    <Button variant="outline" onClick={() => refetch()}>Refresh</Button>
+                    <Button variant="outline" onClick={() => { setPage(1); refetch(); }}>Refresh</Button>
                 </Group>
             </Group>
 
             <Stack gap="lg">
-                {groups.map((group) => (
+                {paginatedGroups.map((group) => (
                     <DuplicateGroupCard 
                         key={group.phash} 
                         group={group} 
@@ -159,6 +172,12 @@ export function DuplicateManager() {
                     />
                 ))}
             </Stack>
+
+            {totalPages > 1 && (
+                <Group justify="center" mt="md">
+                    <Pagination total={totalPages} value={page} onChange={setPage} />
+                </Group>
+            )}
         </Stack>
     );
 }
@@ -234,7 +253,7 @@ function ImageVariantCard({ image, isKeep, isRecommended, onSelect }: VariantCar
             <Stack gap="xs">
                 <div style={{ position: 'relative' }}>
                     <Image 
-                        src={`${API_BASE}/images/file/${image.id}`} 
+                        src={`${API_BASE}/images/thumb/${image.id}?size=md`} 
                         radius="sm" 
                         h={180} 
                         fallbackSrc="https://placehold.co/600x400?text=No+Image"
