@@ -98,6 +98,11 @@ async def create_image(db: AsyncSession, image_in: ImageCreate, set_id: int) -> 
     Returns:
         The newly created Image object.
     """
+    existing = await db.execute(select(Image).where(Image.local_path == image_in.local_path))
+    if existing.first():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Image with this file path already exists in the database.")
+
     db_image = Image(**image_in.model_dump(), set_id=set_id)
     db.add(db_image)
     await db.commit()
@@ -186,10 +191,20 @@ async def delete_image(db: AsyncSession, image_id: int) -> Optional[Image]:
     """
     db_image = await get_image(db, image_id)
     if db_image:
-        # Delete file from disk
-        p = Path(db_image.local_path)
-        if p.exists():
-            p.unlink(missing_ok=True)
+        if db_image.local_path:
+            # Check if any other image records are using the same physical file
+            other_refs_query = select(Image.id).where(
+                Image.local_path == db_image.local_path,
+                Image.id != image_id
+            ).limit(1)
+            other_refs_result = await db.execute(other_refs_query)
+            has_other_refs = other_refs_result.first() is not None
+
+            if not has_other_refs:
+                # Delete file from disk
+                p = Path(db_image.local_path)
+                if p.exists():
+                    p.unlink(missing_ok=True)
             
         await db.delete(db_image)
         await db.commit()
@@ -257,18 +272,32 @@ async def resolve_duplicates(db: AsyncSession, keep_id: int, remove_ids: List[in
         db_image = await get_image(db, rid)
         if db_image:
             file_deleted = False
-            # Delete file
-            p = Path(db_image.local_path)
-            if p.exists():
-                file_size = p.stat().st_size
-                try:
-                    os.unlink(p)
-                    space_saved += file_size
-                    file_deleted = True
-                except Exception as e:
-                    logger.error("Error deleting file", path=str(p), error=str(e), exc_info=True)
-            else:
+            
+            if not db_image.local_path:
                 file_deleted = True
+            else:
+                p = Path(db_image.local_path)
+                
+                # Check if any OTHER image is using this local_path that is NOT in remove_ids
+                other_refs_query = select(Image.id).where(
+                    Image.local_path == db_image.local_path,
+                    Image.id.notin_(remove_ids)
+                ).limit(1)
+                other_refs_result = await db.execute(other_refs_query)
+                has_other_refs = other_refs_result.first() is not None
+
+                if not has_other_refs and p.exists():
+                    file_size = p.stat().st_size
+                    try:
+                        os.unlink(p)
+                        space_saved += file_size
+                        file_deleted = True
+                    except Exception as e:
+                        logger.error("Error deleting file", path=str(p), error=str(e), exc_info=True)
+                else:
+                    # If the file doesn't exist, or it has other references, we skip physical deletion
+                    # but still consider it "successful" so we can clean up this duplicate DB record.
+                    file_deleted = True
             
             if file_deleted:
                 # Delete DB record

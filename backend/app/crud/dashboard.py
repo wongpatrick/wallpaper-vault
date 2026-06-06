@@ -44,7 +44,10 @@ async def get_library_stats(db: AsyncSession) -> LibraryStats:
     total_creators = creators_count_result.scalar()
 
     ar_result = await db.execute(ar_query)
-    ar_dist = {row[0] or "Unknown": row[1] for row in ar_result.all()}
+    ar_dist = {}
+    for row in ar_result.all():
+        label = row[0] or "Unknown"
+        ar_dist[label] = ar_dist.get(label, 0) + row[1]
 
     return LibraryStats(
         total_images=stats_data.total_images or 0,

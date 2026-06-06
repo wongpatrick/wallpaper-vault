@@ -16,7 +16,7 @@ class Image(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     set_id: Mapped[int] = mapped_column(ForeignKey("sets.id", ondelete="CASCADE"), nullable=False)
     filename: Mapped[str] = mapped_column(nullable=False)
-    local_path: Mapped[str] = mapped_column(nullable=False)
+    local_path: Mapped[str] = mapped_column(nullable=False, unique=True)
     phash: Mapped[Optional[str]] = mapped_column()
     width: Mapped[Optional[int]] = mapped_column()
     height: Mapped[Optional[int]] = mapped_column()

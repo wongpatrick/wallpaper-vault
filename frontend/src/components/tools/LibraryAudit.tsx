@@ -87,7 +87,15 @@ export function LibraryAudit() {
         return acc;
     }, {} as Record<string, AuditIssue[]>) || {};
 
-    const otherIssues = results?.items?.filter(i => i.issue_type !== 'orphan') || [];
+    const groupedDuplicates = results?.items?.reduce((acc, issue) => {
+        if (issue.issue_type !== 'duplicate_entry') return acc;
+        const dir = issue.directory || 'Unknown';
+        if (!acc[dir]) acc[dir] = [];
+        acc[dir].push(issue);
+        return acc;
+    }, {} as Record<string, AuditIssue[]>) || {};
+
+    const otherIssues = results?.items?.filter(i => i.issue_type !== 'orphan' && i.issue_type !== 'duplicate_entry') || [];
 
     const handleStart = async () => {
         try {
@@ -190,7 +198,8 @@ export function LibraryAudit() {
                             placeholder="All Issues"
                             data={[
                                 { value: 'ghost', label: 'Ghosts (File Missing)' },
-                                { value: 'orphan', label: 'Orphans (Untracked)' }
+                                { value: 'orphan', label: 'Orphans (Untracked)' },
+                                { value: 'duplicate_entry', label: 'Shared Files (DB Duplicates)' }
                             ]}
                             clearable
                             value={issueType}
@@ -247,6 +256,53 @@ export function LibraryAudit() {
                                                     </Tooltip>
                                                 )}
                                             </Group>
+                                        </Table.Td>
+                                    </Table.Tr>
+                                ))}
+
+                                {/* Duplicates Header (if any) */}
+                                {Object.keys(groupedDuplicates).length > 0 && (
+                                    <Table.Tr bg="var(--mantine-color-gray-0)">
+                                        <Table.Td colSpan={4} py={10}>
+                                            <Text fw={700} size="sm">Shared File References (DB Duplicates)</Text>
+                                        </Table.Td>
+                                    </Table.Tr>
+                                )}
+
+                                {/* Grouped Duplicates */}
+                                {Object.entries(groupedDuplicates).map(([dir, items]) => (
+                                    <Table.Tr key={dir}>
+                                        <Table.Td colSpan={4}>
+                                            <Paper 
+                                                withBorder 
+                                                p="xs" 
+                                                radius="sm" 
+                                                style={{
+                                                    backgroundColor: 'var(--mantine-color-body)'
+                                                }}
+                                            >
+                                                <Stack gap="xs">
+                                                    <Group justify="space-between">
+                                                        <Group gap="xs">
+                                                            <IconFolder size={18} color="var(--mantine-color-orange-filled)" />
+                                                            <div>
+                                                                <Text size="sm" fw={600}>{dir.split(/[\\/]/).pop()}</Text>
+                                                                <Text size="xs" c="dimmed" truncate="end" maw={400}>{dir}</Text>
+                                                            </div>
+                                                            <Badge color="orange" size="xs" variant="light">{items.length} redundant entries</Badge>
+                                                        </Group>
+                                                        <Button 
+                                                            size="compact-xs" 
+                                                            variant="light" 
+                                                            color="blue" 
+                                                            leftSection={<IconRefresh size={12} />}
+                                                            onClick={() => handleResolve(items.map(i => i.id), 'purge')}
+                                                        >
+                                                            Clean Up All
+                                                        </Button>
+                                                    </Group>
+                                                </Stack>
+                                            </Paper>
                                         </Table.Td>
                                     </Table.Tr>
                                 ))}

@@ -27,12 +27,14 @@ import {
     IconCheck, 
     IconTrash, 
     IconLayoutGrid,
-    IconColumns
+    IconColumns,
+    IconFolderOpen
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { 
     useReadDuplicateGroupsApiImagesDuplicatesGroupsGet,
-    useResolveDuplicatesApiImagesDuplicatesResolvePost 
+    useResolveDuplicatesApiImagesDuplicatesResolvePost,
+    useRevealImageApiImagesImageIdRevealPost
 } from '../../api/generated/images/images';
 import type { DuplicateGroup, ImageWithContext } from '../../api/model';
 import { API_BASE_URL } from '../../config';
@@ -237,6 +239,30 @@ interface VariantCardProps {
 }
 
 function ImageVariantCard({ image, isKeep, isRecommended, onSelect }: VariantCardProps) {
+    const revealMutation = useRevealImageApiImagesImageIdRevealPost();
+
+    const handleReveal = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        revealMutation.mutate({ imageId: image.id }, {
+            onSuccess: () => {
+                notifications.show({
+                    title: 'Success',
+                    message: 'Opened folder in explorer',
+                    color: 'green',
+                    icon: <IconFolderOpen size={16} />
+                });
+            },
+            onError: () => {
+                notifications.show({
+                    title: 'Error',
+                    message: 'Failed to open folder',
+                    color: 'red',
+                    icon: <IconAlertCircle size={16} />
+                });
+            }
+        });
+    };
+
     return (
         <Paper 
             withBorder 
@@ -259,6 +285,19 @@ function ImageVariantCard({ image, isKeep, isRecommended, onSelect }: VariantCar
                         fallbackSrc="https://placehold.co/600x400?text=No+Image"
                         style={{ objectFit: 'cover' }}
                     />
+                    <Tooltip label="Open in Explorer" position="right">
+                        <ActionIcon 
+                            variant="filled" 
+                            color="dark"
+                            opacity={0.8}
+                            onClick={handleReveal}
+                            style={{ position: 'absolute', top: 8, left: 8 }}
+                            size="sm"
+                            loading={revealMutation.isPending}
+                        >
+                            <IconFolderOpen size={14} />
+                        </ActionIcon>
+                    </Tooltip>
                     {isRecommended && (
                         <Badge 
                             color="green" 

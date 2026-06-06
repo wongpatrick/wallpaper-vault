@@ -11,6 +11,7 @@ from app.crud import image as crud_image
 from app.schemas.image import Image, ImageUpdate, ImageCreate, ImageBulkUpdate, ImageBulkMove, DuplicateGroup, DuplicateResolutionRequest, ImageWithContext, ImagePage
 from app.models.image import Image as ImageModel
 from pathlib import Path
+import subprocess
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -311,6 +312,30 @@ async def get_image_file(
         str(file_path),
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+@router.post("/{image_id}/reveal")
+async def reveal_image(
+    image_id: int,
+    db: AsyncSession = Depends(get_db)
+) -> dict[str, str]:
+    """
+    Open the image's directory in the system file explorer and select the file.
+    """
+    db_image = await crud_image.get_image(db, image_id=image_id)
+    if db_image is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    file_path = Path(db_image.local_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Image file not found on disk")
+    
+    try:
+        subprocess.run(['explorer', '/select,', str(file_path)])
+        logger.info("Revealed image in explorer", image_id=image_id, path=str(file_path))
+        return {"status": "success"}
+    except Exception as e:
+        logger.exception("Failed to reveal image in explorer", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to open explorer: {e}")
 
 @router.post("/set/{set_id}", response_model=Image)
 async def create_image_for_set(

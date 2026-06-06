@@ -122,7 +122,7 @@ async def resolve_audit_issues(
             continue
             
         try:
-            if action.action == "purge" and issue.issue_type == AuditIssueType.GHOST:
+            if action.action == "purge" and issue.issue_type in (AuditIssueType.GHOST, AuditIssueType.DUPLICATE_ENTRY):
                 # Delete the DB record
                 await db.execute(delete(Image).where(Image.id == issue.image_id))
                 issue.status = AuditIssueStatus.RESOLVED
@@ -160,10 +160,19 @@ async def resolve_audit_issues(
                         hasher = cv2.img_hash.PHash_create()
                         phash = hasher.compute(img_data).tobytes().hex()
                     
+                    resolved_path = str(p.resolve())
+                    
+                    # Prevent duplicate entries for the exact same file path
+                    existing = await db.execute(select(Image.id).where(Image.local_path == resolved_path))
+                    if existing.first():
+                        issue.status = AuditIssueStatus.RESOLVED
+                        resolved_count += 1
+                        continue
+                    
                     new_img = Image(
                         set_id=issue.set_id,
                         filename=p.name,
-                        local_path=str(p.resolve()),
+                        local_path=resolved_path,
                         width=w, height=h,
                         file_size=p.stat().st_size,
                         aspect_ratio=float(w)/float(h) if h != 0 else 0,
@@ -216,10 +225,19 @@ async def resolve_audit_issues(
                         hasher = cv2.img_hash.PHash_create()
                         phash = hasher.compute(img_data).tobytes().hex()
                     
+                    resolved_path = str(p.resolve())
+                    
+                    # Prevent duplicate entries for the exact same file path
+                    existing = await db.execute(select(Image.id).where(Image.local_path == resolved_path))
+                    if existing.first():
+                        issue.status = AuditIssueStatus.RESOLVED
+                        resolved_count += 1
+                        continue
+
                     new_img = Image(
                         set_id=target_set_id,
                         filename=p.name,
-                        local_path=str(p.resolve()),
+                        local_path=resolved_path,
                         width=w, height=h,
                         file_size=p.stat().st_size,
                         aspect_ratio=float(w)/float(h) if h != 0 else 0,

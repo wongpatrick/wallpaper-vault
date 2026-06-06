@@ -1693,6 +1693,53 @@
         }
       }
     },
+    "/api/images/{image_id}/reveal": {
+      "post": {
+        "tags": [
+          "images"
+        ],
+        "summary": "Reveal Image",
+        "description": "Open the image's directory in the system file explorer and select the file.",
+        "operationId": "reveal_image_api_images__image_id__reveal_post",
+        "parameters": [
+          {
+            "name": "image_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Image Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Reveal Image Api Images  Image Id  Reveal Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/images/set/{set_id}": {
       "post": {
         "tags": [

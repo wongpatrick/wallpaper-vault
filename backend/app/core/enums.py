@@ -10,6 +10,7 @@ class TaskStatus(StrEnum):
 class AuditIssueType(StrEnum):
     GHOST = "ghost"
     ORPHAN = "orphan"
+    DUPLICATE_ENTRY = "duplicate_entry"
 
 class AuditIssueStatus(StrEnum):
     PENDING = "pending"
