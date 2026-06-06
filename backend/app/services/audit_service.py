@@ -113,6 +113,36 @@ async def run_library_audit(vault_root_str: str, task_id: str) -> None:
                 db.add_all(orphans)
                 await db.flush()
 
+            # 3.5. DUPLICATE ENTRIES HUNT
+            logger.info("Audit: Checking for Duplicate DB Entries...")
+            await tasks.update_task(db, task_id, progress=75, status="Checking Database Integrity...")
+            
+            from collections import defaultdict
+            path_map = defaultdict(list)
+            for img in all_images:
+                if img.local_path:
+                    norm_p = os.path.normpath(img.local_path)
+                    path_map[norm_p].append(img)
+            
+            duplicate_issues = []
+            for path, imgs in path_map.items():
+                if len(imgs) > 1:
+                    # Keep oldest (lowest id), flag the rest
+                    imgs.sort(key=lambda x: x.id)
+                    for redundant_img in imgs[1:]:
+                        duplicate_issues.append(AuditIssue(
+                            task_id=task_id,
+                            issue_type=AuditIssueType.DUPLICATE_ENTRY,
+                            path=path,
+                            directory=path,  # store shared path here to group in UI
+                            image_id=redundant_img.id,
+                            set_id=redundant_img.set_id
+                        ))
+                        
+            if duplicate_issues:
+                db.add_all(duplicate_issues)
+                await db.flush()
+
             # 4. PHASH MATCHING (The Safeguard)
             logger.info("Audit: Performing Visual Matching...")
             await tasks.update_task(db, task_id, progress=85, status="Matching Visual Hashes...")

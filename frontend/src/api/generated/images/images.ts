@@ -36,7 +36,8 @@ import type {
   ReadImagesApiImagesGetParams,
   ReadRandomImageApiImagesRandomGetParams,
   ReadRandomImageFileApiImagesRandomFileGetParams,
-  ResolveDuplicatesApiImagesDuplicatesResolvePost200
+  ResolveDuplicatesApiImagesDuplicatesResolvePost200,
+  RevealImageApiImagesImageIdRevealPost200
 } from '../../model';
 
 import { customInstance } from '../../axios-instance';
@@ -1126,6 +1127,69 @@ export function useGetImageFileApiImagesFileImageIdGet<TData = Awaited<ReturnTyp
 
 
 /**
+ * Open the image's directory in the system file explorer and select the file.
+ * @summary Reveal Image
+ */
+export const revealImageApiImagesImageIdRevealPost = (
+    imageId: number,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<RevealImageApiImagesImageIdRevealPost200>(
+      {url: `/api/images/${imageId}/reveal`, method: 'POST', signal
+    },
+      options);
+    }
+  
+
+
+export const getRevealImageApiImagesImageIdRevealPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revealImageApiImagesImageIdRevealPost>>, TError,{imageId: number}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof revealImageApiImagesImageIdRevealPost>>, TError,{imageId: number}, TContext> => {
+
+const mutationKey = ['revealImageApiImagesImageIdRevealPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revealImageApiImagesImageIdRevealPost>>, {imageId: number}> = (props) => {
+          const {imageId} = props ?? {};
+
+          return  revealImageApiImagesImageIdRevealPost(imageId,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevealImageApiImagesImageIdRevealPostMutationResult = NonNullable<Awaited<ReturnType<typeof revealImageApiImagesImageIdRevealPost>>>
+    
+    export type RevealImageApiImagesImageIdRevealPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Reveal Image
+ */
+export const useRevealImageApiImagesImageIdRevealPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revealImageApiImagesImageIdRevealPost>>, TError,{imageId: number}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof revealImageApiImagesImageIdRevealPost>>,
+        TError,
+        {imageId: number},
+        TContext
+      > => {
+
+      const mutationOptions = getRevealImageApiImagesImageIdRevealPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary Create Image For Set
  */
 export const createImageForSetApiImagesSetSetIdPost = (

@@ -609,6 +609,12 @@ async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
         untracked_paths = [p for p in untracked_paths if p not in recovered_paths]
         missing_records = [g for g in missing_records if g not in recovered_records]
 
+    # Filter out any paths that are already tracked by *any* set in the database
+    if untracked_paths:
+        existing_res = await db.execute(select(Image.local_path).where(Image.local_path.in_(untracked_paths)))
+        globally_tracked = set(existing_res.scalars().all())
+        untracked_paths = [p for p in untracked_paths if p not in globally_tracked]
+
     # 5. Finalize - Add New
     from app.core.enums import ImageRating
     

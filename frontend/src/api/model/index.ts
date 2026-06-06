@@ -116,6 +116,7 @@ export * from './readRandomImageFileApiImagesRandomFileGetParams';
 export * from './readSetsApiSetsGetParams';
 export * from './resolveAuditIssuesApiAuditResolvePost200';
 export * from './resolveDuplicatesApiImagesDuplicatesResolvePost200';
+export * from './revealImageApiImagesImageIdRevealPost200';
 export * from './rootGet200';
 export * from './searchTagsApiTagsGetParams';
 export * from './set';
