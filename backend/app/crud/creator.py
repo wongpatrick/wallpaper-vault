@@ -85,7 +85,7 @@ async def get_creator_by_name(db: AsyncSession, name: str) -> Optional[Creator]:
     )
     return result.scalar_one_or_none()
 
-async def get_creators(db: AsyncSession, skip: int = 0, limit: int = 100, search: Optional[str] = None, creator_type: Optional[str] = None) -> tuple[list[Creator], int]:
+async def get_creators(db: AsyncSession, skip: int = 0, limit: int = 100, search: Optional[str] = None, creator_type: Optional[str] = None, sort_by: Optional[str] = "name", sort_dir: Optional[str] = "asc") -> tuple[list[Creator], int]:
     """Retrieves a paginated list of creators, with optional filtering.
 
     Populates statistical metrics for each returned creator.
@@ -114,10 +114,28 @@ async def get_creators(db: AsyncSession, skip: int = 0, limit: int = 100, search
     count_result = await db.execute(count_query)
     total = count_result.scalar_one()
 
+    # Sorting logic
+    if sort_by == "set_count":
+        from app.models.associations import set_creators
+        subq = select(func.count(set_creators.c.set_id)).where(set_creators.c.creator_id == Creator.id).scalar_subquery()
+        order_col = subq
+    elif sort_by == "total_image_count":
+        from app.models.associations import set_creators
+        from app.models.image import Image
+        subq = select(func.count(Image.id)).select_from(set_creators).join(Image, Image.set_id == set_creators.c.set_id).where(set_creators.c.creator_id == Creator.id).scalar_subquery()
+        order_col = subq
+    else:
+        order_col = func.lower(Creator.canonical_name)
+        
+    if sort_dir == "desc":
+        order_expr = order_col.desc()
+    else:
+        order_expr = order_col.asc()
+
     # Final paginated query with relationship loading
     query = query.options(
         selectinload(Creator.sets).selectinload(Set.images)
-    ).offset(skip).limit(limit)
+    ).order_by(order_expr, Creator.id.desc()).offset(skip).limit(limit)
     
     result = await db.execute(query)
     creators = list(result.scalars().all())

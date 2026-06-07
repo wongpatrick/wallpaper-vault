@@ -105,6 +105,44 @@
               ],
               "title": "Creator Type"
             }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sort field (name, set_count, total_image_count)",
+              "default": "name",
+              "title": "Sort By"
+            },
+            "description": "Sort field (name, set_count, total_image_count)"
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sort direction (asc, desc)",
+              "default": "asc",
+              "title": "Sort Dir"
+            },
+            "description": "Sort direction (asc, desc)"
           }
         ],
         "responses": {
@@ -422,6 +460,44 @@
               ],
               "title": "Creator Type"
             }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sort field (date_added, title, image_count)",
+              "default": "date_added",
+              "title": "Sort By"
+            },
+            "description": "Sort field (date_added, title, image_count)"
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sort direction (asc, desc)",
+              "default": "desc",
+              "title": "Sort Dir"
+            },
+            "description": "Sort direction (asc, desc)"
           }
         ],
         "responses": {
@@ -1102,6 +1178,44 @@
               ],
               "title": "Rating"
             }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sort field (date_added, file_size, resolution, rating, aspect_ratio, random)",
+              "default": "date_added",
+              "title": "Sort By"
+            },
+            "description": "Sort field (date_added, file_size, resolution, rating, aspect_ratio, random)"
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sort direction (asc, desc)",
+              "default": "desc",
+              "title": "Sort Dir"
+            },
+            "description": "Sort direction (asc, desc)"
           }
         ],
         "responses": {

@@ -8,9 +8,11 @@ export function useUrlPagination(pageSize: number) {
     
     const page = parseInt(searchParams.get('page') || '1', 10);
 
-    const setPage = (newPage: number) => {
+    const setPage = (newPageOrFn: number | ((prev: number) => number)) => {
         setSearchParams(prev => {
             const next = new URLSearchParams(prev);
+            const currentPage = parseInt(next.get('page') || '1', 10);
+            const newPage = typeof newPageOrFn === 'function' ? newPageOrFn(currentPage) : newPageOrFn;
             if (newPage <= 1) next.delete('page');
             else next.set('page', newPage.toString());
             return next;

@@ -80,6 +80,8 @@ async def read_images(
     limit: int = 100,
     search: Optional[str] = None,
     rating: Optional[str] = None,
+    sort_by: Optional[str] = Query("date_added", description="Sort field (date_added, file_size, resolution, rating, aspect_ratio, random)"),
+    sort_dir: Optional[str] = Query("desc", description="Sort direction (asc, desc)"),
     db: AsyncSession = Depends(get_db)
 ) -> ImagePage:
     """
@@ -87,7 +89,7 @@ async def read_images(
     
     Supports comprehensive filtering via `search` (matching filename, tags, or notes) and `rating`. Returns images enriched with context like their parent set title and associated creators.
     """
-    images, total = await crud_image.get_images(db, skip=skip, limit=limit, search=search, rating=rating)
+    images, total = await crud_image.get_images(db, skip=skip, limit=limit, search=search, rating=rating, sort_by=sort_by, sort_dir=sort_dir)
     items = [map_image_to_context_schema(img) for img in images]
     return ImagePage(items=items, total=total, skip=skip, limit=limit)
 
