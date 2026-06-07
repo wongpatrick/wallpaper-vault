@@ -104,7 +104,7 @@ async def get_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     return result.scalar_one_or_none()
 
 
-async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Optional[str] = None, creator_type: Optional[str] = None) -> tuple[list[Set], int]:
+async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Optional[str] = None, creator_type: Optional[str] = None, sort_by: Optional[str] = "date_added", sort_dir: Optional[str] = "desc") -> tuple[list[Set], int]:
     """Retrieves a paginated list of sets, with optional filtering.
 
     Args:
@@ -138,12 +138,27 @@ async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Op
     count_result = await db.execute(count_query)
     total = count_result.scalar_one()
 
+    # Sorting logic
+    if sort_by == "title":
+        order_col = Set.title
+    elif sort_by == "image_count":
+        # Subquery to count images for each set
+        subq = select(func.count(Image.id)).where(Image.set_id == Set.id).scalar_subquery()
+        order_col = subq
+    else:
+        order_col = Set.date_added
+        
+    if sort_dir == "asc":
+        order_expr = order_col.asc()
+    else:
+        order_expr = order_col.desc()
+
     # Final paginated query with relationship loading
     # We use distinct() because the join might create multiple rows per set
     sets_query = query.distinct().options(
         selectinload(Set.creators),
         selectinload(Set.images)
-    ).order_by(Set.date_added.desc(), Set.id.desc()).offset(skip).limit(limit)
+    ).order_by(order_expr, Set.id.desc()).offset(skip).limit(limit)
     
     result = await db.execute(sets_query)
     return list(result.scalars().all()), total
@@ -245,7 +260,47 @@ async def import_set(db: AsyncSession, set_in: SetImport) -> Set:
     db_set.creators = db_creators
 
     if set_in.images:
-        db_set.images = [Image(**image.model_dump()) for image in set_in.images]
+        from app.services.import_service import load_image
+        from app.crud.settings import get_setting
+        from app.services.audit_service import calculate_phash
+        from app.core.enums import ImageRating
+        
+        h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
+        v_ratio_setting = await get_setting(db, "vertical_target_ratio")
+        h_label = h_ratio_setting.value.replace("/", "x") if h_ratio_setting and h_ratio_setting.value else "16x9"
+        v_label = v_ratio_setting.value.replace("/", "x") if v_ratio_setting and v_ratio_setting.value else "9x16"
+        
+        new_images = []
+        for image_in in set_in.images:
+            img_data = image_in.model_dump()
+            
+            p = Path(img_data["local_path"])
+            if not img_data.get("phash"):
+                img_data["phash"] = calculate_phash(p)
+                
+            if img_data.get("width") is None or img_data.get("height") is None:
+                img_cv = load_image(img_data["local_path"])
+                if img_cv is not None:
+                    height, width = img_cv.shape[:2]
+                    img_data["width"] = width
+                    img_data["height"] = height
+                    img_data["aspect_ratio"] = float(width)/float(height) if height != 0 else 0
+                    
+            if not img_data.get("aspect_ratio_label"):
+                w = img_data.get("width")
+                h = img_data.get("height")
+                if w is not None and h is not None:
+                    img_data["aspect_ratio_label"] = h_label if w >= h else v_label
+                    
+            if img_data.get("file_size") is None:
+                img_data["file_size"] = p.stat().st_size if p.exists() else None
+            
+            if not img_data.get("rating"):
+                img_data["rating"] = ImageRating.QUESTIONABLE
+                
+            new_images.append(Image(**img_data))
+            
+        db_set.images = new_images
 
     db.add(db_set)
     await db.commit()
@@ -621,15 +676,39 @@ async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     # User requested that all new files default to QUESTIONABLE to enforce manual verification
     default_rating = ImageRating.QUESTIONABLE
 
+    from app.services.import_service import load_image
+    from app.crud.settings import get_setting
+    
+    h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
+    v_ratio_setting = await get_setting(db, "vertical_target_ratio")
+    h_label = h_ratio_setting.value.replace("/", "x") if h_ratio_setting and h_ratio_setting.value else "16x9"
+    v_label = v_ratio_setting.value.replace("/", "x") if v_ratio_setting and v_ratio_setting.value else "9x16"
+
     for path_str in untracked_paths:
         p = Path(path_str)
         ph = calculate_phash(p)
+        
+        img_cv = load_image(path_str)
+        w, h, ar, ratio_label = None, None, None, None
+        if img_cv is not None:
+            height, width = img_cv.shape[:2]
+            w, h = width, height
+            ar = float(w)/float(h) if h != 0 else 0
+            ratio_label = h_label if w >= h else v_label
+            
+        file_size = p.stat().st_size if p.exists() else None
+
         new_img = Image(
             set_id=set_id,
             filename=p.name,
             local_path=path_str,
             phash=ph,
-            rating=default_rating
+            rating=default_rating,
+            width=w,
+            height=h,
+            aspect_ratio=ar,
+            aspect_ratio_label=ratio_label,
+            file_size=file_size
         )
         db.add(new_img)
         

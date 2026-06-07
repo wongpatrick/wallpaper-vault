@@ -10,4 +10,12 @@ skip?: number;
 limit?: number;
 search?: string | null;
 creator_type?: string | null;
+/**
+ * Sort field (name, set_count, total_image_count)
+ */
+sort_by?: string | null;
+/**
+ * Sort direction (asc, desc)
+ */
+sort_dir?: string | null;
 };

@@ -9,10 +9,12 @@ import { useReadImagesApiImagesGet } from '../../api/generated/images/images';
 import { ImageGridItem } from '../../components/images/ImageGridItem';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { ImageEditModal } from '../../components/images/ImageEditModal';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { SortControl } from '../../components/ui/SortControl';
+import { useState, useEffect, useMemo } from 'react';
 import { useIntersection, useViewportSize } from '@mantine/hooks';
 import { useSearchParams } from 'react-router-dom';
 import { useUrlSearch } from '../../hooks/useUrlSearch';
+import { useUrlPagination } from '../../hooks/useUrlPagination';
 import type { Image as ImageModel } from '../../api/model';
 
 const PAGE_SIZE = 100;
@@ -27,7 +29,9 @@ export default function Images() {
 
     // URL State (Source of Truth for API)
     const ratingFilter = searchParams.get('rating') || 'all';
-    const page = parseInt(searchParams.get('page') || '1', 10);
+    const { page, setPage } = useUrlPagination(PAGE_SIZE);
+    const sortBy = searchParams.get('sort_by') || 'date_added';
+    const sortDir = (searchParams.get('sort_dir') as 'asc' | 'desc') || 'desc';
 
     // Accumulate all images for infinite scroll
     const [allImages, setAllImages] = useState<ImageModel[]>([]);
@@ -69,22 +73,12 @@ export default function Images() {
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
         search: search || undefined,
-        rating: ratingFilter === 'all' ? undefined : ratingFilter
+        rating: ratingFilter === 'all' ? undefined : ratingFilter,
+        sort_by: sortBy,
+        sort_dir: sortDir
     });
 
     // Updaters
-    const setPage = useCallback((newPageOrFn: number | ((prev: number) => number)) => {
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev);
-            const currentPage = parseInt(next.get('page') || '1', 10);
-            const newPage = typeof newPageOrFn === 'function' ? newPageOrFn(currentPage) : newPageOrFn;
-
-            if (newPage <= 1) next.delete('page');
-            else next.set('page', newPage.toString());
-            return next;
-        }, { replace: true });
-    }, [setSearchParams]);
-
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setLocalSearch(e.currentTarget.value);
     };
@@ -153,21 +147,34 @@ export default function Images() {
                     onChange={handleSearchChange}
                     style={{ flex: 1, maxWidth: 500 }}
                 />
-                <Stack gap={4}>
-                    <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Rating</Text>
-                    <SegmentedControl
-                        value={ratingFilter}
-                        onChange={handleRatingChange}
-                        radius="xl"
-                        size="sm"
-                        data={[
-                            { label: 'All', value: 'all' },
-                            { label: 'Safe', value: 'safe' },
-                            { label: 'Questionable', value: 'questionable' },
-                            { label: 'Explicit', value: 'explicit' },
-                        ]}
+                <Group gap="xl" align="flex-end">
+                    <Stack gap={4}>
+                        <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Rating</Text>
+                        <SegmentedControl
+                            value={ratingFilter}
+                            onChange={handleRatingChange}
+                            radius="xl"
+                            size="sm"
+                            data={[
+                                { label: 'All', value: 'all' },
+                                { label: 'Safe', value: 'safe' },
+                                { label: 'Questionable', value: 'questionable' },
+                                { label: 'Explicit', value: 'explicit' },
+                            ]}
+                        />
+                    </Stack>
+                    <SortControl 
+                        options={[
+                            { label: 'Date Added', value: 'date_added' },
+                            { label: 'File Size', value: 'file_size' },
+                            { label: 'Resolution', value: 'resolution' },
+                            { label: 'Rating', value: 'rating' },
+                            { label: 'Aspect Ratio', value: 'aspect_ratio' },
+                            { label: 'Random', value: 'random' },
+                        ]} 
+                        defaultSortBy="date_added" 
                     />
-                </Stack>
+                </Group>
             </Group>
 
             <Box style={{ position: 'relative', minHeight: '60vh' }}>

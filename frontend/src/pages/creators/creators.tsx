@@ -15,6 +15,7 @@ import { CreatorCreateForm } from '../../components/creators/CreatorCreateForm';
 import { useUrlSearch } from '../../hooks/useUrlSearch';
 import { useUrlPagination } from '../../hooks/useUrlPagination';
 import { PaginationWithSkip } from '../../components/ui/PaginationWithSkip';
+import { SortControl } from '../../components/ui/SortControl';
 
 const PAGE_SIZE = 12;
 const SEARCH_DEBOUNCE_MS = 500;
@@ -27,6 +28,8 @@ export default function Creators() {
     
     // URL State (Source of Truth for API)
     const typeFilter = searchParams.get('type') || null;
+    const sortBy = searchParams.get('sort_by') || 'name';
+    const sortDir = (searchParams.get('sort_dir') as 'asc' | 'desc') || 'asc';
 
     // Modal/Action State
     const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
@@ -55,7 +58,9 @@ export default function Creators() {
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
         search: search || undefined,
-        creator_type: typeFilter || undefined
+        creator_type: typeFilter || undefined,
+        sort_by: sortBy,
+        sort_dir: sortDir
     });
     
     // Separate query to fetch ALL creators for the merge dropdowns (high limit)
@@ -153,23 +158,35 @@ export default function Creators() {
             </Group>
             <Text c="dimmed" mb="xl">Manage the talented people behind your favorite wallpapers.</Text>
 
-            <Group mb="xl" grow align="flex-end">
+            <Group mb="xl" justify="space-between" align="flex-end">
                 <TextInput
                     placeholder="Search by artist name..."
                     label="Search all artists"
                     leftSection={<IconSearch size={16} />}
                     value={localSearch}
                     onChange={(e) => handleSearchChange(e.currentTarget.value)}
+                    style={{ flex: 1, maxWidth: 500 }}
                 />
-                <Select
-                    label="Filter by type"
-                    placeholder="All types"
-                    leftSection={<IconFilter size={16} />}
-                    data={CREATOR_TYPES as unknown as string[]}
-                    clearable
-                    value={typeFilter}
-                    onChange={handleTypeChange}
-                />
+                <Group gap="xl" align="flex-end">
+                    <Select
+                        label="Filter by type"
+                        placeholder="All types"
+                        leftSection={<IconFilter size={16} />}
+                        data={CREATOR_TYPES as unknown as string[]}
+                        clearable
+                        value={typeFilter}
+                        onChange={handleTypeChange}
+                    />
+                    <SortControl 
+                        options={[
+                            { label: 'Name (A-Z)', value: 'name' },
+                            { label: 'Set Count', value: 'set_count' },
+                            { label: 'Total Image Count', value: 'total_image_count' }
+                        ]}
+                        defaultSortBy="name"
+                        defaultSortDir="asc"
+                    />
+                </Group>
             </Group>
             
             <Box style={{ position: 'relative', minHeight: 200 }}>

@@ -1,7 +1,7 @@
 """
 API endpoints for managing wallpaper sets, including creation, import, and bulk operations.
 """
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status, Query
 from fastapi.responses import StreamingResponse
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -135,9 +135,11 @@ async def read_sets(
         limit: int = 100,
         search: Optional[str] = None,
         creator_type: Optional[str] = None,
+        sort_by: Optional[str] = Query("date_added", description="Sort field (date_added, title, image_count)"),
+        sort_dir: Optional[str] = Query("desc", description="Sort direction (asc, desc)"),
         db: AsyncSession = Depends(get_db)
 ) -> SetPage:
-    sets, total = await crud_set.get_sets(db, skip=skip, limit=limit, search=search, creator_type=creator_type)
+    sets, total = await crud_set.get_sets(db, skip=skip, limit=limit, search=search, creator_type=creator_type, sort_by=sort_by, sort_dir=sort_dir)
     return SetPage(items=sets, total=total, skip=skip, limit=limit)
 
 @router.get("/{set_id}", response_model=Set)

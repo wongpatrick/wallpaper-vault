@@ -312,7 +312,9 @@ async def get_images(
     skip: int = 0, 
     limit: int = 100, 
     search: Optional[str] = None,
-    rating: Optional[str] = None
+    rating: Optional[str] = None,
+    sort_by: Optional[str] = "date_added",
+    sort_dir: Optional[str] = "desc"
 ) -> tuple[List[Image], int]:
     """Retrieves a paginated list of images, optionally filtered by search terms or rating.
 
@@ -322,6 +324,8 @@ async def get_images(
         limit: Maximum number of records to return.
         search: Optional search term matching filename, set title, tags, or creator name.
         rating: Optional rating to filter by.
+        sort_by: Field to sort by.
+        sort_dir: Direction to sort ('asc' or 'desc').
 
     Returns:
         A tuple containing the list of Image objects and the total count of matches.
@@ -346,10 +350,29 @@ async def get_images(
     count_result = await db.execute(count_query)
     total = count_result.scalar_one()
 
-    # Pagination with relationship loading
+    # Pagination with relationship loading and sorting
+    if sort_by == "file_size":
+        order_col = Image.file_size
+    elif sort_by == "resolution":
+        order_col = Image.width * Image.height
+    elif sort_by == "rating":
+        order_col = Image.rating
+    elif sort_by == "aspect_ratio":
+        order_col = Image.aspect_ratio
+    elif sort_by == "random":
+        order_col = func.random()
+    else:
+        order_col = Image.date_added
+        
+    if sort_dir == "asc" and sort_by != "random":
+        order_expr = order_col.asc()
+    else:
+        order_expr = order_col.desc() if sort_by != "random" else order_col
+
+    # Include Image.id for deterministic sorting when values are equal
     items_query = query.distinct().options(
         selectinload(Image.set).selectinload(Set.creators)
-    ).order_by(Image.date_added.desc(), Image.id.desc()).offset(skip).limit(limit)
+    ).order_by(order_expr, Image.id.desc()).offset(skip).limit(limit)
     
     result = await db.execute(items_query)
     return list(result.scalars().all()), total

@@ -1,7 +1,7 @@
 """
 API endpoints for managing creator (artist) profiles and their associated settings.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
@@ -45,6 +45,8 @@ async def read_creators(
         limit: int = 100,
         search: Optional[str] = None,
         creator_type: Optional[str] = None,
+        sort_by: Optional[str] = Query("name", description="Sort field (name, set_count, total_image_count)"),
+        sort_dir: Optional[str] = Query("asc", description="Sort direction (asc, desc)"),
         db: AsyncSession = Depends(get_db)
 ) -> CreatorPage:
     """
@@ -52,7 +54,7 @@ async def read_creators(
     
     Supports text search against canonical names and filtering by creator type (e.g., photographer, illustrator).
     """
-    creators, total = await crud_creator.get_creators(db, skip=skip, limit=limit, search=search, creator_type=creator_type)
+    creators, total = await crud_creator.get_creators(db, skip=skip, limit=limit, search=search, creator_type=creator_type, sort_by=sort_by, sort_dir=sort_dir)
     return CreatorPage(items=creators, total=total, skip=skip, limit=limit)
 
 @router.get("/{creator_id}", response_model=CreatorWithSets)

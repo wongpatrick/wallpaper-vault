@@ -15,6 +15,7 @@ import { useUrlPagination } from '../../hooks/useUrlPagination';
 import { useSelection } from '../../hooks/useSelection';
 import { SetBulkOperations } from '../../components/sets/SetBulkOperations';
 import { PaginationWithSkip } from '../../components/ui/PaginationWithSkip';
+import { SortControl } from '../../components/ui/SortControl';
 
 const PAGE_SIZE = 12;
 const SEARCH_DEBOUNCE_MS = 500;
@@ -28,6 +29,8 @@ export default function Sets() {
 
     // URL State (Source of Truth for API)
     const typeFilter = searchParams.get('type') || null;
+    const sortBy = searchParams.get('sort_by') || 'date_added';
+    const sortDir = (searchParams.get('sort_dir') as 'asc' | 'desc') || 'desc';
     
     // Selection State
     const { selectionMode, setSelectionMode, selectedIds, toggle: toggleSelect, selectAll, clear: clearSelection, startSelectionWith } = useSelection();
@@ -36,7 +39,9 @@ export default function Sets() {
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
         search: search || undefined,
-        creator_type: typeFilter || undefined
+        creator_type: typeFilter || undefined,
+        sort_by: sortBy,
+        sort_dir: sortDir
     });
 
     const sets = pageData?.items || [];
@@ -103,23 +108,34 @@ export default function Sets() {
                 </Button>
             </Group>
 
-            <Group mb="xl" grow align="flex-end">
+            <Group mb="xl" justify="space-between" align="flex-end">
                 <TextInput
                     placeholder="Search titles or artists..."
                     label="Search entire library"
                     leftSection={<IconSearch size={16} />}
                     value={localSearch}
                     onChange={(e) => handleSearchChange(e.currentTarget.value)}
+                    style={{ flex: 1, maxWidth: 500 }}
                 />
-                <Select
-                    label="Artist type"
-                    placeholder="All types"
-                    leftSection={<IconFilter size={16} />}
-                    data={CREATOR_TYPES as unknown as string[]}
-                    clearable
-                    value={typeFilter}
-                    onChange={handleTypeChange}
-                />
+                <Group gap="xl" align="flex-end">
+                    <Select
+                        label="Artist type"
+                        placeholder="All types"
+                        leftSection={<IconFilter size={16} />}
+                        data={CREATOR_TYPES as unknown as string[]}
+                        clearable
+                        value={typeFilter}
+                        onChange={handleTypeChange}
+                    />
+                    <SortControl 
+                        options={[
+                            { label: 'Date Added', value: 'date_added' },
+                            { label: 'Title (A-Z)', value: 'title' },
+                            { label: 'Image Count', value: 'image_count' }
+                        ]}
+                        defaultSortBy="date_added"
+                    />
+                </Group>
             </Group>
             
             <Box style={{ position: 'relative', minHeight: 400 }}>
