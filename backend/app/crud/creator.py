@@ -125,7 +125,7 @@ async def get_creators(db: AsyncSession, skip: int = 0, limit: int = 100, search
         subq = select(func.count(Image.id)).select_from(set_creators).join(Image, Image.set_id == set_creators.c.set_id).where(set_creators.c.creator_id == Creator.id).scalar_subquery()
         order_col = subq
     else:
-        order_col = Creator.canonical_name
+        order_col = func.lower(Creator.canonical_name)
         
     if sort_dir == "desc":
         order_expr = order_col.desc()

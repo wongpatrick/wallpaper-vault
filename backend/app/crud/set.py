@@ -140,7 +140,7 @@ async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Op
 
     # Sorting logic
     if sort_by == "title":
-        order_col = Set.title
+        order_col = func.lower(Set.title)
     elif sort_by == "image_count":
         # Subquery to count images for each set
         subq = select(func.count(Image.id)).where(Image.set_id == Set.id).scalar_subquery()
