@@ -36,8 +36,11 @@ export default function CreatorDetail() {
     const { creatorId } = useParams<{ creatorId: string }>();
     const navigate = useNavigate();
     
-    // 1. All hooks at the top
-    const { data: creatorData, isLoading, error, refetch } = useReadCreatorApiCreatorsCreatorIdGet(Number(creatorId));
+    // We must pass enabled: true because the Orval generated hook defaults to enabled: !!creatorId, which disables the query for ID 0.
+    const { data: creatorData, isLoading, error, refetch } = useReadCreatorApiCreatorsCreatorIdGet(
+        Number(creatorId),
+        { query: { enabled: true } }
+    );
     const creator = creatorData as CreatorWithSets | undefined;
     
     const updateMutation = useUpdateCreatorApiCreatorsCreatorIdPatch();
@@ -181,24 +184,26 @@ export default function CreatorDetail() {
                         </Stack>
                     </Group>
 
-                    <Group>
-                        <Button leftSection={<IconEdit size={18} />} variant="light" onClick={() => setIsEditModalOpen(true)}>
-                            Edit Profile
-                        </Button>
-                        <Menu shadow="md" width={200} position="bottom-end">
-                            <Menu.Target>
-                                <ActionIcon variant="outline" size="lg" radius="md">
-                                    <IconDotsVertical size={18} />
-                                </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                <Menu.Label>Management</Menu.Label>
-                                <Menu.Item leftSection={<IconTrash size={14} />} color="red" onClick={() => setIsDeleteModalOpen(true)}>
-                                    Delete Artist
-                                </Menu.Item>
-                            </Menu.Dropdown>
-                        </Menu>
-                    </Group>
+                    {creator.id !== 0 && (
+                        <Group>
+                            <Button leftSection={<IconEdit size={18} />} variant="light" onClick={() => setIsEditModalOpen(true)}>
+                                Edit Profile
+                            </Button>
+                            <Menu shadow="md" width={200} position="bottom-end">
+                                <Menu.Target>
+                                    <ActionIcon variant="outline" size="lg" radius="md">
+                                        <IconDotsVertical size={18} />
+                                    </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                    <Menu.Label>Management</Menu.Label>
+                                    <Menu.Item leftSection={<IconTrash size={14} />} color="red" onClick={() => setIsDeleteModalOpen(true)}>
+                                        Delete Artist
+                                    </Menu.Item>
+                                </Menu.Dropdown>
+                            </Menu>
+                        </Group>
+                    )}
                 </Group>
 
                 {creator.notes && (
