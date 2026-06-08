@@ -82,10 +82,13 @@ export default function Creators() {
 
     const creatorOptions = useMemo(() => {
         const list = allCreatorsData?.items || [];
-        return list.map(c => ({
-            value: String(c.id),
-            label: c.canonical_name
-        })).sort((a, b) => a.label.localeCompare(b.label));
+        return list
+            .filter(c => c.id !== 0)
+            .map(c => ({
+                value: String(c.id),
+                label: c.canonical_name
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label));
     }, [allCreatorsData]);
 
     // Handlers

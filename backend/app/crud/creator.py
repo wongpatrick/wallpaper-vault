@@ -49,6 +49,8 @@ async def get_creator(db: AsyncSession, creator_id: int) -> Optional[Creator]:
     """Retrieves a creator by their ID, including associated sets and images.
 
     Also populates the creator's statistical metrics.
+    If creator_id is 0, returns a dynamically generated 'Unknown Creator' 
+    containing all wallpaper sets that have no associated creators.
 
     Args:
         db: Database session.
@@ -57,6 +59,25 @@ async def get_creator(db: AsyncSession, creator_id: int) -> Optional[Creator]:
     Returns:
         The Creator object if found, otherwise None.
     """
+    if creator_id == 0:
+        result = await db.execute(
+            select(Set)
+            .options(selectinload(Set.images), selectinload(Set.creators))
+            .where(~Set.creators.any())
+        )
+        unassigned_sets = list(result.scalars().all())
+        
+        unknown_creator = Creator(
+            id=0,
+            canonical_name="Unknown Creator",
+            type="System",
+            notes="Automatically managed collection of all wallpaper sets without an assigned artist."
+        )
+        # Using a python list attribute instead of sqlalchemy relationship for the virtual entity
+        unknown_creator.sets = unassigned_sets
+        await _attach_stats(unknown_creator)
+        return unknown_creator
+
     result = await db.execute(
         select(Creator)
         .options(
@@ -141,6 +162,19 @@ async def get_creators(db: AsyncSession, skip: int = 0, limit: int = 100, search
     creators = list(result.scalars().all())
     for c in creators:
         await _attach_stats(c)
+
+    # Inject virtual "Unknown Creator"
+    if skip == 0 and (not search or "unknown" in search.lower()):
+        unassigned_count_result = await db.execute(
+            select(func.count(Set.id)).where(~Set.creators.any())
+        )
+        unassigned_count = unassigned_count_result.scalar_one()
+        if unassigned_count > 0:
+            unknown_creator = await get_creator(db, 0)
+            if unknown_creator:
+                creators.insert(0, unknown_creator)
+                total += 1
+
     return creators, total
 
 async def create_creator(db: AsyncSession, creator: CreatorCreate) -> Creator:
