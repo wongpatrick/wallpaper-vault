@@ -103,7 +103,15 @@ async def create_image(db: AsyncSession, image_in: ImageCreate, set_id: int) -> 
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Image with this file path already exists in the database.")
 
-    db_image = Image(**image_in.model_dump(), set_id=set_id)
+    image_data = image_in.model_dump()
+    if not image_data.get("phash") and image_data.get("local_path"):
+        from app.services.audit_service import calculate_phash
+        import asyncio
+        p = Path(image_data["local_path"])
+        if p.exists():
+            image_data["phash"] = await asyncio.to_thread(calculate_phash, p)
+
+    db_image = Image(**image_data, set_id=set_id)
     db.add(db_image)
     await db.commit()
     await db.refresh(db_image)
