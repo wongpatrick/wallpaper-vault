@@ -170,9 +170,31 @@ async def run_library_audit(vault_root_str: str, task_id: str) -> None:
                             db.add(o)
                             db.add(match)
 
+            # 5. PHASH BACKFILL
+            logger.info("Audit: Backfilling missing perceptual hashes...")
+            await tasks.update_task(db, task_id, progress=90, status="Backfilling missing perceptual hashes...")
+            
+            missing_phash_imgs = [img for img in all_images if not img.phash and img.local_path]
+            updated_phash_count = 0
+            for idx, img in enumerate(missing_phash_imgs):
+                p = Path(img.local_path)
+                if p.exists():
+                    ph = calculate_phash(p)
+                    if ph:
+                        img.phash = ph
+                        db.add(img)
+                        updated_phash_count += 1
+                        
+                if idx % 50 == 0 and len(missing_phash_imgs) > 0:
+                    prog = 90 + int((idx / len(missing_phash_imgs)) * 8)
+                    await tasks.update_task(db, task_id, progress=prog, status=f"Backfilling hashes ({idx}/{len(missing_phash_imgs)})...")
+                    
+            if missing_phash_imgs:
+                await db.flush()
+
             await db.commit()
             await tasks.update_task(db, task_id, progress=100, status=TaskStatus.COMPLETED)
-            logger.info("Audit Complete", ghosts_found=len(ghosts), orphans_found=len(orphans))
+            logger.info("Audit Complete", ghosts_found=len(ghosts), orphans_found=len(orphans), phash_backfilled=updated_phash_count)
 
         except Exception as e:
             logger.exception("Error running library audit", error=str(e))
