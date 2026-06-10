@@ -188,7 +188,50 @@ async def create_set(db: AsyncSession, set_in: SetCreate) -> Set:
         db_set.creators = list(creators)
     
     if set_in.images:
-        db_set.images = [Image(**image.model_dump()) for image in set_in.images]
+        import asyncio
+        from pathlib import Path
+        from app.core.crop import load_image
+        from app.crud.settings import get_setting
+        from app.services.audit_service import calculate_phash, calculate_dominant_color
+
+        h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
+        v_ratio_setting = await get_setting(db, "vertical_target_ratio")
+        h_label = h_ratio_setting.value.replace("/", "x") if h_ratio_setting and h_ratio_setting.value else "16x9"
+        v_label = v_ratio_setting.value.replace("/", "x") if v_ratio_setting and v_ratio_setting.value else "9x16"
+
+        new_images = []
+        for image_in in set_in.images:
+            img_data = image_in.model_dump()
+            
+            if img_data.get("local_path"):
+                p = Path(img_data["local_path"])
+                
+                if not img_data.get("phash"):
+                    img_data["phash"] = await asyncio.to_thread(calculate_phash, p)
+                    
+                if img_data.get("width") is None or img_data.get("height") is None:
+                    img_cv = await asyncio.to_thread(load_image, str(p))
+                    if img_cv is not None:
+                        height, width = img_cv.shape[:2]
+                        img_data["width"] = width
+                        img_data["height"] = height
+                        img_data["aspect_ratio"] = float(width) / float(height) if height != 0 else 0
+                        
+                if not img_data.get("aspect_ratio_label"):
+                    w = img_data.get("width")
+                    h = img_data.get("height")
+                    if w is not None and h is not None:
+                        img_data["aspect_ratio_label"] = h_label if w >= h else v_label
+                        
+                if img_data.get("file_size") is None:
+                    img_data["file_size"] = p.stat().st_size if p.exists() else None
+                    
+                if img_data.get("dominant_color") is None:
+                    img_data["dominant_color"] = await asyncio.to_thread(calculate_dominant_color, p)
+
+            new_images.append(Image(**img_data))
+            
+        db_set.images = new_images
 
     db.add(db_set)
     await db.commit()
@@ -611,7 +654,7 @@ async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     Returns:
         The updated Set object, or None if it lacks a valid local path.
     """
-    from app.services.audit_service import calculate_phash
+    from app.services.audit_service import calculate_phash, calculate_dominant_color
     
     db_set = await get_set(db, set_id)
     if not db_set or not db_set.local_path:
@@ -697,6 +740,7 @@ async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
             ratio_label = h_label if w >= h else v_label
             
         file_size = p.stat().st_size if p.exists() else None
+        dominant_color = calculate_dominant_color(p)
 
         new_img = Image(
             set_id=set_id,
@@ -708,7 +752,8 @@ async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
             height=h,
             aspect_ratio=ar,
             aspect_ratio_label=ratio_label,
-            file_size=file_size
+            file_size=file_size,
+            dominant_color=dominant_color
         )
         db.add(new_img)
         

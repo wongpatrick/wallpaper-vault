@@ -104,12 +104,37 @@ async def create_image(db: AsyncSession, image_in: ImageCreate, set_id: int) -> 
         raise HTTPException(status_code=400, detail="Image with this file path already exists in the database.")
 
     image_data = image_in.model_dump()
-    if not image_data.get("phash") and image_data.get("local_path"):
-        from app.services.audit_service import calculate_phash
+    if image_data.get("local_path"):
+        from app.services.audit_service import calculate_phash, calculate_dominant_color
+        from app.core.crop import load_image
+        from app.crud.settings import get_setting
         import asyncio
+        
         p = Path(image_data["local_path"])
         if p.exists():
-            image_data["phash"] = await asyncio.to_thread(calculate_phash, p)
+            if not image_data.get("phash"):
+                image_data["phash"] = await asyncio.to_thread(calculate_phash, p)
+                
+            image_data["file_size"] = p.stat().st_size
+            
+            if not image_data.get("dominant_color"):
+                image_data["dominant_color"] = await asyncio.to_thread(calculate_dominant_color, p)
+                
+            if image_data.get("width") is None or image_data.get("height") is None:
+                h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
+                v_ratio_setting = await get_setting(db, "vertical_target_ratio")
+                h_label = h_ratio_setting.value.replace("/", "x") if h_ratio_setting and h_ratio_setting.value else "16x9"
+                v_label = v_ratio_setting.value.replace("/", "x") if v_ratio_setting and v_ratio_setting.value else "9x16"
+                
+                img_cv = await asyncio.to_thread(load_image, str(p))
+                if img_cv is not None:
+                    height, width = img_cv.shape[:2]
+                    image_data["width"] = width
+                    image_data["height"] = height
+                    image_data["aspect_ratio"] = float(width) / float(height) if height != 0 else 0
+                    
+                    if not image_data.get("aspect_ratio_label"):
+                        image_data["aspect_ratio_label"] = h_label if width >= height else v_label
 
     db_image = Image(**image_data, set_id=set_id)
     db.add(db_image)

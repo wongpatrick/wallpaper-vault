@@ -204,6 +204,7 @@ async def execute_import_item(
                     ratio_label = h_label if final_p.name.startswith(f"{h_label}.") else v_label
                     
                     from app.core.enums import ImageRating
+                    from app.services.audit_service import calculate_phash, calculate_dominant_color
                     db_images.append(Image(
                         filename=final_p.name,
                         local_path=str(final_p.resolve()),
@@ -211,6 +212,8 @@ async def execute_import_item(
                         file_size=final_p.stat().st_size,
                         aspect_ratio=float(w)/float(h) if h!=0 else 0,
                         aspect_ratio_label=ratio_label,
+                        phash=calculate_phash(final_p),
+                        dominant_color=calculate_dominant_color(final_p),
                         rating=ImageRating.QUESTIONABLE
                     ))
         

@@ -17,6 +17,7 @@ from app.core.enums import TaskStatus, AuditIssueType
 from app.core.crop import load_image
 import structlog
 import cv2
+import numpy as np
 
 logger = structlog.get_logger(__name__)
 
@@ -28,6 +29,30 @@ def calculate_phash(path: Path) -> Optional[str]:
         hasher = cv2.img_hash.PHash_create()
         return hasher.compute(img).tobytes().hex()
     except Exception:
+        return None
+
+def calculate_dominant_color(path: Path) -> Optional[str]:
+    try:
+        img = load_image(path)
+        if img is None:
+            return None
+        
+        img = cv2.resize(img, (50, 50))
+        data = img.reshape((-1, 3))
+        data = np.float32(data)
+        
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+        flags = cv2.KMEANS_RANDOM_CENTERS
+        compactness, labels, centers = cv2.kmeans(data, 3, None, criteria, 10, flags)
+        
+        unique, counts = np.unique(labels, return_counts=True)
+        dominant_label = unique[np.argmax(counts)]
+        dominant_center = centers[dominant_label]
+        
+        b, g, r = int(dominant_center[0]), int(dominant_center[1]), int(dominant_center[2])
+        return f"#{r:02x}{g:02x}{b:02x}".upper()
+    except Exception as e:
+        logger.error("Error calculating dominant color", error=str(e))
         return None
 
 async def run_library_audit(vault_root_str: str, task_id: str) -> None:
@@ -170,31 +195,77 @@ async def run_library_audit(vault_root_str: str, task_id: str) -> None:
                             db.add(o)
                             db.add(match)
 
-            # 5. PHASH BACKFILL
-            logger.info("Audit: Backfilling missing perceptual hashes...")
-            await tasks.update_task(db, task_id, progress=90, status="Backfilling missing perceptual hashes...")
+            # 5. METADATA BACKFILL
+            logger.info("Audit: Backfilling missing metadata...")
+            await tasks.update_task(db, task_id, progress=90, status="Backfilling missing metadata...")
             
-            missing_phash_imgs = [img for img in all_images if not img.phash and img.local_path]
-            updated_phash_count = 0
-            for idx, img in enumerate(missing_phash_imgs):
+            from app.crud.settings import get_setting
+            h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
+            v_ratio_setting = await get_setting(db, "vertical_target_ratio")
+            h_label = h_ratio_setting.value.replace("/", "x") if h_ratio_setting and h_ratio_setting.value else "16x9"
+            v_label = v_ratio_setting.value.replace("/", "x") if v_ratio_setting and v_ratio_setting.value else "9x16"
+            
+            missing_metadata_imgs = [
+                img for img in all_images 
+                if img.local_path and (
+                    not img.phash or
+                    img.width is None or
+                    img.height is None or
+                    img.file_size is None or
+                    not img.dominant_color or
+                    not img.aspect_ratio_label
+                )
+            ]
+            
+            updated_meta_count = 0
+            for idx, img in enumerate(missing_metadata_imgs):
                 p = Path(img.local_path)
                 if p.exists():
-                    ph = calculate_phash(p)
-                    if ph:
-                        img.phash = ph
-                        db.add(img)
-                        updated_phash_count += 1
-                        
-                if idx % 50 == 0 and len(missing_phash_imgs) > 0:
-                    prog = 90 + int((idx / len(missing_phash_imgs)) * 8)
-                    await tasks.update_task(db, task_id, progress=prog, status=f"Backfilling hashes ({idx}/{len(missing_phash_imgs)})...")
+                    updated = False
                     
-            if missing_phash_imgs:
+                    if not img.phash:
+                        ph = calculate_phash(p)
+                        if ph:
+                            img.phash = ph
+                            updated = True
+                            
+                    if img.width is None or img.height is None:
+                        img_cv = load_image(p)
+                        if img_cv is not None:
+                            height, width = img_cv.shape[:2]
+                            img.width = width
+                            img.height = height
+                            img.aspect_ratio = float(width) / float(height) if height != 0 else 0
+                            img.aspect_ratio_label = h_label if width >= height else v_label
+                            updated = True
+                    elif not img.aspect_ratio_label:
+                        img.aspect_ratio_label = h_label if img.width >= img.height else v_label
+                        updated = True
+                            
+                    if img.file_size is None:
+                        img.file_size = p.stat().st_size
+                        updated = True
+                        
+                    if not img.dominant_color:
+                        dc = calculate_dominant_color(p)
+                        if dc:
+                            img.dominant_color = dc
+                            updated = True
+                            
+                    if updated:
+                        db.add(img)
+                        updated_meta_count += 1
+                        
+                if idx % 50 == 0 and len(missing_metadata_imgs) > 0:
+                    prog = 90 + int((idx / len(missing_metadata_imgs)) * 8)
+                    await tasks.update_task(db, task_id, progress=prog, status=f"Backfilling metadata ({idx}/{len(missing_metadata_imgs)})...")
+                    
+            if missing_metadata_imgs:
                 await db.flush()
 
             await db.commit()
             await tasks.update_task(db, task_id, progress=100, status=TaskStatus.COMPLETED)
-            logger.info("Audit Complete", ghosts_found=len(ghosts), orphans_found=len(orphans), phash_backfilled=updated_phash_count)
+            logger.info("Audit Complete", ghosts_found=len(ghosts), orphans_found=len(orphans), metadata_backfilled=updated_meta_count)
 
         except Exception as e:
             logger.exception("Error running library audit", error=str(e))
