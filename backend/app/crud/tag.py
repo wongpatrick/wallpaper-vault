@@ -1,6 +1,7 @@
 """
 CRUD operations for retrieving unique tags from images and sets.
 """
+from collections import Counter
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -49,3 +50,35 @@ async def get_unique_tags(
         
     matched.sort()
     return matched[:limit]
+
+
+async def get_tag_cloud(
+    db: AsyncSession,
+    limit: int = 50
+) -> List[dict]:
+    """Returns the top N tags by frequency, aggregated from both Images and Sets.
+
+    Tags are stored as space-separated strings. This function splits them,
+    counts occurrences across both models, and returns the most frequent tags.
+
+    Args:
+        db: Database session.
+        limit: Maximum number of tags to return (default 50).
+
+    Returns:
+        A list of dicts [{"tag": str, "count": int}] sorted by count descending.
+    """
+    image_tags_query = select(Image.tags).filter(Image.tags.is_not(None), Image.tags != "")
+    set_tags_query = select(Set.tags).filter(Set.tags.is_not(None), Set.tags != "")
+
+    image_res = await db.execute(image_tags_query)
+    set_res = await db.execute(set_tags_query)
+
+    counter: Counter = Counter()
+    for row_tags in image_res.scalars():
+        counter.update(row_tags.split())
+    for row_tags in set_res.scalars():
+        counter.update(row_tags.split())
+
+    top_tags = counter.most_common(limit)
+    return [{"tag": tag, "count": count} for tag, count in top_tags]

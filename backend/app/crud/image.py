@@ -346,10 +346,11 @@ async def get_images(
     limit: int = 100, 
     search: Optional[str] = None,
     rating: Optional[str] = None,
+    tag: Optional[str] = None,
     sort_by: Optional[str] = "date_added",
     sort_dir: Optional[str] = "desc"
 ) -> tuple[List[Image], int]:
-    """Retrieves a paginated list of images, optionally filtered by search terms or rating.
+    """Retrieves a paginated list of images, optionally filtered by search terms, rating, or tag.
 
     Args:
         db: Database session.
@@ -357,6 +358,7 @@ async def get_images(
         limit: Maximum number of records to return.
         search: Optional search term matching filename, set title, tags, or creator name.
         rating: Optional rating to filter by.
+        tag: Optional single tag to filter by (matches image or set tags).
         sort_by: Field to sort by.
         sort_dir: Direction to sort ('asc' or 'desc').
 
@@ -367,6 +369,14 @@ async def get_images(
     
     if rating:
         query = query.filter(Image.rating == rating)
+
+    if tag:
+        query = query.filter(
+            or_(
+                Image.tags.icontains(tag),
+                Set.tags.icontains(tag)
+            )
+        )
 
     if search:
         query = query.join(Set.creators).filter(

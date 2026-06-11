@@ -3,8 +3,8 @@
  * Module: Images Directory Page
  * Description: Provides an infinite-scrolling gallery of all individual wallpapers with search, filtering, and lightbox viewing capabilities.
  */
-import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Box, SimpleGrid, SegmentedControl } from '@mantine/core';
-import { IconAlertCircle, IconSearch } from '@tabler/icons-react';
+import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Box, SimpleGrid, SegmentedControl, Badge, ActionIcon } from '@mantine/core';
+import { IconAlertCircle, IconSearch, IconX } from '@tabler/icons-react';
 import { useReadImagesApiImagesGet } from '../../api/generated/images/images';
 import { ImageGridItem } from '../../components/images/ImageGridItem';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
@@ -29,6 +29,7 @@ export default function Images() {
 
     // URL State (Source of Truth for API)
     const ratingFilter = searchParams.get('rating') || 'all';
+    const tagFilter = searchParams.get('tag') || undefined;
     const { page, setPage } = useUrlPagination(PAGE_SIZE);
     const sortBy = searchParams.get('sort_by') || 'date_added';
     const sortDir = (searchParams.get('sort_dir') as 'asc' | 'desc') || 'desc';
@@ -74,6 +75,7 @@ export default function Images() {
         limit: PAGE_SIZE,
         search: search || undefined,
         rating: ratingFilter === 'all' ? undefined : ratingFilter,
+        tag: tagFilter,
         sort_by: sortBy,
         sort_dir: sortDir
     });
@@ -88,6 +90,17 @@ export default function Images() {
             const next = new URLSearchParams(prev);
             if (val === 'all') next.delete('rating');
             else next.set('rating', val);
+            next.delete('page');
+            return next;
+        }, { replace: true });
+        setAllImages([]);
+        setHasMore(true);
+    };
+
+    const handleClearTag = () => {
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            next.delete('tag');
             next.delete('page');
             return next;
         }, { replace: true });
@@ -138,15 +151,39 @@ export default function Images() {
             </Stack>
 
             <Group mb="xl" justify="space-between" align="flex-end">
-                <TextInput
-                    placeholder="Search by filename, set, tags, or artist..."
-                    size="md"
-                    radius="xl"
-                    leftSection={<IconSearch size={18} />}
-                    value={localSearch}
-                    onChange={handleSearchChange}
-                    style={{ flex: 1, maxWidth: 500 }}
-                />
+                <Group align="flex-end" style={{ flex: 1, flexWrap: 'wrap', gap: 'var(--mantine-spacing-sm)' }}>
+                    <TextInput
+                        placeholder="Search by filename, set, tags, or artist..."
+                        size="md"
+                        radius="xl"
+                        leftSection={<IconSearch size={18} />}
+                        value={localSearch}
+                        onChange={handleSearchChange}
+                        style={{ flex: 1, minWidth: 220, maxWidth: 500 }}
+                    />
+                    {tagFilter && (
+                        <Badge
+                            size="lg"
+                            radius="xl"
+                            variant="light"
+                            color="violet"
+                            rightSection={
+                                <ActionIcon
+                                    size="xs"
+                                    color="violet"
+                                    radius="xl"
+                                    variant="transparent"
+                                    onClick={handleClearTag}
+                                    aria-label="Clear tag filter"
+                                >
+                                    <IconX size={12} />
+                                </ActionIcon>
+                            }
+                        >
+                            #{tagFilter}
+                        </Badge>
+                    )}
+                </Group>
                 <Group gap="xl" align="flex-end">
                     <Stack gap={4}>
                         <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Rating</Text>
