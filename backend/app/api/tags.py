@@ -3,11 +3,35 @@ API endpoints for searching and retrieving tags.
 """
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.crud import tag as crud_tag
 
 router = APIRouter()
+
+
+class TagCount(BaseModel):
+    """Represents a tag and the number of times it appears across all images and sets."""
+    tag: str
+    count: int
+
+
+@router.get("/cloud", response_model=List[TagCount])
+async def read_tag_cloud(
+    limit: int = Query(50, description="Maximum number of tags to return, sorted by frequency"),
+    db: AsyncSession = Depends(get_db)
+) -> List[TagCount]:
+    """
+    Retrieve the most frequently used tags across the entire vault.
+
+    Aggregates tags from both Images and Sets, counts occurrences, and returns
+    the top N tags sorted by frequency (highest first). Designed to power
+    the tag word cloud on the Dashboard.
+    """
+    tag_counts = await crud_tag.get_tag_cloud(db, limit=limit)
+    return [TagCount(**tc) for tc in tag_counts]
+
 
 @router.get("/", response_model=List[str])
 async def search_tags(

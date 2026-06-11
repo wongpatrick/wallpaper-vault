@@ -31,13 +31,16 @@ import {
     IconFolders, 
     IconDatabase,
     IconExternalLink,
-    IconArrowRight
+    IconArrowRight,
+    IconTags
 } from '@tabler/icons-react';
 import { useReadDashboardDataApiDashboardGet } from '../../api/generated/dashboard/dashboard';
 import { useReadSetsApiSetsGet } from '../../api/generated/sets/sets';
 import { useReadRandomImageApiImagesRandomGet } from '../../api/generated/images/images';
+import { useReadTagCloudApiTagsCloudGet } from '../../api/generated/tags/tags';
 import { formatBytes, getImageUrl } from '../../utils/fileUtils';
 import { Link, useNavigate } from 'react-router-dom';
+import TagCloud from '../../components/ui/TagCloud';
 
 export default function Dashboard() {
     const navigate = useNavigate();
@@ -52,6 +55,9 @@ export default function Dashboard() {
 
     // 3. Fetch Random Inspiration
     const { data: randomImage } = useReadRandomImageApiImagesRandomGet();
+
+    // 4. Fetch Tag Cloud
+    const { data: tagCloud } = useReadTagCloudApiTagsCloudGet({ limit: 50 });
 
     if (statsLoading) {
         return (
@@ -235,6 +241,28 @@ export default function Dashboard() {
                         )}
                     </Stack>
                 </SimpleGrid>
+
+                {/* 4. Tag Landscape */}
+                {tagCloud && tagCloud.length > 0 && (
+                    <Stack gap="md">
+                        <Group justify="space-between" align="flex-end">
+                            <Box>
+                                <Group gap="xs" mb={4}>
+                                    <ThemeIcon color="violet" variant="light" size={28} radius="md">
+                                        <IconTags size="1rem" />
+                                    </ThemeIcon>
+                                    <Title order={3} size="h4">Tag Landscape</Title>
+                                </Group>
+                                <Text size="xs" c="dimmed" ml="xl">
+                                    {tagCloud.length} unique tag{tagCloud.length !== 1 ? 's' : ''} across your collection — click any to browse
+                                </Text>
+                            </Box>
+                        </Group>
+                        <Paper withBorder p="md" radius="md">
+                            <TagCloud tags={tagCloud} height={300} />
+                        </Paper>
+                    </Stack>
+                )}
             </Stack>
         </Container>
     );
