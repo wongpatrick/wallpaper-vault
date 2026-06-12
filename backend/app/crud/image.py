@@ -340,6 +340,75 @@ async def resolve_duplicates(db: AsyncSession, keep_id: int, remove_ids: List[in
     await db.commit()
     return removed_count, space_saved
 
+def _hex_to_hsl(hex_color: str) -> tuple[float, float, float]:
+    import colorsys
+    hex_color = hex_color.lstrip('#')
+    if len(hex_color) != 6:  # noqa: PLR2004
+        return 0, 0, 0
+    r = int(hex_color[0:2], 16) / 255.0  # noqa: PLR2004
+    g = int(hex_color[2:4], 16) / 255.0  # noqa: PLR2004
+    b = int(hex_color[4:6], 16) / 255.0  # noqa: PLR2004
+    hue, light, sat = colorsys.rgb_to_hls(r, g, b)
+    return hue * 360, sat * 100, light * 100  # noqa: PLR2004
+
+def _matches_color(dominant_color: Optional[str], target_color: str) -> bool:
+    if not dominant_color:
+        return False
+    hue, sat, light = _hex_to_hsl(dominant_color)
+    
+    target = target_color.strip()
+    
+    white_lightness = 85
+    black_lightness = 15
+    grey_saturation = 20
+    hue_tolerance = 30
+    
+    # If target is a hex code, convert to HSL and do hue-range match
+    if target.startswith('#'):
+        target_h, target_s, target_l = _hex_to_hsl(target)
+        
+        # If the picked color is near-neutral, match by lightness/saturation
+        if target_l > white_lightness:
+            return light > white_lightness
+        if target_l < black_lightness:
+            return light < black_lightness
+        if target_s <= grey_saturation:
+            return sat <= grey_saturation and black_lightness <= light <= white_lightness
+        
+        # Otherwise match by hue ±30°
+        diff = abs(hue - target_h)
+        diff = min(diff, 360 - diff)  # noqa: PLR2004
+        return diff <= hue_tolerance
+    
+    # Named color bucket fallback
+    target_lower = target.lower()
+    if target_lower == 'white':
+        return light > white_lightness
+    if target_lower == 'black':
+        return light < black_lightness
+    if target_lower == 'grey':
+        return sat <= grey_saturation and black_lightness <= light <= white_lightness
+        
+    hues = {
+        'red': 0,
+        'orange': 30,  # noqa: PLR2004
+        'yellow': 60,  # noqa: PLR2004
+        'green': 120,  # noqa: PLR2004
+        'teal': 180,  # noqa: PLR2004
+        'blue': 210,  # noqa: PLR2004
+        'purple': 270,  # noqa: PLR2004
+        'pink': 330  # noqa: PLR2004
+    }
+    
+    if target_lower not in hues:
+        return False
+        
+    target_h = hues[target_lower]
+    diff = abs(hue - target_h)
+    diff = min(diff, 360 - diff)  # noqa: PLR2004
+    
+    return diff <= hue_tolerance
+
 async def get_images(
     db: AsyncSession, 
     skip: int = 0, 
@@ -347,6 +416,7 @@ async def get_images(
     search: Optional[str] = None,
     rating: Optional[str] = None,
     tag: Optional[str] = None,
+    color: Optional[str] = None,
     sort_by: Optional[str] = "date_added",
     sort_dir: Optional[str] = "desc"
 ) -> tuple[List[Image], int]:
@@ -359,6 +429,7 @@ async def get_images(
         search: Optional search term matching filename, set title, tags, or creator name.
         rating: Optional rating to filter by.
         tag: Optional single tag to filter by (matches image or set tags).
+        color: Optional color to filter by (e.g. 'red', 'blue', 'white').
         sort_by: Field to sort by.
         sort_dir: Direction to sort ('asc' or 'desc').
 
@@ -387,11 +458,9 @@ async def get_images(
                 Creator.canonical_name.icontains(search)
             )
         )
-    
-    # Total count
-    count_query = select(func.count()).select_from(query.distinct().subquery())
-    count_result = await db.execute(count_query)
-    total = count_result.scalar_one()
+        
+    if color:
+        query = query.filter(Image.dominant_color.is_not(None))
 
     # Pagination with relationship loading and sorting
     if sort_by == "file_size":
@@ -415,10 +484,30 @@ async def get_images(
     # Include Image.id for deterministic sorting when values are equal
     items_query = query.distinct().options(
         selectinload(Image.set).selectinload(Set.creators)
-    ).order_by(order_expr, Image.id.desc()).offset(skip).limit(limit)
+    ).order_by(order_expr, Image.id.desc())
     
-    result = await db.execute(items_query)
-    return list(result.scalars().all()), total
+    if not color:
+        # Total count
+        count_query = select(func.count()).select_from(query.distinct().subquery())
+        count_result = await db.execute(count_query)
+        total = count_result.scalar_one()
+
+        items_query = items_query.offset(skip).limit(limit)
+        result = await db.execute(items_query)
+        items = list(result.scalars().all())
+    else:
+        result = await db.execute(items_query)
+        all_items = list(result.scalars().all())
+        
+        filtered_items = []
+        for img in all_items:
+            if _matches_color(img.dominant_color, color):
+                filtered_items.append(img)
+                
+        total = len(filtered_items)
+        items = filtered_items[skip:skip+limit]
+
+    return items, total
 
 async def bulk_move_images(db: AsyncSession, move_in: ImageBulkMove) -> int:
     """Moves images from their current sets to a target set, both on disk and in DB.
