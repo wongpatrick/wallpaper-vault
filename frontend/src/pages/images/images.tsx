@@ -3,14 +3,14 @@
  * Module: Images Directory Page
  * Description: Provides an infinite-scrolling gallery of all individual wallpapers with search, filtering, and lightbox viewing capabilities.
  */
-import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Box, SimpleGrid, SegmentedControl, Badge, ActionIcon } from '@mantine/core';
+import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Box, SimpleGrid, SegmentedControl, Badge, ActionIcon, Tooltip, Popover, ColorPicker } from '@mantine/core';
 import { IconAlertCircle, IconSearch, IconX } from '@tabler/icons-react';
 import { useReadImagesApiImagesGet } from '../../api/generated/images/images';
 import { ImageGridItem } from '../../components/images/ImageGridItem';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { SortControl } from '../../components/ui/SortControl';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useIntersection, useViewportSize } from '@mantine/hooks';
 import { useSearchParams } from 'react-router-dom';
 import { useUrlSearch } from '../../hooks/useUrlSearch';
@@ -22,6 +22,12 @@ const SEARCH_DEBOUNCE_MS = 500;
 const BREAKPOINT_SM = 600;
 const BREAKPOINT_MD = 900;
 const BREAKPOINT_LG = 1200;
+const COLOR_DEBOUNCE_MS = 500;
+
+const PRESET_SWATCHES = [
+    '#E03131', '#E8590C', '#F08C00', '#2F9E44', '#0C8599',
+    '#1971C2', '#6741D9', '#C2255C', '#F8F9FA', '#868E96', '#212529',
+];
 
 export default function Images() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -30,6 +36,7 @@ export default function Images() {
     // URL State (Source of Truth for API)
     const ratingFilter = searchParams.get('rating') || 'all';
     const tagFilter = searchParams.get('tag') || undefined;
+    const colorFilter = searchParams.get('color') || undefined;
     const { page, setPage } = useUrlPagination(PAGE_SIZE);
     const sortBy = searchParams.get('sort_by') || 'date_added';
     const sortDir = (searchParams.get('sort_dir') as 'asc' | 'desc') || 'desc';
@@ -76,6 +83,7 @@ export default function Images() {
         search: search || undefined,
         rating: ratingFilter === 'all' ? undefined : ratingFilter,
         tag: tagFilter,
+        color: colorFilter,
         sort_by: sortBy,
         sort_dir: sortDir
     });
@@ -96,6 +104,37 @@ export default function Images() {
         setAllImages([]);
         setHasMore(true);
     };
+
+    const handleColorChange = useCallback((hex: string) => {
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            next.set('color', hex);
+            next.delete('page');
+            return next;
+        }, { replace: true });
+        setAllImages([]);
+        setHasMore(true);
+    }, [setSearchParams]);
+
+    const handleClearColor = () => {
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            next.delete('color');
+            next.delete('page');
+            return next;
+        }, { replace: true });
+        setAllImages([]);
+        setHasMore(true);
+    };
+
+    // Debounced color change for the wheel
+    const colorDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const handleColorPickerChange = useCallback((hex: string) => {
+        if (colorDebounceRef.current) clearTimeout(colorDebounceRef.current);
+        colorDebounceRef.current = setTimeout(() => {
+            handleColorChange(hex);
+        }, COLOR_DEBOUNCE_MS);
+    }, [handleColorChange]);
 
     const handleClearTag = () => {
         setSearchParams(prev => {
@@ -185,6 +224,53 @@ export default function Images() {
                     )}
                 </Group>
                 <Group gap="xl" align="flex-end">
+                    <Stack gap={4}>
+                        <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Color</Text>
+                        <Group gap={4}>
+                            <Popover position="bottom" shadow="lg" radius="md" withinPortal>
+                                <Popover.Target>
+                                    <Tooltip label={colorFilter ? 'Change color filter' : 'Filter by color'} position="bottom" withArrow>
+                                        <ActionIcon
+                                            size="lg"
+                                            radius="xl"
+                                            variant="default"
+                                            aria-label="Open color picker"
+                                            style={{
+                                                background: colorFilter
+                                                    ? colorFilter
+                                                    : 'conic-gradient(#E03131, #E8590C, #F08C00, #2F9E44, #0C8599, #1971C2, #6741D9, #C2255C, #E03131)',
+                                                border: '2px solid var(--mantine-color-default-border)',
+                                                cursor: 'pointer',
+                                            }}
+                                        />
+                                    </Tooltip>
+                                </Popover.Target>
+                                <Popover.Dropdown p="sm">
+                                    <ColorPicker
+                                        format="hex"
+                                        value={colorFilter || '#1971C2'}
+                                        onChange={handleColorPickerChange}
+                                        swatches={PRESET_SWATCHES}
+                                        swatchesPerRow={6}
+                                    />
+                                </Popover.Dropdown>
+                            </Popover>
+                            {colorFilter && (
+                                <Tooltip label="Clear color filter" position="bottom" withArrow>
+                                    <ActionIcon
+                                        size="sm"
+                                        radius="xl"
+                                        variant="subtle"
+                                        color="gray"
+                                        onClick={handleClearColor}
+                                        aria-label="Clear color filter"
+                                    >
+                                        <IconX size={14} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                        </Group>
+                    </Stack>
                     <Stack gap={4}>
                         <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Rating</Text>
                         <SegmentedControl

@@ -183,7 +183,7 @@ export const useBulkMoveImagesApiImagesBulkMovePost = <TError = ErrorType<HTTPVa
     /**
  * Retrieve a paginated list of all images in the vault.
 
-Supports comprehensive filtering via `search` (matching filename, tags, or notes) and `rating`. Returns images enriched with context like their parent set title and associated creators.
+Supports comprehensive filtering via `search` (matching filename, tags, or notes), `rating`, `color`, and `tag`. Returns images enriched with context like their parent set title and associated creators.
  * @summary Read Images
  */
 export const readImagesApiImagesGet = (

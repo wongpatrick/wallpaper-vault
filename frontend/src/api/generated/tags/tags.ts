@@ -21,7 +21,9 @@ import type {
 
 import type {
   HTTPValidationError,
-  SearchTagsApiTagsGetParams
+  ReadTagCloudApiTagsCloudGetParams,
+  SearchTagsApiTagsGetParams,
+  TagCount
 } from '../../model';
 
 import { customInstance } from '../../axios-instance';
@@ -30,10 +32,6 @@ import type { ErrorType } from '../../axios-instance';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
-export type TagCount = {
-  tag: string;
-  count: number;
-};
 
 
 /**
@@ -45,7 +43,7 @@ the tag word cloud on the Dashboard.
  * @summary Read Tag Cloud
  */
 export const readTagCloudApiTagsCloudGet = (
-    params?: { limit?: number },
+    params?: ReadTagCloudApiTagsCloudGetParams,
  options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
 ) => {
       
@@ -56,18 +54,18 @@ export const readTagCloudApiTagsCloudGet = (
     },
       options);
     }
+  
 
 
 
-
-export const getReadTagCloudApiTagsCloudGetQueryKey = (params?: { limit?: number },) => {
+export const getReadTagCloudApiTagsCloudGetQueryKey = (params?: ReadTagCloudApiTagsCloudGetParams,) => {
     return [
     `/api/tags/cloud`, ...(params ? [params]: [])
     ] as const;
     }
 
     
-export const getReadTagCloudApiTagsCloudGetQueryOptions = <TData = Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError = ErrorType<HTTPValidationError>>(params?: { limit?: number }, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+export const getReadTagCloudApiTagsCloudGetQueryOptions = <TData = Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError = ErrorType<HTTPValidationError>>(params?: ReadTagCloudApiTagsCloudGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -90,7 +88,7 @@ export type ReadTagCloudApiTagsCloudGetQueryError = ErrorType<HTTPValidationErro
 
 
 export function useReadTagCloudApiTagsCloudGet<TData = Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError = ErrorType<HTTPValidationError>>(
- params: undefined |  { limit?: number }, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError, TData>> & Pick<
+ params: undefined |  ReadTagCloudApiTagsCloudGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>,
           TError,
@@ -100,7 +98,7 @@ export function useReadTagCloudApiTagsCloudGet<TData = Awaited<ReturnType<typeof
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useReadTagCloudApiTagsCloudGet<TData = Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError = ErrorType<HTTPValidationError>>(
- params?: { limit?: number }, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError, TData>> & Pick<
+ params?: ReadTagCloudApiTagsCloudGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>,
           TError,
@@ -110,7 +108,7 @@ export function useReadTagCloudApiTagsCloudGet<TData = Awaited<ReturnType<typeof
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useReadTagCloudApiTagsCloudGet<TData = Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError = ErrorType<HTTPValidationError>>(
- params?: { limit?: number }, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ params?: ReadTagCloudApiTagsCloudGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -118,7 +116,7 @@ export function useReadTagCloudApiTagsCloudGet<TData = Awaited<ReturnType<typeof
  */
 
 export function useReadTagCloudApiTagsCloudGet<TData = Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError = ErrorType<HTTPValidationError>>(
- params?: { limit?: number }, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ params?: ReadTagCloudApiTagsCloudGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readTagCloudApiTagsCloudGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -130,6 +128,7 @@ export function useReadTagCloudApiTagsCloudGet<TData = Awaited<ReturnType<typeof
 
   return query;
 }
+
 
 
 
@@ -151,7 +150,7 @@ export const searchTagsApiTagsGet = (
     },
       options);
     }
-
+  
 
 
 
