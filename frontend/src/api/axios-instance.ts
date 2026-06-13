@@ -8,7 +8,10 @@ import Axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import { API_BASE_URL } from '../config';
 
 export const AXIOS_INSTANCE = Axios.create({
-    baseURL: API_BASE_URL
+    baseURL: API_BASE_URL,
+    paramsSerializer: {
+        indexes: null
+    }
 });
 
 export const customInstance = <T>(

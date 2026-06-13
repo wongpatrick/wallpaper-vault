@@ -3,7 +3,7 @@
  * Module: Sort Control
  * Description: UI component for selecting sort field and direction.
  */
-import { Group, Select, ActionIcon, Tooltip } from '@mantine/core';
+import { Group, Select, ActionIcon, Tooltip, Stack, Text } from '@mantine/core';
 import { IconSortAscending, IconSortDescending } from '@tabler/icons-react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -44,24 +44,26 @@ export function SortControl({ options, defaultSortBy, defaultSortDir = 'desc' }:
     };
 
     return (
-        <Group gap="xs" align="flex-end">
-            <Select
-                label="Sort by"
-                data={options}
-                value={sortBy}
-                onChange={handleSortByChange}
-                allowDeselect={false}
-                style={{ width: 160 }}
-            />
-            <Tooltip label={sortDir === 'asc' ? "Ascending" : "Descending"}>
-                <ActionIcon 
-                    variant="default" 
-                    size="36px"
-                    onClick={toggleSortDir}
-                >
-                    {sortDir === 'asc' ? <IconSortAscending size={20} /> : <IconSortDescending size={20} />}
-                </ActionIcon>
-            </Tooltip>
-        </Group>
+        <Stack gap={4}>
+            <Text size="xs" fw={700} c="dimmed" ml={4}>Sort by</Text>
+            <Group gap="xs" align="flex-end">
+                <Select
+                    data={options}
+                    value={sortBy}
+                    onChange={handleSortByChange}
+                    allowDeselect={false}
+                    style={{ width: 160 }}
+                />
+                <Tooltip label={sortDir === 'asc' ? "Ascending" : "Descending"}>
+                    <ActionIcon 
+                        variant="default" 
+                        size="36px"
+                        onClick={toggleSortDir}
+                    >
+                        {sortDir === 'asc' ? <IconSortAscending size={20} /> : <IconSortDescending size={20} />}
+                    </ActionIcon>
+                </Tooltip>
+            </Group>
+        </Stack>
     );
 }

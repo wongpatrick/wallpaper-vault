@@ -99,7 +99,7 @@ async def get_health_alerts(db: AsyncSession) -> list[HealthAlert]:
         ))
 
     # 4. Optimization: Missing Tags
-    missing_tags_query = select(func.count(Set.id)).filter((Set.tags.is_(None)) | (Set.tags == ""))
+    missing_tags_query = select(func.count(Set.id)).filter(~Set.tags.any())
     tags_count = (await db.execute(missing_tags_query)).scalar()
     if tags_count > 0:
         alerts.append(HealthAlert(

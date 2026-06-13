@@ -4,18 +4,20 @@
  * Provides the application shell, including the header, sidebar, and notification center.
  */
 import { Outlet } from "react-router-dom"
-import { AppShell, Title, Box, Button, Group, ActionIcon, Tooltip, Popover, Indicator, Stack, Text, Divider, ScrollArea, ThemeIcon } from "@mantine/core"
+import { AppShell, Title, Box, Button, Group, ActionIcon, Tooltip, Popover, Indicator, Stack, Text, Divider, ScrollArea, ThemeIcon, Burger } from "@mantine/core"
 import SideNav from "./SideNav"
 import classes from './Layout.module.css';
 import { useSidebarResizer } from "../../hooks/useSidebarResizer";
 import { IconPackage, IconPlus, IconBell, IconCheck, IconX } from "@tabler/icons-react";
 import { useNotificationHistory } from "../../hooks/useNotificationHistory";
 import { useState } from "react";
+import { useDisclosure } from "@mantine/hooks";
 
 export default function MainLayout() {
     const { width, isResizing, startResizing, isCollapsed } = useSidebarResizer();
     const { history, unreadCount, markAllAsRead, clearHistory } = useNotificationHistory();
     const [opened, setOpened] = useState(false);
+    const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
 
     return (
         <AppShell
@@ -24,12 +26,14 @@ export default function MainLayout() {
             navbar={{
                 width: { base: width },
                 breakpoint: 'sm',
+                collapsed: { mobile: !mobileOpened },
             }}
             padding="md"
         >
             <AppShell.Header px="md" className={classes.header}>
                 <Group h="100%" justify="space-between">
                     <Group style={{ flex: 1, maxWidth: 500 }}>
+                        <Burger opened={mobileOpened} onClick={toggleMobile} hiddenFrom="sm" size="sm" />
                     </Group>
 
                     <Group gap="sm">

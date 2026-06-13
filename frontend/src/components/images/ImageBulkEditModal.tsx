@@ -1,34 +1,31 @@
 /**
  * @file
  * Module: Image Bulk Edit Modal
- * Description: Modal component for applying bulk operations (ratings, tags, notes) to multiple selected images within a set.
+ * Description: Modal component for applying bulk operations (ratings, notes) to multiple selected images within a set.
  */
-import { Modal, Stack, SegmentedControl, Text, Button, TagsInput, Textarea, Group } from '@mantine/core';
-import { IconCheck, IconTags, IconNotes } from '@tabler/icons-react';
+import { Modal, Stack, SegmentedControl, Text, Button, Textarea, Group } from '@mantine/core';
+import { IconCheck, IconNotes } from '@tabler/icons-react';
 import { useState } from 'react';
 import { BulkOperationMode, ImageRating } from '../../types/enums';
 
 interface ImageBulkEditModalProps {
     opened: boolean;
     onClose: () => void;
-    onConfirm: (data: Partial<{ rating: string; tags: string; notes: string }>, mode: BulkOperationMode) => void;
+    onConfirm: (data: Partial<{ rating: string; notes: string }>, mode: BulkOperationMode) => void;
     loading: boolean;
     selectedCount: number;
 }
 
 export function ImageBulkEditModal({ opened, onClose, onConfirm, loading, selectedCount }: ImageBulkEditModalProps) {
     const [rating, setRating] = useState<string | null>(null);
-    const [tags, setTags] = useState<string[]>([]);
     const [notes, setNotes] = useState('');
-    const [mode, setMode] = useState<BulkOperationMode>(BulkOperationMode.APPEND);
 
     const handleConfirm = () => {
-        const updateData: Partial<{ rating: string; tags: string; notes: string }> = {};
+        const updateData: Partial<{ rating: string; notes: string }> = {};
         if (rating) updateData.rating = rating;
-        if (tags.length > 0) updateData.tags = tags.join(' ');
         if (notes) updateData.notes = notes;
 
-        onConfirm(updateData, mode);
+        onConfirm(updateData, BulkOperationMode.REPLACE);
     };
 
     return (
@@ -45,29 +42,6 @@ export function ImageBulkEditModal({ opened, onClose, onConfirm, loading, select
                             { label: 'Questionable', value: ImageRating.QUESTIONABLE },
                             { label: 'Explicit', value: ImageRating.EXPLICIT },
                         ]}
-                    />
-                </Stack>
-
-                <Stack gap={4}>
-                    <Group justify="space-between">
-                        <Text size="sm" fw={500}>Tags</Text>
-                        <SegmentedControl
-                            size="xs"
-                            value={mode}
-                            onChange={(val) => setMode(val as BulkOperationMode)}
-                            data={[
-                                { label: 'Append', value: BulkOperationMode.APPEND },
-                                { label: 'Remove', value: BulkOperationMode.REMOVE },
-                                { label: 'Replace', value: BulkOperationMode.REPLACE },
-                            ]}
-                        />
-                    </Group>
-                    <TagsInput 
-                        placeholder="Add or remove tags..." 
-                        leftSection={<IconTags size={16} />}
-                        value={tags}
-                        onChange={setTags}
-                        clearable
                     />
                 </Stack>
 
@@ -88,7 +62,7 @@ export function ImageBulkEditModal({ opened, onClose, onConfirm, loading, select
                         leftSection={<IconCheck size={18} />} 
                         onClick={handleConfirm}
                         loading={loading}
-                        disabled={!rating && tags.length === 0 && !notes}
+                        disabled={!rating && !notes}
                     >
                         Apply Changes
                     </Button>

@@ -78,7 +78,6 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
 
     const currentImage = images[selectedIndex];
     const rating = currentImage.rating || ImageRating.SAFE;
-    const tags = currentImage.tags;
 
     const borderColor = rating === ImageRating.EXPLICIT ? 'var(--mantine-color-red-filled)' : 
                         rating === ImageRating.QUESTIONABLE ? 'var(--mantine-color-yellow-filled)' : 
@@ -161,11 +160,6 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                             <Text c="gray.5" size="xs">
                                 {currentImage.width} x {currentImage.height} • {((currentImage.file_size || 0) / BYTES_PER_KB / BYTES_PER_KB).toFixed(2)} MB
                             </Text>
-                            {tags && (
-                                <Text c="blue.4" size="xs" fs="italic">
-                                    #{tags.split(/[\s,]+/).filter(Boolean).join(' #')}
-                                </Text>
-                            )}
                         </Group>
                     </Stack>
                     <Group>

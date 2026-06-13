@@ -7,15 +7,16 @@
  */
 import { useRef, useEffect, useState, useCallback, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMantineColorScheme } from '@mantine/core';
 
 export interface TagCloudItem {
     tag: string;
+    type?: string;
     count: number;
 }
 
 interface PlacedWord {
     tag: string;
+    type?: string;
     count: number;
     x: number;
     y: number;
@@ -40,16 +41,6 @@ const BOUNDS_MARGIN = 2;
 const COLLISION_GAP = 3;
 const WORD_TEXT_OFFSET = 2;
 
-// Color interpolation constants (HSL)
-const COLOR_HUE_BASE = 210;
-const COLOR_HUE_RANGE = 10;
-const COLOR_SAT_MIN = 20;
-const COLOR_SAT_RANGE = 70;
-const COLOR_LIT_DARK_MIN = 45;
-const COLOR_LIT_DARK_RANGE = 17;
-const COLOR_LIT_LIGHT_MIN = 52;
-const COLOR_LIT_LIGHT_RANGE = 10;
-
 // Spiral algorithm constants
 const SPIRAL_HALF = 0.5;
 const SPIRAL_STEP = 0.15;
@@ -60,17 +51,16 @@ const HOVER_OPACITY = 0.65;
 const ACTIVE_OPACITY = 0.4;
 
 /**
- * Interpolates between two HSL colors based on t (0=rarest, 1=most common).
- * Most frequent tags get the warm vivid blue-indigo accent.
- * Least frequent tags get the cool muted slate tone.
+ * Returns a color based on taxonomy type. Matches the badge colors.
  */
-function interpolateColor(t: number, isDark: boolean): string {
-    const h = COLOR_HUE_BASE + (1 - t) * COLOR_HUE_RANGE;
-    const s = COLOR_SAT_MIN + t * COLOR_SAT_RANGE;
-    const l = isDark
-        ? COLOR_LIT_DARK_MIN + t * COLOR_LIT_DARK_RANGE
-        : COLOR_LIT_LIGHT_MIN + t * COLOR_LIT_LIGHT_RANGE;
-    return `hsl(${h.toFixed(0)}, ${s.toFixed(0)}%, ${l.toFixed(0)}%)`;
+function getColorForType(type?: string): string {
+    switch (type) {
+        case 'character': return 'var(--mantine-color-pink-filled)';
+        case 'franchise': return 'var(--mantine-color-orange-filled)';
+        case 'tag':
+        default:
+            return 'var(--mantine-color-violet-filled)';
+    }
 }
 
 /**
@@ -156,8 +146,7 @@ function buildLayout(
     canvas: HTMLCanvasElement,
     containerWidth: number,
     height: number,
-    tags: TagCloudItem[],
-    isDark: boolean
+    tags: TagCloudItem[]
 ): PlacedWord[] {
     const ctx = canvas.getContext('2d');
     if (!ctx || tags.length === 0) return [];
@@ -171,15 +160,16 @@ function buildLayout(
     const result: PlacedWord[] = [];
 
     for (const item of tags) {
-        const t = (item.count - minCount) / countRange;
+        const t = countRange > 0 ? (item.count - minCount) / countRange : 1;
         const fontSize = MIN_FONT + t * (MAX_FONT - MIN_FONT);
-        const color = interpolateColor(t, isDark);
+        const color = getColorForType(item.type);
         const { w: wordW, h: wordH } = measureText(ctx, item.tag, fontSize);
 
         const pos = spiralPlace(result, w, h, wordW, wordH);
         if (pos) {
             result.push({
                 tag: item.tag,
+                type: item.type,
                 count: item.count,
                 x: pos.x,
                 y: pos.y,
@@ -200,8 +190,6 @@ export default function TagCloud({ tags, height = DEFAULT_HEIGHT }: TagCloudProp
     const containerRef = useRef<HTMLDivElement>(null);
     const [placed, setPlaced] = useState<PlacedWord[]>([]);
     const [containerWidth, setContainerWidth] = useState(FALLBACK_WIDTH);
-    const { colorScheme } = useMantineColorScheme();
-    const isDark = colorScheme === 'dark';
 
     /**
      * Reads the current container width and schedules a layout recompute.
@@ -217,9 +205,9 @@ export default function TagCloud({ tags, height = DEFAULT_HEIGHT }: TagCloudProp
 
         startTransition(() => {
             setContainerWidth(w);
-            setPlaced(buildLayout(canvas, w, height, tags, isDark));
+            setPlaced(buildLayout(canvas, w, height, tags));
         });
-    }, [tags, height, isDark]);
+    }, [tags, height]);
 
     // Recompute on prop changes
     useEffect(() => {
@@ -233,9 +221,15 @@ export default function TagCloud({ tags, height = DEFAULT_HEIGHT }: TagCloudProp
         return () => observer.disconnect();
     }, [scheduleLayout]);
 
-    const handleTagClick = (tag: string) => {
-        navigate(`/images?tag=${encodeURIComponent(tag)}`);
-    };
+    const handleTagClick = useCallback((word: PlacedWord) => {
+        if (word.type === 'character') {
+            navigate(`/images?character=${encodeURIComponent(word.tag)}`);
+        } else if (word.type === 'franchise') {
+            navigate(`/images?franchise=${encodeURIComponent(word.tag)}`);
+        } else {
+            navigate(`/images?tag=${encodeURIComponent(word.tag)}`);
+        }
+    }, [navigate]);
 
     if (tags.length === 0) {
         return (
@@ -275,12 +269,12 @@ export default function TagCloud({ tags, height = DEFAULT_HEIGHT }: TagCloudProp
             >
                 {placed.map((word) => (
                     <g
-                        key={word.tag}
+                        key={`${word.type}-${word.tag}`}
                         transform={`translate(${word.x}, ${word.y})`}
-                        onClick={() => handleTagClick(word.tag)}
+                        onClick={() => handleTagClick(word)}
                         style={{ cursor: 'pointer' }}
                         role="button"
-                        aria-label={`Filter by tag: ${word.tag} (${word.count} uses)`}
+                        aria-label={`Filter by ${word.type}: ${word.tag} (${word.count} uses)`}
                     >
                         {/* Invisible hit-box for easier clicking */}
                         <rect

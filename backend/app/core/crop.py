@@ -88,6 +88,45 @@ def compute_saliency_map(img_gray: np.ndarray) -> Optional[np.ndarray]:
     sal_map = (sal_map * 255).astype('uint8')
     return sal_map
 
+def compute_focal_point(img_bgr: np.ndarray) -> tuple[int, int]:
+    """Computes the focal point (center of mass of saliency) as a percentage (0-100).
+    
+    Args:
+        img_bgr: The original BGR image.
+        
+    Returns:
+        A tuple (x_percent, y_percent) representing the focal point.
+    """
+    h, w = img_bgr.shape[:2]
+    max_dim = 1000
+    scale = 1.0
+    if w > max_dim or h > max_dim:
+        scale = max_dim / max(w, h)
+        w_s, h_s = int(w * scale), int(h * scale)
+        img_for_sal = cv2.resize(img_bgr, (w_s, h_s), interpolation=cv2.INTER_AREA)
+    else:
+        img_for_sal = img_bgr
+
+    img_gray = cv2.cvtColor(img_for_sal, cv2.COLOR_BGR2GRAY)
+    sal_map = compute_saliency_map(img_gray)
+    
+    if sal_map is None:
+        return 50, 50
+
+    sal_f = sal_map.astype(np.float32) / 255.0
+    thresh = max(0.01, float(sal_f.mean()))
+    ys, xs = np.where(sal_f > thresh)
+    
+    if xs.size > 0:
+        cx = xs.mean()
+        cy = ys.mean()
+        h_s, w_s = sal_map.shape
+        x_pct = int((cx / w_s) * 100)
+        y_pct = int((cy / h_s) * 100)
+        return max(0, min(100, x_pct)), max(0, min(100, y_pct))
+    
+    return 50, 50
+
 def window_sum(ii: np.ndarray, x: int, y: int, cw: int, ch: int) -> float:
     """Computes the sum of pixels within a window using an integral image.
 

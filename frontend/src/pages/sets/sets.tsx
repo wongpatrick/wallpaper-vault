@@ -3,7 +3,7 @@
  * Module: Sets Directory Page
  * Description: Lists all wallpaper sets with search, filtering, pagination, and bulk management capabilities.
  */
-import { Title, Text, Container, SimpleGrid, Loader, Center, Alert, Stack, TextInput, Group, Select, Box, Overlay, Button } from '@mantine/core';
+import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Select, Box, Overlay, Button } from '@mantine/core';
 import { IconAlertCircle, IconSearch, IconFilter, IconCheck } from '@tabler/icons-react';
 import { useReadSetsApiSetsGet, useDeleteSetApiSetsSetIdDelete } from '../../api/generated/sets/sets';
 import { notifications } from '@mantine/notifications';
@@ -16,6 +16,8 @@ import { useSelection } from '../../hooks/useSelection';
 import { SetBulkOperations } from '../../components/sets/SetBulkOperations';
 import { PaginationWithSkip } from '../../components/ui/PaginationWithSkip';
 import { SortControl } from '../../components/ui/SortControl';
+import { CharacterAutocompleteInput } from '../../components/ui/CharacterAutocompleteInput';
+import { FranchiseAutocompleteInput } from '../../components/ui/FranchiseAutocompleteInput';
 
 const PAGE_SIZE = 12;
 const SEARCH_DEBOUNCE_MS = 500;
@@ -29,6 +31,8 @@ export default function Sets() {
 
     // URL State (Source of Truth for API)
     const typeFilter = searchParams.get('type') || null;
+    const characterFilter = searchParams.get('character') || undefined;
+    const franchiseFilter = searchParams.get('franchise') || undefined;
     const sortBy = searchParams.get('sort_by') || 'date_added';
     const sortDir = (searchParams.get('sort_dir') as 'asc' | 'desc') || 'desc';
     
@@ -40,6 +44,8 @@ export default function Sets() {
         limit: PAGE_SIZE,
         search: search || undefined,
         creator_type: typeFilter || undefined,
+        character: characterFilter ? [characterFilter] : undefined,
+        franchise: franchiseFilter ? [franchiseFilter] : undefined,
         sort_by: sortBy,
         sort_dir: sortDir
     });
@@ -61,6 +67,28 @@ export default function Sets() {
             const next = new URLSearchParams(prev);
             if (!val) next.delete('type');
             else next.set('type', val);
+            next.delete('page');
+            return next;
+        }, { replace: true });
+        clearSelection();
+    };
+
+    const handleCharacterChange = (val: string | null) => {
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            if (val) next.set('character', val);
+            else next.delete('character');
+            next.delete('page');
+            return next;
+        }, { replace: true });
+        clearSelection();
+    };
+
+    const handleFranchiseChange = (val: string | null) => {
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            if (val) next.set('franchise', val);
+            else next.delete('franchise');
             next.delete('page');
             return next;
         }, { replace: true });
@@ -92,7 +120,7 @@ export default function Sets() {
     const selectedSets = sets.filter(s => selectedIds.has(s.id));
 
     return (
-        <Container size="xl" style={{ position: 'relative', paddingBottom: selectionMode ? PADDING_SELECTION_MODE_PX : PADDING_DEFAULT_PX }}>
+        <Container fluid px="xl" style={{ position: 'relative', paddingBottom: selectionMode ? PADDING_SELECTION_MODE_PX : PADDING_DEFAULT_PX }}>
             <Group justify="space-between" align="flex-start" mb="xs">
                 <Stack gap={0}>
                     <Title order={1}>📚 Wallpaper Sets</Title>
@@ -108,18 +136,35 @@ export default function Sets() {
                 </Button>
             </Group>
 
-            <Group mb="xl" justify="space-between" align="flex-end">
-                <TextInput
-                    placeholder="Search titles or artists..."
-                    label="Search entire library"
-                    leftSection={<IconSearch size={16} />}
-                    value={localSearch}
-                    onChange={(e) => handleSearchChange(e.currentTarget.value)}
-                    style={{ flex: 1, maxWidth: 500 }}
-                />
-                <Group gap="xl" align="flex-end">
+            <Group mb="xl" align="flex-end" style={{ flexWrap: 'wrap', gap: 'var(--mantine-spacing-md)' }}>
+                <Stack gap={4} style={{ flex: 1, minWidth: 220, maxWidth: 400 }}>
+                    <Text size="xs" fw={700} c="dimmed" ml={4}>Search</Text>
+                    <TextInput
+                        placeholder="Search titles, tags, or artists..."
+                        leftSection={<IconSearch size={16} />}
+                        value={localSearch}
+                        onChange={(e) => handleSearchChange(e.currentTarget.value)}
+                    />
+                </Stack>
+                <Stack gap={4} w={180}>
+                    <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Character</Text>
+                    <CharacterAutocompleteInput
+                        placeholder="Character"
+                        value={characterFilter || null}
+                        onChange={handleCharacterChange}
+                    />
+                </Stack>
+                <Stack gap={4} w={180}>
+                    <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Franchise</Text>
+                    <FranchiseAutocompleteInput
+                        placeholder="Franchise"
+                        value={franchiseFilter || null}
+                        onChange={handleFranchiseChange}
+                    />
+                </Stack>
+                <Stack gap={4} w={160}>
+                    <Text size="xs" fw={700} c="dimmed" ml={4}>Artist type</Text>
                     <Select
-                        label="Artist type"
                         placeholder="All types"
                         leftSection={<IconFilter size={16} />}
                         data={CREATOR_TYPES as unknown as string[]}
@@ -127,15 +172,15 @@ export default function Sets() {
                         value={typeFilter}
                         onChange={handleTypeChange}
                     />
-                    <SortControl 
-                        options={[
-                            { label: 'Date Added', value: 'date_added' },
-                            { label: 'Title (A-Z)', value: 'title' },
-                            { label: 'Image Count', value: 'image_count' }
-                        ]}
-                        defaultSortBy="date_added"
-                    />
-                </Group>
+                </Stack>
+                <SortControl 
+                    options={[
+                        { label: 'Date Added', value: 'date_added' },
+                        { label: 'Title (A-Z)', value: 'title' },
+                        { label: 'Image Count', value: 'image_count' }
+                    ]}
+                    defaultSortBy="date_added"
+                />
             </Group>
             
             <Box style={{ position: 'relative', minHeight: 400 }}>
@@ -167,7 +212,7 @@ export default function Sets() {
                                     )}
                                 </Group>
 
-                                <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
+                                <Box style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 'var(--mantine-spacing-lg)' }}>
                                     {sets.map((set) => (
                                         <SetCard 
                                             key={set.id} 
@@ -183,7 +228,7 @@ export default function Sets() {
                                             }}
                                         />
                                     ))}
-                                </SimpleGrid>
+                                </Box>
                                 
                                 {sets.length === 0 && !isFetching && (
                                     <Stack align="center" py={100} gap="md">

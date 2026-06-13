@@ -32,6 +32,7 @@ import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { ImageBulkEditModal } from '../../components/images/ImageBulkEditModal';
 import { ImageMoveModal } from '../../components/images/ImageMoveModal';
 import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
+import { CharacterAutocompleteInput } from '../../components/ui/CharacterAutocompleteInput';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
 import type { Image as ImageModel, BulkOperationMode } from '../../api/model';
 
@@ -63,7 +64,8 @@ export default function SetDetail() {
         source_url: '',
         local_path: '',
         creator_ids: [] as string[],
-        tags: [] as string[]
+        tags: [] as string[],
+        characters: [] as string[]
     });
 
     const [prevSetId, setPrevSetId] = useState<number | null>(null);
@@ -75,7 +77,8 @@ export default function SetDetail() {
             source_url: set.source_url || '',
             local_path: set.local_path || '',
             creator_ids: set.creators?.map(c => String(c.id)) || [],
-            tags: set.tags ? set.tags.split(/\s+/).filter(t => t.trim()) : []
+            tags: set.tags || [],
+            characters: set.characters || []
         });
     }
 
@@ -90,7 +93,7 @@ export default function SetDetail() {
 
     if (error || !set) {
         return (
-            <Container size="xl">
+            <Container fluid px="xl">
                 <Alert icon={<IconAlertCircle size="1rem" />} title="Error!" color="red">
                     Could not fetch the set details.
                 </Alert>
@@ -109,7 +112,8 @@ export default function SetDetail() {
                 data: {
                     ...editForm,
                     creator_ids: editForm.creator_ids.map(Number),
-                    tags: editForm.tags.join(' ')
+                    tags: editForm.tags,
+                    characters: editForm.characters
                 }
             });
             notifications.show({ title: 'Success', message: 'Set metadata updated', color: 'green' });
@@ -182,7 +186,7 @@ export default function SetDetail() {
         selectAll(set.images.map(img => img.id));
     };
 
-    const handleBulkEditConfirm = async (data: Partial<{ rating: string; tags: string; notes: string }>, mode: BulkOperationMode) => {
+    const handleBulkEditConfirm = async (data: Partial<{ rating: string; notes: string }>, mode: BulkOperationMode) => {
         try {
             await bulkUpdateMutation.mutateAsync({
                 data: {
@@ -217,7 +221,7 @@ export default function SetDetail() {
     const creatorNames = set.creators?.map(c => c.canonical_name).join(' & ') || 'Unknown Creator';
 
     return (
-        <Container size="xl" pb={selectionMode ? 100 : "xl"}>
+        <Container fluid px="xl" pb={selectionMode ? 100 : "xl"}>
             {/* Header Navigation */}
             <Group justify="space-between" mb="lg">
                 <Button 
@@ -266,15 +270,18 @@ export default function SetDetail() {
                     )}
                     
                     {/* Metadata Badges */}
-                    {set.tags && (
-                        <Group gap="xs" mt="sm">
-                            {set.tags.split(/\s+/).filter(t => t.trim()).map(tag => (
-                                <Badge key={tag} variant="light" color="gray" leftSection={<IconTag size={12} />}>
-                                    {tag}
-                                </Badge>
-                            ))}
-                        </Group>
-                    )}
+                    <Group gap="xs" mt="sm">
+                        {set.tags && set.tags.map(tag => (
+                            <Badge key={tag} variant="light" color="gray" leftSection={<IconTag size={12} />}>
+                                {tag}
+                            </Badge>
+                        ))}
+                        {set.characters && set.characters.map(char => (
+                            <Badge key={char} variant="light" color="blue">
+                                {char}
+                            </Badge>
+                        ))}
+                    </Group>
                 </Stack>
 
                 <Group>
@@ -413,6 +420,12 @@ export default function SetDetail() {
                         placeholder="Add tags..."
                         value={editForm.tags}
                         onChange={(tags) => setEditForm({ ...editForm, tags })}
+                    />
+                    <CharacterAutocompleteInput 
+                        label="Characters"
+                        placeholder="Add characters..."
+                        value={editForm.characters}
+                        onChange={(characters) => setEditForm({ ...editForm, characters })}
                     />
                     <TextInput 
                         label="Source URL" 

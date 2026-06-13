@@ -12,12 +12,13 @@ import CreatorDetail from './pages/creators/CreatorDetail'
 import Sets from './pages/sets/sets'
 import SetDetail from './pages/sets/SetDetail'
 import Images from './pages/images/images'
+import TaxonomyManagement from './pages/taxonomy/TaxonomyManagement'
 import Tools from './pages/tools/tools'
 import Settings from './pages/settings/settings'
 import { createTheme, MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import { ModalsProvider } from '@mantine/modals'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query'
 import { NotificationProvider } from './context/NotificationProvider'
 import { useNotificationHistory } from './hooks/useNotificationHistory'
 import { TaskStatus } from './types/enums'
@@ -51,7 +52,15 @@ const theme = createTheme({
      },
 });
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  mutationCache: new MutationCache({
+    onSuccess: () => {
+      // Globally invalidate all queries on any successful mutation to ensure
+      // the UI is always perfectly in sync with the backend. Active queries will automatically refetch.
+      queryClient.invalidateQueries();
+    },
+  }),
+});
 
 const router = createHashRouter([
   {
@@ -80,6 +89,10 @@ const router = createHashRouter([
       {
         path: "/images",
         element: <Images />,
+      },
+      {
+        path: "/taxonomy",
+        element: <TaxonomyManagement />,
       },
       {
         path: "/tools",

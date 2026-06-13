@@ -10,6 +10,8 @@ import { ImageGridItem } from '../../components/images/ImageGridItem';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { SortControl } from '../../components/ui/SortControl';
+import { CharacterAutocompleteInput } from '../../components/ui/CharacterAutocompleteInput';
+import { FranchiseAutocompleteInput } from '../../components/ui/FranchiseAutocompleteInput';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useIntersection, useViewportSize } from '@mantine/hooks';
 import { useSearchParams } from 'react-router-dom';
@@ -37,6 +39,8 @@ export default function Images() {
     const ratingFilter = searchParams.get('rating') || 'all';
     const tagFilter = searchParams.get('tag') || undefined;
     const colorFilter = searchParams.get('color') || undefined;
+    const characterFilter = searchParams.get('character') || undefined;
+    const franchiseFilter = searchParams.get('franchise') || undefined;
     const { page, setPage } = useUrlPagination(PAGE_SIZE);
     const sortBy = searchParams.get('sort_by') || 'date_added';
     const sortDir = (searchParams.get('sort_dir') as 'asc' | 'desc') || 'desc';
@@ -84,6 +88,8 @@ export default function Images() {
         rating: ratingFilter === 'all' ? undefined : ratingFilter,
         tag: tagFilter,
         color: colorFilter,
+        character: characterFilter ? [characterFilter] : undefined,
+        franchise: franchiseFilter ? [franchiseFilter] : undefined,
         sort_by: sortBy,
         sort_dir: sortDir
     });
@@ -147,6 +153,30 @@ export default function Images() {
         setHasMore(true);
     };
 
+    const handleCharacterChange = (val: string | null) => {
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            if (val) next.set('character', val);
+            else next.delete('character');
+            next.delete('page');
+            return next;
+        }, { replace: true });
+        setAllImages([]);
+        setHasMore(true);
+    };
+
+    const handleFranchiseChange = (val: string | null) => {
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            if (val) next.set('franchise', val);
+            else next.delete('franchise');
+            next.delete('page');
+            return next;
+        }, { replace: true });
+        setAllImages([]);
+        setHasMore(true);
+    };
+
     // Accumulate results and handle updates
     useEffect(() => {
         if (pageData?.items) {
@@ -183,121 +213,141 @@ export default function Images() {
     }, [entry?.isIntersecting, hasMore, isFetching, isLoading, allImages.length, setPage]);
 
     return (
-        <Container size="xl" px="md">
+        <Container fluid px="xl">
             <Stack gap="xs" mb="xl">
                 <Title order={1} fw={800} style={{ letterSpacing: '-1px' }}>🖼️ Individual Wallpapers</Title>
                 <Text c="dimmed" size="lg">Continuous stream of your entire library.</Text>
             </Stack>
 
-            <Group mb="xl" justify="space-between" align="flex-end">
-                <Group align="flex-end" style={{ flex: 1, flexWrap: 'wrap', gap: 'var(--mantine-spacing-sm)' }}>
+            <Group mb="xl" align="flex-end" style={{ flexWrap: 'wrap', gap: 'var(--mantine-spacing-md)' }}>
+                <Stack gap={4} style={{ flex: 1, minWidth: 220, maxWidth: 400 }}>
+                    <Text size="xs" fw={700} c="dimmed" ml={4}>Search</Text>
                     <TextInput
                         placeholder="Search by filename, set, tags, or artist..."
-                        size="md"
-                        radius="xl"
-                        leftSection={<IconSearch size={18} />}
+                        radius="md"
+                        leftSection={<IconSearch size={16} />}
                         value={localSearch}
                         onChange={handleSearchChange}
-                        style={{ flex: 1, minWidth: 220, maxWidth: 500 }}
                     />
-                    {tagFilter && (
+                </Stack>
+                {tagFilter && (
+                    <Stack gap={4}>
+                        <Text size="xs" fw={700} c="dimmed" ml={4}>Active Tag</Text>
                         <Badge
                             size="lg"
-                            radius="xl"
+                            radius="md"
                             variant="light"
                             color="violet"
+                            style={{ height: 36, textTransform: 'none', fontSize: 14 }}
                             rightSection={
                                 <ActionIcon
-                                    size="xs"
+                                    size="sm"
                                     color="violet"
-                                    radius="xl"
+                                    radius="md"
                                     variant="transparent"
                                     onClick={handleClearTag}
                                     aria-label="Clear tag filter"
                                 >
-                                    <IconX size={12} />
+                                    <IconX size={14} />
                                 </ActionIcon>
                             }
                         >
                             #{tagFilter}
                         </Badge>
-                    )}
-                </Group>
-                <Group gap="xl" align="flex-end">
-                    <Stack gap={4}>
-                        <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Color</Text>
-                        <Group gap={4}>
-                            <Popover position="bottom" shadow="lg" radius="md" withinPortal>
-                                <Popover.Target>
-                                    <Tooltip label={colorFilter ? 'Change color filter' : 'Filter by color'} position="bottom" withArrow>
-                                        <ActionIcon
-                                            size="lg"
-                                            radius="xl"
-                                            variant="default"
-                                            aria-label="Open color picker"
-                                            style={{
-                                                background: colorFilter
-                                                    ? colorFilter
-                                                    : 'conic-gradient(#E03131, #E8590C, #F08C00, #2F9E44, #0C8599, #1971C2, #6741D9, #C2255C, #E03131)',
-                                                border: '2px solid var(--mantine-color-default-border)',
-                                                cursor: 'pointer',
-                                            }}
-                                        />
-                                    </Tooltip>
-                                </Popover.Target>
-                                <Popover.Dropdown p="sm">
-                                    <ColorPicker
-                                        format="hex"
-                                        value={colorFilter || '#1971C2'}
-                                        onChange={handleColorPickerChange}
-                                        swatches={PRESET_SWATCHES}
-                                        swatchesPerRow={6}
-                                    />
-                                </Popover.Dropdown>
-                            </Popover>
-                            {colorFilter && (
-                                <Tooltip label="Clear color filter" position="bottom" withArrow>
-                                    <ActionIcon
-                                        size="sm"
-                                        radius="xl"
-                                        variant="subtle"
-                                        color="gray"
-                                        onClick={handleClearColor}
-                                        aria-label="Clear color filter"
-                                    >
-                                        <IconX size={14} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                        </Group>
                     </Stack>
-                    <Stack gap={4}>
-                        <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Rating</Text>
-                        <SegmentedControl
-                            value={ratingFilter}
-                            onChange={handleRatingChange}
-                            radius="xl"
-                            size="sm"
-                            data={[
-                                { label: 'All', value: 'all' },
-                                { label: 'Safe', value: 'safe' },
-                                { label: 'Questionable', value: 'questionable' },
-                                { label: 'Explicit', value: 'explicit' },
-                            ]}
-                        />
-                    </Stack>
-                    <SortControl 
-                        options={[
-                            { label: 'Date Added', value: 'date_added' },
-                            { label: 'File Size', value: 'file_size' },
-                            { label: 'Resolution', value: 'resolution' },
-                            { label: 'Rating', value: 'rating' },
-                            { label: 'Aspect Ratio', value: 'aspect_ratio' },
-                            { label: 'Random', value: 'random' },
-                        ]} 
-                        defaultSortBy="date_added" 
+                )}
+                <Stack gap={4} w={180}>
+                    <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Character</Text>
+                    <CharacterAutocompleteInput
+                        placeholder="Character"
+                        value={characterFilter || null}
+                        onChange={handleCharacterChange}
+                        radius="md"
                     />
-                </Group>
+                </Stack>
+                <Stack gap={4} w={180}>
+                    <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Franchise</Text>
+                    <FranchiseAutocompleteInput
+                        placeholder="Franchise"
+                        value={franchiseFilter || null}
+                        onChange={handleFranchiseChange}
+                        radius="md"
+                    />
+                </Stack>
+                <Stack gap={4}>
+                    <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Color</Text>
+                    <Group gap={4}>
+                        <Popover position="bottom" shadow="lg" radius="md" withinPortal>
+                            <Popover.Target>
+                                <Tooltip label={colorFilter ? 'Change color filter' : 'Filter by color'} position="bottom" withArrow>
+                                    <ActionIcon
+                                        size={36}
+                                        radius="md"
+                                        variant="default"
+                                        aria-label="Open color picker"
+                                        style={{
+                                            background: colorFilter
+                                                ? colorFilter
+                                                : 'conic-gradient(#E03131, #E8590C, #F08C00, #2F9E44, #0C8599, #1971C2, #6741D9, #C2255C, #E03131)',
+                                            border: '1px solid var(--mantine-color-default-border)',
+                                            cursor: 'pointer',
+                                        }}
+                                    />
+                                </Tooltip>
+                            </Popover.Target>
+                            <Popover.Dropdown p="sm">
+                                <ColorPicker
+                                    format="hex"
+                                    value={colorFilter || '#1971C2'}
+                                    onChange={handleColorPickerChange}
+                                    swatches={PRESET_SWATCHES}
+                                    swatchesPerRow={6}
+                                />
+                            </Popover.Dropdown>
+                        </Popover>
+                        {colorFilter && (
+                            <Tooltip label="Clear color filter" position="bottom" withArrow>
+                                <ActionIcon
+                                    size="sm"
+                                    radius="xl"
+                                    variant="subtle"
+                                    color="gray"
+                                    onClick={handleClearColor}
+                                    aria-label="Clear color filter"
+                                >
+                                    <IconX size={14} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+                    </Group>
+                </Stack>
+                <Stack gap={4}>
+                    <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Rating</Text>
+                    <SegmentedControl
+                        value={ratingFilter}
+                        onChange={handleRatingChange}
+                        radius="md"
+                        size="sm"
+                        style={{ height: 36 }}
+                        data={[
+                            { label: 'All', value: 'all' },
+                            { label: 'Safe', value: 'safe' },
+                            { label: 'Questionable', value: 'questionable' },
+                            { label: 'Explicit', value: 'explicit' },
+                        ]}
+                    />
+                </Stack>
+                <SortControl 
+                    options={[
+                        { label: 'Date Added', value: 'date_added' },
+                        { label: 'File Size', value: 'file_size' },
+                        { label: 'Resolution', value: 'resolution' },
+                        { label: 'Rating', value: 'rating' },
+                        { label: 'Aspect Ratio', value: 'aspect_ratio' },
+                        { label: 'Random', value: 'random' },
+                    ]} 
+                    defaultSortBy="date_added" 
+                />
             </Group>
 
             <Box style={{ position: 'relative', minHeight: '60vh' }}>

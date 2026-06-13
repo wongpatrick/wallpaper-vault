@@ -95,7 +95,7 @@ export default function CreatorDetail() {
 
     if (error || !creator) {
         return (
-            <Container size="xl">
+            <Container fluid px="xl">
                 <Alert icon={<IconAlertCircle size="1rem" />} title="Error!" color="red">
                     Could not fetch creator details.
                 </Alert>
@@ -160,7 +160,7 @@ export default function CreatorDetail() {
     };
 
     return (
-        <Container size="xl" pb={selectionMode ? 100 : "xl"}>
+        <Container fluid px="xl" pb={selectionMode ? 100 : "xl"}>
             <Button 
                 variant="subtle" 
                 leftSection={<IconArrowLeft size={16} />} 

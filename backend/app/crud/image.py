@@ -41,8 +41,9 @@ async def get_random_image(
     query = select(Image).join(Image.set)
     
     if tags:
-        for tag in tags:
-            query = query.filter(Set.tags.icontains(tag))
+        from app.models.tag import Tag
+        for tag_str in tags:
+            query = query.filter(Set.tags.any(Tag.name.icontains(tag_str)))
             
     if aspect_ratio_label:
         query = query.filter(Image.aspect_ratio_label == aspect_ratio_label)
@@ -193,18 +194,12 @@ async def bulk_update_images(db: AsyncSession, bulk_in: ImageBulkUpdate) -> int:
     
     for db_img in db_images:
         for field in update_fields:
-            if field == "tags":
-                current_tags = (db_img.tags or "").split()
-                new_tags = (update_fields[field] or "").split()
-                
-                if bulk_in.operation_mode == BulkOperationMode.APPEND:
-                    combined = sorted(list(set(current_tags + new_tags)))
-                    db_img.tags = " ".join(combined) if combined else None
-                elif bulk_in.operation_mode == BulkOperationMode.REMOVE:
-                    remaining = [t for t in current_tags if t not in new_tags]
-                    db_img.tags = " ".join(remaining) if remaining else None
-                else: # REPLACE
-                    db_img.tags = update_fields[field]
+            if bulk_in.operation_mode == BulkOperationMode.APPEND and field == "notes":
+                current_notes = db_img.notes or ""
+                new_notes = update_fields[field] or ""
+                db_img.notes = f"{current_notes}\n{new_notes}".strip() if current_notes else new_notes
+            elif bulk_in.operation_mode == BulkOperationMode.REMOVE and field == "notes":
+                db_img.notes = None
             else:
                 setattr(db_img, field, update_fields[field])
         db.add(db_img)
@@ -417,10 +412,12 @@ async def get_images(
     rating: Optional[str] = None,
     tag: Optional[str] = None,
     color: Optional[str] = None,
+    character: Optional[list[str]] = None,
+    franchise: Optional[list[str]] = None,
     sort_by: Optional[str] = "date_added",
     sort_dir: Optional[str] = "desc"
 ) -> tuple[List[Image], int]:
-    """Retrieves a paginated list of images, optionally filtered by search terms, rating, or tag.
+    """Retrieves a paginated list of images, optionally filtered by search terms, rating, character, franchise or tag.
 
     Args:
         db: Database session.
@@ -441,21 +438,35 @@ async def get_images(
     if rating:
         query = query.filter(Image.rating == rating)
 
+    if tag or search or character or franchise:
+        from app.models.tag import Tag
+        from app.models.character import Character
+        from app.models.franchise import Franchise
+
     if tag:
         query = query.filter(
-            or_(
-                Image.tags.icontains(tag),
-                Set.tags.icontains(tag)
-            )
+            Set.tags.any(Tag.name.icontains(tag))
+        )
+        
+    if character:
+        query = query.filter(
+            Set.characters.any(Character.name.in_(character))
+        )
+
+    if franchise:
+        query = query.filter(
+            Set.characters.any(Character.franchise.has(Franchise.name.in_(franchise)))
         )
 
     if search:
-        query = query.join(Set.creators).filter(
+        query = query.join(Set.creators).outerjoin(Set.characters).outerjoin(Character.franchise).filter(
             or_(
                 Image.filename.icontains(search),
                 Set.title.icontains(search),
-                Set.tags.icontains(search),
-                Creator.canonical_name.icontains(search)
+                Set.tags.any(Tag.name.icontains(search)),
+                Creator.canonical_name.icontains(search),
+                Character.name.icontains(search),
+                Franchise.name.icontains(search)
             )
         )
         
