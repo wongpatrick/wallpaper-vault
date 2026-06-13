@@ -10,6 +10,7 @@ import type { SetUpdateLocalPath } from './setUpdateLocalPath';
 import type { SetUpdatePhash } from './setUpdatePhash';
 import type { SetUpdateNotes } from './setUpdateNotes';
 import type { SetUpdateTags } from './setUpdateTags';
+import type { SetUpdateCharacters } from './setUpdateCharacters';
 import type { SetUpdateCreatorIds } from './setUpdateCreatorIds';
 
 export interface SetUpdate {
@@ -23,8 +24,10 @@ export interface SetUpdate {
   phash?: SetUpdatePhash;
   /** User-provided notes or context for the set. */
   notes?: SetUpdateNotes;
-  /** Comma-separated descriptive tags for the set. */
+  /** Updated list of tag names for this set. */
   tags?: SetUpdateTags;
+  /** Updated list of character names for this set. */
+  characters?: SetUpdateCharacters;
   /** Updated list of creator IDs for this set. */
   creator_ids?: SetUpdateCreatorIds;
 }

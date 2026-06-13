@@ -6,9 +6,10 @@
  */
 
 /**
- * Represents a tag and the number of times it appears across all images and sets.
+ * Represents a tag, character, or franchise and its usage count.
  */
 export interface TagCount {
   tag: string;
+  type?: string;
   count: number;
 }

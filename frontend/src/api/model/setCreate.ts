@@ -9,7 +9,6 @@ import type { SetCreateSourceUrl } from './setCreateSourceUrl';
 import type { SetCreateLocalPath } from './setCreateLocalPath';
 import type { SetCreatePhash } from './setCreatePhash';
 import type { SetCreateNotes } from './setCreateNotes';
-import type { SetCreateTags } from './setCreateTags';
 import type { ImageCreate } from './imageCreate';
 
 export interface SetCreate {
@@ -23,8 +22,10 @@ export interface SetCreate {
   phash?: SetCreatePhash;
   /** User-provided notes or context for the set. */
   notes?: SetCreateNotes;
-  /** Comma-separated descriptive tags for the set. */
-  tags?: SetCreateTags;
+  /** List of descriptive tag names for the set. */
+  tags?: string[];
+  /** List of character names for the set. */
+  characters?: string[];
   /** List of creator IDs to associate with this set. */
   creator_ids?: number[];
   /** List of images to create and associate with this set. */

@@ -12,6 +12,6 @@ export interface SetBulkUpdate {
   set_ids: number[];
   /** The data to apply to all selected sets. */
   update_data: SetUpdate;
-  /** How to apply list-like fields (APPEND or OVERWRITE). */
+  /** How to apply list-like fields (tags, characters, notes). */
   operation_mode?: BulkOperationMode;
 }

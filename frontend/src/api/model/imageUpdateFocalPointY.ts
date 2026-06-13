@@ -6,6 +6,6 @@
  */
 
 /**
- * Updated list of tag names for this set.
+ * Computed Y percentage for the focal point.
  */
-export type SetUpdateTags = string[] | null;
+export type ImageUpdateFocalPointY = number | null;

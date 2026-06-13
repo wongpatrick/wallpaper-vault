@@ -6,6 +6,6 @@
  */
 
 /**
- * Updated list of tag names for this set.
+ * Updated list of character names for this set.
  */
-export type SetUpdateTags = string[] | null;
+export type SetUpdateCharacters = string[] | null;

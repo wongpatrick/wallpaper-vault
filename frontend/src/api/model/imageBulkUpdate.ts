@@ -12,6 +12,6 @@ export interface ImageBulkUpdate {
   image_ids: number[];
   /** The data to apply to all selected images. */
   update_data: ImageUpdate;
-  /** How to apply list-like fields (e.g., tags). APPEND or OVERWRITE. */
+  /** How to apply list-like fields (e.g., notes). APPEND or OVERWRITE. */
   operation_mode?: BulkOperationMode;
 }
