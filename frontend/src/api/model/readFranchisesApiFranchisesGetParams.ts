@@ -5,7 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-/**
- * Updated list of tag names for this set.
- */
-export type SetUpdateTags = string[] | null;
+export type ReadFranchisesApiFranchisesGetParams = {
+skip?: number;
+limit?: number;
+};

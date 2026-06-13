@@ -202,6 +202,7 @@ export const useCreateSetApiSetsPost = <TError = ErrorType<HTTPValidationError>,
       return useMutation(mutationOptions, queryClient);
     }
     /**
+ * Retrieve a paginated list of sets with optional filtering and sorting.
  * @summary Read Sets
  */
 export const readSetsApiSetsGet = (

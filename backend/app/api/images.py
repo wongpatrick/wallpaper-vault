@@ -13,6 +13,7 @@ from app.models.image import Image as ImageModel
 from pathlib import Path
 import subprocess
 import structlog
+import sys
 
 logger = structlog.get_logger(__name__)
 
@@ -334,12 +335,27 @@ async def reveal_image(
         raise HTTPException(status_code=404, detail="Image file not found on disk")
     
     try:
-        subprocess.run(['explorer', '/select,', str(file_path)])
-        logger.info("Revealed image in explorer", image_id=image_id, path=str(file_path))
+        if sys.platform == "win32":
+            subprocess.run(['explorer', '/select,', str(file_path)])
+        elif sys.platform == "darwin":
+            subprocess.run(['open', '-R', str(file_path)])
+        else:
+            # Linux / Unix
+            # Try dbus-send to highlight the file first, fallback to opening parent directory
+            try:
+                subprocess.run([
+                    'dbus-send', '--print-reply', '--dest=org.freedesktop.FileManager1',
+                    '/org/freedesktop/FileManager1', 'org.freedesktop.FileManager1.ShowItems',
+                    f'array:string:"file://{file_path}"', 'string:""'
+                ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                subprocess.run(['xdg-open', str(file_path.parent)])
+                
+        logger.info("Revealed image in file manager", image_id=image_id, path=str(file_path))
         return {"status": "success"}
     except Exception as e:
-        logger.exception("Failed to reveal image in explorer", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to open explorer: {e}")
+        logger.exception("Failed to reveal image in file manager", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to open file manager: {e}")
 
 @router.post("/set/{set_id}", response_model=Image)
 async def create_image_for_set(

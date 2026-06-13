@@ -8,6 +8,7 @@ import { customInstance } from './axios-instance';
 export interface Tag {
   id: number;
   name: string;
+  set_count?: number;
 }
 
 export interface TagUpdate {
@@ -17,6 +18,7 @@ export interface TagUpdate {
 export interface Franchise {
   id: number;
   name: string;
+  set_count?: number;
 }
 
 export interface FranchiseCreate {
@@ -32,6 +34,7 @@ export interface Character {
   name: string;
   franchise_id?: number;
   franchise?: Franchise;
+  set_count?: number;
 }
 
 export interface CharacterCreate {
