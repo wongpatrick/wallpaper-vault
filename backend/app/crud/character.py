@@ -2,6 +2,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
+from sqlalchemy.exc import IntegrityError
 from typing import Optional, List, Sequence
 from app.models.character import Character
 from app.schemas.character import CharacterCreate, CharacterUpdate
@@ -73,8 +74,12 @@ async def get_character_by_name(db: AsyncSession, name: str) -> Optional[Charact
     return result.scalars().first()
 
 async def get_characters_by_names(db: AsyncSession, names: list[str]) -> Sequence[Character]:
-    result = await db.execute(select(Character).where(Character.name.in_(names)))
-    return result.scalars().all()
+    characters = []
+    for name in names:
+        if name.strip():
+            char = await get_or_create_character(db, name)
+            characters.append(char)
+    return characters
 
 async def get_or_create_character(db: AsyncSession, name: str) -> Character:
     # Basic Title Case processing
@@ -88,11 +93,18 @@ async def get_or_create_character(db: AsyncSession, name: str) -> Character:
     # Create new character with no franchise by default
     db_character = Character(name=name)
     db.add(db_character)
-    await db.flush()
-    await _auto_migrate_tag(db, db_character)
-    await db.commit()
-    await db.refresh(db_character)
-    return await get_character(db, db_character.id)
+    try:
+        await db.flush()
+        await _auto_migrate_tag(db, db_character)
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        existing = await get_character_by_name(db, name)
+        if existing:
+            return existing
+        raise
+        
+    return db_character
 
 async def create_character(db: AsyncSession, character: CharacterCreate) -> Character:
     db_character = Character(

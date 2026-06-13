@@ -41,6 +41,7 @@ async def test_character_crud(db_session: AsyncSession):
 @pytest.mark.asyncio
 async def test_get_or_create_character(db_session: AsyncSession):
     c1 = await get_or_create_character(db_session, "batman")
+    await db_session.commit()
     assert c1.name == "Batman"
 
     c2 = await get_or_create_character(db_session, "batman")
