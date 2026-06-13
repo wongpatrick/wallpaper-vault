@@ -14,7 +14,8 @@ import type { ImageWithContextSortOrder } from './imageWithContextSortOrder';
 import type { ImageWithContextNotes } from './imageWithContextNotes';
 import type { ImageWithContextRating } from './imageWithContextRating';
 import type { ImageWithContextDominantColor } from './imageWithContextDominantColor';
-import type { ImageWithContextTags } from './imageWithContextTags';
+import type { ImageWithContextFocalPointX } from './imageWithContextFocalPointX';
+import type { ImageWithContextFocalPointY } from './imageWithContextFocalPointY';
 
 export interface ImageWithContext {
   /** The original filename of the image. */
@@ -41,8 +42,10 @@ export interface ImageWithContext {
   rating?: ImageWithContextRating;
   /** Hex code of the image's dominant color extracted during import. */
   dominant_color?: ImageWithContextDominantColor;
-  /** Comma-separated string of descriptive tags. */
-  tags?: ImageWithContextTags;
+  /** Computed X percentage for the focal point. */
+  focal_point_x?: ImageWithContextFocalPointX;
+  /** Computed Y percentage for the focal point. */
+  focal_point_y?: ImageWithContextFocalPointY;
   /** Unique database identifier for the image. */
   id: number;
   /** ID of the set this image belongs to. */

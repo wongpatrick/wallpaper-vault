@@ -19,11 +19,19 @@ tag?: string | null;
  */
 color?: string | null;
 /**
+ * Filter by character names
+ */
+character?: string[] | null;
+/**
+ * Filter by franchise names
+ */
+franchise?: string[] | null;
+/**
  * Sort field (date_added, file_size, resolution, rating, aspect_ratio, random)
  */
 sort_by?: string | null;
 /**
- * Sort direction (asc, desc)
+ * Direction to sort
  */
 sort_dir?: string | null;
 };

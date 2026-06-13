@@ -5,16 +5,20 @@
  * OpenAPI spec version: 0.1.0
  */
 import {
+  useMutation,
   useQuery
 } from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseQueryResult,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult
 } from '@tanstack/react-query';
@@ -22,12 +26,15 @@ import type {
 import type {
   HTTPValidationError,
   ReadTagCloudApiTagsCloudGetParams,
+  ReadTagsManagementApiTagsManagementGetParams,
   SearchTagsApiTagsGetParams,
-  TagCount
+  Tag,
+  TagCount,
+  TagUpdate
 } from '../../model';
 
 import { customInstance } from '../../axios-instance';
-import type { ErrorType } from '../../axios-instance';
+import type { ErrorType , BodyType } from '../../axios-instance';
 
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
@@ -228,3 +235,225 @@ export function useSearchTagsApiTagsGet<TData = Awaited<ReturnType<typeof search
 
 
 
+/**
+ * Retrieve full tag objects for management UI.
+ * @summary Read Tags Management
+ */
+export const readTagsManagementApiTagsManagementGet = (
+    params?: ReadTagsManagementApiTagsManagementGetParams,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<Tag[]>(
+      {url: `/api/tags/management`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+  
+
+
+
+export const getReadTagsManagementApiTagsManagementGetQueryKey = (params?: ReadTagsManagementApiTagsManagementGetParams,) => {
+    return [
+    `/api/tags/management`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+    
+export const getReadTagsManagementApiTagsManagementGetQueryOptions = <TData = Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>, TError = ErrorType<HTTPValidationError>>(params?: ReadTagsManagementApiTagsManagementGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReadTagsManagementApiTagsManagementGetQueryKey(params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>> = ({ signal }) => readTagsManagementApiTagsManagementGet(params, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ReadTagsManagementApiTagsManagementGetQueryResult = NonNullable<Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>>
+export type ReadTagsManagementApiTagsManagementGetQueryError = ErrorType<HTTPValidationError>
+
+
+export function useReadTagsManagementApiTagsManagementGet<TData = Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>, TError = ErrorType<HTTPValidationError>>(
+ params: undefined |  ReadTagsManagementApiTagsManagementGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>,
+          TError,
+          Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadTagsManagementApiTagsManagementGet<TData = Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>, TError = ErrorType<HTTPValidationError>>(
+ params?: ReadTagsManagementApiTagsManagementGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>,
+          TError,
+          Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadTagsManagementApiTagsManagementGet<TData = Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>, TError = ErrorType<HTTPValidationError>>(
+ params?: ReadTagsManagementApiTagsManagementGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Read Tags Management
+ */
+
+export function useReadTagsManagementApiTagsManagementGet<TData = Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>, TError = ErrorType<HTTPValidationError>>(
+ params?: ReadTagsManagementApiTagsManagementGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readTagsManagementApiTagsManagementGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getReadTagsManagementApiTagsManagementGetQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * Rename a tag.
+ * @summary Update Tag
+ */
+export const updateTagApiTagsTagIdPatch = (
+    tagId: number,
+    tagUpdate: BodyType<TagUpdate>,
+ options?: SecondParameter<typeof customInstance>,) => {
+      
+      
+      return customInstance<Tag>(
+      {url: `/api/tags/${tagId}`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: tagUpdate
+    },
+      options);
+    }
+  
+
+
+export const getUpdateTagApiTagsTagIdPatchMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTagApiTagsTagIdPatch>>, TError,{tagId: number;data: BodyType<TagUpdate>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTagApiTagsTagIdPatch>>, TError,{tagId: number;data: BodyType<TagUpdate>}, TContext> => {
+
+const mutationKey = ['updateTagApiTagsTagIdPatch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTagApiTagsTagIdPatch>>, {tagId: number;data: BodyType<TagUpdate>}> = (props) => {
+          const {tagId,data} = props ?? {};
+
+          return  updateTagApiTagsTagIdPatch(tagId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTagApiTagsTagIdPatchMutationResult = NonNullable<Awaited<ReturnType<typeof updateTagApiTagsTagIdPatch>>>
+    export type UpdateTagApiTagsTagIdPatchMutationBody = BodyType<TagUpdate>
+    export type UpdateTagApiTagsTagIdPatchMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Update Tag
+ */
+export const useUpdateTagApiTagsTagIdPatch = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTagApiTagsTagIdPatch>>, TError,{tagId: number;data: BodyType<TagUpdate>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateTagApiTagsTagIdPatch>>,
+        TError,
+        {tagId: number;data: BodyType<TagUpdate>},
+        TContext
+      > => {
+
+      const mutationOptions = getUpdateTagApiTagsTagIdPatchMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Delete a tag.
+ * @summary Delete Tag
+ */
+export const deleteTagApiTagsTagIdDelete = (
+    tagId: number,
+ options?: SecondParameter<typeof customInstance>,) => {
+      
+      
+      return customInstance<void>(
+      {url: `/api/tags/${tagId}`, method: 'DELETE'
+    },
+      options);
+    }
+  
+
+
+export const getDeleteTagApiTagsTagIdDeleteMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTagApiTagsTagIdDelete>>, TError,{tagId: number}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTagApiTagsTagIdDelete>>, TError,{tagId: number}, TContext> => {
+
+const mutationKey = ['deleteTagApiTagsTagIdDelete'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTagApiTagsTagIdDelete>>, {tagId: number}> = (props) => {
+          const {tagId} = props ?? {};
+
+          return  deleteTagApiTagsTagIdDelete(tagId,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTagApiTagsTagIdDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTagApiTagsTagIdDelete>>>
+    
+    export type DeleteTagApiTagsTagIdDeleteMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Delete Tag
+ */
+export const useDeleteTagApiTagsTagIdDelete = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTagApiTagsTagIdDelete>>, TError,{tagId: number}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTagApiTagsTagIdDelete>>,
+        TError,
+        {tagId: number},
+        TContext
+      > => {
+
+      const mutationOptions = getDeleteTagApiTagsTagIdDeleteMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    

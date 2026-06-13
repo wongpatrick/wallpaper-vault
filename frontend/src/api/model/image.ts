@@ -14,7 +14,8 @@ import type { ImageSortOrder } from './imageSortOrder';
 import type { ImageNotes } from './imageNotes';
 import type { ImageRating } from './imageRating';
 import type { ImageDominantColor } from './imageDominantColor';
-import type { ImageTags } from './imageTags';
+import type { ImageFocalPointX } from './imageFocalPointX';
+import type { ImageFocalPointY } from './imageFocalPointY';
 
 export interface Image {
   /** The original filename of the image. */
@@ -41,8 +42,10 @@ export interface Image {
   rating?: ImageRating;
   /** Hex code of the image's dominant color extracted during import. */
   dominant_color?: ImageDominantColor;
-  /** Comma-separated string of descriptive tags. */
-  tags?: ImageTags;
+  /** Computed X percentage for the focal point. */
+  focal_point_x?: ImageFocalPointX;
+  /** Computed Y percentage for the focal point. */
+  focal_point_y?: ImageFocalPointY;
   /** Unique database identifier for the image. */
   id: number;
   /** ID of the set this image belongs to. */

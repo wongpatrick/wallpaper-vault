@@ -9,7 +9,6 @@ import type { SetSourceUrl } from './setSourceUrl';
 import type { SetLocalPath } from './setLocalPath';
 import type { SetPhash } from './setPhash';
 import type { SetNotes } from './setNotes';
-import type { SetTags } from './setTags';
 import type { Creator } from './creator';
 import type { Image } from './image';
 
@@ -24,8 +23,10 @@ export interface Set {
   phash?: SetPhash;
   /** User-provided notes or context for the set. */
   notes?: SetNotes;
-  /** Comma-separated descriptive tags for the set. */
-  tags?: SetTags;
+  /** List of descriptive tag names for the set. */
+  tags?: string[];
+  /** List of character names for the set. */
+  characters?: string[];
   /** Unique database identifier for the set. */
   id: number;
   /** Timestamp when the set was added to the vault. */

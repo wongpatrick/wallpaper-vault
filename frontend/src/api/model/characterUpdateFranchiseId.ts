@@ -6,6 +6,6 @@
  */
 
 /**
- * Updated list of tag names for this set.
+ * The updated franchise ID.
  */
-export type SetUpdateTags = string[] | null;
+export type CharacterUpdateFranchiseId = number | null;

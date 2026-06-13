@@ -11,6 +11,18 @@ limit?: number;
 search?: string | null;
 creator_type?: string | null;
 /**
+ * Filter by tag
+ */
+tag?: string | null;
+/**
+ * Filter by character names
+ */
+character?: string[] | null;
+/**
+ * Filter by franchise names
+ */
+franchise?: string[] | null;
+/**
  * Sort field (date_added, title, image_count)
  */
 sort_by?: string | null;

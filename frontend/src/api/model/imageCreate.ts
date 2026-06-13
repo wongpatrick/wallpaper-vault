@@ -14,7 +14,8 @@ import type { ImageCreateSortOrder } from './imageCreateSortOrder';
 import type { ImageCreateNotes } from './imageCreateNotes';
 import type { ImageCreateRating } from './imageCreateRating';
 import type { ImageCreateDominantColor } from './imageCreateDominantColor';
-import type { ImageCreateTags } from './imageCreateTags';
+import type { ImageCreateFocalPointX } from './imageCreateFocalPointX';
+import type { ImageCreateFocalPointY } from './imageCreateFocalPointY';
 
 export interface ImageCreate {
   /** The original filename of the image. */
@@ -41,6 +42,8 @@ export interface ImageCreate {
   rating?: ImageCreateRating;
   /** Hex code of the image's dominant color extracted during import. */
   dominant_color?: ImageCreateDominantColor;
-  /** Comma-separated string of descriptive tags. */
-  tags?: ImageCreateTags;
+  /** Computed X percentage for the focal point. */
+  focal_point_x?: ImageCreateFocalPointX;
+  /** Computed Y percentage for the focal point. */
+  focal_point_y?: ImageCreateFocalPointY;
 }

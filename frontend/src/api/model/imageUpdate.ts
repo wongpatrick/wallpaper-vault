@@ -16,7 +16,8 @@ import type { ImageUpdateAspectRatioLabel } from './imageUpdateAspectRatioLabel'
 import type { ImageUpdateLocalPath } from './imageUpdateLocalPath';
 import type { ImageUpdateRating } from './imageUpdateRating';
 import type { ImageUpdateDominantColor } from './imageUpdateDominantColor';
-import type { ImageUpdateTags } from './imageUpdateTags';
+import type { ImageUpdateFocalPointX } from './imageUpdateFocalPointX';
+import type { ImageUpdateFocalPointY } from './imageUpdateFocalPointY';
 
 export interface ImageUpdate {
   /** The original filename of the image. */
@@ -43,6 +44,8 @@ export interface ImageUpdate {
   rating?: ImageUpdateRating;
   /** Hex code of the dominant color. */
   dominant_color?: ImageUpdateDominantColor;
-  /** Comma-separated tags. */
-  tags?: ImageUpdateTags;
+  /** Computed X percentage for the focal point. */
+  focal_point_x?: ImageUpdateFocalPointX;
+  /** Computed Y percentage for the focal point. */
+  focal_point_y?: ImageUpdateFocalPointY;
 }

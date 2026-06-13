@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
 import type { SetUpdate, BulkOperationMode } from '../../api/model';
 import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
-import { CharacterAutocompleteInput } from '../../components/ui/CharacterAutocompleteInput';
+import { CharacterTagsInput } from '../../components/ui/CharacterTagsInput';
 
 interface SetBulkEditModalProps {
     opened: boolean;
@@ -91,10 +91,9 @@ export function SetBulkEditModal({ opened, onClose, type, selectedCount, onConfi
                 )}
 
                 {type === 'characters' && (
-                    <CharacterAutocompleteInput
+                    <CharacterTagsInput
                         label="Characters"
-                        placeholder="Add characters..."
-                        description="Characters to apply to selected sets"
+                        placeholder="Type to search characters"
                         value={characters}
                         onChange={setCharacters}
                     />

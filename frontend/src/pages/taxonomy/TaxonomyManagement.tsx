@@ -7,6 +7,7 @@ import {
     Container, Title, Tabs, Table, Button, Group, ActionIcon, 
     TextInput, Modal, Stack, Text, Select, Box, Pagination, Badge
 } from '@mantine/core';
+import { modals } from '@mantine/modals';
 import { IconEdit, IconTrash, IconPlus, IconSearch } from '@tabler/icons-react';
 import { 
     useReadCharacters, useCreateCharacter, useUpdateCharacter, useDeleteCharacter,
@@ -139,9 +140,20 @@ function CharactersTab() {
     };
 
     const handleDelete = async (id: number) => {
-        if (confirm('Are you sure you want to delete this character? It will be removed from all associated sets.')) {
-            await deleteMutation.mutateAsync(id);
-        }
+        modals.openConfirmModal({
+            title: 'Delete Character',
+            centered: true,
+            children: (
+                <Text size="sm">
+                    Are you sure you want to delete this character? It will be removed from all associated sets.
+                </Text>
+            ),
+            labels: { confirm: 'Delete', cancel: 'Cancel' },
+            confirmProps: { color: 'red' },
+            onConfirm: async () => {
+                await deleteMutation.mutateAsync(id);
+            },
+        });
     };
 
     if (isLoading) return <Text>Loading...</Text>;
@@ -168,7 +180,7 @@ function CharactersTab() {
                         value={sortBy}
                         onChange={setSortBy}
                         allowDeselect={false}
-                        style={{ width: 150 }}
+                        style={{ width: 220 }}
                     />
                 </Group>
                 <Button leftSection={<IconPlus size={16} />} onClick={handleOpenCreate}>
@@ -283,9 +295,20 @@ function FranchisesTab() {
     };
 
     const handleDelete = async (id: number) => {
-        if (confirm('Are you sure you want to delete this franchise? Associated characters will lose their franchise link.')) {
-            await deleteMutation.mutateAsync(id);
-        }
+        modals.openConfirmModal({
+            title: 'Delete Franchise',
+            centered: true,
+            children: (
+                <Text size="sm">
+                    Are you sure you want to delete this franchise? Associated characters will lose their franchise link.
+                </Text>
+            ),
+            labels: { confirm: 'Delete', cancel: 'Cancel' },
+            confirmProps: { color: 'red' },
+            onConfirm: async () => {
+                await deleteMutation.mutateAsync(id);
+            },
+        });
     };
 
     if (isLoading) return <Text>Loading...</Text>;
@@ -312,7 +335,7 @@ function FranchisesTab() {
                         value={sortBy}
                         onChange={setSortBy}
                         allowDeselect={false}
-                        style={{ width: 150 }}
+                        style={{ width: 220 }}
                     />
                 </Group>
                 <Button leftSection={<IconPlus size={16} />} onClick={handleOpenCreate}>
@@ -409,9 +432,20 @@ function TagsTab() {
     };
 
     const handleDelete = async (id: number) => {
-        if (confirm('Are you sure you want to delete this tag? It will be removed from all sets.')) {
-            await deleteMutation.mutateAsync(id);
-        }
+        modals.openConfirmModal({
+            title: 'Delete Tag',
+            centered: true,
+            children: (
+                <Text size="sm">
+                    Are you sure you want to delete this tag? It will be removed from all sets.
+                </Text>
+            ),
+            labels: { confirm: 'Delete', cancel: 'Cancel' },
+            confirmProps: { color: 'red' },
+            onConfirm: async () => {
+                await deleteMutation.mutateAsync(id);
+            },
+        });
     };
 
     if (isLoading) return <Text>Loading...</Text>;
@@ -442,7 +476,7 @@ function TagsTab() {
                         value={sortBy}
                         onChange={setSortBy}
                         allowDeselect={false}
-                        style={{ width: 150 }}
+                        style={{ width: 220 }}
                     />
                 </Group>
             </Group>

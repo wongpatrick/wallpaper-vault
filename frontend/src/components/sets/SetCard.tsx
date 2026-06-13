@@ -32,7 +32,7 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
     const [imageIndex, setImageIndex] = useState(0);
 
     useEffect(() => {
-        let interval: NodeJS.Timeout;
+        let interval: ReturnType<typeof setTimeout>;
         if (isHovered && set.images && set.images.length > 1) {
             interval = setInterval(() => {
                 setImageIndex(prev => (prev + 1) % Math.min(set.images!.length, HOVER_SLIDESHOW_MAX_IMAGES));

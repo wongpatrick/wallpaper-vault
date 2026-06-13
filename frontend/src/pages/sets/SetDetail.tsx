@@ -32,7 +32,7 @@ import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { ImageBulkEditModal } from '../../components/images/ImageBulkEditModal';
 import { ImageMoveModal } from '../../components/images/ImageMoveModal';
 import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
-import { CharacterAutocompleteInput } from '../../components/ui/CharacterAutocompleteInput';
+import { CharacterTagsInput } from '../../components/ui/CharacterTagsInput';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
 import type { Image as ImageModel, BulkOperationMode } from '../../api/model';
 
@@ -421,7 +421,7 @@ export default function SetDetail() {
                         value={editForm.tags}
                         onChange={(tags) => setEditForm({ ...editForm, tags })}
                     />
-                    <CharacterAutocompleteInput 
+                    <CharacterTagsInput 
                         label="Characters"
                         placeholder="Add characters..."
                         value={editForm.characters}
