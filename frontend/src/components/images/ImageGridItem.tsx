@@ -149,11 +149,6 @@ export function ImageGridItem({ image, onClick, selectionMode, selected, onToggl
                     <Text size="xs" fw={700} truncate="end">{image.filename}</Text>
                     <Group gap={8}>
                         <Text size="xs" opacity={0.8}>{image.width} × {image.height}</Text>
-                        {image.tags && (
-                            <Text size="xs" c="blue.2" truncate="end" style={{ flex: 1 }}>
-                                {image.tags}
-                            </Text>
-                        )}
                     </Group>
                 </Stack>
             </Box>

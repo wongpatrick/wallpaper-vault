@@ -140,7 +140,7 @@ export default function Creators() {
     ));
 
     return (
-        <Container size="xl">
+        <Container fluid px="xl">
             <Group justify="space-between" mb="xs">
                 <Title order={1}>🎨 Artists & Creators</Title>
                 <Group>

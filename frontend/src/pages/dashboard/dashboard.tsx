@@ -69,7 +69,7 @@ export default function Dashboard() {
 
     if (statsError) {
         return (
-            <Container size="xl">
+            <Container fluid px="xl">
                 <Alert icon={<IconAlertCircle size="1rem" />} title="Error" color="red">
                     Failed to load dashboard data. Please ensure the backend is running.
                 </Alert>
@@ -81,7 +81,7 @@ export default function Dashboard() {
     const alerts = dashboard?.health_alerts || [];
 
     return (
-        <Container size="xl" py="md">
+        <Container fluid px="xl" py="md">
             <Stack gap="xl">
                 <Box>
                     <Title order={1} mb={rem(4)}>📊 Dashboard</Title>

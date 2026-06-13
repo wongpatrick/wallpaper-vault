@@ -62,7 +62,7 @@ async def get_creator(db: AsyncSession, creator_id: int) -> Optional[Creator]:
     if creator_id == 0:
         result = await db.execute(
             select(Set)
-            .options(selectinload(Set.images), selectinload(Set.creators))
+            .options(selectinload(Set.images), selectinload(Set.creators), selectinload(Set.tags), selectinload(Set.characters))
             .where(~Set.creators.any())
         )
         unassigned_sets = list(result.scalars().all())
@@ -82,7 +82,9 @@ async def get_creator(db: AsyncSession, creator_id: int) -> Optional[Creator]:
         select(Creator)
         .options(
             selectinload(Creator.sets).selectinload(Set.images),
-            selectinload(Creator.sets).selectinload(Set.creators)
+            selectinload(Creator.sets).selectinload(Set.creators),
+            selectinload(Creator.sets).selectinload(Set.tags),
+            selectinload(Creator.sets).selectinload(Set.characters)
         )
         .filter(Creator.id == creator_id)
     )
@@ -155,7 +157,10 @@ async def get_creators(db: AsyncSession, skip: int = 0, limit: int = 100, search
 
     # Final paginated query with relationship loading
     query = query.options(
-        selectinload(Creator.sets).selectinload(Set.images)
+        selectinload(Creator.sets).selectinload(Set.images),
+        selectinload(Creator.sets).selectinload(Set.creators),
+        selectinload(Creator.sets).selectinload(Set.tags),
+        selectinload(Creator.sets).selectinload(Set.characters)
     ).order_by(order_expr, Creator.id.desc()).offset(skip).limit(limit)
     
     result = await db.execute(query)

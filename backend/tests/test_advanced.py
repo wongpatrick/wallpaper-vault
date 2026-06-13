@@ -25,7 +25,7 @@ async def test_bulk_update_and_move_images(client: AsyncClient):
     # 1. Bulk Update: append tags
     bulk_update_payload = {
         "image_ids": [img1_id, img2_id],
-        "update_data": {"tags": "bulk_tag"},
+        "update_data": {"notes": "bulk_note"},
         "operation_mode": "append"
     }
     resp = await client.post("/api/images/bulk-update", json=bulk_update_payload)
@@ -34,7 +34,7 @@ async def test_bulk_update_and_move_images(client: AsyncClient):
 
     # Verify tags appended
     img1_fetched = (await client.get(f"/api/images/{img1_id}")).json()
-    assert "bulk_tag" in img1_fetched["tags"]
+    assert "bulk_note" in img1_fetched["notes"]
 
     # 2. Bulk Move: Move both images to Set 2
     bulk_move_payload = {

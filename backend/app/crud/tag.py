@@ -1,84 +1,224 @@
 """
-CRUD operations for retrieving unique tags from images and sets.
+CRUD operations for retrieving and managing normalized tags.
 """
-from collections import Counter
-from typing import Optional, List
+from typing import Optional, List, Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.models.image import Image
-from app.models.set import Set
+from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
+from app.models.tag import Tag
+from app.models.associations import set_tags
+from app.models.character import Character
+from app.models.franchise import Franchise
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 async def get_unique_tags(
     db: AsyncSession, 
     search: Optional[str] = None, 
     limit: int = 50
-) -> List[str]:
-    """Fetches unique tags aggregated from both Images and Sets.
-
-    Tags are stored as space-separated strings in the database. This function
-    extracts, splits, deduplicates, and optionally filters them.
+) -> Sequence[str]:
+    """Fetches unique tags.
 
     Args:
         db: Database session.
         search: Optional string to filter tags by (case-insensitive).
-        limit: Maximum number of unique tags to return.
+        limit: Maximum number of tags to return.
 
     Returns:
         A sorted list of unique tag strings.
     """
-    image_tags_query = select(Image.tags).filter(Image.tags.is_not(None), Image.tags != "")
-    set_tags_query = select(Set.tags).filter(Set.tags.is_not(None), Set.tags != "")
-    
+    stmt = select(Tag.name)
     if search:
-        image_tags_query = image_tags_query.filter(Image.tags.icontains(search))
-        set_tags_query = set_tags_query.filter(Set.tags.icontains(search))
-        
-    image_res = await db.execute(image_tags_query)
-    set_res = await db.execute(set_tags_query)
+        stmt = stmt.filter(Tag.name.icontains(search))
+    stmt = stmt.order_by(Tag.name.asc()).limit(limit)
     
-    unique_tags = set()
-    for row_tags in image_res.scalars():
-        unique_tags.update(row_tags.split())
-    for row_tags in set_res.scalars():
-        unique_tags.update(row_tags.split())
-        
-    if search:
-        search_lower = search.lower()
-        matched = [t for t in unique_tags if search_lower in t.lower()]
-    else:
-        matched = list(unique_tags)
-        
-    matched.sort()
-    return matched[:limit]
-
+    result = await db.execute(stmt)
+    return result.scalars().all()
 
 async def get_tag_cloud(
     db: AsyncSession,
     limit: int = 50
 ) -> List[dict]:
-    """Returns the top N tags by frequency, aggregated from both Images and Sets.
+    """Returns the top N tags, characters, and franchises by frequency across sets."""
+    from app.models.associations import set_characters
+    
+    # Query Tags
+    tag_stmt = (
+        select(
+            Tag.name,
+            func.count(set_tags.c.set_id).label("count")
+        )
+        .join(set_tags, Tag.id == set_tags.c.tag_id)
+        .group_by(Tag.id)
+        .order_by(func.count(set_tags.c.set_id).desc())
+        .limit(limit)
+    )
+    
+    # Query Characters
+    char_stmt = (
+        select(
+            Character.name,
+            func.count(set_characters.c.set_id).label("count")
+        )
+        .join(set_characters, Character.id == set_characters.c.character_id)
+        .group_by(Character.id)
+        .order_by(func.count(set_characters.c.set_id).desc())
+        .limit(limit)
+    )
+    
+    # Query Franchises
+    franchise_stmt = (
+        select(
+            Franchise.name,
+            func.count(set_characters.c.set_id.distinct()).label("count")
+        )
+        .join(Character, Franchise.id == Character.franchise_id)
+        .join(set_characters, Character.id == set_characters.c.character_id)
+        .group_by(Franchise.id)
+        .order_by(func.count(set_characters.c.set_id.distinct()).desc())
+        .limit(limit)
+    )
 
-    Tags are stored as space-separated strings. This function splits them,
-    counts occurrences across both models, and returns the most frequent tags.
+    tag_res = await db.execute(tag_stmt)
+    char_res = await db.execute(char_stmt)
+    fran_res = await db.execute(franchise_stmt)
+    
+    items = []
+    for row in tag_res.all():
+        items.append({"tag": row.name, "type": "tag", "count": row.count})
+    for row in char_res.all():
+        items.append({"tag": row.name, "type": "character", "count": row.count})
+    for row in fran_res.all():
+        items.append({"tag": row.name, "type": "franchise", "count": row.count})
+        
+    # Sort all combined items by count descending, then take top N
+    items.sort(key=lambda x: (-x["count"], x["tag"]))
+    return items[:limit]
 
-    Args:
-        db: Database session.
-        limit: Maximum number of tags to return (default 50).
-
-    Returns:
-        A list of dicts [{"tag": str, "count": int}] sorted by count descending.
+async def get_or_create_tag(db: AsyncSession, name: str) -> Tag:
     """
-    image_tags_query = select(Image.tags).filter(Image.tags.is_not(None), Image.tags != "")
-    set_tags_query = select(Set.tags).filter(Set.tags.is_not(None), Set.tags != "")
+    Get an existing tag or create a new one.
+    Enforces Title Case and prevents collision with Characters/Franchises.
+    """
+    name = name.strip()
+    if not name:
+        raise ValueError("Tag name cannot be empty.")
+        
+    # 1. Enforce Title Case (or known overrides)
+    special = {"cny": "Cny", "ol": "Ol", "kpop": "Kpop"}
+    lower_name = name.lower()
+    if lower_name in special:
+        normalized_name = special[lower_name]
+    else:
+        normalized_name = name.title()
+        
+    # 2. Check for collision with characters or franchises
+    char_exists = await db.execute(select(Character.id).filter(func.lower(Character.name) == lower_name))
+    if char_exists.first():
+        raise ValueError(f"Cannot create tag '{normalized_name}': A character with this name already exists.")
+        
+    franchise_exists = await db.execute(select(Franchise.id).filter(func.lower(Franchise.name) == lower_name))
+    if franchise_exists.first():
+        raise ValueError(f"Cannot create tag '{normalized_name}': A franchise with this name already exists.")
 
-    image_res = await db.execute(image_tags_query)
-    set_res = await db.execute(set_tags_query)
+    # 3. Check for existing tag
+    stmt = select(Tag).filter(func.lower(Tag.name) == lower_name)
+    result = await db.execute(stmt)
+    existing_tag = result.scalars().first()
+    if existing_tag:
+        return existing_tag
+        
+    # 4. Create new tag
+    new_tag = Tag(name=normalized_name)
+    db.add(new_tag)
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        # In case of race condition, try fetching again
+        result = await db.execute(stmt)
+        existing_tag = result.scalars().first()
+        if existing_tag:
+            return existing_tag
+        raise # Reraise if it wasn't a simple race condition
+        
+    return new_tag
 
-    counter: Counter = Counter()
-    for row_tags in image_res.scalars():
-        counter.update(row_tags.split())
-    for row_tags in set_res.scalars():
-        counter.update(row_tags.split())
+async def get_tags_by_names(db: AsyncSession, names: List[str]) -> List[Tag]:
+    """
+    Helper to resolve a list of string names into Tag models.
+    Creates them if they don't exist.
+    """
+    tags = []
+    for name in names:
+        if name.strip():
+            tag = await get_or_create_tag(db, name)
+            tags.append(tag)
+    return tags
 
-    top_tags = counter.most_common(limit)
-    return [{"tag": tag, "count": count} for tag, count in top_tags]
+async def get_tags(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[dict]:
+    """Retrieve all tags with set counts."""
+    stmt = (
+        select(Tag, func.count(set_tags.c.set_id).label("set_count"))
+        .outerjoin(set_tags, Tag.id == set_tags.c.tag_id)
+        .group_by(Tag.id)
+        .order_by(Tag.name.asc())
+        .offset(skip)
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    return [{"id": row.Tag.id, "name": row.Tag.name, "set_count": row.set_count} for row in result.all()]
+
+async def get_tag(db: AsyncSession, tag_id: int) -> Optional[Tag]:
+    """Retrieve a tag by ID."""
+    result = await db.execute(select(Tag).where(Tag.id == tag_id))
+    return result.scalars().first()
+
+async def update_tag(db: AsyncSession, tag_id: int, name: str) -> Optional[Tag]:
+    """Update a tag's name."""
+    db_tag = await get_tag(db, tag_id)
+    if not db_tag:
+        return None
+        
+    name = name.strip()
+    if not name:
+        raise ValueError("Tag name cannot be empty.")
+        
+    # Enforce Title Case
+    special = {"cny": "Cny", "ol": "Ol", "kpop": "Kpop"}
+    lower_name = name.lower()
+    if lower_name in special:
+        normalized_name = special[lower_name]
+    else:
+        normalized_name = name.title()
+        
+    # Check for collision with characters or franchises
+    char_exists = await db.execute(select(Character.id).filter(func.lower(Character.name) == lower_name))
+    if char_exists.first():
+        raise ValueError(f"Cannot update tag to '{normalized_name}': A character with this name already exists.")
+        
+    franchise_exists = await db.execute(select(Franchise.id).filter(func.lower(Franchise.name) == lower_name))
+    if franchise_exists.first():
+        raise ValueError(f"Cannot update tag to '{normalized_name}': A franchise with this name already exists.")
+
+    # Check for existing tag collision
+    stmt = select(Tag).filter(func.lower(Tag.name) == lower_name, Tag.id != tag_id)
+    existing_tag = await db.execute(stmt)
+    if existing_tag.first():
+        raise ValueError(f"Cannot update tag to '{normalized_name}': A tag with this name already exists.")
+
+    db_tag.name = normalized_name
+    await db.commit()
+    await db.refresh(db_tag)
+    return db_tag
+
+async def delete_tag(db: AsyncSession, tag_id: int) -> bool:
+    """Delete a tag."""
+    db_tag = await get_tag(db, tag_id)
+    if not db_tag:
+        return False
+    await db.delete(db_tag)
+    await db.commit()
+    return True
+

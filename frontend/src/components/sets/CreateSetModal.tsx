@@ -8,6 +8,7 @@ import { Modal, TextInput, Textarea, TagsInput, Stack, Button, Group } from '@ma
 import { useCreateSetApiSetsPost } from '../../api/generated/sets/sets';
 import { useReadCreatorsApiCreatorsGet, useCreateCreatorApiCreatorsPost } from '../../api/generated/creators/creators';
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
+import { CharacterAutocompleteInput } from '../ui/CharacterAutocompleteInput';
 import { notifications } from '@mantine/notifications';
 import type { Set } from '../../api/model';
 
@@ -25,6 +26,7 @@ export function CreateSetModal({ opened, onClose, onSuccess }: CreateSetModalPro
     const [title, setTitle] = useState('');
     const [creatorNames, setCreatorNames] = useState<string[]>([]);
     const [tags, setTags] = useState<string[]>([]);
+    const [characters, setCharacters] = useState<string[]>([]);
     const [notes, setNotes] = useState('');
     
     const creatorOptions = useMemo(() => {
@@ -66,7 +68,8 @@ export function CreateSetModal({ opened, onClose, onSuccess }: CreateSetModalPro
                 data: {
                     title: title.trim(),
                     creator_ids: finalCreatorIds,
-                    tags: tags.join(' '),
+                    tags: tags,
+                    characters: characters,
                     notes: notes.trim() || undefined,
                     source_url: undefined, // Or leave it off completely
                     local_path: undefined, // Backend will auto-generate using base_library_path
@@ -84,6 +87,7 @@ export function CreateSetModal({ opened, onClose, onSuccess }: CreateSetModalPro
             setTitle('');
             setCreatorNames([]);
             setTags([]);
+            setCharacters([]);
             setNotes('');
             
             onSuccess(newSet);
@@ -129,6 +133,13 @@ export function CreateSetModal({ opened, onClose, onSuccess }: CreateSetModalPro
                     placeholder="Add tags..."
                     value={tags}
                     onChange={setTags}
+                />
+                
+                <CharacterAutocompleteInput
+                    label="Characters"
+                    placeholder="Add characters..."
+                    value={characters}
+                    onChange={setCharacters}
                 />
                 
                 <Textarea 

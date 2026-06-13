@@ -10,6 +10,8 @@ from app.models.associations import set_creators
 if TYPE_CHECKING:
     from app.models.creator import Creator
     from app.models.image import Image
+    from app.models.tag import Tag
+    from app.models.character import Character
 
 class Set(Base):
     __tablename__ = "sets"
@@ -20,11 +22,20 @@ class Set(Base):
     local_path: Mapped[Optional[str]] = mapped_column()
     phash:      Mapped[Optional[str]] = mapped_column()
     notes:      Mapped[Optional[str]] = mapped_column()
-    tags:       Mapped[Optional[str]] = mapped_column()
     date_added: Mapped[Optional[str]] = mapped_column(server_default=text("(date('now'))"))
 
     creators: Mapped[list["Creator"]] = relationship(
         secondary=set_creators,
+        back_populates="sets"
+    )
+    
+    tags: Mapped[list["Tag"]] = relationship(
+        secondary="set_tags",
+        back_populates="sets"
+    )
+    
+    characters: Mapped[list["Character"]] = relationship(
+        secondary="set_characters",
         back_populates="sets"
     )
 

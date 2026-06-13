@@ -18,7 +18,8 @@ class ImageBase(BaseModel):
     notes: Optional[str] = Field(None, description="User-provided notes or description for the image.")
     rating: Optional[str] = Field("questionable", description="Content rating (e.g., 'safe', 'questionable', 'explicit').")
     dominant_color: Optional[str] = Field(None, description="Hex code of the image's dominant color extracted during import.")
-    tags: Optional[str] = Field(None, description="Comma-separated string of descriptive tags.")
+    focal_point_x: Optional[int] = Field(50, description="Computed X percentage for the focal point.")
+    focal_point_y: Optional[int] = Field(50, description="Computed Y percentage for the focal point.")
 
 class ImageCreate(ImageBase):
     pass
@@ -36,7 +37,8 @@ class ImageUpdate(BaseModel):
     local_path: Optional[str] = Field(None, description="The absolute local path to the image file.")
     rating: Optional[str] = Field(None, description="Content rating.")
     dominant_color: Optional[str] = Field(None, description="Hex code of the dominant color.")
-    tags: Optional[str] = Field(None, description="Comma-separated tags.")
+    focal_point_x: Optional[int] = Field(None, description="Computed X percentage for the focal point.")
+    focal_point_y: Optional[int] = Field(None, description="Computed Y percentage for the focal point.")
 
 class Image(ImageBase):
     id: int = Field(..., description="Unique database identifier for the image.")
@@ -63,7 +65,7 @@ from app.core.enums import BulkOperationMode  # noqa: E402
 class ImageBulkUpdate(BaseModel):
     image_ids: list[int] = Field(..., description="List of image IDs to apply the bulk update to.")
     update_data: ImageUpdate = Field(..., description="The data to apply to all selected images.")
-    operation_mode: BulkOperationMode = Field(BulkOperationMode.APPEND, description="How to apply list-like fields (e.g., tags). APPEND or OVERWRITE.")
+    operation_mode: BulkOperationMode = Field(BulkOperationMode.APPEND, description="How to apply list-like fields (e.g., notes). APPEND or OVERWRITE.")
 
 class ImagePage(BaseModel):
     items: List[ImageWithContext] = Field(..., description="Paginated list of images.")

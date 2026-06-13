@@ -135,11 +135,18 @@ async def read_sets(
         limit: int = 100,
         search: Optional[str] = None,
         creator_type: Optional[str] = None,
+        tag: Optional[str] = Query(None, description="Filter by tag"),
+        character: Optional[list[str]] = Query(None, description="Filter by character names"),
+        franchise: Optional[list[str]] = Query(None, description="Filter by franchise names"),
         sort_by: Optional[str] = Query("date_added", description="Sort field (date_added, title, image_count)"),
         sort_dir: Optional[str] = Query("desc", description="Sort direction (asc, desc)"),
         db: AsyncSession = Depends(get_db)
 ) -> SetPage:
-    sets, total = await crud_set.get_sets(db, skip=skip, limit=limit, search=search, creator_type=creator_type, sort_by=sort_by, sort_dir=sort_dir)
+    """Retrieve a paginated list of sets with optional filtering and sorting."""
+    sets, total = await crud_set.get_sets(
+        db, skip=skip, limit=limit, search=search, creator_type=creator_type,
+        sort_by=sort_by, sort_dir=sort_dir, tag=tag, character=character, franchise=franchise
+    )
     return SetPage(items=sets, total=total, skip=skip, limit=limit)
 
 @router.get("/{set_id}", response_model=Set)

@@ -10,23 +10,15 @@ async def test_tags_api_unique(client: AsyncClient):
     resp = await client.post("/api/creators/", json={"canonical_name": "Tag Artist"})
     creator_id = resp.json()["id"]
 
-    resp = await client.post("/api/sets/", json={"title": "Tag Set", "creator_ids": [creator_id], "local_path": "/tmp/tag_set"})
-    set_id = resp.json()["id"]
-
-    await client.post(f"/api/images/set/{set_id}", json={
-        "filename": "img_a.jpg", "local_path": "/tmp/a.jpg", "width": 100, "height": 100, "tags": "nature dark"
-    })
-    
-    await client.post(f"/api/images/set/{set_id}", json={
-        "filename": "img_b.jpg", "local_path": "/tmp/b.jpg", "width": 100, "height": 100, "tags": "light dark"
-    })
+    await client.post("/api/sets/", json={"title": "Tag Set", "creator_ids": [creator_id], "local_path": "/tmp/tag_set", "tags": ["nature", "dark"]})
+    await client.post("/api/sets/", json={"title": "Tag Set 2", "creator_ids": [creator_id], "local_path": "/tmp/tag_set_2", "tags": ["light", "dark"]})
 
     # Fetch unique tags
     response = await client.get("/api/tags/")
     assert response.status_code == 200
     tags = response.json()
     assert isinstance(tags, list)
-    assert sorted(tags) == sorted(["dark", "light", "nature"])
+    assert sorted(tags) == sorted(["Dark", "Light", "Nature"])
 
 @pytest.mark.asyncio
 async def test_thumbnails_missing_image(client: AsyncClient):

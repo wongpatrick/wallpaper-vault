@@ -3,7 +3,7 @@ Pydantic schemas for set entities.
 Defines models for creating, updating, importing, and bulk managing sets.
 """
 from typing import Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.core.enums import BulkOperationMode
 
 from app.schemas.creator import Creator  # noqa: E402
@@ -15,7 +15,23 @@ class SetBase(BaseModel):
     local_path: Optional[str] = Field(None, description="Local filesystem path where the set's files reside.")
     phash: Optional[str] = Field(None, description="Perceptual hash representative of the set (usually the cover image).")
     notes: Optional[str] = Field(None, description="User-provided notes or context for the set.")
-    tags: Optional[str] = Field(None, description="Comma-separated descriptive tags for the set.")
+    tags: list[str] = Field(default_factory=list, description="List of descriptive tag names for the set.")
+    characters: list[str] = Field(default_factory=list, description="List of character names for the set.")
+
+    @field_validator('tags', mode='before')
+    @classmethod
+    def extract_tag_names(cls, v):
+        if not v:
+            return []
+        # Support extracting strings from Tag objects
+        return [tag.name if hasattr(tag, 'name') else str(tag) for tag in v]
+
+    @field_validator('characters', mode='before')
+    @classmethod
+    def extract_character_names(cls, v):
+        if not v:
+            return []
+        return [char.name if hasattr(char, 'name') else str(char) for char in v]
 
 class SetCreate(SetBase):
     creator_ids: list[int] = Field([], description="List of creator IDs to associate with this set.")
@@ -57,6 +73,8 @@ class BatchImportResponse(BaseModel):
     status: Optional[str] = Field(None, description="Overall status of the batch import request.")
 
 class SetUpdate(SetBase):
+    tags: Optional[list[str]] = Field(None, description="Updated list of tag names for this set.")
+    characters: Optional[list[str]] = Field(None, description="Updated list of character names for this set.")
     creator_ids: Optional[list[int]] = Field(None, description="Updated list of creator IDs for this set.")
 
 class Set(SetBase):
@@ -77,7 +95,7 @@ class SetPage(BaseModel):
 class SetBulkUpdate(BaseModel):
     set_ids: list[int] = Field(..., description="List of set IDs to apply the bulk update to.")
     update_data: SetUpdate = Field(..., description="The data to apply to all selected sets.")
-    operation_mode: BulkOperationMode = Field(BulkOperationMode.APPEND, description="How to apply list-like fields (APPEND or OVERWRITE).")
+    operation_mode: BulkOperationMode = Field(BulkOperationMode.APPEND, description="How to apply list-like fields (tags, characters, notes).")
 
 class SetMerge(BaseModel):
     source_ids: list[int] = Field(..., description="List of set IDs to merge. These sets will be deleted.")

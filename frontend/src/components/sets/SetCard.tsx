@@ -3,6 +3,7 @@
  * Module: Set Card Component
  * Description: Displays a preview card for a wallpaper set, showing its cover image, title, creators, and providing contextual actions.
  */
+import { useState, useEffect } from 'react';
 import { Card, Image, Group, Stack, Text, Menu, ActionIcon, Badge, rem, Checkbox, Box, Overlay } from '@mantine/core';
 import { IconDotsVertical, IconExternalLink, IconFolder, IconTrash } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
@@ -21,9 +22,24 @@ interface SetCardProps {
 }
 
 const ICON_SIZE_PX = 14;
+const HOVER_SLIDESHOW_INTERVAL_MS = 1000;
+const HOVER_SLIDESHOW_MAX_IMAGES = 5;
+const DEFAULT_FOCAL_POINT = 50;
 
 export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect, onLongPress }: SetCardProps) {
     const navigate = useNavigate();
+    const [isHovered, setIsHovered] = useState(false);
+    const [imageIndex, setImageIndex] = useState(0);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (isHovered && set.images && set.images.length > 1) {
+            interval = setInterval(() => {
+                setImageIndex(prev => (prev + 1) % Math.min(set.images!.length, HOVER_SLIDESHOW_MAX_IMAGES));
+            }, HOVER_SLIDESHOW_INTERVAL_MS);
+        }
+        return () => clearInterval(interval);
+    }, [isHovered, set.images]);
     
     const handleCardClick = () => {
         if (selectionMode && onToggleSelect) {
@@ -73,8 +89,10 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
         }
     };
 
-    const coverImageId = set.images && set.images.length > 0 ? set.images[0].id : null;
-    const coverUrl = coverImageId ? getThumbnailUrl(coverImageId, 'sm') : FALLBACK_IMAGE;
+    const currentImage = set.images && set.images.length > 0 ? set.images[imageIndex] : null;
+    const coverUrl = currentImage ? getThumbnailUrl(currentImage.id, 'sm') : FALLBACK_IMAGE;
+    const focalX = currentImage?.focal_point_x ?? DEFAULT_FOCAL_POINT;
+    const focalY = currentImage?.focal_point_y ?? DEFAULT_FOCAL_POINT;
     const creatorNames = set.creators?.map(c => c.canonical_name).join(' & ') || 'Unknown Creator';
 
     return (
@@ -83,13 +101,21 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
             padding="lg" 
             radius="md" 
             withBorder 
+            {...longPressProps}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={(e) => {
+                setIsHovered(false);
+                setImageIndex(0);
+                if (longPressProps.onMouseLeave) {
+                    longPressProps.onMouseLeave(e);
+                }
+            }}
             style={{ 
                 cursor: 'pointer',
                 borderColor: selected ? 'var(--mantine-color-blue-filled)' : undefined,
                 transition: 'border-color 0.2s ease',
                 userSelect: 'none'
             }}
-            {...longPressProps}
         >
             <Card.Section style={{ position: 'relative' }}>
                 {selectionMode && (
@@ -105,10 +131,13 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
                 
                 <Image
                     src={coverUrl}
-                    height={160}
                     alt={set.title || 'Untitled Set'}
                     fallbackSrc="https://placehold.co/600x400?text=No+Images"
-                    style={{ filter: selected ? 'brightness(0.8)' : undefined }}
+                    style={{ 
+                        aspectRatio: '16/9',
+                        objectPosition: `${focalX}% ${focalY}%`,
+                        filter: selected ? 'brightness(0.8)' : undefined 
+                    }}
                 />
 
                 {selected && <Overlay color="var(--mantine-color-blue-light)" backgroundOpacity={0.15} zIndex={1} />}

@@ -8,11 +8,12 @@ import { useState } from 'react';
 import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
 import type { SetUpdate, BulkOperationMode } from '../../api/model';
 import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
+import { CharacterAutocompleteInput } from '../../components/ui/CharacterAutocompleteInput';
 
 interface SetBulkEditModalProps {
     opened: boolean;
     onClose: () => void;
-    type: 'artist' | 'tags' | 'delete';
+    type: 'artist' | 'tags' | 'characters' | 'delete';
     selectedCount: number;
     onConfirm: (data: SetUpdate, mode: BulkOperationMode) => void;
     loading?: boolean;
@@ -22,6 +23,7 @@ export function SetBulkEditModal({ opened, onClose, type, selectedCount, onConfi
     const [mode, setMode] = useState<'append' | 'replace' | 'remove'>('append');
     const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
     const [tags, setTags] = useState<string[]>([]);
+    const [characters, setCharacters] = useState<string[]>([]);
 
     const { data: creatorsData } = useReadCreatorsApiCreatorsGet({ limit: 1000 }, { query: { enabled: opened && type === 'artist' } });
     const creatorOptions = (creatorsData?.items || []).map(c => ({
@@ -33,13 +35,15 @@ export function SetBulkEditModal({ opened, onClose, type, selectedCount, onConfi
         if (type === 'artist') {
             onConfirm({ creator_ids: selectedCreators.map(id => parseInt(id)) }, mode);
         } else if (type === 'tags') {
-            onConfirm({ tags: tags.join(' ') }, mode);
+            onConfirm({ tags: tags }, mode);
+        } else if (type === 'characters') {
+            onConfirm({ characters: characters }, mode);
         } else {
             onConfirm({} as SetUpdate, 'replace' as BulkOperationMode); // Delete mode
         }
     };
 
-    const title = type === 'artist' ? 'Bulk Edit Artists' : type === 'tags' ? 'Bulk Edit Tags' : 'Confirm Bulk Delete';
+    const title = type === 'artist' ? 'Bulk Edit Artists' : type === 'tags' ? 'Bulk Edit Tags' : type === 'characters' ? 'Bulk Edit Characters' : 'Confirm Bulk Delete';
 
     return (
         <Modal opened={opened} onClose={onClose} title={title} centered>
@@ -83,6 +87,16 @@ export function SetBulkEditModal({ opened, onClose, type, selectedCount, onConfi
                         description="Tags to apply to selected sets"
                         value={tags}
                         onChange={setTags}
+                    />
+                )}
+
+                {type === 'characters' && (
+                    <CharacterAutocompleteInput
+                        label="Characters"
+                        placeholder="Add characters..."
+                        description="Characters to apply to selected sets"
+                        value={characters}
+                        onChange={setCharacters}
                     />
                 )}
 

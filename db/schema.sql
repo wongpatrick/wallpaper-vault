@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS set_creators (
 
 CREATE TABLE IF NOT EXISTS tags (
     id   INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
+    name TEXT NOT NULL UNIQUE COLLATE NOCASE
 );
 
 CREATE TABLE IF NOT EXISTS set_tags (
@@ -84,7 +84,6 @@ CREATE TABLE IF NOT EXISTS images (
     notes              TEXT,
     rating             TEXT    DEFAULT 'safe',
     dominant_color     TEXT,
-    tags               TEXT,
     date_added         TEXT    NOT NULL DEFAULT (date('now'))
 );
 

@@ -35,7 +35,6 @@ def map_image_to_schema(img: "ImageModel") -> Image:
         notes=img.notes,
         rating=img.rating,
         dominant_color=img.dominant_color,
-        tags=img.tags,
         date_added=str(img.date_added)
     )
 
@@ -82,16 +81,17 @@ async def read_images(
     rating: Optional[str] = None,
     tag: Optional[str] = Query(None, description="Filter by a single tag (matches image or set tags)"),
     color: Optional[str] = Query(None, description="Filter by dominant color bucket"),
+    character: Optional[list[str]] = Query(None, description="Filter by character names"),
+    franchise: Optional[list[str]] = Query(None, description="Filter by franchise names"),
     sort_by: Optional[str] = Query("date_added", description="Sort field (date_added, file_size, resolution, rating, aspect_ratio, random)"),
-    sort_dir: Optional[str] = Query("desc", description="Sort direction (asc, desc)"),
+    sort_dir: Optional[str] = Query("desc", description="Direction to sort"),
     db: AsyncSession = Depends(get_db)
 ) -> ImagePage:
-    """
-    Retrieve a paginated list of all images in the vault.
-    
-    Supports comprehensive filtering via `search` (matching filename, tags, or notes), `rating`, `color`, and `tag`. Returns images enriched with context like their parent set title and associated creators.
-    """
-    images, total = await crud_image.get_images(db, skip=skip, limit=limit, search=search, rating=rating, tag=tag, color=color, sort_by=sort_by, sort_dir=sort_dir)
+    """Retrieve images with pagination, search, character, franchise and color filters."""
+    images, total = await crud_image.get_images(
+        db, skip=skip, limit=limit, search=search, rating=rating, tag=tag, color=color,
+        character=character, franchise=franchise, sort_by=sort_by, sort_dir=sort_dir
+    )
     items = [map_image_to_context_schema(img) for img in images]
     return ImagePage(items=items, total=total, skip=skip, limit=limit)
 

@@ -16,7 +16,7 @@ from app.crud.creator import get_creator_by_name, create_creator
 from app.schemas.creator import CreatorCreate
 from app.models.image import Image
 from app.models.set import Set
-from app.core.crop import collect_image_paths, process_image, load_image
+from app.core.crop import collect_image_paths, process_image, load_image, compute_focal_point
 from app.core.utils import sanitize_filename
 
 logger = structlog.get_logger(__name__)
@@ -205,6 +205,9 @@ async def execute_import_item(
                     
                     from app.core.enums import ImageRating
                     from app.services.audit_service import calculate_phash, calculate_dominant_color
+                    
+                    fx, fy = compute_focal_point(img_data)
+                    
                     db_images.append(Image(
                         filename=final_p.name,
                         local_path=str(final_p.resolve()),
@@ -214,7 +217,9 @@ async def execute_import_item(
                         aspect_ratio_label=ratio_label,
                         phash=calculate_phash(final_p),
                         dominant_color=calculate_dominant_color(final_p),
-                        rating=ImageRating.QUESTIONABLE
+                        rating=ImageRating.QUESTIONABLE,
+                        focal_point_x=fx,
+                        focal_point_y=fy
                     ))
         
         # 5. Create Set

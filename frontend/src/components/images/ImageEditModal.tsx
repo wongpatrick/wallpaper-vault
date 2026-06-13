@@ -11,7 +11,6 @@ import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import type { Image as ImageModel, ImageUpdate } from '../../api/model';
 import { ImageRating } from '../../types/enums';
-import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
 
 interface ImageEditModalProps {
     image: ImageModel | null;
@@ -33,8 +32,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
         sort_order: 0,
         aspect_ratio_label: '',
         rating: ImageRating.SAFE,
-        dominant_color: '',
-        tags: ''
+        dominant_color: ''
     });
 
     const [prevImageId, setPrevImageId] = useState<number | null>(null);
@@ -46,8 +44,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
             sort_order: image.sort_order || 0,
             aspect_ratio_label: image.aspect_ratio_label || '',
             rating: image.rating || ImageRating.SAFE,
-            dominant_color: image.dominant_color || '',
-            tags: image.tags || ''
+            dominant_color: image.dominant_color || ''
         });
     }
 
@@ -92,7 +89,6 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
         });
     };
 
-    const tagsArray = React.useMemo(() => form.tags ? form.tags.split(/\s+/).filter(t => t.trim()) : [], [form.tags]);
 
     return (
         <Modal opened={opened} onClose={onClose} title="Edit Image Metadata" radius="md" zIndex={zIndex}>
@@ -136,14 +132,6 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
                             value: ImageRating.EXPLICIT 
                         },
                     ]}
-                />
-
-                <TagAutocompleteInput 
-                    label="Tags" 
-                    placeholder="e.g. dark landscape minimalist"
-                    description="Granular tags for this specific image"
-                    value={tagsArray} 
-                    onChange={(tags) => setForm({ ...form, tags: tags.join(' ') })}
                 />
 
                 <ColorInput 
