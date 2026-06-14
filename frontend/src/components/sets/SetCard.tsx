@@ -90,7 +90,7 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
     };
 
     const currentImage = set.images && set.images.length > 0 ? set.images[imageIndex] : null;
-    const coverUrl = currentImage ? getThumbnailUrl(currentImage.id, 'sm') : FALLBACK_IMAGE;
+    const coverUrl = currentImage ? getThumbnailUrl(currentImage.id, 'lg') : FALLBACK_IMAGE;
     const focalX = currentImage?.focal_point_x ?? DEFAULT_FOCAL_POINT;
     const focalY = currentImage?.focal_point_y ?? DEFAULT_FOCAL_POINT;
     const creatorNames = set.creators?.map(c => c.canonical_name).join(' & ') || 'Unknown Creator';

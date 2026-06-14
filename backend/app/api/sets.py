@@ -8,8 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 
 from app.crud import set as crud_set
+from app.services import set_service
 from app.schemas.set import Set, SetCreate, SetImport, BatchImportRequest, BatchImportResponse, SetUpdate, SetPage, SetBulkUpdate, SetMerge
 from app.core import tasks
+from app.core.exceptions import AppError
 from sqlalchemy.exc import IntegrityError
 import structlog
 
@@ -46,7 +48,7 @@ async def create_set(
                 creator_names = [c.canonical_name for c in creators]
                 
             creators_str = " & ".join(creator_names) if creator_names else "Unknown"
-            sanitized_title = crud_set.sanitize_folder_name(set_in.title) if set_in.title else "Untitled"
+            sanitized_title = set_service.sanitize_folder_name(set_in.title) if set_in.title else "Untitled"
             new_folder_name = f"{creators_str} - {sanitized_title}"
             
             new_path = base_dir / new_folder_name
@@ -58,7 +60,7 @@ async def create_set(
                 # Proceed even if folder creation fails, though we may lack local_path
 
     try:
-        db_set = await crud_set.create_set(db=db, set_in=set_in)
+        db_set = await set_service.create_set(db=db, set_in=set_in)
         logger.info("Created set", set_id=db_set.id, title=db_set.title)
         return db_set
     except IntegrityError as e:
@@ -70,6 +72,8 @@ async def create_set(
                     detail=f"A set with the source URL '{set_in.source_url}' already exists!"
                 )
         raise e
+    except AppError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/merge", response_model=Set)
 async def merge_sets(
@@ -84,7 +88,7 @@ async def merge_sets(
     if merge_in.target_id in merge_in.source_ids:
         raise HTTPException(status_code=400, detail="Cannot merge a set into itself")
 
-    db_set = await crud_set.merge_sets(
+    db_set = await set_service.merge_sets(
         db, 
         source_ids=merge_in.source_ids, 
         target_id=merge_in.target_id
@@ -99,9 +103,12 @@ async def import_set(
         set_in: SetImport,
         db: AsyncSession = Depends(get_db)
 ) -> Set:
-    db_set = await crud_set.import_set(db=db, set_in=set_in)
-    logger.info("Imported set", set_id=db_set.id, title=db_set.title)
-    return db_set
+    try:
+        db_set = await set_service.import_set(db=db, set_in=set_in)
+        logger.info("Imported set", set_id=db_set.id, title=db_set.title)
+        return db_set
+    except AppError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/batch-import", response_model=BatchImportResponse)
 async def batch_import_sets(
@@ -166,7 +173,7 @@ async def update_set(
         db: AsyncSession = Depends(get_db)
 ) -> Set:
     try:
-        db_set = await crud_set.update_set(db, set_id=set_id, set_in=set_in)
+        db_set = await set_service.update_set(db, set_id=set_id, set_in=set_in)
         if db_set is None:
             raise HTTPException(status_code=404, detail="Set not found")
         logger.info("Updated set", set_id=set_id)
@@ -180,13 +187,15 @@ async def update_set(
                     detail=f"A set with the source URL '{set_in.source_url}' already exists!"
                 )
         raise e
+    except AppError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/bulk-update", response_model=int)
 async def bulk_update_sets(
         bulk_in: SetBulkUpdate,
         db: AsyncSession = Depends(get_db)
 ) -> int:
-    count = await crud_set.bulk_update_sets(db=db, bulk_in=bulk_in)
+    count = await set_service.bulk_update_sets(db=db, bulk_in=bulk_in)
     logger.info("Bulk updated sets", count=count, mode=bulk_in.operation_mode)
     return count
 
@@ -209,7 +218,7 @@ async def resync_set(
     
     Scans the `local_path` associated with the set. Any new image files found in the directory that aren't already in the database will be imported and added to the set.
     """
-    db_set = await crud_set.resync_set(db, set_id=set_id)
+    db_set = await set_service.resync_set(db, set_id=set_id)
     if db_set is None:
         raise HTTPException(status_code=404, detail="Set not found or path invalid")
     logger.info("Resynced set", set_id=set_id)

@@ -24,12 +24,14 @@ THUMBS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "db" / "thum
 SIZE_WIDTHS = {
     "sm": 200,
     "md": 400,
+    "lg": 800,
 }
 
 
 class ThumbSize(str, Enum):
     sm = "sm"
     md = "md"
+    lg = "lg"
 
 
 @router.get("/thumb/{image_id}")

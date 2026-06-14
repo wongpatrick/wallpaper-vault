@@ -24,7 +24,7 @@ export const getImageUrl = (imageId: number | string | undefined | null): string
  * @param size 'sm' (200px wide) or 'md' (400px wide).
  * @returns A string URL for the thumbnail.
  */
-export const getThumbnailUrl = (imageId: number | string | undefined | null, size: 'sm' | 'md' = 'sm'): string => {
+export const getThumbnailUrl = (imageId: number | string | undefined | null, size: 'sm' | 'md' | 'lg' = 'sm'): string => {
     if (!imageId) return 'https://placehold.co/600x400?text=No+Image';
     
     const baseURL = AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;

@@ -8,8 +8,10 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.crud import image as crud_image
+from app.services import image_service
 from app.schemas.image import Image, ImageUpdate, ImageCreate, ImageBulkUpdate, ImageBulkMove, DuplicateGroup, DuplicateResolutionRequest, ImageWithContext, ImagePage
 from app.models.image import Image as ImageModel
+from app.core.exceptions import AppError
 from pathlib import Path
 import subprocess
 import structlog
@@ -70,9 +72,12 @@ async def bulk_move_images(
     """
     Move multiple images to a different set.
     """
-    count = await crud_image.bulk_move_images(db=db, move_in=move_in)
-    logger.info("Bulk moved images", count=count, target_set_id=move_in.target_set_id)
-    return count
+    try:
+        count = await image_service.bulk_move_images(db=db, move_in=move_in)
+        logger.info("Bulk moved images", count=count, target_set_id=move_in.target_set_id)
+        return count
+    except AppError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/", response_model=ImagePage)
 async def read_images(
@@ -144,14 +149,14 @@ async def resolve_duplicates(
     This endpoint retains the specified `keep_image_id` and permanently deletes the files and database records for all `remove_image_ids`. Use this carefully as deletion is irreversible.
     """
     try:
-        removed, saved = await crud_image.resolve_duplicates(
+        removed, saved = await image_service.resolve_duplicates(
             db, 
             keep_id=request.keep_image_id, 
             remove_ids=request.remove_image_ids
         )
         logger.info("Resolved duplicates", keep_id=request.keep_image_id, removed_count=removed, space_saved_bytes=saved)
         return {"status": "success", "removed_count": removed, "space_saved_bytes": saved}
-    except ValueError as e:
+    except AppError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("Unexpected error resolving duplicates", error=str(e))
@@ -294,7 +299,7 @@ async def delete_image(
     image_id: int,
     db: AsyncSession = Depends(get_db)
 ) -> Image:
-    db_image = await crud_image.delete_image(db, image_id=image_id)
+    db_image = await image_service.delete_image(db, image_id=image_id)
     if db_image is None:
         raise HTTPException(status_code=404, detail="Image not found")
     logger.info("Deleted image", image_id=image_id)
@@ -363,6 +368,9 @@ async def create_image_for_set(
     image_in: ImageCreate,
     db: AsyncSession = Depends(get_db)
 ) -> Image:
-    db_image = await crud_image.create_image(db, image_in=image_in, set_id=set_id)
-    logger.info("Created image for set", set_id=set_id, image_id=db_image.id)
-    return map_image_to_schema(db_image)
+    try:
+        db_image = await image_service.create_image(db, image_in=image_in, set_id=set_id)
+        logger.info("Created image for set", set_id=set_id, image_id=db_image.id)
+        return map_image_to_schema(db_image)
+    except AppError as e:
+        raise HTTPException(status_code=400, detail=str(e))

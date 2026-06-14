@@ -274,8 +274,8 @@ export default function Images() {
                         radius="md"
                     />
                 </Stack>
-                <Stack gap={4}>
-                    <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Color</Text>
+                <Stack gap={4} align="center">
+                    <Text size="xs" fw={700} c="dimmed">Filter by Color</Text>
                     <Group gap={4}>
                         <Popover position="bottom" shadow="lg" radius="md" withinPortal>
                             <Popover.Target>
