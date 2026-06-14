@@ -45,6 +45,9 @@ export function ColorExplorer({ activeColor, onColorSelect, onColorPickerChange,
         return map;
     }, [stats]);
 
+    const INACTIVE_SPACER_WIDTH = 66;
+    const ACTIVE_SPACER_WIDTH = 100;
+
     return (
         <Box p="md" style={{ borderRadius: 'var(--mantine-radius-md)', backgroundColor: 'var(--mantine-color-default)' }}>
             <Stack gap="md">
@@ -55,7 +58,7 @@ export function ColorExplorer({ activeColor, onColorSelect, onColorPickerChange,
                 ) : (
                     <Group gap="md" justify="center">
                         {/* Invisible spacer to perfectly balance the custom picker on the right */}
-                        <Box w={activeColor ? 100 : 66} display={{ base: 'none', md: 'block' }} />
+                        <Box w={activeColor ? ACTIVE_SPACER_WIDTH : INACTIVE_SPACER_WIDTH} display={{ base: 'none', md: 'block' }} />
                         {PRESET_SWATCHES.map((color) => {
                             const upperColor = color.toUpperCase();
                             const count = statsMap.get(upperColor) || 0;

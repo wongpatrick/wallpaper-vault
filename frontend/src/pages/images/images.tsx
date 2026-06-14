@@ -142,10 +142,11 @@ export default function Images() {
         setHasMore(true);
     };
 
+    const DEFAULT_TOLERANCE = 30;
     const handleToleranceChange = useCallback((value: number) => {
         setSearchParams((prev) => {
             const next = new URLSearchParams(prev);
-            if (value === 30) {
+            if (value === DEFAULT_TOLERANCE) {
                 next.delete('tolerance');
             } else {
                 next.set('tolerance', value.toString());
