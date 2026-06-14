@@ -1,3 +1,8 @@
+/**
+ * @file
+ * Module: CreatorCard Component
+ * Description: Displays a single creator with their avatar and name in a card layout.
+ */
 import { Card, Text, Stack } from '@mantine/core';
 import type { Creator } from '../../api/model';
 import { CreatorAvatar } from './CreatorAvatar';
