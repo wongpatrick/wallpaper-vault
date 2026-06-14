@@ -72,7 +72,7 @@ function createTray() {
         
         console.log('Public Directory:', publicDir);
 
-        const iconNames = ['tray.svg', 'favicon.svg'];
+        const iconNames = ['vault-tray.png', 'tray.png', 'vault-tray.ico', 'tray.ico', 'tray.svg', 'favicon.svg'];
         let trayIcon: Electron.NativeImage | null = null;
 
         for (const name of iconNames) {
