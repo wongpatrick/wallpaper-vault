@@ -65,6 +65,14 @@ npm run dev
 
 ## 🛠️ Current State
 
+### ✅ Dashboard & Insights
+- **Landing Hub:** A centralized view displaying real-time library statistics, recent imports, and system health alerts.
+- **Random Inspiration:** Quickly discover and navigate to forgotten gems in your library directly from the home screen.
+
+### ✅ Taxonomy & Organization
+- **Characters & Franchises:** Detailed relational tracking for subjects and their respective intellectual properties or universes.
+- **Tag Management:** A robust taxonomy system for deep filtering and organizing of large collections.
+
 ### ✅ Library Management
 - **Library Grid:** Immersive browsing with cover images and rich metadata.
 - **Bulk Metadata Editing:** Enter "Selection Mode" to update artists, tags, or delete multiple sets at once.
@@ -87,6 +95,7 @@ npm run dev
 ## 📋 Roadmap (To-Do)
 - [ ] **Find a Working Tray Icon**: Standardize a high-quality icon format (ICO/SVG) that works reliably across all Windows configurations.
 - [ ] **Collections / Playlists**: Allow users to arbitrarily group images across different sets for specific moods or multi-monitor setups (integrates with DisplayFusion).
+- [ ] **AI Auto-Tagging**: Implement intelligent auto-tagging of wallpapers using machine learning models or AI vision during the import pipeline.
 - [ ] **Discovery / Color Explorer**: Implement color extraction on import and build a dedicated discovery screen to filter wallpapers by dominant color palettes.
 - [ ] **API Security / Remote Auth**: Introduce API token/key authentication to secure the FastAPI engine before exposing it to remote clients (e.g., NAS setups).
 

@@ -24,8 +24,10 @@ The frontend is organized for maximum modularity and reusability:
 *   **`electron/`**: Main process and preload scripts for native OS features.
 
 ### 🏠 Main Views
+*   **Dashboard:** Centralized landing page displaying real-time library statistics, recent imports, and random inspiration.
 *   **Library (Sets):** Visual grid with live search and type-based filtering.
 *   **Artist Hub (Creators):** Portfolio views showcasing an artist's full collection with merge capabilities.
+*   **Taxonomy Hub:** Management interface for Tags, Characters, and Franchises.
 *   **Tools:** Specialized utilities for batch importing and saliency-aware image cropping.
 
 ---

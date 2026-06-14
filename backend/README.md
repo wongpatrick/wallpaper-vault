@@ -62,5 +62,9 @@ Core entities include:
 - **Creators:** Artist profiles with portfolios.
 - **Sets:** Curated collections of wallpapers.
 - **Images:** Individual files with metadata (resolution, pHash).
+- **Characters:** Tagging of specific subjects within images.
+- **Franchises:** Grouping characters and images by universe/IP.
+- **Tags:** General descriptive taxonomy for images and sets.
+- **Audit:** System health and phash duplicate tracking logs.
 - **Tasks:** Background operation tracking for long-running imports.
 - **Settings:** Global application configuration.
