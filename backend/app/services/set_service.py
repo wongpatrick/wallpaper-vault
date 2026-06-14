@@ -4,7 +4,7 @@ Service layer for set operations.
 Handles business logic, folder renaming, and image processing for wallpaper sets.
 Delegates purely database-related operations to the CRUD layer.
 """
-from typing import Optional, List
+from typing import Optional
 import re
 import anyio
 import structlog
@@ -13,7 +13,7 @@ from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.set import Set
 from app.models.image import Image
-from app.schemas.set import SetCreate, SetImport, SetUpdate, SetBulkUpdate, BatchImportRequest
+from app.schemas.set import SetCreate, SetImport, SetUpdate, SetBulkUpdate
 from app.core.exceptions import FileSystemError, ResourceNotFoundError, DuplicateResourceError
 from app.crud import set as crud_set
 from app.crud.creator import get_creator_by_name, create_creator
@@ -61,7 +61,6 @@ async def create_set(db: AsyncSession, set_in: SetCreate) -> Set:
     # Move the phash/cv2 logic here from crud.set
     # Actually, we should prepare the image schemas and then pass to CRUD.
     
-    import asyncio
     from app.core.crop import load_image
     from app.crud.settings import get_setting
     from app.services.audit_service import calculate_phash, calculate_dominant_color

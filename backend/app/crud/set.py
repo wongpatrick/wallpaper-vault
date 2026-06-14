@@ -14,24 +14,16 @@ from app.models.franchise import Franchise
 from app.models.tag import Tag
 from app.schemas.set import (
     SetCreate, 
-    SetImport, 
     SetUpdate,
     BatchImportRequest, 
     BatchImportResponse,
     SetBulkUpdate
 )
 from app.core.enums import BulkOperationMode, TaskStatus
-from app.crud.creator import get_creator_by_name, create_creator
-from app.schemas.creator import CreatorCreate
 from app.crud.settings import get_setting
 from app.core import tasks
 from app.db.session import SessionLocal
 from pathlib import Path
-import re
-import structlog
-
-logger = structlog.get_logger(__name__)
-
 import structlog
 
 logger = structlog.get_logger(__name__)

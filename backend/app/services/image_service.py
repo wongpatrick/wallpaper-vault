@@ -14,7 +14,7 @@ from sqlalchemy import select
 from app.models.image import Image
 from app.schemas.image import ImageCreate, ImageBulkMove
 from app.crud import image as crud_image
-from app.core.exceptions import FileSystemError, ResourceNotFoundError, DuplicateResourceError
+from app.core.exceptions import ResourceNotFoundError, DuplicateResourceError
 from app.services.audit_service import calculate_phash, calculate_dominant_color
 from app.core.crop import load_image
 from app.crud.settings import get_setting

@@ -8,10 +8,8 @@ from sqlalchemy.orm import selectinload
 from app.models.image import Image
 from app.models.set import Set
 from app.models.creator import Creator
-from app.schemas.image import ImageUpdate, ImageCreate, ImageBulkUpdate, ImageBulkMove
+from app.schemas.image import ImageUpdate, ImageCreate, ImageBulkUpdate
 from app.core.enums import BulkOperationMode
-import os
-from pathlib import Path
 from collections import defaultdict
 import structlog
 
