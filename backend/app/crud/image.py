@@ -8,10 +8,8 @@ from sqlalchemy.orm import selectinload
 from app.models.image import Image
 from app.models.set import Set
 from app.models.creator import Creator
-from app.schemas.image import ImageUpdate, ImageCreate, ImageBulkUpdate, ImageBulkMove
+from app.schemas.image import ImageUpdate, ImageCreate, ImageBulkUpdate
 from app.core.enums import BulkOperationMode
-import os
-from pathlib import Path
 from collections import defaultdict
 import structlog
 
@@ -88,56 +86,18 @@ async def get_images_by_set(db: AsyncSession, set_id: int) -> list[Image]:
     result = await db.execute(select(Image).filter(Image.set_id == set_id).order_by(Image.sort_order))
     return list(result.scalars().all())
 
-async def create_image(db: AsyncSession, image_in: ImageCreate, set_id: int) -> Image:
-    """Creates a new image record in the database.
+async def create_image_db(db: AsyncSession, image_in: ImageCreate, set_id: int) -> Image:
+    """Creates a new image record in the database directly.
 
     Args:
         db: Database session.
-        image_in: Image creation schema containing image data.
+        image_in: Image creation schema containing processed image data.
         set_id: ID of the set this image belongs to.
 
     Returns:
         The newly created Image object.
     """
-    existing = await db.execute(select(Image).where(Image.local_path == image_in.local_path))
-    if existing.first():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail="Image with this file path already exists in the database.")
-
-    image_data = image_in.model_dump()
-    if image_data.get("local_path"):
-        from app.services.audit_service import calculate_phash, calculate_dominant_color
-        from app.core.crop import load_image
-        from app.crud.settings import get_setting
-        import asyncio
-        
-        p = Path(image_data["local_path"])
-        if p.exists():
-            if not image_data.get("phash"):
-                image_data["phash"] = await asyncio.to_thread(calculate_phash, p)
-                
-            image_data["file_size"] = p.stat().st_size
-            
-            if not image_data.get("dominant_color"):
-                image_data["dominant_color"] = await asyncio.to_thread(calculate_dominant_color, p)
-                
-            if image_data.get("width") is None or image_data.get("height") is None:
-                h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
-                v_ratio_setting = await get_setting(db, "vertical_target_ratio")
-                h_label = h_ratio_setting.value.replace("/", "x") if h_ratio_setting and h_ratio_setting.value else "16x9"
-                v_label = v_ratio_setting.value.replace("/", "x") if v_ratio_setting and v_ratio_setting.value else "9x16"
-                
-                img_cv = await asyncio.to_thread(load_image, str(p))
-                if img_cv is not None:
-                    height, width = img_cv.shape[:2]
-                    image_data["width"] = width
-                    image_data["height"] = height
-                    image_data["aspect_ratio"] = float(width) / float(height) if height != 0 else 0
-                    
-                    if not image_data.get("aspect_ratio_label"):
-                        image_data["aspect_ratio_label"] = h_label if width >= height else v_label
-
-    db_image = Image(**image_data, set_id=set_id)
+    db_image = Image(**image_in.model_dump(), set_id=set_id)
     db.add(db_image)
     await db.commit()
     await db.refresh(db_image)
@@ -207,8 +167,8 @@ async def bulk_update_images(db: AsyncSession, bulk_in: ImageBulkUpdate) -> int:
     await db.commit()
     return len(db_images)
 
-async def delete_image(db: AsyncSession, image_id: int) -> Optional[Image]:
-    """Deletes an image from the database and removes its file from disk.
+async def delete_image_db(db: AsyncSession, image_id: int) -> Optional[Image]:
+    """Deletes an image from the database.
 
     Args:
         db: Database session.
@@ -219,21 +179,6 @@ async def delete_image(db: AsyncSession, image_id: int) -> Optional[Image]:
     """
     db_image = await get_image(db, image_id)
     if db_image:
-        if db_image.local_path:
-            # Check if any other image records are using the same physical file
-            other_refs_query = select(Image.id).where(
-                Image.local_path == db_image.local_path,
-                Image.id != image_id
-            ).limit(1)
-            other_refs_result = await db.execute(other_refs_query)
-            has_other_refs = other_refs_result.first() is not None
-
-            if not has_other_refs:
-                # Delete file from disk
-                p = Path(db_image.local_path)
-                if p.exists():
-                    p.unlink(missing_ok=True)
-            
         await db.delete(db_image)
         await db.commit()
     return db_image
@@ -274,66 +219,7 @@ async def get_duplicate_groups(db: AsyncSession) -> list[dict]:
 
     return groups_dict
 
-async def resolve_duplicates(db: AsyncSession, keep_id: int, remove_ids: List[int]) -> dict:
-    """Resolves a group of duplicates by keeping one image and deleting the rest.
 
-    Args:
-        db: Database session.
-        keep_id: ID of the image to retain.
-        remove_ids: List of image IDs to delete.
-
-    Returns:
-        A tuple containing (removed_count, space_saved_in_bytes).
-
-    Raises:
-        ValueError: If the keep_id image is not found.
-    """
-    # Verify keep_id exists
-    keep_img = await get_image(db, keep_id)
-    if not keep_img:
-        raise ValueError("Keep image not found")
-
-    removed_count = 0
-    space_saved = 0
-
-    for rid in remove_ids:
-        db_image = await get_image(db, rid)
-        if db_image:
-            file_deleted = False
-            
-            if not db_image.local_path:
-                file_deleted = True
-            else:
-                p = Path(db_image.local_path)
-                
-                # Check if any OTHER image is using this local_path that is NOT in remove_ids
-                other_refs_query = select(Image.id).where(
-                    Image.local_path == db_image.local_path,
-                    Image.id.notin_(remove_ids)
-                ).limit(1)
-                other_refs_result = await db.execute(other_refs_query)
-                has_other_refs = other_refs_result.first() is not None
-
-                if not has_other_refs and p.exists():
-                    file_size = p.stat().st_size
-                    try:
-                        os.unlink(p)
-                        space_saved += file_size
-                        file_deleted = True
-                    except Exception as e:
-                        logger.error("Error deleting file", path=str(p), error=str(e), exc_info=True)
-                else:
-                    # If the file doesn't exist, or it has other references, we skip physical deletion
-                    # but still consider it "successful" so we can clean up this duplicate DB record.
-                    file_deleted = True
-            
-            if file_deleted:
-                # Delete DB record
-                await db.delete(db_image)
-                removed_count += 1
-    
-    await db.commit()
-    return removed_count, space_saved
 
 def _hex_to_hsl(hex_color: str) -> tuple[float, float, float]:
     import colorsys
@@ -520,70 +406,4 @@ async def get_images(
 
     return items, total
 
-async def bulk_move_images(db: AsyncSession, move_in: ImageBulkMove) -> int:
-    """Moves images from their current sets to a target set, both on disk and in DB.
 
-    Args:
-        db: Database session.
-        move_in: Schema containing the target set ID and list of image IDs.
-
-    Returns:
-        The number of images successfully moved.
-    """
-    import shutil
-    
-    # 1. Fetch target set
-    from app.crud.set import get_set
-    target_set = await get_set(db, move_in.target_set_id)
-    if not target_set:
-        raise ValueError("Target set not found")
-        
-    target_path = Path(target_set.local_path) if target_set.local_path else None
-    if target_path and not target_path.exists():
-        target_path.mkdir(parents=True, exist_ok=True)
-        
-    # 2. Fetch images to move
-    result = await db.execute(
-        select(Image).where(Image.id.in_(move_in.image_ids))
-    )
-    db_images = result.scalars().all()
-    
-    if not db_images:
-        return 0
-        
-    moved_count = 0
-    for img in db_images:
-        # Skip if already in the target set
-        if img.set_id == target_set.id:
-            continue
-            
-        old_p = Path(img.local_path) if img.local_path else None
-        
-        # If target has a path and image has a path, move physically
-        if target_path and old_p:
-            new_p = target_path / old_p.name
-            
-            if old_p.exists() and old_p.parent != target_path:
-                # Handle collisions
-                counter = 1
-                actual_new_p = new_p
-                while actual_new_p.exists():
-                    actual_new_p = target_path / f"{old_p.stem}_{counter}{old_p.suffix}"
-                    counter += 1
-                
-                try:
-                    shutil.move(str(old_p), str(actual_new_p))
-                    img.local_path = str(actual_new_p)
-                except Exception as e:
-                    logger.error("Error moving image", path=str(old_p), error=str(e), exc_info=True)
-                    continue
-            elif new_p.exists():
-                img.local_path = str(new_p)
-                
-        # Update DB
-        img.set_id = target_set.id
-        db.add(img)
-        moved_count += 1
-        
-    await db.commit()
-    return moved_count

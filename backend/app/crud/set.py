@@ -14,79 +14,19 @@ from app.models.franchise import Franchise
 from app.models.tag import Tag
 from app.schemas.set import (
     SetCreate, 
-    SetImport, 
     SetUpdate,
     BatchImportRequest, 
     BatchImportResponse,
     SetBulkUpdate
 )
 from app.core.enums import BulkOperationMode, TaskStatus
-from app.crud.creator import get_creator_by_name, create_creator
-from app.schemas.creator import CreatorCreate
 from app.crud.settings import get_setting
 from app.core import tasks
 from app.db.session import SessionLocal
 from pathlib import Path
-import re
 import structlog
 
 logger = structlog.get_logger(__name__)
-
-def sanitize_folder_name(name: str) -> str:
-    """Removes invalid characters from a string to make it safe for directory names.
-
-    Args:
-        name: The original string.
-
-    Returns:
-        The sanitized string, safe for file paths.
-    """
-    # Remove invalid characters: \ / : * ? " < > |
-    return re.sub(r'[\\/:*?"<>|]', '', name).strip()
-
-def rename_set_folder_if_needed(db_set: Set, raise_errors: bool = False) -> None:
-    """Checks and renames a set's physical folder to match convention.
-
-    Convention: '[Creators] - [Sanitized Title]'
-    Also updates the local_path of the Set and all its associated Images.
-
-    Args:
-        db_set: The Set object whose folder might need renaming.
-        raise_errors: If True, raises exceptions on filesystem errors.
-
-    Raises:
-        Exception: If rename fails and raise_errors is True.
-    """
-    if not db_set.local_path:
-        return
-        
-    # Generate new folder name based on convention: [Creators] - [Sanitized Title]
-    creator_names = [c.canonical_name for c in db_set.creators]
-    creators_str = " & ".join(creator_names) if creator_names else "Unknown"
-    sanitized_title = sanitize_folder_name(db_set.title) if db_set.title else "Untitled"
-    new_folder_name = f"{creators_str} - {sanitized_title}"
-    
-    old_path = Path(db_set.local_path)
-    if old_path.exists() and old_path.is_dir():
-        new_path = old_path.with_name(new_folder_name)
-        
-        # Perform rename if necessary and new path doesn't already exist
-        if new_path != old_path and not new_path.exists():
-            try:
-                old_path.rename(new_path)
-                db_set.local_path = str(new_path)
-                
-                # Update paths for all images within the set
-                if db_set.images:
-                    for img in db_set.images:
-                        img_old_path = Path(img.local_path)
-                        img_new_path = new_path / img_old_path.name
-                        img.local_path = str(img_new_path)
-            except Exception as e:
-                logger.error("Error renaming set folder", error=str(e), exc_info=True)
-                if raise_errors:
-                    raise Exception(f"Failed to rename folder for set '{db_set.title}': {str(e)}")
-                # We don't raise here by default to prevent blocking the metadata update if FS fails
 
 async def get_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     """Retrieves a specific set by its ID, including creators and images.
@@ -214,49 +154,8 @@ async def create_set(db: AsyncSession, set_in: SetCreate) -> Set:
         db_set.characters = await get_characters_by_names(db, set_in.characters)
     
     if set_in.images:
-        import asyncio
-        from pathlib import Path
-        from app.core.crop import load_image
-        from app.crud.settings import get_setting
-        from app.services.audit_service import calculate_phash, calculate_dominant_color
-
-        h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
-        v_ratio_setting = await get_setting(db, "vertical_target_ratio")
-        h_label = h_ratio_setting.value.replace("/", "x") if h_ratio_setting and h_ratio_setting.value else "16x9"
-        v_label = v_ratio_setting.value.replace("/", "x") if v_ratio_setting and v_ratio_setting.value else "9x16"
-
-        new_images = []
-        for image_in in set_in.images:
-            img_data = image_in.model_dump()
-            
-            if img_data.get("local_path"):
-                p = Path(img_data["local_path"])
-                
-                if not img_data.get("phash"):
-                    img_data["phash"] = await asyncio.to_thread(calculate_phash, p)
-                    
-                if img_data.get("width") is None or img_data.get("height") is None:
-                    img_cv = await asyncio.to_thread(load_image, str(p))
-                    if img_cv is not None:
-                        height, width = img_cv.shape[:2]
-                        img_data["width"] = width
-                        img_data["height"] = height
-                        img_data["aspect_ratio"] = float(width) / float(height) if height != 0 else 0
-                        
-                if not img_data.get("aspect_ratio_label"):
-                    w = img_data.get("width")
-                    h = img_data.get("height")
-                    if w is not None and h is not None:
-                        img_data["aspect_ratio_label"] = h_label if w >= h else v_label
-                        
-                if img_data.get("file_size") is None:
-                    img_data["file_size"] = p.stat().st_size if p.exists() else None
-                    
-                if img_data.get("dominant_color") is None:
-                    img_data["dominant_color"] = await asyncio.to_thread(calculate_dominant_color, p)
-
-            new_images.append(Image(**img_data))
-            
+        # File sizing and CV2 processing has been moved to services/set_service.py
+        new_images = [Image(**image_in.model_dump()) for image_in in set_in.images]
         db_set.images = new_images
 
     db.add(db_set)
@@ -294,101 +193,7 @@ async def get_set_by_title_and_creator(db: AsyncSession, title: str, creator_id:
     )
     return result.scalar_one_or_none()
 
-async def import_set(db: AsyncSession, set_in: SetImport) -> Set:
-    """Imports a set, automatically resolving or creating creators by name.
 
-    Args:
-        db: Database session.
-        set_in: Import schema containing set details and creator names.
-
-    Raises:
-        HTTPException: If the set already exists for a specified creator.
-
-    Returns:
-        The imported Set object.
-    """
-    db_creators = []
-    for name in set_in.creator_names:
-        creator = await get_creator_by_name(db, name)
-        if not creator:
-            creator = await create_creator(db, CreatorCreate(canonical_name=name))
-        
-        existing_set = await get_set_by_title_and_creator(db, set_in.title, creator.id)
-        if existing_set:
-            from fastapi import HTTPException
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Set '{set_in.title}' already exists for creator '{name}'"
-            )
-            
-        db_creators.append(creator)
-    
-    db_set = Set(
-        title=set_in.title,
-        local_path=set_in.local_path,
-        notes=set_in.notes
-    )
-    db_set.creators = db_creators
-
-    if set_in.images:
-        from app.services.import_service import load_image
-        from app.crud.settings import get_setting
-        from app.services.audit_service import calculate_phash
-        from app.core.enums import ImageRating
-        
-        h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
-        v_ratio_setting = await get_setting(db, "vertical_target_ratio")
-        h_label = h_ratio_setting.value.replace("/", "x") if h_ratio_setting and h_ratio_setting.value else "16x9"
-        v_label = v_ratio_setting.value.replace("/", "x") if v_ratio_setting and v_ratio_setting.value else "9x16"
-        
-        new_images = []
-        for image_in in set_in.images:
-            img_data = image_in.model_dump()
-            
-            p = Path(img_data["local_path"])
-            if not img_data.get("phash"):
-                img_data["phash"] = calculate_phash(p)
-                
-            if img_data.get("width") is None or img_data.get("height") is None:
-                img_cv = load_image(img_data["local_path"])
-                if img_cv is not None:
-                    height, width = img_cv.shape[:2]
-                    img_data["width"] = width
-                    img_data["height"] = height
-                    img_data["aspect_ratio"] = float(width)/float(height) if height != 0 else 0
-                    
-            if not img_data.get("aspect_ratio_label"):
-                w = img_data.get("width")
-                h = img_data.get("height")
-                if w is not None and h is not None:
-                    img_data["aspect_ratio_label"] = h_label if w >= h else v_label
-                    
-            if img_data.get("file_size") is None:
-                img_data["file_size"] = p.stat().st_size if p.exists() else None
-            
-            if not img_data.get("rating"):
-                img_data["rating"] = ImageRating.QUESTIONABLE
-                
-            new_images.append(Image(**img_data))
-            
-        db_set.images = new_images
-
-    db.add(db_set)
-    await db.commit()
-    await db.refresh(db_set)
-    
-    query = (
-        select(Set)
-        .options(
-            selectinload(Set.creators),
-            selectinload(Set.images),
-            selectinload(Set.tags),
-            selectinload(Set.characters)
-        )
-        .filter(Set.id == db_set.id)
-    )
-    result = await db.execute(query)
-    return result.scalar_one()
 
 async def delete_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     """Deletes a set record from the database.
@@ -445,8 +250,7 @@ async def update_set(db: AsyncSession, set_id: int, set_in: SetUpdate) -> Option
         from app.crud.character import get_characters_by_names
         db_set.characters = await get_characters_by_names(db, set_in.characters)
     
-    # Automatic Folder Renaming Logic
-    rename_set_folder_if_needed(db_set)
+    # Note: Automatic Folder Renaming Logic was moved to services/set_service.py
     
     db.add(db_set)
     await db.commit()
@@ -554,8 +358,7 @@ async def bulk_update_sets(db: AsyncSession, bulk_in: SetBulkUpdate) -> int:
             else:
                 db_set.creators = list(target_creators)
         
-        # Automatic Folder Renaming Logic
-        rename_set_folder_if_needed(db_set)
+        # Note: Automatic Folder Renaming Logic was moved to services/set_service.py
         
         db.add(db_set)
 
@@ -563,134 +366,7 @@ async def bulk_update_sets(db: AsyncSession, bulk_in: SetBulkUpdate) -> int:
     return len(db_sets)
 
 
-async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[Set]:
-    """Merges multiple source sets into a single target set.
 
-    Physically moves images on disk, updates database paths, combines tags
-    and notes, and merges creators. Deletes source sets afterward.
-
-    Args:
-        db: Database session.
-        source_ids: List of source set IDs to merge.
-        target_id: ID of the destination set.
-
-    Returns:
-        The updated target Set object, or None if the target was not found.
-    """
-    import shutil
-    import os
-    from pathlib import Path
-
-    # 1. Fetch target set
-    target_set = await get_set(db, target_id)
-    if not target_set:
-        return None
-    
-    target_path = Path(target_set.local_path) if target_set.local_path else None
-    
-    # Ensure target path directory exists if it's set
-    if target_path and not target_path.exists():
-        try:
-            target_path.mkdir(parents=True, exist_ok=True)
-        except Exception as e:
-            logger.error("Could not create target directory", path=str(target_path), error=str(e))
-    
-    # 2. Iterate through source sets
-    for sid in source_ids:
-        if sid == target_id:
-            continue
-        
-        source_set = await get_set(db, sid)
-        if not source_set:
-            continue
-            
-        # If target set has no physical path, adopt the path of the first source set that does
-        if not target_path and source_set.local_path:
-            target_path = Path(source_set.local_path)
-            target_set.local_path = str(target_path)
-            if not target_path.exists():
-                try:
-                    target_path.mkdir(parents=True, exist_ok=True)
-                except Exception as e:
-                    logger.error("Could not create adopted target directory", path=str(target_path), error=str(e))
-        
-        # Move images physically and update paths
-        failed_images = []
-        if target_path:
-            for img in source_set.images:
-                old_p = Path(img.local_path) if img.local_path else None
-                if not old_p:
-                    continue
-                
-                new_p = target_path / old_p.name
-                
-                # Case 1: File is at the source location - Move it to target
-                if old_p.exists() and old_p.parent != target_path:
-                    # Handle collisions
-                    counter = 1
-                    actual_new_p = new_p
-                    while actual_new_p.exists():
-                        actual_new_p = target_path / f"{old_p.stem}_{counter}{old_p.suffix}"
-                        counter += 1
-                    
-                    try:
-                        shutil.move(str(old_p), str(actual_new_p))
-                        img.local_path = str(actual_new_p)
-                    except Exception as e:
-                        logger.error("Error moving image", path=str(old_p), error=str(e), exc_info=True)
-                        failed_images.append(img)
-                
-                # Case 2: File was already moved to target manually (or by partial merge)
-                elif new_p.exists():
-                    img.local_path = str(new_p)
-
-        # Re-associate images properly to avoid cascade-delete-orphan
-        images_to_move = [img for img in source_set.images if img not in failed_images]
-        
-        # Remove successfully moved images from source_set
-        source_set.images = failed_images
-        
-        for img in images_to_move:
-            img.set_id = target_id
-            target_set.images.append(img)
-            
-        # Re-associate creators
-        for c in source_set.creators:
-            if c not in target_set.creators:
-                target_set.creators.append(c)
-                
-        # Merge tags and notes
-        if source_set.tags:
-            current_tags = set((target_set.tags or "").split())
-            new_tags = set(source_set.tags.split())
-            combined = sorted(list(current_tags | new_tags))
-            target_set.tags = " ".join(combined) if combined else None
-            
-        if source_set.notes:
-            target_set.notes = (target_set.notes or "") + "\n" + source_set.notes
-            target_set.notes = target_set.notes.strip()
-            
-        source_path = source_set.local_path
-            
-        # Delete source set from DB ONLY if all images were successfully moved
-        if not failed_images:
-            await db.delete(source_set)
-            
-            # Try to delete the physical source directory if it's now empty
-            if source_path and target_path and str(Path(source_path)) != str(target_path):
-                try:
-                    os.rmdir(source_path)
-                except OSError:
-                    # Directory not empty or permissions error; perfectly fine to leave it.
-                    pass
-        
-    await db.commit()
-    await db.refresh(target_set)
-    
-    # Optional: trigger renaming if title/creators changed
-    rename_set_folder_if_needed(target_set)
-    
-    return await get_set(db, target_id)
 
 
 async def bulk_delete_sets(db: AsyncSession, set_ids: list[int]) -> int:
@@ -713,129 +389,7 @@ async def bulk_delete_sets(db: AsyncSession, set_ids: list[int]) -> int:
     return len(db_sets)
 
 
-async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
-    """Resynchronizes a set's database records with its physical folder.
 
-    Adds tracked images that appear on disk, removes missing ones from DB,
-    and resolves files that were renamed or moved (using phash matching).
-
-    Args:
-        db: Database session.
-        set_id: ID of the set to resync.
-
-    Returns:
-        The updated Set object, or None if it lacks a valid local path.
-    """
-    from app.services.audit_service import calculate_phash, calculate_dominant_color
-    
-    db_set = await get_set(db, set_id)
-    if not db_set or not db_set.local_path:
-        return None
-    
-    folder_path = Path(db_set.local_path)
-    if not folder_path.exists() or not folder_path.is_dir():
-        return None
-    
-    image_exts = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff'}
-    
-    # 1. Scan Disk
-    disk_files = {} # path -> phash (deferred)
-    for file in folder_path.iterdir():
-        if file.is_file() and file.suffix.lower() in image_exts:
-            disk_files[str(file)] = None
-
-    # 2. Scan DB
-    db_images = {img.local_path: img for img in db_set.images if img.local_path}
-    
-    # 3. Identify Untracked and Missing
-    untracked_paths = [p for p in disk_files if p not in db_images]
-    missing_records = [img for p, img in db_images.items() if not Path(p).exists()]
-    
-    # 4. Recovery Phase (Phash Matching)
-    if untracked_paths and missing_records:
-        # Build ghost map by phash
-        ghost_map = {}
-        for ghost in missing_records:
-            if ghost.phash:
-                if ghost.phash not in ghost_map:
-                    ghost_map[ghost.phash] = []
-                ghost_map[ghost.phash].append(ghost)
-        
-        recovered_paths = set()
-        recovered_records = set()
-        
-        for path_str in untracked_paths:
-            ph = calculate_phash(Path(path_str))
-            if ph and ph in ghost_map:
-                # Find a matching ghost that hasn't been recovered yet
-                possible_ghosts = [g for g in ghost_map[ph] if g not in recovered_records]
-                if possible_ghosts:
-                    ghost = possible_ghosts[0]
-                    ghost.local_path = path_str
-                    recovered_paths.add(path_str)
-                    recovered_records.add(ghost)
-        
-        # Cleanup processed items
-        untracked_paths = [p for p in untracked_paths if p not in recovered_paths]
-        missing_records = [g for g in missing_records if g not in recovered_records]
-
-    # Filter out any paths that are already tracked by *any* set in the database
-    if untracked_paths:
-        existing_res = await db.execute(select(Image.local_path).where(Image.local_path.in_(untracked_paths)))
-        globally_tracked = set(existing_res.scalars().all())
-        untracked_paths = [p for p in untracked_paths if p not in globally_tracked]
-
-    # 5. Finalize - Add New
-    from app.core.enums import ImageRating
-    
-    # User requested that all new files default to QUESTIONABLE to enforce manual verification
-    default_rating = ImageRating.QUESTIONABLE
-
-    from app.services.import_service import load_image
-    from app.crud.settings import get_setting
-    
-    h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
-    v_ratio_setting = await get_setting(db, "vertical_target_ratio")
-    h_label = h_ratio_setting.value.replace("/", "x") if h_ratio_setting and h_ratio_setting.value else "16x9"
-    v_label = v_ratio_setting.value.replace("/", "x") if v_ratio_setting and v_ratio_setting.value else "9x16"
-
-    for path_str in untracked_paths:
-        p = Path(path_str)
-        ph = calculate_phash(p)
-        
-        img_cv = load_image(path_str)
-        w, h, ar, ratio_label = None, None, None, None
-        if img_cv is not None:
-            height, width = img_cv.shape[:2]
-            w, h = width, height
-            ar = float(w)/float(h) if h != 0 else 0
-            ratio_label = h_label if w >= h else v_label
-            
-        file_size = p.stat().st_size if p.exists() else None
-        dominant_color = calculate_dominant_color(p)
-
-        new_img = Image(
-            set_id=set_id,
-            filename=p.name,
-            local_path=path_str,
-            phash=ph,
-            rating=default_rating,
-            width=w,
-            height=h,
-            aspect_ratio=ar,
-            aspect_ratio_label=ratio_label,
-            file_size=file_size,
-            dominant_color=dominant_color
-        )
-        db.add(new_img)
-        
-    # 6. Finalize - Remove remaining missing
-    for ghost in missing_records:
-        await db.delete(ghost)
-        
-    await db.commit()
-    await db.refresh(db_set)
-    return await get_set(db, set_id)
 
 
 async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task_id: str = None) -> BatchImportResponse:

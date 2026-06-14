@@ -8,7 +8,7 @@ import { AppShell, Title, Box, Button, Group, ActionIcon, Tooltip, Popover, Indi
 import SideNav from "./SideNav"
 import classes from './Layout.module.css';
 import { useSidebarResizer } from "../../hooks/useSidebarResizer";
-import { IconPackage, IconPlus, IconBell, IconCheck, IconX } from "@tabler/icons-react";
+import { IconPackage, IconBell, IconCheck, IconX } from "@tabler/icons-react";
 import { useNotificationHistory } from "../../hooks/useNotificationHistory";
 import { useState } from "react";
 import { useDisclosure } from "@mantine/hooks";
@@ -100,14 +100,7 @@ export default function MainLayout() {
                             </Popover.Dropdown>
                         </Popover>
 
-                        <Button 
-                            leftSection={<IconPlus size={18} />} 
-                            radius="md"
-                            size="sm"
-                            variant="filled"
-                        >
-                            Add Set
-                        </Button>
+
                     </Group>
                 </Group>
             </AppShell.Header>

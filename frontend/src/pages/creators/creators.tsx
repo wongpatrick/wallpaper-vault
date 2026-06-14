@@ -3,8 +3,8 @@
  * Module: Creators Directory Page
  * Description: Lists all artists and creators in the system with search, filtering, pagination, and bulk merge capabilities.
  */
-import { Title, Text, Container, Table, Group, Loader, Center, Alert, ActionIcon, TextInput, Select, Stack, Button, Modal, Overlay, Box, MultiSelect } from '@mantine/core';
-import { IconAlertCircle, IconChevronRight, IconSearch, IconFilter, IconGitMerge, IconPlus } from '@tabler/icons-react';
+import { Title, Text, Container, Table, Group, Loader, Center, Alert, ActionIcon, TextInput, Select, Stack, Button, Modal, Overlay, Box, MultiSelect, SegmentedControl, SimpleGrid } from '@mantine/core';
+import { IconAlertCircle, IconChevronRight, IconSearch, IconFilter, IconGitMerge, IconPlus, IconList, IconLayoutGrid } from '@tabler/icons-react';
 import { useReadCreatorsApiCreatorsGet, useMergeCreatorsApiCreatorsMergePost } from '../../api/generated/creators/creators';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CREATOR_TYPES } from '../../types/enums';
@@ -12,6 +12,7 @@ import { useState, useMemo } from 'react';
 import { notifications } from '@mantine/notifications';
 import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
 import { CreatorCreateForm } from '../../components/creators/CreatorCreateForm';
+import { CreatorCard } from '../../components/creators/CreatorCard';
 import { useUrlSearch } from '../../hooks/useUrlSearch';
 import { useUrlPagination } from '../../hooks/useUrlPagination';
 import { PaginationWithSkip } from '../../components/ui/PaginationWithSkip';
@@ -30,6 +31,7 @@ export default function Creators() {
     const typeFilter = searchParams.get('type') || null;
     const sortBy = searchParams.get('sort_by') || 'name';
     const sortDir = (searchParams.get('sort_dir') as 'asc' | 'desc') || 'asc';
+    const view = searchParams.get('view') || 'list';
 
     // Modal/Action State
     const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
@@ -50,6 +52,15 @@ export default function Creators() {
             if (!val) next.delete('type');
             else next.set('type', val);
             next.delete('page'); // Reset to page 1 on filter change
+            return next;
+        }, { replace: true });
+    };
+
+    const handleViewChange = (val: string) => {
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            if (val === 'list') next.delete('view');
+            else next.set('view', val);
             return next;
         }, { replace: true });
     };
@@ -189,6 +200,14 @@ export default function Creators() {
                         defaultSortBy="name"
                         defaultSortDir="asc"
                     />
+                    <SegmentedControl
+                        value={view}
+                        onChange={handleViewChange}
+                        data={[
+                            { label: <Center><IconList size={16} /></Center>, value: 'list' },
+                            { label: <Center><IconLayoutGrid size={16} /></Center>, value: 'card' },
+                        ]}
+                    />
                 </Group>
             </Group>
             
@@ -213,19 +232,27 @@ export default function Creators() {
                             </Alert>
                         ) : (
                             <>
-                                <Table.ScrollContainer minWidth={500}>
-                                    <Table verticalSpacing="sm" highlightOnHover>
-                                        <Table.Thead>
-                                            <Table.Tr>
-                                                <Table.Th>Name</Table.Th>
-                                                <Table.Th>Type</Table.Th>
-                                                <Table.Th>Notes</Table.Th>
-                                                <Table.Th />
-                                            </Table.Tr>
-                                        </Table.Thead>
-                                        <Table.Tbody>{rows}</Table.Tbody>
-                                    </Table>
-                                </Table.ScrollContainer>
+                                {view === 'list' ? (
+                                    <Table.ScrollContainer minWidth={500}>
+                                        <Table verticalSpacing="sm" highlightOnHover>
+                                            <Table.Thead>
+                                                <Table.Tr>
+                                                    <Table.Th>Name</Table.Th>
+                                                    <Table.Th>Type</Table.Th>
+                                                    <Table.Th>Notes</Table.Th>
+                                                    <Table.Th />
+                                                </Table.Tr>
+                                            </Table.Thead>
+                                            <Table.Tbody>{rows}</Table.Tbody>
+                                        </Table>
+                                    </Table.ScrollContainer>
+                                ) : (
+                                    <SimpleGrid cols={{ base: 2, sm: 3, md: 4, lg: 5 }} spacing="md">
+                                        {creators.map(creator => (
+                                            <CreatorCard key={creator.id} creator={creator} />
+                                        ))}
+                                    </SimpleGrid>
+                                )}
                                 
                                 {creators.length === 0 && !isFetching && (
                                     <Stack align="center" py={100} gap="md">

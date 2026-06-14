@@ -265,7 +265,7 @@ async def merge_creators(db: AsyncSession, source_ids: list[int], target_id: int
     if not target:
         return None
 
-    from app.crud.set import rename_set_folder_if_needed
+    from app.services.set_service import rename_set_folder_if_needed
     
     for sid in source_ids:
         # Load source with its sets
@@ -279,7 +279,7 @@ async def merge_creators(db: AsyncSession, source_ids: list[int], target_id: int
                 s.creators.append(target)
             if source in s.creators:
                 s.creators.remove(source)
-            rename_set_folder_if_needed(s, raise_errors=True)
+            await rename_set_folder_if_needed(s, raise_errors=True)
                 
         # Delete the source creator (SQLAlchemy handles many-to-many cleanup)
         await db.delete(source)
