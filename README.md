@@ -96,7 +96,6 @@ npm run dev
 - [ ] **Find a Working Tray Icon**: Standardize a high-quality icon format (ICO/SVG) that works reliably across all Windows configurations.
 - [ ] **Collections / Playlists**: Allow users to arbitrarily group images across different sets for specific moods or multi-monitor setups (integrates with DisplayFusion).
 - [ ] **AI Auto-Tagging**: Implement intelligent auto-tagging of wallpapers using machine learning models or AI vision during the import pipeline.
-- [ ] **Discovery / Color Explorer**: Implement color extraction on import and build a dedicated discovery screen to filter wallpapers by dominant color palettes.
 - [ ] **API Security / Remote Auth**: Introduce API token/key authentication to secure the FastAPI engine before exposing it to remote clients (e.g., NAS setups).
 
 ---
