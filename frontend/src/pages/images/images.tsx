@@ -3,8 +3,8 @@
  * Module: Images Directory Page
  * Description: Provides an infinite-scrolling gallery of all individual wallpapers with search, filtering, and lightbox viewing capabilities.
  */
-import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Box, SimpleGrid, SegmentedControl, Badge, ActionIcon, Tooltip, Popover, ColorPicker } from '@mantine/core';
-import { IconAlertCircle, IconSearch, IconX } from '@tabler/icons-react';
+import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Box, SimpleGrid, SegmentedControl, Badge, ActionIcon, Tabs } from '@mantine/core';
+import { IconAlertCircle, IconSearch, IconX, IconGridDots, IconPalette } from '@tabler/icons-react';
 import { useReadImagesApiImagesGet } from '../../api/generated/images/images';
 import { ImageGridItem } from '../../components/images/ImageGridItem';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
@@ -12,6 +12,7 @@ import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { SortControl } from '../../components/ui/SortControl';
 import { CharacterAutocompleteInput } from '../../components/ui/CharacterAutocompleteInput';
 import { FranchiseAutocompleteInput } from '../../components/ui/FranchiseAutocompleteInput';
+import { ColorExplorer } from './ColorExplorer';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useIntersection, useViewportSize } from '@mantine/hooks';
 import { useSearchParams } from 'react-router-dom';
@@ -26,10 +27,7 @@ const BREAKPOINT_MD = 900;
 const BREAKPOINT_LG = 1200;
 const COLOR_DEBOUNCE_MS = 500;
 
-const PRESET_SWATCHES = [
-    '#E03131', '#E8590C', '#F08C00', '#2F9E44', '#0C8599',
-    '#1971C2', '#6741D9', '#C2255C', '#F8F9FA', '#868E96', '#212529',
-];
+
 
 export default function Images() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -39,11 +37,21 @@ export default function Images() {
     const ratingFilter = searchParams.get('rating') || 'all';
     const tagFilter = searchParams.get('tag') || undefined;
     const colorFilter = searchParams.get('color') || undefined;
+    const colorTolerance = parseInt(searchParams.get('tolerance') || '30', 10);
     const characterFilter = searchParams.get('character') || undefined;
     const franchiseFilter = searchParams.get('franchise') || undefined;
     const { page, setPage } = useUrlPagination(PAGE_SIZE);
     const sortBy = searchParams.get('sort_by') || 'date_added';
     const sortDir = (searchParams.get('sort_dir') as 'asc' | 'desc') || 'desc';
+    const activeTab = searchParams.get('tab') || 'gallery';
+    const handleTabChange = (value: string | null) => {
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            if (value === 'gallery') next.delete('tab');
+            else if (value) next.set('tab', value);
+            return next;
+        }, { replace: true });
+    };
 
     // Accumulate all images for infinite scroll
     const [allImages, setAllImages] = useState<ImageModel[]>([]);
@@ -88,6 +96,7 @@ export default function Images() {
         rating: ratingFilter === 'all' ? undefined : ratingFilter,
         tag: tagFilter,
         color: colorFilter,
+        colorTolerance: colorTolerance,
         character: characterFilter ? [characterFilter] : undefined,
         franchise: franchiseFilter ? [franchiseFilter] : undefined,
         sort_by: sortBy,
@@ -132,6 +141,21 @@ export default function Images() {
         setAllImages([]);
         setHasMore(true);
     };
+
+    const handleToleranceChange = useCallback((value: number) => {
+        setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            if (value === 30) {
+                next.delete('tolerance');
+            } else {
+                next.set('tolerance', value.toString());
+            }
+            next.delete('page');
+            return next;
+        }, { replace: true });
+        setAllImages([]);
+        setHasMore(true);
+    }, [setSearchParams]);
 
     // Debounced color change for the wheel
     const colorDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -219,7 +243,18 @@ export default function Images() {
                 <Text c="dimmed" size="lg">Continuous stream of your entire library.</Text>
             </Stack>
 
-            <Group mb="xl" align="flex-end" style={{ flexWrap: 'wrap', gap: 'var(--mantine-spacing-md)' }}>
+            <Tabs value={activeTab} onChange={handleTabChange} mb="xl">
+                <Tabs.List mb="md">
+                    <Tabs.Tab value="gallery" leftSection={<IconGridDots size={16} />}>
+                        Gallery Filters
+                    </Tabs.Tab>
+                    <Tabs.Tab value="explorer" leftSection={<IconPalette size={16} />}>
+                        Color Explorer
+                    </Tabs.Tab>
+                </Tabs.List>
+
+                <Tabs.Panel value="gallery">
+                    <Group align="flex-end" style={{ flexWrap: 'wrap', gap: 'var(--mantine-spacing-md)' }}>
                 <Stack gap={4} style={{ flex: 1, minWidth: 220, maxWidth: 400 }}>
                     <Text size="xs" fw={700} c="dimmed" ml={4}>Search</Text>
                     <TextInput
@@ -274,53 +309,7 @@ export default function Images() {
                         radius="md"
                     />
                 </Stack>
-                <Stack gap={4} align="center">
-                    <Text size="xs" fw={700} c="dimmed">Filter by Color</Text>
-                    <Group gap={4}>
-                        <Popover position="bottom" shadow="lg" radius="md" withinPortal>
-                            <Popover.Target>
-                                <Tooltip label={colorFilter ? 'Change color filter' : 'Filter by color'} position="bottom" withArrow>
-                                    <ActionIcon
-                                        size={36}
-                                        radius="md"
-                                        variant="default"
-                                        aria-label="Open color picker"
-                                        style={{
-                                            background: colorFilter
-                                                ? colorFilter
-                                                : 'conic-gradient(#E03131, #E8590C, #F08C00, #2F9E44, #0C8599, #1971C2, #6741D9, #C2255C, #E03131)',
-                                            border: '1px solid var(--mantine-color-default-border)',
-                                            cursor: 'pointer',
-                                        }}
-                                    />
-                                </Tooltip>
-                            </Popover.Target>
-                            <Popover.Dropdown p="sm">
-                                <ColorPicker
-                                    format="hex"
-                                    value={colorFilter || '#1971C2'}
-                                    onChange={handleColorPickerChange}
-                                    swatches={PRESET_SWATCHES}
-                                    swatchesPerRow={6}
-                                />
-                            </Popover.Dropdown>
-                        </Popover>
-                        {colorFilter && (
-                            <Tooltip label="Clear color filter" position="bottom" withArrow>
-                                <ActionIcon
-                                    size="sm"
-                                    radius="xl"
-                                    variant="subtle"
-                                    color="gray"
-                                    onClick={handleClearColor}
-                                    aria-label="Clear color filter"
-                                >
-                                    <IconX size={14} />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                    </Group>
-                </Stack>
+
                 <Stack gap={4}>
                     <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Rating</Text>
                     <SegmentedControl
@@ -348,7 +337,20 @@ export default function Images() {
                     ]} 
                     defaultSortBy="date_added" 
                 />
-            </Group>
+                    </Group>
+                </Tabs.Panel>
+                
+                <Tabs.Panel value="explorer">
+                    <ColorExplorer 
+                        activeColor={colorFilter || undefined} 
+                        onColorSelect={handleColorChange}
+                        onColorPickerChange={handleColorPickerChange}
+                        onClearColor={handleClearColor}
+                        tolerance={colorTolerance}
+                        onToleranceChange={handleToleranceChange}
+                    />
+                </Tabs.Panel>
+            </Tabs>
 
             <Box style={{ position: 'relative', minHeight: '60vh' }}>
                 {isLoading && page === 1 ? (
