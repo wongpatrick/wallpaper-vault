@@ -181,7 +181,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                             color="gray" 
                             onClick={() => onEdit(currentImage)}
                         >
-                            Edit
+                            Edit Metadata
                         </Button>
                         <Button 
                             leftSection={<IconTrash size={18} />} 
