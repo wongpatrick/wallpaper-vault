@@ -26,6 +26,7 @@ import type {
 import type {
   Franchise,
   FranchiseCreate,
+  FranchiseMerge,
   FranchiseUpdate,
   HTTPValidationError,
   ReadFranchisesApiFranchisesGetParams
@@ -322,6 +323,71 @@ export const useDeleteFranchiseApiFranchisesFranchiseIdDelete = <TError = ErrorT
       > => {
 
       const mutationOptions = getDeleteFranchiseApiFranchisesFranchiseIdDeleteMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Merge multiple franchises into one.
+ * @summary Merge Franchises
+ */
+export const mergeFranchisesApiFranchisesMergePost = (
+    franchiseMerge: BodyType<FranchiseMerge>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<Franchise>(
+      {url: `/api/franchises/merge`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: franchiseMerge, signal
+    },
+      options);
+    }
+  
+
+
+export const getMergeFranchisesApiFranchisesMergePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeFranchisesApiFranchisesMergePost>>, TError,{data: BodyType<FranchiseMerge>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergeFranchisesApiFranchisesMergePost>>, TError,{data: BodyType<FranchiseMerge>}, TContext> => {
+
+const mutationKey = ['mergeFranchisesApiFranchisesMergePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergeFranchisesApiFranchisesMergePost>>, {data: BodyType<FranchiseMerge>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  mergeFranchisesApiFranchisesMergePost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergeFranchisesApiFranchisesMergePostMutationResult = NonNullable<Awaited<ReturnType<typeof mergeFranchisesApiFranchisesMergePost>>>
+    export type MergeFranchisesApiFranchisesMergePostMutationBody = BodyType<FranchiseMerge>
+    export type MergeFranchisesApiFranchisesMergePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Merge Franchises
+ */
+export const useMergeFranchisesApiFranchisesMergePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeFranchisesApiFranchisesMergePost>>, TError,{data: BodyType<FranchiseMerge>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof mergeFranchisesApiFranchisesMergePost>>,
+        TError,
+        {data: BodyType<FranchiseMerge>},
+        TContext
+      > => {
+
+      const mutationOptions = getMergeFranchisesApiFranchisesMergePostMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

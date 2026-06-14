@@ -26,6 +26,7 @@ import type {
 import type {
   Character,
   CharacterCreate,
+  CharacterMerge,
   CharacterUpdate,
   HTTPValidationError,
   ReadCharactersApiCharactersGetParams
@@ -322,6 +323,71 @@ export const useDeleteCharacterApiCharactersCharacterIdDelete = <TError = ErrorT
       > => {
 
       const mutationOptions = getDeleteCharacterApiCharactersCharacterIdDeleteMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Merge multiple characters into one.
+ * @summary Merge Characters
+ */
+export const mergeCharactersApiCharactersMergePost = (
+    characterMerge: BodyType<CharacterMerge>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<Character>(
+      {url: `/api/characters/merge`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: characterMerge, signal
+    },
+      options);
+    }
+  
+
+
+export const getMergeCharactersApiCharactersMergePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeCharactersApiCharactersMergePost>>, TError,{data: BodyType<CharacterMerge>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergeCharactersApiCharactersMergePost>>, TError,{data: BodyType<CharacterMerge>}, TContext> => {
+
+const mutationKey = ['mergeCharactersApiCharactersMergePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergeCharactersApiCharactersMergePost>>, {data: BodyType<CharacterMerge>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  mergeCharactersApiCharactersMergePost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergeCharactersApiCharactersMergePostMutationResult = NonNullable<Awaited<ReturnType<typeof mergeCharactersApiCharactersMergePost>>>
+    export type MergeCharactersApiCharactersMergePostMutationBody = BodyType<CharacterMerge>
+    export type MergeCharactersApiCharactersMergePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Merge Characters
+ */
+export const useMergeCharactersApiCharactersMergePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeCharactersApiCharactersMergePost>>, TError,{data: BodyType<CharacterMerge>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof mergeCharactersApiCharactersMergePost>>,
+        TError,
+        {data: BodyType<CharacterMerge>},
+        TContext
+      > => {
+
+      const mutationOptions = getMergeCharactersApiCharactersMergePostMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

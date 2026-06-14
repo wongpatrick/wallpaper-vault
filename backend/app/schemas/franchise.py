@@ -16,3 +16,7 @@ class Franchise(FranchiseBase):
     set_count: int = Field(0, description="Number of sets featuring characters from this franchise.")
 
     model_config = ConfigDict(from_attributes=True)
+
+class FranchiseMerge(BaseModel):
+    source_ids: list[int] = Field(..., description="List of franchise IDs to merge and delete.")
+    target_id: int = Field(..., description="The ID of the franchise to merge into.")

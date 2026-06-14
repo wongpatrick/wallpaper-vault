@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from app.db.session import get_db
 from app.crud import franchise as crud_franchise
-from app.schemas.franchise import Franchise, FranchiseCreate, FranchiseUpdate
+from app.schemas.franchise import Franchise, FranchiseCreate, FranchiseUpdate, FranchiseMerge
 
 router = APIRouter()
 
@@ -60,3 +60,22 @@ async def delete_franchise(
     success = await crud_franchise.delete_franchise(db, franchise_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Franchise not found")
+
+@router.post("/merge", response_model=Franchise)
+async def merge_franchises(
+    merge_in: FranchiseMerge,
+    db: AsyncSession = Depends(get_db)
+):
+    """Merge multiple franchises into one."""
+    if merge_in.target_id in merge_in.source_ids:
+        raise HTTPException(status_code=400, detail="Cannot merge a franchise into itself")
+        
+    db_franchise = await crud_franchise.merge_franchises(
+        db, 
+        source_ids=merge_in.source_ids, 
+        target_id=merge_in.target_id
+    )
+    if not db_franchise:
+        raise HTTPException(status_code=404, detail="Target franchise not found")
+        
+    return db_franchise

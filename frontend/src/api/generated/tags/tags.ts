@@ -30,6 +30,7 @@ import type {
   SearchTagsApiTagsGetParams,
   Tag,
   TagCount,
+  TagMerge,
   TagUpdate
 } from '../../model';
 
@@ -453,6 +454,71 @@ export const useDeleteTagApiTagsTagIdDelete = <TError = ErrorType<HTTPValidation
       > => {
 
       const mutationOptions = getDeleteTagApiTagsTagIdDeleteMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Merge multiple tags into one.
+ * @summary Merge Tags
+ */
+export const mergeTagsApiTagsMergePost = (
+    tagMerge: BodyType<TagMerge>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<Tag>(
+      {url: `/api/tags/merge`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: tagMerge, signal
+    },
+      options);
+    }
+  
+
+
+export const getMergeTagsApiTagsMergePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeTagsApiTagsMergePost>>, TError,{data: BodyType<TagMerge>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergeTagsApiTagsMergePost>>, TError,{data: BodyType<TagMerge>}, TContext> => {
+
+const mutationKey = ['mergeTagsApiTagsMergePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergeTagsApiTagsMergePost>>, {data: BodyType<TagMerge>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  mergeTagsApiTagsMergePost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergeTagsApiTagsMergePostMutationResult = NonNullable<Awaited<ReturnType<typeof mergeTagsApiTagsMergePost>>>
+    export type MergeTagsApiTagsMergePostMutationBody = BodyType<TagMerge>
+    export type MergeTagsApiTagsMergePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Merge Tags
+ */
+export const useMergeTagsApiTagsMergePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeTagsApiTagsMergePost>>, TError,{data: BodyType<TagMerge>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof mergeTagsApiTagsMergePost>>,
+        TError,
+        {data: BodyType<TagMerge>},
+        TContext
+      > => {
+
+      const mutationOptions = getMergeTagsApiTagsMergePostMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

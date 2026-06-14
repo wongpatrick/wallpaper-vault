@@ -139,3 +139,40 @@ async def delete_character(db: AsyncSession, character_id: int) -> bool:
     await db.delete(db_character)
     await db.commit()
     return True
+
+async def merge_characters(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[Character]:
+    """Merges multiple source characters into a single target character.
+
+    Re-associates all sets from the source characters to the target character,
+    and deletes the source characters.
+    """
+    target = await db.execute(
+        select(Character)
+        .options(selectinload(Character.sets))
+        .where(Character.id == target_id)
+    )
+    target = target.scalars().first()
+    if not target:
+        return None
+
+    for sid in source_ids:
+        source = await db.execute(
+            select(Character)
+            .options(selectinload(Character.sets))
+            .where(Character.id == sid)
+        )
+        source = source.scalars().first()
+        if not source:
+            continue
+            
+        for s in source.sets:
+            if target not in s.characters:
+                s.characters.append(target)
+            if source in s.characters:
+                s.characters.remove(source)
+                
+        await db.delete(source)
+        
+    await db.commit()
+    await db.refresh(target)
+    return target

@@ -68,3 +68,38 @@ async def delete_franchise(db: AsyncSession, franchise_id: int) -> bool:
     await db.delete(db_franchise)
     await db.commit()
     return True
+
+async def merge_franchises(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[Franchise]:
+    """Merges multiple source franchises into a single target franchise.
+
+    Re-associates all characters from the source franchises to the target franchise,
+    and deletes the source franchises.
+    """
+    from sqlalchemy.orm import selectinload
+    target = await db.execute(
+        select(Franchise)
+        .options(selectinload(Franchise.characters))
+        .where(Franchise.id == target_id)
+    )
+    target = target.scalars().first()
+    if not target:
+        return None
+
+    for sid in source_ids:
+        source = await db.execute(
+            select(Franchise)
+            .options(selectinload(Franchise.characters))
+            .where(Franchise.id == sid)
+        )
+        source = source.scalars().first()
+        if not source:
+            continue
+            
+        for char in source.characters:
+            char.franchise_id = target.id
+            
+        await db.delete(source)
+        
+    await db.commit()
+    await db.refresh(target)
+    return target
