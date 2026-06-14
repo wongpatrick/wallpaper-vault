@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from app.db.session import get_db
 from app.crud import character as crud_character
-from app.schemas.character import Character, CharacterCreate, CharacterUpdate
+from app.schemas.character import Character, CharacterCreate, CharacterUpdate, CharacterMerge
 
 router = APIRouter()
 
@@ -54,3 +54,22 @@ async def delete_character(
     success = await crud_character.delete_character(db, character_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Character not found")
+
+@router.post("/merge", response_model=Character)
+async def merge_characters(
+    merge_in: CharacterMerge,
+    db: AsyncSession = Depends(get_db)
+):
+    """Merge multiple characters into one."""
+    if merge_in.target_id in merge_in.source_ids:
+        raise HTTPException(status_code=400, detail="Cannot merge a character into itself")
+        
+    db_character = await crud_character.merge_characters(
+        db, 
+        source_ids=merge_in.source_ids, 
+        target_id=merge_in.target_id
+    )
+    if not db_character:
+        raise HTTPException(status_code=404, detail="Target character not found")
+        
+    return db_character

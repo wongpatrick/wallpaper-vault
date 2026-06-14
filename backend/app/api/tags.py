@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.crud import tag as crud_tag
-from app.schemas.tag import Tag, TagUpdate
+from app.schemas.tag import Tag, TagUpdate, TagMerge
 
 router = APIRouter()
 
@@ -84,3 +84,22 @@ async def delete_tag(
     if not success:
         raise HTTPException(status_code=404, detail="Tag not found.")
     return None
+
+@router.post("/merge", response_model=Tag)
+async def merge_tags(
+    merge_in: TagMerge,
+    db: AsyncSession = Depends(get_db)
+):
+    """Merge multiple tags into one."""
+    if merge_in.target_id in merge_in.source_ids:
+        raise HTTPException(status_code=400, detail="Cannot merge a tag into itself")
+        
+    db_tag = await crud_tag.merge_tags(
+        db, 
+        source_ids=merge_in.source_ids, 
+        target_id=merge_in.target_id
+    )
+    if not db_tag:
+        raise HTTPException(status_code=404, detail="Target tag not found")
+        
+    return db_tag

@@ -222,3 +222,40 @@ async def delete_tag(db: AsyncSession, tag_id: int) -> bool:
     await db.commit()
     return True
 
+async def merge_tags(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[Tag]:
+    """Merges multiple source tags into a single target tag.
+
+    Re-associates all sets from the source tags to the target tag,
+    and deletes the source tags.
+    """
+    from sqlalchemy.orm import selectinload
+    target = await db.execute(
+        select(Tag)
+        .options(selectinload(Tag.sets))
+        .where(Tag.id == target_id)
+    )
+    target = target.scalars().first()
+    if not target:
+        return None
+
+    for sid in source_ids:
+        source = await db.execute(
+            select(Tag)
+            .options(selectinload(Tag.sets))
+            .where(Tag.id == sid)
+        )
+        source = source.scalars().first()
+        if not source:
+            continue
+            
+        for s in source.sets:
+            if target not in s.tags:
+                s.tags.append(target)
+            if source in s.tags:
+                s.tags.remove(source)
+                
+        await db.delete(source)
+        
+    await db.commit()
+    await db.refresh(target)
+    return target

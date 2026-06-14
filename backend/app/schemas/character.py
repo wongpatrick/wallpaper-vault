@@ -20,3 +20,7 @@ class Character(CharacterBase):
     set_count: int = Field(0, description="Number of sets featuring this character.")
 
     model_config = ConfigDict(from_attributes=True)
+
+class CharacterMerge(BaseModel):
+    source_ids: list[int] = Field(..., description="List of character IDs to merge and delete.")
+    target_id: int = Field(..., description="The ID of the character to merge into.")

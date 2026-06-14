@@ -65,6 +65,11 @@ export const deleteCharacter = (id: number) => {
   return customInstance<void>({ url: `/api/characters/${id}`, method: 'DELETE' });
 };
 
+export const mergeCharacters = (source_ids: number[], target_id: number) => {
+  return customInstance<Character>({ url: `/api/characters/merge`, method: 'POST', data: { source_ids, target_id } });
+};
+
+
 // --- Franchises API ---
 
 export const readFranchises = (skip = 0, limit = 100, signal?: AbortSignal) => {
@@ -82,6 +87,11 @@ export const updateFranchise = (id: number, data: FranchiseUpdate) => {
 export const deleteFranchise = (id: number) => {
   return customInstance<void>({ url: `/api/franchises/${id}`, method: 'DELETE' });
 };
+
+export const mergeFranchises = (source_ids: number[], target_id: number) => {
+  return customInstance<Franchise>({ url: `/api/franchises/merge`, method: 'POST', data: { source_ids, target_id } });
+};
+
 
 // --- Hooks ---
 
@@ -126,6 +136,18 @@ export const useDeleteCharacter = () => {
   });
 };
 
+export const useMergeCharacters = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ source_ids, target_id }: { source_ids: number[], target_id: number }) => mergeCharacters(source_ids, target_id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['characters'] });
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['sets'] });
+    },
+  });
+};
+
 export const useReadFranchises = (skip = 0, limit = 100) => {
   return useQuery({
     queryKey: ['franchises', skip, limit],
@@ -159,6 +181,19 @@ export const useDeleteFranchise = () => {
   });
 };
 
+export const useMergeFranchises = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ source_ids, target_id }: { source_ids: number[], target_id: number }) => mergeFranchises(source_ids, target_id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['franchises'] });
+      queryClient.invalidateQueries({ queryKey: ['characters'] });
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['sets'] });
+    },
+  });
+};
+
 // --- Tags API ---
 
 export const readTagsManagement = (skip = 0, limit = 100, signal?: AbortSignal) => {
@@ -171,6 +206,10 @@ export const updateTag = (id: number, data: TagUpdate) => {
 
 export const deleteTag = (id: number) => {
   return customInstance<void>({ url: `/api/tags/${id}`, method: 'DELETE' });
+};
+
+export const mergeTags = (source_ids: number[], target_id: number) => {
+  return customInstance<Tag>({ url: `/api/tags/merge`, method: 'POST', data: { source_ids, target_id } });
 };
 
 export const useReadTagsManagement = (skip = 0, limit = 100) => {
@@ -196,6 +235,17 @@ export const useDeleteTag = () => {
     mutationFn: (id: number) => deleteTag(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tags'] });
+    },
+  });
+};
+
+export const useMergeTags = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ source_ids, target_id }: { source_ids: number[], target_id: number }) => mergeTags(source_ids, target_id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['sets'] });
     },
   });
 };

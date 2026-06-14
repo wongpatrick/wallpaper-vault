@@ -15,3 +15,7 @@ class Tag(TagBase):
     set_count: int = Field(0, description="Number of sets associated with this tag.")
     
     model_config = ConfigDict(from_attributes=True)
+
+class TagMerge(BaseModel):
+    source_ids: list[int] = Field(..., description="List of tag IDs to merge and delete.")
+    target_id: int = Field(..., description="The ID of the tag to merge into.")
