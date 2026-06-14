@@ -96,7 +96,7 @@ export default function Images() {
         rating: ratingFilter === 'all' ? undefined : ratingFilter,
         tag: tagFilter,
         color: colorFilter,
-        colorTolerance: colorTolerance,
+        color_tolerance: colorTolerance,
         character: characterFilter ? [characterFilter] : undefined,
         franchise: franchiseFilter ? [franchiseFilter] : undefined,
         sort_by: sortBy,

@@ -6,7 +6,7 @@ import { useState, useMemo } from 'react';
 import { 
     Container, Title, Tabs, Table, Button, Group, ActionIcon, 
     TextInput, Modal, Stack, Text, Select, Box, Pagination, Badge,
-    Checkbox, Autocomplete
+    Checkbox, Autocomplete, Tooltip
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconEdit, IconTrash, IconPlus, IconSearch, IconSortAscending, IconSortDescending, IconArrowsSort } from '@tabler/icons-react';
@@ -297,9 +297,11 @@ function CharactersTab() {
                                 </Table.Td>
                                 <Table.Td>
                                     <Group gap="xs">
-                                        <ActionIcon variant="subtle" color="blue" onClick={() => handleOpenEdit(char)}>
-                                            <IconEdit size={16} />
-                                        </ActionIcon>
+                                        <Tooltip label="Edit Character">
+                                            <ActionIcon variant="subtle" color="blue" onClick={() => handleOpenEdit(char)}>
+                                                <IconEdit size={16} />
+                                            </ActionIcon>
+                                        </Tooltip>
                                         <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(char.id)}>
                                             <IconTrash size={16} />
                                         </ActionIcon>
@@ -515,9 +517,11 @@ function FranchisesTab() {
                                 </Table.Td>
                                 <Table.Td>
                                     <Group gap="xs">
-                                        <ActionIcon variant="subtle" color="blue" onClick={() => handleOpenEdit(franchise)}>
-                                            <IconEdit size={16} />
-                                        </ActionIcon>
+                                        <Tooltip label="Edit Franchise">
+                                            <ActionIcon variant="subtle" color="blue" onClick={() => handleOpenEdit(franchise)}>
+                                                <IconEdit size={16} />
+                                            </ActionIcon>
+                                        </Tooltip>
                                         <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(franchise.id)}>
                                             <IconTrash size={16} />
                                         </ActionIcon>
@@ -721,9 +725,11 @@ function TagsTab() {
                                 </Table.Td>
                                 <Table.Td>
                                     <Group gap="xs">
-                                        <ActionIcon variant="subtle" color="blue" onClick={() => handleOpenEdit(tag)}>
-                                            <IconEdit size={16} />
-                                        </ActionIcon>
+                                        <Tooltip label="Edit Tag">
+                                            <ActionIcon variant="subtle" color="blue" onClick={() => handleOpenEdit(tag)}>
+                                                <IconEdit size={16} />
+                                            </ActionIcon>
+                                        </Tooltip>
                                         <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(tag.id)}>
                                             <IconTrash size={16} />
                                         </ActionIcon>
