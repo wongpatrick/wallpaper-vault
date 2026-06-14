@@ -87,6 +87,7 @@ async def read_images(
     rating: Optional[str] = None,
     tag: Optional[str] = Query(None, description="Filter by a single tag (matches image or set tags)"),
     color: Optional[str] = Query(None, description="Filter by dominant color bucket"),
+    color_tolerance: int = Query(30, description="Tolerance for hue matching in degrees (0-180)"),
     character: Optional[list[str]] = Query(None, description="Filter by character names"),
     franchise: Optional[list[str]] = Query(None, description="Filter by franchise names"),
     sort_by: Optional[str] = Query("date_added", description="Sort field (date_added, file_size, resolution, rating, aspect_ratio, random)"),
@@ -95,11 +96,21 @@ async def read_images(
 ) -> ImagePage:
     """Retrieve images with pagination, search, character, franchise and color filters."""
     images, total = await crud_image.get_images(
-        db, skip=skip, limit=limit, search=search, rating=rating, tag=tag, color=color,
+        db, skip=skip, limit=limit, search=search, rating=rating, tag=tag, color=color, color_tolerance=color_tolerance,
         character=character, franchise=franchise, sort_by=sort_by, sort_dir=sort_dir
     )
     items = [map_image_to_context_schema(img) for img in images]
     return ImagePage(items=items, total=total, skip=skip, limit=limit)
+
+@router.get("/color-stats", response_model=List[dict[str, Any]])
+async def read_color_stats(
+    tolerance: int = Query(30, description="Tolerance for hue matching in degrees (0-180)"),
+    db: AsyncSession = Depends(get_db)
+) -> List[dict[str, Any]]:
+    """
+    Get aggregated counts for preset dominant color buckets.
+    """
+    return await crud_image.get_color_stats(db, tolerance=tolerance)
 
 @router.get("/duplicates/groups", response_model=List[DuplicateGroup])
 async def read_duplicate_groups(

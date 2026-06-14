@@ -130,6 +130,8 @@ export * from './imageWithContextWidth';
 export * from './libraryStats';
 export * from './libraryStatsAspectRatioDistribution';
 export * from './readCharactersApiCharactersGetParams';
+export * from './readColorStatsApiImagesColorStatsGet200Item';
+export * from './readColorStatsApiImagesColorStatsGetParams';
 export * from './readCreatorsApiCreatorsGetParams';
 export * from './readFranchisesApiFranchisesGetParams';
 export * from './readImagesApiImagesGetParams';

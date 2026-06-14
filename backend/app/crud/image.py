@@ -219,8 +219,33 @@ async def get_duplicate_groups(db: AsyncSession) -> list[dict]:
 
     return groups_dict
 
+async def get_color_stats(db: AsyncSession, tolerance: int = 30) -> list[dict]:
+    """Aggregates images by dominant color buckets based on preset swatches.
 
+    Args:
+        db: Database session.
+        tolerance: Color matching tolerance.
 
+    Returns:
+        A list of dictionaries with 'color' and 'count'.
+    """
+    result = await db.execute(select(Image.dominant_color).where(Image.dominant_color.is_not(None)))
+    colors = result.scalars().all()
+    
+    preset_swatches = [
+        '#E03131', '#E8590C', '#F08C00', '#2F9E44', '#0C8599',
+        '#1971C2', '#6741D9', '#C2255C', '#F8F9FA', '#868E96', '#212529'
+    ]
+    
+    counts = {swatch: 0 for swatch in preset_swatches}
+    
+    for c in colors:
+        for swatch in preset_swatches:
+            if _matches_color(c, swatch, hue_tolerance=tolerance):
+                counts[swatch] += 1
+                break
+                
+    return [{"color": k, "count": v} for k, v in counts.items() if v > 0]
 def _hex_to_hsl(hex_color: str) -> tuple[float, float, float]:
     import colorsys
     hex_color = hex_color.lstrip('#')
@@ -232,7 +257,7 @@ def _hex_to_hsl(hex_color: str) -> tuple[float, float, float]:
     hue, light, sat = colorsys.rgb_to_hls(r, g, b)
     return hue * 360, sat * 100, light * 100  # noqa: PLR2004
 
-def _matches_color(dominant_color: Optional[str], target_color: str) -> bool:
+def _matches_color(dominant_color: Optional[str], target_color: str, hue_tolerance: int = 30) -> bool:
     if not dominant_color:
         return False
     hue, sat, light = _hex_to_hsl(dominant_color)
@@ -242,8 +267,6 @@ def _matches_color(dominant_color: Optional[str], target_color: str) -> bool:
     white_lightness = 85
     black_lightness = 15
     grey_saturation = 20
-    hue_tolerance = 30
-    
     # If target is a hex code, convert to HSL and do hue-range match
     if target.startswith('#'):
         target_h, target_s, target_l = _hex_to_hsl(target)
@@ -298,6 +321,7 @@ async def get_images(
     rating: Optional[str] = None,
     tag: Optional[str] = None,
     color: Optional[str] = None,
+    color_tolerance: int = 30,
     character: Optional[list[str]] = None,
     franchise: Optional[list[str]] = None,
     sort_by: Optional[str] = "date_added",
@@ -398,7 +422,7 @@ async def get_images(
         
         filtered_items = []
         for img in all_items:
-            if _matches_color(img.dominant_color, color):
+            if _matches_color(img.dominant_color, color, hue_tolerance=color_tolerance):
                 filtered_items.append(img)
                 
         total = len(filtered_items)

@@ -33,6 +33,8 @@ import type {
   ImageCreate,
   ImagePage,
   ImageUpdate,
+  ReadColorStatsApiImagesColorStatsGet200Item,
+  ReadColorStatsApiImagesColorStatsGetParams,
   ReadImagesApiImagesGetParams,
   ReadRandomImageApiImagesRandomGetParams,
   ReadRandomImageFileApiImagesRandomFileGetParams,
@@ -263,6 +265,100 @@ export function useReadImagesApiImagesGet<TData = Awaited<ReturnType<typeof read
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getReadImagesApiImagesGetQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * Get aggregated counts for preset dominant color buckets.
+ * @summary Read Color Stats
+ */
+export const readColorStatsApiImagesColorStatsGet = (
+    params?: ReadColorStatsApiImagesColorStatsGetParams,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<ReadColorStatsApiImagesColorStatsGet200Item[]>(
+      {url: `/api/images/color-stats`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+  
+
+
+
+export const getReadColorStatsApiImagesColorStatsGetQueryKey = (params?: ReadColorStatsApiImagesColorStatsGetParams,) => {
+    return [
+    `/api/images/color-stats`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+    
+export const getReadColorStatsApiImagesColorStatsGetQueryOptions = <TData = Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>, TError = ErrorType<HTTPValidationError>>(params?: ReadColorStatsApiImagesColorStatsGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReadColorStatsApiImagesColorStatsGetQueryKey(params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>> = ({ signal }) => readColorStatsApiImagesColorStatsGet(params, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ReadColorStatsApiImagesColorStatsGetQueryResult = NonNullable<Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>>
+export type ReadColorStatsApiImagesColorStatsGetQueryError = ErrorType<HTTPValidationError>
+
+
+export function useReadColorStatsApiImagesColorStatsGet<TData = Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>, TError = ErrorType<HTTPValidationError>>(
+ params: undefined |  ReadColorStatsApiImagesColorStatsGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>,
+          TError,
+          Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadColorStatsApiImagesColorStatsGet<TData = Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>, TError = ErrorType<HTTPValidationError>>(
+ params?: ReadColorStatsApiImagesColorStatsGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>,
+          TError,
+          Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadColorStatsApiImagesColorStatsGet<TData = Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>, TError = ErrorType<HTTPValidationError>>(
+ params?: ReadColorStatsApiImagesColorStatsGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Read Color Stats
+ */
+
+export function useReadColorStatsApiImagesColorStatsGet<TData = Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>, TError = ErrorType<HTTPValidationError>>(
+ params?: ReadColorStatsApiImagesColorStatsGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readColorStatsApiImagesColorStatsGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getReadColorStatsApiImagesColorStatsGetQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

@@ -12,4 +12,5 @@ export type ThumbSize = typeof ThumbSize[keyof typeof ThumbSize];
 export const ThumbSize = {
   sm: 'sm',
   md: 'md',
+  lg: 'lg',
 } as const;

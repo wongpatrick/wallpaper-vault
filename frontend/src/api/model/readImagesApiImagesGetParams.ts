@@ -19,6 +19,10 @@ tag?: string | null;
  */
 color?: string | null;
 /**
+ * Tolerance for hue matching in degrees (0-180)
+ */
+color_tolerance?: number;
+/**
  * Filter by character names
  */
 character?: string[] | null;

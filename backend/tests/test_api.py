@@ -28,3 +28,19 @@ async def test_get_creators_empty(client: AsyncClient):
     assert "items" in data
     assert isinstance(data["items"], list)
     assert len(data["items"]) == 0
+
+@pytest.mark.asyncio
+async def test_get_color_stats(client: AsyncClient):
+    """
+    Test the color-stats endpoint returns a list (can be empty or contain stat objects).
+    """
+    response = await client.get("/api/images/color-stats")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    # The database is empty in these tests initially, so the list should be empty.
+    # If there are items, they should contain 'color' and 'count' keys.
+    if len(data) > 0:
+        for stat in data:
+            assert "color" in stat
+            assert "count" in stat
