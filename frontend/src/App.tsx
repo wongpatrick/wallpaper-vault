@@ -53,6 +53,11 @@ const theme = createTheme({
 });
 
 const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5000, // Keep data fresh for 5 seconds to prevent duplicate fetches on remount/StrictMode
+    },
+  },
   mutationCache: new MutationCache({
     onSuccess: () => {
       // Globally invalidate all queries on any successful mutation to ensure
