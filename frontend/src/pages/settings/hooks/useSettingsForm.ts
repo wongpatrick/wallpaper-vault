@@ -15,7 +15,10 @@ export const SETTING_KEYS = {
     VERTICAL_TARGET_RATIO: 'vertical_target_ratio',
     START_ON_LOGIN: 'start_on_login',
     AI_AUTO_TAG_ENABLED: 'ai_auto_tag_enabled',
+    AI_MODEL_SOURCE: 'ai_model_source',
     AI_MODEL_TYPE: 'ai_model_type',
+    AI_MODEL_CUSTOM_REPO: 'ai_model_custom_repo',
+    AI_MODEL_CUSTOM_PATH: 'ai_model_custom_path',
     AI_CONFIDENCE_THRESHOLD: 'ai_confidence_threshold',
     AI_ROLLUP_THRESHOLD: 'ai_rollup_threshold',
 } as const;
@@ -27,7 +30,10 @@ export interface SettingsForm {
     [SETTING_KEYS.VERTICAL_TARGET_RATIO]: string;
     [SETTING_KEYS.START_ON_LOGIN]: boolean;
     [SETTING_KEYS.AI_AUTO_TAG_ENABLED]: boolean;
+    [SETTING_KEYS.AI_MODEL_SOURCE]: string;
     [SETTING_KEYS.AI_MODEL_TYPE]: string;
+    [SETTING_KEYS.AI_MODEL_CUSTOM_REPO]: string;
+    [SETTING_KEYS.AI_MODEL_CUSTOM_PATH]: string;
     [SETTING_KEYS.AI_CONFIDENCE_THRESHOLD]: number;
     [SETTING_KEYS.AI_ROLLUP_THRESHOLD]: number;
 }
@@ -48,7 +54,10 @@ const SETTINGS_METADATA: SettingConfig[] = [
     { key: SETTING_KEYS.VERTICAL_TARGET_RATIO, defaultValue: '9/16', storage: 'backend', description: 'Target aspect ratio for vertical images' },
     { key: SETTING_KEYS.START_ON_LOGIN, defaultValue: false, storage: 'electron' },
     { key: SETTING_KEYS.AI_AUTO_TAG_ENABLED, defaultValue: false, storage: 'backend', description: 'Enable AI auto-tagging for imported wallpapers' },
+    { key: SETTING_KEYS.AI_MODEL_SOURCE, defaultValue: 'predefined', storage: 'backend', description: 'Source of the AI model: predefined, huggingface, or local' },
     { key: SETTING_KEYS.AI_MODEL_TYPE, defaultValue: 'wd14_onnx', storage: 'backend', description: 'AI Model to use for auto-tagging' },
+    { key: SETTING_KEYS.AI_MODEL_CUSTOM_REPO, defaultValue: '', storage: 'backend', description: 'Custom Hugging Face model repository ID' },
+    { key: SETTING_KEYS.AI_MODEL_CUSTOM_PATH, defaultValue: '', storage: 'backend', description: 'Custom local filesystem folder path containing the model files' },
     { key: SETTING_KEYS.AI_CONFIDENCE_THRESHOLD, defaultValue: 0.35, storage: 'backend', description: 'Confidence threshold for tagger' },
     { key: SETTING_KEYS.AI_ROLLUP_THRESHOLD, defaultValue: 0.30, storage: 'backend', description: 'Threshold percentage for rolling up tags to sets' },
 ];

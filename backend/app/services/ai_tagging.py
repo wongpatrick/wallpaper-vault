@@ -17,6 +17,25 @@ logger = structlog.get_logger(__name__)
 CATEGORY_GENERAL = 0
 CATEGORY_CHARACTER = 4
 
+def get_app_models_dir() -> Path:
+    """Gets the OS-specific application data directory for storing models."""
+    import os
+    import sys
+    home = Path.home()
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA")
+        if appdata:
+            base_dir = Path(appdata)
+        else:
+            base_dir = home / "AppData" / "Roaming"
+    elif sys.platform == "darwin":
+        base_dir = home / "Library" / "Application Support"
+    else:
+        # Linux/Unix fallback
+        base_dir = Path(os.environ.get("XDG_CONFIG_HOME", home / ".config"))
+        
+    return base_dir / "Wallpaper-Vault" / "models"
+
 class ImageTagger(ABC):
     @abstractmethod
     def tag_image(
@@ -46,12 +65,22 @@ class MockTagger(ImageTagger):
         return ["anime", "girl"], []
 
 class WD14OnnxTagger(ImageTagger):
-    def __init__(self, model_repo: str = "SmilingWolf/wd-v1-4-convnext-tagger-v2"):
+    def __init__(
+        self,
+        model_source: str = "predefined",
+        model_type: str = "wd14_onnx",
+        custom_repo: str = None,
+        custom_path: str = None
+    ):
         """
         Initialize the WD14 ONNX Tagger.
         Downloads model weights and tag mapping from Hugging Face if not already present.
         """
-        logger.info("Initializing WD14 ONNX Tagger", model_repo=model_repo)
+        logger.info("Initializing WD14 ONNX Tagger", 
+                    model_source=model_source,
+                    model_type=model_type,
+                    custom_repo=custom_repo,
+                    custom_path=custom_path)
         try:
             import onnxruntime as ort
         except ImportError as e:
@@ -59,11 +88,48 @@ class WD14OnnxTagger(ImageTagger):
             raise e
             
         try:
-            # Download model and tags
-            self.model_path = hf_hub_download(repo_id=model_repo, filename="model.onnx")
-            self.csv_path = hf_hub_download(repo_id=model_repo, filename="selected_tags.csv")
-            
-            logger.info("Model files downloaded successfully", model_path=self.model_path, csv_path=self.csv_path)
+            # Resolve model and tag file paths
+            if model_source == "local":
+                if not custom_path:
+                    raise ValueError("Model source is 'local' but no custom path was provided.")
+                path = Path(custom_path)
+                if not path.exists() or not path.is_dir():
+                    raise ValueError(f"Custom local model directory '{custom_path}' does not exist or is not a directory.")
+                
+                # Scan for first .onnx and first .csv file
+                files = list(path.glob("*"))
+                onnx_files = [f for f in files if f.suffix.lower() == ".onnx"]
+                csv_files = [f for f in files if f.suffix.lower() == ".csv"]
+                
+                if not onnx_files:
+                    raise ValueError(f"No '.onnx' file found in custom model directory '{custom_path}'.")
+                if not csv_files:
+                    raise ValueError(f"No '.csv' file found in custom model directory '{custom_path}'.")
+                    
+                self.model_path = str(onnx_files[0])
+                self.csv_path = str(csv_files[0])
+                logger.info("Local model files located successfully", model_path=self.model_path, csv_path=self.csv_path)
+            else:
+                if model_source == "huggingface":
+                    if not custom_repo:
+                        raise ValueError("Model source is 'huggingface' but no custom repository ID was provided.")
+                    model_repo = custom_repo
+                else:
+                    predefined_repos = {
+                        "wd14_onnx": "SmilingWolf/wd-v1-4-convnext-tagger-v2",
+                        "wd14_convnext_v2": "SmilingWolf/wd-v1-4-convnext-tagger-v2",
+                        "wd14_vit_v2": "SmilingWolf/wd-v1-4-vit-tagger-v2",
+                        "wd14_swinv2_v2": "SmilingWolf/wd-v1-4-swinv2-tagger-v2",
+                        "wd_vit_large_v3": "SmilingWolf/wd-vit-large-tagger-v3"
+                    }
+                    model_repo = predefined_repos.get(model_type, "SmilingWolf/wd-v1-4-convnext-tagger-v2")
+                
+                logger.info("Downloading/loading model from Hugging Face", repo_id=model_repo)
+                
+                app_models_dir = get_app_models_dir()
+                self.model_path = hf_hub_download(repo_id=model_repo, filename="model.onnx", cache_dir=str(app_models_dir))
+                self.csv_path = hf_hub_download(repo_id=model_repo, filename="selected_tags.csv", cache_dir=str(app_models_dir))
+                logger.info("Hugging Face model files loaded successfully from AppData", model_path=self.model_path, csv_path=self.csv_path)
             
             # Load ONNX Inference Session
             available_providers = ort.get_available_providers()
@@ -199,14 +265,25 @@ class WD14OnnxTagger(ImageTagger):
 
 _tagger_instances = {}
 
-def get_tagger(model_type: str) -> ImageTagger:
+def get_tagger(
+    model_source: str = "predefined",
+    model_type: str = "wd14_onnx",
+    custom_repo: str = None,
+    custom_path: str = None
+) -> ImageTagger:
     """
     Factory function to get or create a tagger instance. Caches the instances.
     """
     global _tagger_instances
-    if model_type not in _tagger_instances:
-        if model_type == "wd14_onnx":
-            _tagger_instances[model_type] = WD14OnnxTagger()
+    cache_key = (model_source, model_type, custom_repo, custom_path)
+    if cache_key not in _tagger_instances:
+        if model_type == "mock":
+            _tagger_instances[cache_key] = MockTagger()
         else:
-            _tagger_instances[model_type] = MockTagger()
-    return _tagger_instances[model_type]
+            _tagger_instances[cache_key] = WD14OnnxTagger(
+                model_source=model_source,
+                model_type=model_type,
+                custom_repo=custom_repo,
+                custom_path=custom_path
+            )
+    return _tagger_instances[cache_key]

@@ -108,3 +108,59 @@ async def test_bulk_delete_sets(client: AsyncClient, temp_vault: Path):
     # Verify deletion
     assert (await client.get(f"/api/sets/{id1}")).status_code == 404
     assert (await client.get(f"/api/sets/{id2}")).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_set_resync_thumbnail_regeneration(client: AsyncClient, temp_vault: Path):
+    """Test that resyncing a set deletes cached thumbnails if the original image has a newer mtime."""
+    import os
+    import time
+    from app.api.thumbnails import THUMBS_DIR
+
+    # Set the base library path
+    await client.put("/api/settings/base_library_path", json={"value": str(temp_vault)})
+
+    # 1. Create creator and set
+    resp = await client.post("/api/creators/", json={"canonical_name": "Thumb Artist"})
+    creator_id = resp.json()["id"]
+    
+    resp = await client.post("/api/sets/", json={
+        "title": "Thumb Set",
+        "creator_ids": [creator_id]
+    })
+    set_id = resp.json()["id"]
+    set_path = Path(resp.json()["local_path"])
+    
+    # 2. Add an image
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    img_path = set_path / "thumb_test.jpg"
+    cv2.imwrite(str(img_path), img)
+    
+    # Resync to register the image
+    resp = await client.post(f"/api/sets/{set_id}/resync")
+    data = resp.json()
+    img_id = data["images"][0]["id"]
+    
+    # 3. Request thumbnail to generate it
+    thumb_resp = await client.get(f"/api/images/thumb/{img_id}?size=sm")
+    assert thumb_resp.status_code == 200
+    
+    # Verify thumbnail cached file exists
+    thumb_file = THUMBS_DIR / f"{img_id}_sm.jpg"
+    assert thumb_file.exists()
+    
+    # Set the thumbnail file's mtime to be in the past
+    past_time = time.time() - 3600
+    os.utime(str(thumb_file), (past_time, past_time))
+    
+    # Touch/update the original image file to have a newer mtime (current time)
+    current_time = time.time()
+    os.utime(str(img_path), (current_time, current_time))
+    
+    # 4. Trigger resync
+    resync_resp = await client.post(f"/api/sets/{set_id}/resync")
+    assert resync_resp.status_code == 200
+    
+    # 5. Verify the stale thumbnail file was deleted
+    assert not thumb_file.exists()
+

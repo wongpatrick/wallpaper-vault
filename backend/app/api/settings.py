@@ -43,4 +43,51 @@ async def update_setting(
     
     If the setting key already exists, its value and description are updated. If it does not exist, a new configuration key is created. This allows dynamic reconfiguration of paths and app behavior.
     """
+    if key == "ai_model_source":
+        val = setting.value.strip()
+        if val not in ["predefined", "huggingface", "local"]:
+            raise HTTPException(status_code=400, detail="Invalid model source. Must be 'predefined', 'huggingface', or 'local'.")
+    elif key == "ai_model_custom_path":
+        from pathlib import Path
+        path_str = setting.value.strip()
+        if path_str:
+            path = Path(path_str)
+            if not path.exists():
+                raise HTTPException(status_code=400, detail="The custom path does not exist.")
+            if not path.is_dir():
+                raise HTTPException(status_code=400, detail="The custom path must be a directory.")
+            
+            # Check for at least one .onnx and one .csv file
+            try:
+                files = list(path.glob("*"))
+                has_onnx = any(f.suffix.lower() == ".onnx" for f in files)
+                has_csv = any(f.suffix.lower() == ".csv" for f in files)
+                if not (has_onnx and has_csv):
+                    raise HTTPException(
+                        status_code=400, 
+                        detail="The directory must contain at least one '.onnx' file and one '.csv' file."
+                    )
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to read directory contents: {e}")
+    elif key == "ai_model_custom_repo":
+        import re
+        repo_id = setting.value.strip()
+        if repo_id:
+            if not re.match(r"^[^/\s]+/[^/\s]+$", repo_id):
+                raise HTTPException(status_code=400, detail="Invalid Hugging Face Repository ID format. Must be 'username/repo'.")
+            
+            # Optional API verification
+            from huggingface_hub import HfApi
+            from huggingface_hub.utils import RepositoryNotFoundError, HFValidationError
+            api = HfApi()
+            try:
+                api.model_info(repo_id)
+            except RepositoryNotFoundError:
+                raise HTTPException(status_code=400, detail=f"Hugging Face repository '{repo_id}' not found.")
+            except HFValidationError:
+                raise HTTPException(status_code=400, detail="Invalid Hugging Face Repository ID.")
+            except Exception:
+                # Accept format if offline/timeout
+                pass
+                
     return await crud_settings.update_setting(db, key=key, setting=setting)
