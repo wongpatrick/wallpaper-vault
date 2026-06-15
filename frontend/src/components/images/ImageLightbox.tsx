@@ -144,7 +144,11 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                 <Group justify="space-between" p="md" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
                     <Stack gap={0}>
                         <Group gap="xs">
-                            <Text c="white" fw={600}>{currentImage.filename}</Text>
+                            <Tooltip label={currentImage.filename} position="bottom" withArrow>
+                                <Text c="white" fw={600} truncate="end" maw={400}>
+                                    {currentImage.filename}
+                                </Text>
+                            </Tooltip>
                             {rating !== ImageRating.SAFE && (
                                 <Badge 
                                     color={rating === ImageRating.EXPLICIT ? 'red' : 'yellow'} 
