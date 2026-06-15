@@ -903,4 +903,67 @@ export const useResyncSetApiSetsSetIdResyncPost = <TError = ErrorType<HTTPValida
 
       return useMutation(mutationOptions, queryClient);
     }
+    /**
+ * Manually run AI auto-tagging on an existing Set.
+ * @summary Auto Tag Set
+ */
+export const autoTagSetApiSetsSetIdAutoTagPost = (
+    setId: number,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<Set>(
+      {url: `/api/sets/${setId}/auto-tag`, method: 'POST', signal
+    },
+      options);
+    }
+  
+
+
+export const getAutoTagSetApiSetsSetIdAutoTagPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof autoTagSetApiSetsSetIdAutoTagPost>>, TError,{setId: number}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof autoTagSetApiSetsSetIdAutoTagPost>>, TError,{setId: number}, TContext> => {
+
+const mutationKey = ['autoTagSetApiSetsSetIdAutoTagPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof autoTagSetApiSetsSetIdAutoTagPost>>, {setId: number}> = (props) => {
+          const {setId} = props ?? {};
+
+          return  autoTagSetApiSetsSetIdAutoTagPost(setId,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AutoTagSetApiSetsSetIdAutoTagPostMutationResult = NonNullable<Awaited<ReturnType<typeof autoTagSetApiSetsSetIdAutoTagPost>>>
+    
+    export type AutoTagSetApiSetsSetIdAutoTagPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Auto Tag Set
+ */
+export const useAutoTagSetApiSetsSetIdAutoTagPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof autoTagSetApiSetsSetIdAutoTagPost>>, TError,{setId: number}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof autoTagSetApiSetsSetIdAutoTagPost>>,
+        TError,
+        {setId: number},
+        TContext
+      > => {
+
+      const mutationOptions = getAutoTagSetApiSetsSetIdAutoTagPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
     

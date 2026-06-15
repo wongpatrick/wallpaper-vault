@@ -13,6 +13,9 @@ dependencies = [
     "numpy>=2.2.3",
     "opencv-contrib-python>=4.13.0.92",
     "structlog>=25.5.0",
+    "onnxruntime>=1.17.0",
+    "Pillow>=10.2.0",
+    "huggingface-hub>=0.20.0",
 ]
 
 [dependency-groups]

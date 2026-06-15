@@ -6,6 +6,6 @@
  */
 
 /**
- * Updated list of tag names for this image.
+ * Computed X percentage for the focal point.
  */
-export type ImageUpdateTags = string[] | null;
+export type ImageDetailFocalPointX = number | null;

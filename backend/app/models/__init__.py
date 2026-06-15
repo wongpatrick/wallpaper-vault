@@ -12,6 +12,6 @@ from app.models.audit import AuditIssue
 from app.models.tag import Tag
 from app.models.character import Character
 from app.models.franchise import Franchise
-from app.models.associations import set_creators, set_tags, set_characters
+from app.models.associations import set_creators, set_tags, set_characters, image_tags
 
-__all__ = ["Base", "Creator", "Set", "Image", "Setting", "Task", "AuditIssue", "Tag", "Character", "Franchise", "set_creators", "set_tags", "set_characters"]
+__all__ = ["Base", "Creator", "Set", "Image", "Setting", "Task", "AuditIssue", "Tag", "Character", "Franchise", "set_creators", "set_tags", "set_characters", "image_tags"]

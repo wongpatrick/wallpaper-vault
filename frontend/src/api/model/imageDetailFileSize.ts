@@ -6,6 +6,6 @@
  */
 
 /**
- * Updated list of tag names for this image.
+ * Image file size in bytes.
  */
-export type ImageUpdateTags = string[] | null;
+export type ImageDetailFileSize = number | null;

@@ -3,7 +3,7 @@
  * Module: Settings Page
  * Description: The main application settings page, providing a form interface to manage library paths, import configurations, and system integration.
  */
-import { Title, Text, Container, Stack, LoadingOverlay, Button, Group, TextInput, Paper, Switch } from '@mantine/core';
+import { Title, Text, Container, Stack, LoadingOverlay, Button, Group, TextInput, Paper, Switch, Select, Slider } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useSettingsForm, SETTING_KEYS } from './hooks/useSettingsForm';
 import { SettingsSection } from './components/SettingsSection';
@@ -65,6 +65,72 @@ export default function Settings() {
                                     {...form.getInputProps(SETTING_KEYS.VERTICAL_TARGET_RATIO)}
                                 />
                             </Group>
+                        </Stack>
+                    </SettingsSection>
+
+                    <SettingsSection 
+                        title="AI Auto-Tagging" 
+                        description="Configure automatic tagging of imported wallpapers using machine learning models."
+                        isDirty={form.isDirty()}
+                    >
+                        <Stack gap="md">
+                            <Switch
+                                label="Enable AI Auto-Tagging"
+                                description="Automatically generate tags for imported wallpapers using an AI model."
+                                {...form.getInputProps(SETTING_KEYS.AI_AUTO_TAG_ENABLED, { type: 'checkbox' })}
+                            />
+
+                            <Select
+                                label="AI Model Type"
+                                description="Select the AI model to use for analyzing and tagging images."
+                                data={[
+                                    { value: 'wd14_onnx', label: 'WD14 ONNX (Recommended)' }
+                                ]}
+                                disabled={!form.values[SETTING_KEYS.AI_AUTO_TAG_ENABLED]}
+                                {...form.getInputProps(SETTING_KEYS.AI_MODEL_TYPE)}
+                            />
+
+                            <Stack gap="xs">
+                                <Group justify="space-between">
+                                    <Text size="sm" fw={500} c={!form.values[SETTING_KEYS.AI_AUTO_TAG_ENABLED] ? 'dimmed' : undefined}>
+                                        Tagger Confidence Threshold
+                                    </Text>
+                                    <Text size="sm" c="dimmed">
+                                        {form.values[SETTING_KEYS.AI_CONFIDENCE_THRESHOLD]?.toFixed(2)}
+                                    </Text>
+                                </Group>
+                                <Slider
+                                    min={0.1}
+                                    max={1.0}
+                                    step={0.05}
+                                    disabled={!form.values[SETTING_KEYS.AI_AUTO_TAG_ENABLED]}
+                                    {...form.getInputProps(SETTING_KEYS.AI_CONFIDENCE_THRESHOLD)}
+                                />
+                                <Text size="xs" c="dimmed">
+                                    Only tags with a confidence score above this threshold will be automatically applied to individual wallpapers.
+                                </Text>
+                            </Stack>
+
+                            <Stack gap="xs">
+                                <Group justify="space-between">
+                                    <Text size="sm" fw={500} c={!form.values[SETTING_KEYS.AI_AUTO_TAG_ENABLED] ? 'dimmed' : undefined}>
+                                        Set Rollup Threshold
+                                    </Text>
+                                    <Text size="sm" c="dimmed">
+                                        {form.values[SETTING_KEYS.AI_ROLLUP_THRESHOLD]?.toFixed(2)}
+                                    </Text>
+                                </Group>
+                                <Slider
+                                    min={0.1}
+                                    max={1.0}
+                                    step={0.05}
+                                    disabled={!form.values[SETTING_KEYS.AI_AUTO_TAG_ENABLED]}
+                                    {...form.getInputProps(SETTING_KEYS.AI_ROLLUP_THRESHOLD)}
+                                />
+                                <Text size="xs" c="dimmed">
+                                    A tag must appear in at least this percentage of images in a Set to be automatically rolled up to the Set level.
+                                </Text>
+                            </Stack>
                         </Stack>
                     </SettingsSection>
 

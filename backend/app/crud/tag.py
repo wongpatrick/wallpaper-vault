@@ -153,8 +153,11 @@ async def get_tags_by_names(db: AsyncSession, names: List[str]) -> List[Tag]:
     tags = []
     for name in names:
         if name.strip():
-            tag = await get_or_create_tag(db, name)
-            tags.append(tag)
+            try:
+                tag = await get_or_create_tag(db, name)
+                tags.append(tag)
+            except ValueError as e:
+                logger.info("Skipping tag creation/association due to character/franchise name collision", name=name, error=str(e))
     return tags
 
 async def get_tags(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[dict]:
@@ -229,9 +232,10 @@ async def merge_tags(db: AsyncSession, source_ids: list[int], target_id: int) ->
     and deletes the source tags.
     """
     from sqlalchemy.orm import selectinload
+    from app.models.set import Set
     target = await db.execute(
         select(Tag)
-        .options(selectinload(Tag.sets))
+        .options(selectinload(Tag.sets).selectinload(Set.tags))
         .where(Tag.id == target_id)
     )
     target = target.scalars().first()
@@ -241,7 +245,7 @@ async def merge_tags(db: AsyncSession, source_ids: list[int], target_id: int) ->
     for sid in source_ids:
         source = await db.execute(
             select(Tag)
-            .options(selectinload(Tag.sets))
+            .options(selectinload(Tag.sets).selectinload(Set.tags))
             .where(Tag.id == sid)
         )
         source = source.scalars().first()
@@ -258,4 +262,4 @@ async def merge_tags(db: AsyncSession, source_ids: list[int], target_id: int) ->
         
     await db.commit()
     await db.refresh(target)
-    return target
+    return await get_tag(db, target_id)

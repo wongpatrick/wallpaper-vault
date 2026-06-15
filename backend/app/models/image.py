@@ -9,6 +9,7 @@ from app.core.enums import ImageRating
 
 if TYPE_CHECKING:
     from app.models.set import Set
+    from app.models.tag import Tag
 
 class Image(Base):
     __tablename__ = "images"
@@ -32,6 +33,10 @@ class Image(Base):
     date_added: Mapped[str] = mapped_column(server_default=text("(date('now'))"))
 
     set: Mapped["Set"] = relationship(back_populates="images")
+    tags: Mapped[list["Tag"]] = relationship(
+        secondary="image_tags",
+        back_populates="images"
+    )
 
     def __repr__(self) -> str:
         return f"<Image(id={self.id}, filename='{self.filename}')>"

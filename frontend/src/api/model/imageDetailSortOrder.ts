@@ -6,6 +6,6 @@
  */
 
 /**
- * Updated list of tag names for this image.
+ * Display order within a set. Lower numbers appear first.
  */
-export type ImageUpdateTags = string[] | null;
+export type ImageDetailSortOrder = number | null;

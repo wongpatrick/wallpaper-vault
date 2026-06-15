@@ -3,7 +3,7 @@ Pydantic schemas for image entities.
 Defines models for creating, updating, bulk operations, and deduplication of images.
 """
 from typing import Optional, List
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class ImageBase(BaseModel):
     filename: str = Field(..., description="The original filename of the image.")
@@ -20,7 +20,6 @@ class ImageBase(BaseModel):
     dominant_color: Optional[str] = Field(None, description="Hex code of the image's dominant color extracted during import.")
     focal_point_x: Optional[int] = Field(50, description="Computed X percentage for the focal point.")
     focal_point_y: Optional[int] = Field(50, description="Computed Y percentage for the focal point.")
-
 class ImageCreate(ImageBase):
     pass
 
@@ -39,6 +38,7 @@ class ImageUpdate(BaseModel):
     dominant_color: Optional[str] = Field(None, description="Hex code of the dominant color.")
     focal_point_x: Optional[int] = Field(None, description="Computed X percentage for the focal point.")
     focal_point_y: Optional[int] = Field(None, description="Computed Y percentage for the focal point.")
+    tags: Optional[list[str]] = Field(None, description="Updated list of tag names for this image.")
 
 class Image(ImageBase):
     id: int = Field(..., description="Unique database identifier for the image.")
@@ -46,6 +46,16 @@ class Image(ImageBase):
     date_added: str = Field(..., description="Timestamp when the image was added to the database.")
 
     model_config = ConfigDict(from_attributes=True)
+
+class ImageDetail(Image):
+    tags: list[str] = Field(default_factory=list, description="List of descriptive tag names for the image.")
+
+    @field_validator('tags', mode='before')
+    @classmethod
+    def extract_tag_names(cls, v):
+        if not v:
+            return []
+        return [tag.name if hasattr(tag, 'name') else str(tag) for tag in v]
 
 class ImageWithContext(Image):
     set_title: str = Field(..., description="The title of the set this image belongs to.")

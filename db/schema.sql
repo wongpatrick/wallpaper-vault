@@ -43,6 +43,12 @@ CREATE TABLE IF NOT EXISTS set_tags (
     PRIMARY KEY (set_id, tag_id)
 );
 
+CREATE TABLE IF NOT EXISTS image_tags (
+    image_id INTEGER NOT NULL REFERENCES images(id)  ON DELETE CASCADE,
+    tag_id   INTEGER NOT NULL REFERENCES tags(id)    ON DELETE CASCADE,
+    PRIMARY KEY (image_id, tag_id)
+);
+
 CREATE TABLE IF NOT EXISTS franchises (
     id    INTEGER PRIMARY KEY,
     name  TEXT NOT NULL UNIQUE,
@@ -135,3 +141,10 @@ CREATE INDEX IF NOT EXISTS idx_character_aliases_character_id  ON character_alia
 CREATE INDEX IF NOT EXISTS idx_character_aliases_alias         ON character_aliases(alias);
 CREATE INDEX IF NOT EXISTS idx_set_characters_set_id           ON set_characters(set_id);
 CREATE INDEX IF NOT EXISTS idx_set_characters_character_id     ON set_characters(character_id);
+CREATE INDEX IF NOT EXISTS idx_image_tags_image_id             ON image_tags(image_id);
+CREATE INDEX IF NOT EXISTS idx_image_tags_tag_id               ON image_tags(tag_id);
+
+INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_auto_tag_enabled', 'false', 'Enable AI auto tagging on import');
+INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_model_type', 'wd14_onnx', 'Model type for AI auto tagging');
+INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_confidence_threshold', '0.35', 'Confidence threshold (0.0 to 1.0) for tagger to apply tags to images');
+INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_rollup_threshold', '0.3', 'Rollup threshold (0.0 to 1.0) to promote tags to sets');

@@ -39,8 +39,27 @@ async def get_franchises(db: AsyncSession, skip: int = 0, limit: int = 100) -> L
     ]
 
 async def get_franchise_by_name(db: AsyncSession, name: str) -> Optional[Franchise]:
-    result = await db.execute(select(Franchise).where(Franchise.name == name))
+    result = await db.execute(select(Franchise).where(func.lower(Franchise.name) == name.lower()))
     return result.scalars().first()
+
+async def get_or_create_franchise(db: AsyncSession, name: str) -> Franchise:
+    name = name.strip().title()
+    existing = await get_franchise_by_name(db, name)
+    if existing:
+        return existing
+    
+    await _check_tag_collision(db, name)
+    db_franchise = Franchise(name=name)
+    db.add(db_franchise)
+    try:
+        await db.flush()
+    except Exception:
+        await db.rollback()
+        existing = await get_franchise_by_name(db, name)
+        if existing:
+            return existing
+        raise
+    return db_franchise
 
 async def create_franchise(db: AsyncSession, franchise: FranchiseCreate) -> Franchise:
     await _check_tag_collision(db, franchise.name)

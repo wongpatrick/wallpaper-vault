@@ -94,7 +94,7 @@ npm run dev
 
 ## 📋 Roadmap (To-Do)
 - [ ] **Collections / Playlists**: Allow users to arbitrarily group images across different sets for specific moods or multi-monitor setups (integrates with DisplayFusion).
-- [ ] **AI Auto-Tagging**: Implement intelligent auto-tagging of wallpapers using machine learning models or AI vision during the import pipeline.
+- [x] **AI Auto-Tagging**: Implement intelligent auto-tagging of wallpapers using machine learning models or AI vision during the import pipeline.
 - [ ] **API Security / Remote Auth**: Introduce API token/key authentication to secure the FastAPI engine before exposing it to remote clients (e.g., NAS setups).
 
 ---

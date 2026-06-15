@@ -6,6 +6,6 @@
  */
 
 /**
- * Updated list of tag names for this image.
+ * User-provided notes or description for the image.
  */
-export type ImageUpdateTags = string[] | null;
+export type ImageDetailNotes = string | null;

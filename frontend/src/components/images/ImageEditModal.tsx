@@ -11,6 +11,7 @@ import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import type { Image as ImageModel, ImageUpdate } from '../../api/model';
 import { ImageRating } from '../../types/enums';
+import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
 
 interface ImageEditModalProps {
     image: ImageModel | null;
@@ -32,7 +33,8 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
         sort_order: 0,
         aspect_ratio_label: '',
         rating: ImageRating.SAFE,
-        dominant_color: ''
+        dominant_color: '',
+        tags: []
     });
 
     const [prevImageId, setPrevImageId] = useState<number | null>(null);
@@ -44,7 +46,8 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
             sort_order: image.sort_order || 0,
             aspect_ratio_label: image.aspect_ratio_label || '',
             rating: image.rating || ImageRating.SAFE,
-            dominant_color: image.dominant_color || ''
+            dominant_color: image.dominant_color || '',
+            tags: image.tags || []
         });
     }
 
@@ -140,6 +143,13 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
                     value={form.dominant_color || ''} 
                     onChange={(v) => setForm({ ...form, dominant_color: v })}
                     format="hex"
+                />
+
+                <TagAutocompleteInput 
+                    label="Tags"
+                    placeholder="Add tags..."
+                    value={form.tags || []}
+                    onChange={(tags) => setForm({ ...form, tags })}
                 />
 
                 <TextInput 

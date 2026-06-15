@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.crud import image as crud_image
 from app.services import image_service
-from app.schemas.image import Image, ImageUpdate, ImageCreate, ImageBulkUpdate, ImageBulkMove, DuplicateGroup, DuplicateResolutionRequest, ImageWithContext, ImagePage
+from app.schemas.image import Image, ImageUpdate, ImageCreate, ImageBulkUpdate, ImageBulkMove, DuplicateGroup, DuplicateResolutionRequest, ImageWithContext, ImagePage, ImageDetail
 from app.models.image import Image as ImageModel
 from app.core.exceptions import AppError
 from pathlib import Path
@@ -21,9 +21,9 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
-def map_image_to_schema(img: "ImageModel") -> Image:
+def map_image_to_schema(img: "ImageModel") -> ImageDetail:
     """Helper to ensure image model is correctly mapped to schema with string dates."""
-    return Image(
+    return ImageDetail(
         id=img.id,
         set_id=img.set_id,
         filename=img.filename,
@@ -38,7 +38,8 @@ def map_image_to_schema(img: "ImageModel") -> Image:
         notes=img.notes,
         rating=img.rating,
         dominant_color=img.dominant_color,
-        date_added=str(img.date_added)
+        date_added=str(img.date_added),
+        tags=[t.name for t in img.tags] if "tags" in img.__dict__ and img.tags else []
     )
 
 def map_image_to_context_schema(img: "ImageModel") -> ImageWithContext:
@@ -283,33 +284,33 @@ async def read_random_image_file(
         content_disposition_type="inline"
     )
 
-@router.get("/{image_id}", response_model=Image)
+@router.get("/{image_id}", response_model=ImageDetail)
 async def read_image(
     image_id: int,
     db: AsyncSession = Depends(get_db)
-) -> Image:
+) -> ImageDetail:
     db_image = await crud_image.get_image(db, image_id=image_id)
     if db_image is None:
         raise HTTPException(status_code=404, detail="Image not found")
     return map_image_to_schema(db_image)
 
-@router.patch("/{image_id}", response_model=Image)
+@router.patch("/{image_id}", response_model=ImageDetail)
 async def update_image(
     image_id: int,
     image_in: ImageUpdate,
     db: AsyncSession = Depends(get_db)
-) -> Image:
+) -> ImageDetail:
     db_image = await crud_image.update_image(db, image_id=image_id, image_in=image_in)
     if db_image is None:
         raise HTTPException(status_code=404, detail="Image not found")
     logger.info("Updated image", image_id=image_id)
     return map_image_to_schema(db_image)
 
-@router.delete("/{image_id}", response_model=Image)
+@router.delete("/{image_id}", response_model=ImageDetail)
 async def delete_image(
     image_id: int,
     db: AsyncSession = Depends(get_db)
-) -> Image:
+) -> ImageDetail:
     db_image = await image_service.delete_image(db, image_id=image_id)
     if db_image is None:
         raise HTTPException(status_code=404, detail="Image not found")
@@ -373,12 +374,12 @@ async def reveal_image(
         logger.exception("Failed to reveal image in file manager", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to open file manager: {e}")
 
-@router.post("/set/{set_id}", response_model=Image)
+@router.post("/set/{set_id}", response_model=ImageDetail)
 async def create_image_for_set(
     set_id: int,
     image_in: ImageCreate,
     db: AsyncSession = Depends(get_db)
-) -> Image:
+) -> ImageDetail:
     try:
         db_image = await image_service.create_image(db, image_in=image_in, set_id=set_id)
         logger.info("Created image for set", set_id=set_id, image_id=db_image.id)

@@ -6,6 +6,6 @@
  */
 
 /**
- * Updated list of tag names for this image.
+ * Content rating (e.g., 'safe', 'questionable', 'explicit').
  */
-export type ImageUpdateTags = string[] | null;
+export type ImageDetailRating = string | null;

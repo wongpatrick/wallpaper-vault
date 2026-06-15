@@ -6,6 +6,6 @@
  */
 
 /**
- * Updated list of tag names for this image.
+ * Calculated aspect ratio (width / height).
  */
-export type ImageUpdateTags = string[] | null;
+export type ImageDetailAspectRatio = number | null;

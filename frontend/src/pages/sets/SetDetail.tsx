@@ -9,19 +9,22 @@ import { useSelection } from '../../hooks/useSelection';
 import { 
     Title, Text, Container, Group, Badge, Loader, 
     Center, Alert, Stack, ActionIcon, Menu, Button, Modal,
-    TextInput, Textarea, MultiSelect, Box, Switch
+    TextInput, Textarea, MultiSelect, Box, Switch, LoadingOverlay
 } from '@mantine/core';
 import { 
     IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
     IconExternalLink, IconFolder, IconTag, IconLock, IconLockOpen, IconRefresh, IconCheck,
-    IconSettings, IconPhotoEdit, IconArrowRight
+    IconSettings, IconPhotoEdit, IconArrowRight, IconSparkles
 } from '@tabler/icons-react';
 import { 
     useReadSetApiSetsSetIdGet, 
     useDeleteSetApiSetsSetIdDelete,
     useUpdateSetApiSetsSetIdPatch,
-    useResyncSetApiSetsSetIdResyncPost
+    useResyncSetApiSetsSetIdResyncPost,
+    useAutoTagSetApiSetsSetIdAutoTagPost,
+    getReadSetApiSetsSetIdGetQueryKey
 } from '../../api/generated/sets/sets';
+import { useQueryClient } from '@tanstack/react-query';
 import { useBulkUpdateImagesApiImagesBulkUpdatePost } from '../../api/generated/images/images';
 import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
 import { notifications } from '@mantine/notifications';
@@ -39,6 +42,7 @@ import type { Image as ImageModel, BulkOperationMode } from '../../api/model';
 export default function SetDetail() {
     const { setId } = useParams<{ setId: string }>();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     
     // 1. All hooks at the top
     const { data: set, isLoading, error, refetch } = useReadSetApiSetsSetIdGet(Number(setId));
@@ -46,6 +50,7 @@ export default function SetDetail() {
     const deleteMutation = useDeleteSetApiSetsSetIdDelete();
     const updateMutation = useUpdateSetApiSetsSetIdPatch();
     const resyncMutation = useResyncSetApiSetsSetIdResyncPost();
+    const autoTagMutation = useAutoTagSetApiSetsSetIdAutoTagPost();
     const bulkUpdateMutation = useBulkUpdateImagesApiImagesBulkUpdatePost();
 
     const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
@@ -181,6 +186,56 @@ export default function SetDetail() {
         }
     };
 
+    const handleAutoTag = async () => {
+        try {
+            const updatedSet = await autoTagMutation.mutateAsync({ setId: Number(setId) });
+            notifications.show({
+                title: 'AI Auto-Tagging Complete',
+                message: 'Successfully generated tags and characters for this set.',
+                color: 'green',
+            });
+            
+            // 1. Manually update the query cache so that the UI updates immediately.
+            queryClient.setQueryData(getReadSetApiSetsSetIdGetQueryKey(Number(setId)), updatedSet);
+            
+            // 2. Keep the edit form state in sync.
+            setEditForm({
+                title: updatedSet.title || '',
+                notes: updatedSet.notes || '',
+                source_url: updatedSet.source_url || '',
+                local_path: updatedSet.local_path || '',
+                creator_ids: updatedSet.creators?.map(c => String(c.id)) || [],
+                tags: updatedSet.tags || [],
+                characters: updatedSet.characters || []
+            });
+
+            // 3. Invalidate related queries so autocomplete and list queries fetch fresh data.
+            queryClient.invalidateQueries({
+                predicate: (query) => {
+                    const key = query.queryKey[0];
+                    if (typeof key === 'string') {
+                        return key.startsWith('/api/sets') || 
+                               key.startsWith('/api/tags') || 
+                               key.startsWith('/api/characters') || 
+                               key.startsWith('/api/images') ||
+                               key === 'sets' ||
+                               key === 'tags' ||
+                               key === 'characters' ||
+                               key === 'images';
+                    }
+                    return false;
+                }
+            });
+        } catch (err) {
+            console.error('AI Auto-tagging failed:', err);
+            notifications.show({
+                title: 'Auto-Tagging Failed',
+                message: 'An error occurred during AI auto-tagging.',
+                color: 'red',
+            });
+        }
+    };
+
     const handleSelectAll = () => {
         if (!set?.images) return;
         selectAll(set.images.map(img => img.id));
@@ -221,7 +276,8 @@ export default function SetDetail() {
     const creatorNames = set.creators?.map(c => c.canonical_name).join(' & ') || 'Unknown Creator';
 
     return (
-        <Container fluid px="xl" pb={selectionMode ? 100 : "xl"}>
+        <Container fluid px="xl" pb={selectionMode ? 100 : "xl"} pos="relative">
+            <LoadingOverlay visible={autoTagMutation.isPending} overlayProps={{ blur: 2 }} />
             {/* Header Navigation */}
             <Group justify="space-between" mb="lg">
                 <Button 
@@ -316,6 +372,12 @@ export default function SetDetail() {
                         </Menu.Target>
                         <Menu.Dropdown>
                             <Menu.Label>Management</Menu.Label>
+                            <Menu.Item 
+                                leftSection={<IconSparkles size={14} />} 
+                                onClick={handleAutoTag}
+                            >
+                                Run AI Auto-Tagging
+                            </Menu.Item>
                             {set.source_url && (
                                 <Menu.Item 
                                     component="a" 

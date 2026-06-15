@@ -6,6 +6,6 @@
  */
 
 /**
- * Updated list of tag names for this image.
+ * Image height in pixels.
  */
-export type ImageUpdateTags = string[] | null;
+export type ImageDetailHeight = number | null;
