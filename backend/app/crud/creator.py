@@ -274,7 +274,7 @@ async def merge_creators(db: AsyncSession, source_ids: list[int], target_id: int
             continue
             
         # Re-associate all sets from source to target
-        for s in source.sets:
+        for s in list(source.sets):
             if target not in s.creators:
                 s.creators.append(target)
             if source in s.creators:

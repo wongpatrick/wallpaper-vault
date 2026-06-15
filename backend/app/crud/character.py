@@ -190,7 +190,7 @@ async def merge_characters(db: AsyncSession, source_ids: list[int], target_id: i
         if not source:
             continue
             
-        for s in source.sets:
+        for s in list(source.sets):
             if target not in s.characters:
                 s.characters.append(target)
             if source in s.characters:

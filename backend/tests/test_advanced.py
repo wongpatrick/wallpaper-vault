@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 @pytest.mark.asyncio
 async def test_bulk_update_and_move_images(client: AsyncClient):
@@ -90,3 +91,42 @@ async def test_duplicate_groups_empty(client: AsyncClient):
     assert isinstance(response.json(), list)
     # The groups logic requires identical phashes, so empty should be empty
     assert len(response.json()) == 0
+
+@pytest.mark.asyncio
+async def test_merge_creators_multiple_sets(db_session: AsyncSession):
+    from app.crud.creator import create_creator, merge_creators
+    from app.schemas.creator import CreatorCreate
+    from app.models.set import Set
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    # 1. Create target and source creators
+    c_target = await create_creator(db_session, CreatorCreate(canonical_name="Target Creator"))
+    c_source = await create_creator(db_session, CreatorCreate(canonical_name="Source Creator"))
+    await db_session.commit()
+    
+    # 2. Create two sets associated with source creator
+    s1 = Set(title="Set 1")
+    s1.creators.append(c_source)
+    s2 = Set(title="Set 2")
+    s2.creators.append(c_source)
+    db_session.add_all([s1, s2])
+    await db_session.commit()
+    await db_session.refresh(s1)
+    await db_session.refresh(s2)
+    
+    # 3. Merge source into target
+    await merge_creators(db_session, [c_source.id], c_target.id)
+    
+    # 4. Verify both sets now have target creator and no longer have source creator
+    s1_updated = (await db_session.execute(
+        select(Set).options(selectinload(Set.creators)).where(Set.id == s1.id)
+    )).scalars().first()
+    s2_updated = (await db_session.execute(
+        select(Set).options(selectinload(Set.creators)).where(Set.id == s2.id)
+    )).scalars().first()
+    
+    assert c_target in s1_updated.creators
+    assert c_source not in s1_updated.creators
+    assert c_target in s2_updated.creators
+    assert c_source not in s2_updated.creators

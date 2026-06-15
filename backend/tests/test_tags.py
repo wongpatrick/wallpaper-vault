@@ -76,3 +76,65 @@ async def test_merge_tags_api(client: AsyncClient, db_session: AsyncSession):
     tag_names = updated_set["tags"]
     assert "Target Tag" in tag_names
     assert "Source Tag" not in tag_names
+
+@pytest.mark.asyncio
+async def test_merge_tags_multiple_sets_and_images(db_session: AsyncSession):
+    from app.models.set import Set
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    # 1. Create target and source tags
+    t_target = await get_or_create_tag(db_session, "Target Tag")
+    t_source = await get_or_create_tag(db_session, "Source Tag")
+    await db_session.commit()
+    
+    # 2. Create two sets associated with source tag
+    s1 = Set(title="Set 1")
+    s1.tags.append(t_source)
+    s2 = Set(title="Set 2")
+    s2.tags.append(t_source)
+    db_session.add_all([s1, s2])
+    await db_session.commit()
+    await db_session.refresh(s1)
+    await db_session.refresh(s2)
+    
+    # 3. Create images and associate them with source tag
+    from app.models.image import Image
+    img1 = Image(filename="img1.jpg", local_path="/tmp/img1.jpg", set_id=s1.id)
+    img1.tags.append(t_source)
+    img2 = Image(filename="img2.jpg", local_path="/tmp/img2.jpg", set_id=s2.id)
+    img2.tags.append(t_source)
+    db_session.add_all([img1, img2])
+    await db_session.commit()
+    await db_session.refresh(img1)
+    await db_session.refresh(img2)
+    
+    # 4. Merge source into target
+    from app.crud.tag import merge_tags
+    await merge_tags(db_session, [t_source.id], t_target.id)
+    
+    # 5. Verify both sets now have target tag and no longer have source tag
+    s1_updated = (await db_session.execute(
+        select(Set).options(selectinload(Set.tags)).where(Set.id == s1.id)
+    )).scalars().first()
+    s2_updated = (await db_session.execute(
+        select(Set).options(selectinload(Set.tags)).where(Set.id == s2.id)
+    )).scalars().first()
+    
+    assert t_target in s1_updated.tags
+    assert t_source not in s1_updated.tags
+    assert t_target in s2_updated.tags
+    assert t_source not in s2_updated.tags
+    
+    # 6. Verify images now have target tag and no longer have source tag
+    img1_updated = (await db_session.execute(
+        select(Image).options(selectinload(Image.tags)).where(Image.id == img1.id)
+    )).scalars().first()
+    img2_updated = (await db_session.execute(
+        select(Image).options(selectinload(Image.tags)).where(Image.id == img2.id)
+    )).scalars().first()
+    
+    assert t_target in img1_updated.tags
+    assert t_source not in img1_updated.tags
+    assert t_target in img2_updated.tags
+    assert t_source not in img2_updated.tags
