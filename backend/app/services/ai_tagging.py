@@ -13,6 +13,10 @@ from huggingface_hub import hf_hub_download
 
 logger = structlog.get_logger(__name__)
 
+# Category mapping constants
+CATEGORY_GENERAL = 0
+CATEGORY_CHARACTER = 4
+
 class ImageTagger(ABC):
     @abstractmethod
     def tag_image(
@@ -76,12 +80,12 @@ class WD14OnnxTagger(ImageTagger):
             shape = input_meta.shape # e.g. [1, 448, 448, 3] or [1, 3, 448, 448]
             
             # Parse input dims and format dynamically
-            if len(shape) == 4:
-                if isinstance(shape[1], int) and shape[1] > 3:
+            if len(shape) == 4:  # noqa: PLR2004
+                if isinstance(shape[1], int) and shape[1] > 3:  # noqa: PLR2004
                     self.target_height = shape[1]
                     self.target_width = shape[2]
                     self.nchw = False
-                elif isinstance(shape[2], int) and shape[2] > 3:
+                elif isinstance(shape[2], int) and shape[2] > 3:  # noqa: PLR2004
                     self.target_height = shape[2]
                     self.target_width = shape[3]
                     self.nchw = True
@@ -186,9 +190,9 @@ class WD14OnnxTagger(ImageTagger):
                 
                 # Replace underscores with spaces for standard tag formatting in DB
                 tag_name_clean = tag_name.replace("_", " ")
-                if category == 0:
+                if category == CATEGORY_GENERAL:
                     general_tags.append(tag_name_clean)
-                elif category == 4:
+                elif category == CATEGORY_CHARACTER:
                     character_tags.append(tag_name_clean)
                     
         return general_tags, character_tags

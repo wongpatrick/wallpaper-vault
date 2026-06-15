@@ -1,7 +1,7 @@
 import pytest
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -11,12 +11,11 @@ import numpy as np
 from app.models.image import Image as ImageModel
 from app.models.set import Set
 from app.models.tag import Tag
-from app.models.settings import Setting
 from app.services.import_service import execute_import_item
 from app.schemas.set import BatchImportItem
 from app.crud.settings import update_setting
 from app.schemas.settings import SettingUpdate
-from app.services.ai_tagging import WD14OnnxTagger, get_tagger
+from app.services.ai_tagging import WD14OnnxTagger
 
 @pytest.fixture
 def mock_import_set_dir():
