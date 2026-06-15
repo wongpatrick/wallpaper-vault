@@ -44,6 +44,12 @@ Ensure you have **Python 3.14+** and **uv** installed.
 uv sync
 ```
 
+### Pre-downloading AI Models (Optional)
+To avoid delays when importing wallpapers for the first time, you can pre-download the default WD14 ONNX model weights and tag mappings:
+```powershell
+uv run python scripts/bootstrap_models.py
+```
+
 ### Running the Engine
 ```powershell
 uv run uvicorn app.main:app --reload

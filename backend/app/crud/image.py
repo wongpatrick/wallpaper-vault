@@ -70,7 +70,11 @@ async def get_image(db: AsyncSession, image_id: int) -> Optional[Image]:
     Returns:
         The Image object if found, otherwise None.
     """
-    result = await db.execute(select(Image).filter(Image.id == image_id))
+    result = await db.execute(
+        select(Image)
+        .options(selectinload(Image.tags))
+        .filter(Image.id == image_id)
+    )
     return result.scalar_one_or_none()
 
 async def get_images_by_set(db: AsyncSession, set_id: int) -> list[Image]:
@@ -118,14 +122,18 @@ async def update_image(db: AsyncSession, image_id: int, image_in: ImageUpdate) -
     if not db_image:
         return None
     
-    update_data = image_in.model_dump(exclude_unset=True)
+    update_data = image_in.model_dump(exclude_unset=True, exclude={"tags"})
     for field in update_data:
         setattr(db_image, field, update_data[field])
+        
+    if image_in.tags is not None:
+        from app.crud.tag import get_tags_by_names
+        db_image.tags = await get_tags_by_names(db, image_in.tags)
     
     db.add(db_image)
     await db.commit()
     await db.refresh(db_image)
-    return db_image
+    return await get_image(db, image_id)
 
 async def bulk_update_images(db: AsyncSession, bulk_in: ImageBulkUpdate) -> int:
     """Performs a bulk update on multiple image records.

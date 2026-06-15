@@ -69,7 +69,7 @@ async def get_character_by_name(db: AsyncSession, name: str) -> Optional[Charact
     result = await db.execute(
         select(Character)
         .options(selectinload(Character.franchise))
-        .where(Character.name == name)
+        .where(func.lower(Character.name) == name.lower())
     )
     return result.scalars().first()
 
@@ -90,8 +90,32 @@ async def get_or_create_character(db: AsyncSession, name: str) -> Character:
     if existing:
         return existing
 
-    # Create new character with no franchise by default
-    db_character = Character(name=name)
+    import re
+    match = re.match(r"^(.*?)\s*\((.*?)\)$", name)
+    if match:
+        base_name = match.group(1).strip()
+        franchise_name = match.group(2).strip()
+        
+        # Check if character with base name already exists
+        existing = await get_character_by_name(db, base_name)
+        if existing:
+            # If the existing character doesn't have a franchise associated, link it
+            if not existing.franchise_id:
+                from app.crud.franchise import get_or_create_franchise
+                franchise = await get_or_create_franchise(db, franchise_name)
+                existing.franchise = franchise
+                db.add(existing)
+                await db.flush()
+            return existing
+            
+        # Create new character with the base name and associated franchise
+        from app.crud.franchise import get_or_create_franchise
+        franchise = await get_or_create_franchise(db, franchise_name)
+        db_character = Character(name=base_name, franchise=franchise)
+    else:
+        # Create new character with no franchise by default
+        db_character = Character(name=name)
+        
     db.add(db_character)
     try:
         await db.flush()
@@ -99,7 +123,8 @@ async def get_or_create_character(db: AsyncSession, name: str) -> Character:
         await db.flush()
     except IntegrityError:
         await db.rollback()
-        existing = await get_character_by_name(db, name)
+        check_name = base_name if match else name
+        existing = await get_character_by_name(db, check_name)
         if existing:
             return existing
         raise
@@ -148,7 +173,7 @@ async def merge_characters(db: AsyncSession, source_ids: list[int], target_id: i
     """
     target = await db.execute(
         select(Character)
-        .options(selectinload(Character.sets))
+        .options(selectinload(Character.sets).selectinload(Set.characters))
         .where(Character.id == target_id)
     )
     target = target.scalars().first()
@@ -158,7 +183,7 @@ async def merge_characters(db: AsyncSession, source_ids: list[int], target_id: i
     for sid in source_ids:
         source = await db.execute(
             select(Character)
-            .options(selectinload(Character.sets))
+            .options(selectinload(Character.sets).selectinload(Set.characters))
             .where(Character.id == sid)
         )
         source = source.scalars().first()
@@ -175,4 +200,4 @@ async def merge_characters(db: AsyncSession, source_ids: list[int], target_id: i
         
     await db.commit()
     await db.refresh(target)
-    return target
+    return await get_character(db, target_id)

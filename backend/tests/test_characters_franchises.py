@@ -1,4 +1,5 @@
 import pytest
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.crud.character import get_or_create_character, create_character, get_character
 from app.crud.franchise import create_franchise, get_franchise
@@ -79,3 +80,64 @@ async def test_auto_migrate_tag_to_character(db_session: AsyncSession):
     assert len(s_updated.tags) == 0
     assert c in s_updated.characters
     assert len(s_updated.characters) == 1
+
+@pytest.mark.asyncio
+async def test_franchise_parentheses_parsing(db_session: AsyncSession):
+    # 1. Create character "Reze" with no franchise
+    c1 = await get_or_create_character(db_session, "Reze")
+    await db_session.commit()
+    assert c1.name == "Reze"
+    assert c1.franchise_id is None
+
+    # 2. Call get_or_create_character with "Reze (Chainsaw Man)"
+    c2 = await get_or_create_character(db_session, "Reze (Chainsaw Man)")
+    await db_session.commit()
+    
+    # 3. Verify it returned the existing character "Reze" (same ID)
+    assert c1.id == c2.id
+    assert c2.name == "Reze"
+    
+    # 4. Verify the franchise "Chainsaw Man" was created and associated
+    assert c2.franchise is not None
+    assert c2.franchise.name == "Chainsaw Man"
+
+    # 5. Call get_or_create_character for a brand new character with franchise
+    c3 = await get_or_create_character(db_session, "Makima (Chainsaw Man)")
+    await db_session.commit()
+    
+    assert c3.name == "Makima"
+    assert c3.franchise is not None
+    assert c3.franchise.name == "Chainsaw Man"
+    assert c3.franchise_id == c2.franchise_id
+
+@pytest.mark.asyncio
+async def test_merge_characters_api(client: AsyncClient):
+    # 1. Create a Franchise
+    resp = await client.post("/api/franchises/", json={"name": "Chainsaw Man"})
+    assert resp.status_code == 200
+    franchise_id = resp.json()["id"]
+
+    # 2. Create target character with the franchise
+    resp = await client.post("/api/characters/", json={"name": "Reze", "franchise_id": franchise_id})
+    assert resp.status_code == 200
+    target_char = resp.json()
+    assert target_char["name"] == "Reze"
+    assert target_char["franchise"]["name"] == "Chainsaw Man"
+    target_id = target_char["id"]
+
+    # 3. Create source character with the franchise
+    resp = await client.post("/api/characters/", json={"name": "Reze (Chainsaw Man)", "franchise_id": franchise_id})
+    assert resp.status_code == 200
+    source_id = resp.json()["id"]
+
+    # 4. Merge source into target
+    resp = await client.post("/api/characters/merge", json={
+        "source_ids": [source_id],
+        "target_id": target_id
+    })
+    # This would raise ResponseValidationError / MissingGreenlet previously (500)
+    assert resp.status_code == 200
+    merged_char = resp.json()
+    assert merged_char["id"] == target_id
+    assert merged_char["name"] == "Reze"
+    assert merged_char["franchise"]["name"] == "Chainsaw Man"

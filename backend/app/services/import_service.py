@@ -21,6 +21,17 @@ from app.core.utils import sanitize_filename
 
 logger = structlog.get_logger(__name__)
 
+def _safe_log_val(val):
+    """Recursively convert strings to ASCII backslash-replaced representation to prevent UnicodeEncodeError in console."""
+    if isinstance(val, str):
+        return val.encode('ascii', 'backslashreplace').decode('ascii')
+    elif isinstance(val, list):
+        return [_safe_log_val(x) for x in val]
+    elif isinstance(val, dict):
+        return {_safe_log_val(k): _safe_log_val(v) for k, v in val.items()}
+    return val
+
+
 async def gather_candidates(db: AsyncSession, batch_in: BatchImportRequest) -> list[dict]:
     """Phase 1: Gather potential folders for import."""
     candidates = []
@@ -145,6 +156,32 @@ async def execute_import_item(
         return item
         
     try:
+        # Load AI auto-tagging settings
+        auto_tag_setting = await get_setting(db, "ai_auto_tag_enabled")
+        auto_tag_enabled = auto_tag_setting.value.lower() in ("true", "1", "yes") if auto_tag_setting and auto_tag_setting.value else False
+
+        model_type_setting = await get_setting(db, "ai_model_type")
+        model_type = model_type_setting.value if model_type_setting and model_type_setting.value else "wd14_onnx"
+
+        confidence_setting = await get_setting(db, "ai_confidence_threshold")
+        try:
+            confidence_threshold = float(confidence_setting.value) if confidence_setting and confidence_setting.value else 0.35
+        except (ValueError, TypeError):
+            confidence_threshold = 0.35
+
+        rollup_threshold_setting = await get_setting(db, "ai_rollup_threshold")
+        try:
+            rollup_threshold = float(rollup_threshold_setting.value) if rollup_threshold_setting and rollup_threshold_setting.value else 0.3
+        except (ValueError, TypeError):
+            rollup_threshold = 0.3
+
+        logger.info("Executing import item with AI auto-tagging config", 
+                    set_title=_safe_log_val(item.set_title), 
+                    auto_tag_enabled=auto_tag_enabled, 
+                    model_type=_safe_log_val(model_type), 
+                    confidence_threshold=confidence_threshold, 
+                    rollup_threshold=rollup_threshold)
+
         # 1. Handle Multiple Creators
         raw_names = re.split(r'\s+&\s+', item.creator_name)
         creator_names = [n.strip() for n in raw_names if n.strip()]
@@ -181,6 +218,13 @@ async def execute_import_item(
         # 4. Process Images
         image_paths = collect_image_paths(item.source_path, recursive=True)
         db_images = []
+        all_detected_characters = set()
+        
+        tagger = None
+        if auto_tag_enabled:
+            from app.services.ai_tagging import get_tagger
+            tagger = get_tagger(model_type)
+
         for img_path in image_paths:
             p = Path(img_path)
             base_out = dest_dir / p.name
@@ -208,6 +252,34 @@ async def execute_import_item(
                     
                     fx, fy = compute_focal_point(img_data)
                     
+                    # Auto tagging if enabled
+                    image_tags_list = []
+                    if auto_tag_enabled and tagger:
+                        try:
+                            import asyncio
+                            logger.info("Running AI auto-tagging on image", path=_safe_log_val(final_p_str), model=_safe_log_val(model_type), confidence_threshold=confidence_threshold)
+                            general_tags, character_tags = await asyncio.to_thread(
+                                tagger.tag_image, 
+                                final_p_str, 
+                                threshold=confidence_threshold
+                            )
+                            # Record detected characters for Set association
+                            if character_tags:
+                                for char_name in character_tags:
+                                    all_detected_characters.add(char_name)
+
+                            logger.info("AI tagging completed for image", path=_safe_log_val(final_p_str), general_tags=_safe_log_val(general_tags), character_tags=_safe_log_val(character_tags), total_suggested=(len(general_tags) + len(character_tags)))
+                            
+                            # Resolve general tags as Image tags (prevents namespace conflicts with characters table)
+                            if general_tags:
+                                from app.crud.tag import get_tags_by_names
+                                image_tags_list = await get_tags_by_names(db, general_tags)
+                                logger.info("Associated tags to image record", path=_safe_log_val(final_p_str), count=len(image_tags_list), tags=[_safe_log_val(t.name) for t in image_tags_list])
+                        except Exception as tag_err:
+                            logger.error("Failed to run AI tagging", path=_safe_log_val(final_p_str), error=_safe_log_val(str(tag_err)))
+
+                    # Create image model and assign tags in the constructor
+                    # This avoids triggering lazy loading (MissingGreenlet) on transient objects.
                     db_images.append(Image(
                         filename=final_p.name,
                         local_path=str(final_p.resolve()),
@@ -219,13 +291,43 @@ async def execute_import_item(
                         dominant_color=calculate_dominant_color(final_p),
                         rating=ImageRating.QUESTIONABLE,
                         focal_point_x=fx,
-                        focal_point_y=fy
+                        focal_point_y=fy,
+                        tags=image_tags_list
                     ))
         
         # 5. Create Set
         db_set = Set(title=item.set_title, local_path=os.path.normpath(str(dest_dir.resolve())))
         db_set.creators = db_creators
         db_set.images = db_images
+        
+        # Resolve and associate character tags to the Set
+        if all_detected_characters:
+            from app.crud.character import get_characters_by_names
+            logger.info("Resolving AI character tags for Set", set_title=_safe_log_val(item.set_title), characters=_safe_log_val(list(all_detected_characters)))
+            db_characters = await get_characters_by_names(db, list(all_detected_characters))
+            db_set.characters = list(db_characters)
+        
+        # 30% dynamic rollup threshold to add frequent tags to the Set
+        if db_images:
+            tag_counts = {}
+            tag_objects = {}
+            for img in db_images:
+                for t in img.tags:
+                    tag_counts[t.name] = tag_counts.get(t.name, 0) + 1
+                    tag_objects[t.name] = t
+            
+            logger.info("Computing Set rollup tags", set_title=_safe_log_val(item.set_title), total_images=len(db_images), tag_frequencies=_safe_log_val({name: f"{count}/{len(db_images)}" for name, count in tag_counts.items()}))
+
+            rollup_tags = []
+            num_images = len(db_images)
+            for tag_name, count in tag_counts.items():
+                freq = float(count) / num_images
+                if freq >= rollup_threshold:
+                    logger.info("Promoting tag to Set level", set_title=_safe_log_val(item.set_title), tag_name=_safe_log_val(tag_name), frequency=f"{freq:.2%}", required=f"{rollup_threshold:.2%}")
+                    rollup_tags.append(tag_objects[tag_name])
+            
+            db_set.tags = rollup_tags
+
         db.add(db_set)
         
         # Cleanup

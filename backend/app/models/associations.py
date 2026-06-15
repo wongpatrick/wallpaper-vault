@@ -25,3 +25,10 @@ set_characters = Table(
     Column("set_id", ForeignKey("sets.id"), primary_key=True),
     Column("character_id", ForeignKey("characters.id"), primary_key=True)
 )
+
+image_tags = Table(
+    "image_tags",
+    Base.metadata,
+    Column("image_id", ForeignKey("images.id", ondelete="CASCADE"), primary_key=True),
+    Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True)
+)

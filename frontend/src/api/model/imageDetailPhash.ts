@@ -6,6 +6,6 @@
  */
 
 /**
- * Updated list of tag names for this image.
+ * Perceptual hash used to detect visually similar or duplicate images.
  */
-export type ImageUpdateTags = string[] | null;
+export type ImageDetailPhash = string | null;

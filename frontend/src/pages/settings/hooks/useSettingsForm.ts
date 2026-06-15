@@ -14,6 +14,10 @@ export const SETTING_KEYS = {
     HORIZONTAL_TARGET_RATIO: 'horizontal_target_ratio',
     VERTICAL_TARGET_RATIO: 'vertical_target_ratio',
     START_ON_LOGIN: 'start_on_login',
+    AI_AUTO_TAG_ENABLED: 'ai_auto_tag_enabled',
+    AI_MODEL_TYPE: 'ai_model_type',
+    AI_CONFIDENCE_THRESHOLD: 'ai_confidence_threshold',
+    AI_ROLLUP_THRESHOLD: 'ai_rollup_threshold',
 } as const;
 
 export interface SettingsForm {
@@ -22,13 +26,17 @@ export interface SettingsForm {
     [SETTING_KEYS.HORIZONTAL_TARGET_RATIO]: string;
     [SETTING_KEYS.VERTICAL_TARGET_RATIO]: string;
     [SETTING_KEYS.START_ON_LOGIN]: boolean;
+    [SETTING_KEYS.AI_AUTO_TAG_ENABLED]: boolean;
+    [SETTING_KEYS.AI_MODEL_TYPE]: string;
+    [SETTING_KEYS.AI_CONFIDENCE_THRESHOLD]: number;
+    [SETTING_KEYS.AI_ROLLUP_THRESHOLD]: number;
 }
 
 type StorageType = 'backend' | 'electron';
 
 interface SettingConfig {
     key: string;
-    defaultValue: string | boolean;
+    defaultValue: string | boolean | number;
     storage: StorageType;
     description?: string;
 }
@@ -39,6 +47,10 @@ const SETTINGS_METADATA: SettingConfig[] = [
     { key: SETTING_KEYS.HORIZONTAL_TARGET_RATIO, defaultValue: '16/9', storage: 'backend', description: 'Target aspect ratio for horizontal images' },
     { key: SETTING_KEYS.VERTICAL_TARGET_RATIO, defaultValue: '9/16', storage: 'backend', description: 'Target aspect ratio for vertical images' },
     { key: SETTING_KEYS.START_ON_LOGIN, defaultValue: false, storage: 'electron' },
+    { key: SETTING_KEYS.AI_AUTO_TAG_ENABLED, defaultValue: false, storage: 'backend', description: 'Enable AI auto-tagging for imported wallpapers' },
+    { key: SETTING_KEYS.AI_MODEL_TYPE, defaultValue: 'wd14_onnx', storage: 'backend', description: 'AI Model to use for auto-tagging' },
+    { key: SETTING_KEYS.AI_CONFIDENCE_THRESHOLD, defaultValue: 0.35, storage: 'backend', description: 'Confidence threshold for tagger' },
+    { key: SETTING_KEYS.AI_ROLLUP_THRESHOLD, defaultValue: 0.30, storage: 'backend', description: 'Threshold percentage for rolling up tags to sets' },
 ];
 
 export function useSettingsForm() {
@@ -61,7 +73,19 @@ export function useSettingsForm() {
             for (const config of SETTINGS_METADATA) {
                 if (config.storage === 'backend') {
                     const dbSetting = settings.find(s => s.key === config.key);
-                    const val = dbSetting?.value ?? config.defaultValue;
+                    let val: string | boolean | number;
+                    if (dbSetting) {
+                        if (typeof config.defaultValue === 'boolean') {
+                            val = dbSetting.value === 'true';
+                        } else if (typeof config.defaultValue === 'number') {
+                            val = parseFloat(dbSetting.value);
+                            if (isNaN(val)) val = config.defaultValue;
+                        } else {
+                            val = dbSetting.value;
+                        }
+                    } else {
+                        val = config.defaultValue;
+                    }
                     Reflect.set(values, config.key, val);
                 } else if (config.storage === 'electron') {
                     if (window.electron?.getLoginSettings) {

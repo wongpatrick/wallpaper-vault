@@ -405,3 +405,167 @@ async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     await db.refresh(db_set)
     return await crud_set.get_set(db, set_id)
 
+
+def _safe_log_val(val):
+    """Recursively convert strings to ASCII backslash-replaced representation to prevent UnicodeEncodeError in console."""
+    if isinstance(val, str):
+        return val.encode('ascii', 'backslashreplace').decode('ascii')
+    elif isinstance(val, list):
+        return [_safe_log_val(x) for x in val]
+    elif isinstance(val, dict):
+        return {_safe_log_val(k): _safe_log_val(v) for k, v in val.items()}
+    return val
+
+
+async def auto_tag_set(db: AsyncSession, set_id: int) -> Optional[Set]:
+    """
+    Manually run AI auto-tagging on an existing Set.
+    Analyzes all images, appends detected general tags to the images,
+    appends character tags to the Set, and computes Set rollup tags.
+    Saves and commits all changes. Prevents duplicate tag/character associations.
+    """
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.models.image import Image as ImageModel
+    from app.crud.settings import get_setting
+    from app.services.ai_tagging import get_tagger
+    import asyncio
+
+    # 1. Fetch Set with eager relations
+    stmt = (
+        select(Set)
+        .options(
+            selectinload(Set.images).selectinload(ImageModel.tags),
+            selectinload(Set.tags),
+            selectinload(Set.characters)
+        )
+        .where(Set.id == set_id)
+    )
+    result = await db.execute(stmt)
+    db_set = result.scalars().first()
+    if not db_set:
+        return None
+
+    # 2. Load settings (ignoring global enabled switch since manually triggered)
+    model_type_setting = await get_setting(db, "ai_model_type")
+    model_type = model_type_setting.value if model_type_setting and model_type_setting.value else "wd14_onnx"
+
+    confidence_setting = await get_setting(db, "ai_confidence_threshold")
+    try:
+        confidence_threshold = float(confidence_setting.value) if confidence_setting and confidence_setting.value else 0.35
+    except (ValueError, TypeError):
+        confidence_threshold = 0.35
+
+    rollup_threshold_setting = await get_setting(db, "ai_rollup_threshold")
+    try:
+        rollup_threshold = float(rollup_threshold_setting.value) if rollup_threshold_setting and rollup_threshold_setting.value else 0.3
+    except (ValueError, TypeError):
+        rollup_threshold = 0.3
+
+    logger.info("Executing manual Set auto-tagging", 
+                set_id=set_id,
+                set_title=_safe_log_val(db_set.title), 
+                model_type=_safe_log_val(model_type), 
+                confidence_threshold=confidence_threshold, 
+                rollup_threshold=rollup_threshold)
+
+    # 3. Load tagger
+    tagger = get_tagger(model_type)
+    all_detected_characters = set()
+
+    # 4. Iterate over images and tag
+    if db_set.images:
+        for img in db_set.images:
+            if not img.local_path:
+                continue
+            
+            p = Path(img.local_path)
+            if not p.exists():
+                logger.warning("Skipping tagging for non-existent image path", path=_safe_log_val(img.local_path))
+                continue
+
+            try:
+                logger.info("Running AI auto-tagging on existing image", path=_safe_log_val(img.local_path))
+                general_tags, character_tags = await asyncio.to_thread(
+                    tagger.tag_image,
+                    img.local_path,
+                    threshold=confidence_threshold
+                )
+
+                if character_tags:
+                    for char_name in character_tags:
+                        all_detected_characters.add(char_name)
+
+                logger.info("AI tagging completed for image", 
+                            path=_safe_log_val(img.local_path), 
+                            general_tags=_safe_log_val(general_tags), 
+                            character_tags=_safe_log_val(character_tags))
+
+                if general_tags:
+                    from app.crud.tag import get_tags_by_names
+                    image_tags_list = await get_tags_by_names(db, general_tags)
+                    
+                    # Merge tags ensuring no duplicates
+                    current_tag_ids = {t.id for t in img.tags}
+                    added_count = 0
+                    for t in image_tags_list:
+                        if t.id not in current_tag_ids:
+                            img.tags.append(t)
+                            current_tag_ids.add(t.id)
+                            added_count += 1
+                    
+                    logger.info("Merged tags to image record", 
+                                path=_safe_log_val(img.local_path), 
+                                total_associated=len(img.tags), 
+                                newly_added=added_count)
+            except Exception as tag_err:
+                logger.error("Failed to run AI tagging on image during Set tag run", path=_safe_log_val(img.local_path), error=_safe_log_val(str(tag_err)))
+
+    # 5. Resolve and merge character tags to the Set (preventing duplicates)
+    if all_detected_characters:
+        from app.crud.character import get_characters_by_names
+        logger.info("Resolving AI character tags for Set", set_title=_safe_log_val(db_set.title), characters=_safe_log_val(list(all_detected_characters)))
+        db_characters = await get_characters_by_names(db, list(all_detected_characters))
+        
+        current_char_ids = {c.id for c in db_set.characters}
+        char_added_count = 0
+        for c in db_characters:
+            if c.id not in current_char_ids:
+                db_set.characters.append(c)
+                current_char_ids.add(c.id)
+                char_added_count += 1
+        logger.info("Merged characters to Set", set_title=_safe_log_val(db_set.title), total_characters=len(db_set.characters), newly_added=char_added_count)
+
+    # 6. Compute Set rollup tags and merge
+    if db_set.images:
+        tag_counts = {}
+        tag_objects = {}
+        for img in db_set.images:
+            for t in img.tags:
+                tag_counts[t.name] = tag_counts.get(t.name, 0) + 1
+                tag_objects[t.name] = t
+
+        logger.info("Computing Set rollup tags", set_title=_safe_log_val(db_set.title), total_images=len(db_set.images), tag_frequencies=_safe_log_val({name: f"{count}/{len(db_set.images)}" for name, count in tag_counts.items()}))
+
+        rollup_tags = []
+        num_images = len(db_set.images)
+        for tag_name, count in tag_counts.items():
+            freq = float(count) / num_images
+            if freq >= rollup_threshold:
+                rollup_tags.append(tag_objects[tag_name])
+
+        current_set_tag_ids = {t.id for t in db_set.tags}
+        rollup_added_count = 0
+        for t in rollup_tags:
+            if t.id not in current_set_tag_ids:
+                db_set.tags.append(t)
+                current_set_tag_ids.add(t.id)
+                rollup_added_count += 1
+        logger.info("Merged rollup tags to Set", set_title=_safe_log_val(db_set.title), total_set_tags=len(db_set.tags), newly_added=rollup_added_count)
+
+    db.add(db_set)
+    await db.commit()
+    await db.refresh(db_set)
+    return await crud_set.get_set(db, set_id)
+
+

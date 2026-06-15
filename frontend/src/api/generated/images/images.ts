@@ -31,6 +31,7 @@ import type {
   ImageBulkMove,
   ImageBulkUpdate,
   ImageCreate,
+  ImageDetail,
   ImagePage,
   ImageUpdate,
   ReadColorStatsApiImagesColorStatsGet200Item,
@@ -920,7 +921,7 @@ export const readImageApiImagesImageIdGet = (
 ) => {
       
       
-      return customInstance<Image>(
+      return customInstance<ImageDetail>(
       {url: `/api/images/${imageId}`, method: 'GET', signal
     },
       options);
@@ -1012,7 +1013,7 @@ export const updateImageApiImagesImageIdPatch = (
  options?: SecondParameter<typeof customInstance>,) => {
       
       
-      return customInstance<Image>(
+      return customInstance<ImageDetail>(
       {url: `/api/images/${imageId}`, method: 'PATCH',
       headers: {'Content-Type': 'application/json', },
       data: imageUpdate
@@ -1075,7 +1076,7 @@ export const deleteImageApiImagesImageIdDelete = (
  options?: SecondParameter<typeof customInstance>,) => {
       
       
-      return customInstance<Image>(
+      return customInstance<ImageDetail>(
       {url: `/api/images/${imageId}`, method: 'DELETE'
     },
       options);
@@ -1293,7 +1294,7 @@ export const createImageForSetApiImagesSetSetIdPost = (
 ) => {
       
       
-      return customInstance<Image>(
+      return customInstance<ImageDetail>(
       {url: `/api/images/set/${setId}`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
       data: imageCreate, signal

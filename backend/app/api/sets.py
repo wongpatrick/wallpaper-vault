@@ -224,6 +224,21 @@ async def resync_set(
     logger.info("Resynced set", set_id=set_id)
     return db_set
 
+@router.post("/{set_id}/auto-tag", response_model=Set)
+async def auto_tag_set(
+    set_id: int,
+    db: AsyncSession = Depends(get_db)
+) -> Set:
+    """
+    Manually run AI auto-tagging on an existing Set.
+    """
+    db_set = await set_service.auto_tag_set(db, set_id=set_id)
+    if db_set is None:
+        raise HTTPException(status_code=404, detail="Set not found")
+    logger.info("Auto-tagged set", set_id=set_id)
+    return db_set
+
+
 @router.delete("/{set_id}", response_model=Set)
 async def delete_set(
         set_id: int,
