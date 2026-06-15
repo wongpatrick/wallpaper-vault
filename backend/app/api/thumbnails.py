@@ -95,5 +95,6 @@ async def get_image_thumbnail(
     return FileResponse(
         str(thumb_path),
         media_type="image/jpeg",
-        headers={"Cache-Control": "public, max-age=86400"},
+        headers={"Cache-Control": "no-cache"},
     )
+

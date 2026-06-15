@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from unittest.mock import patch, MagicMock
 
 @pytest.mark.asyncio
 async def test_settings_api(client: AsyncClient):
@@ -75,7 +76,6 @@ async def test_dashboard_api_with_data(client: AsyncClient):
         "height": 1080
     })
 
-    # Verify dashboard
     response = await client.get("/api/dashboard/")
     assert response.status_code == 200
     data = response.json()
@@ -83,3 +83,53 @@ async def test_dashboard_api_with_data(client: AsyncClient):
     assert stats["total_images"] == 1
     assert stats["total_sets"] == 1
     assert stats["total_creators"] == 1
+
+@pytest.mark.asyncio
+@patch("huggingface_hub.HfApi")
+async def test_settings_ai_validation(mock_hf_api, client: AsyncClient, tmp_path):
+    """Test AI model settings update validation logic."""
+    # 1. Validate ai_model_source
+    resp = await client.put("/api/settings/ai_model_source", json={"value": "invalid_source"})
+    assert resp.status_code == 400
+    assert "Invalid model source" in resp.json()["detail"]
+
+    resp = await client.put("/api/settings/ai_model_source", json={"value": "local"})
+    assert resp.status_code == 200
+
+    # 2. Validate ai_model_custom_path
+    # Path doesn't exist
+    resp = await client.put("/api/settings/ai_model_custom_path", json={"value": "/nonexistent/path"})
+    assert resp.status_code == 400
+
+    # Path exists but is empty
+    resp = await client.put("/api/settings/ai_model_custom_path", json={"value": str(tmp_path)})
+    assert resp.status_code == 400
+    assert "must contain at least one '.onnx'" in resp.json()["detail"]
+
+    # Path exists and contains required files
+    (tmp_path / "model.onnx").write_bytes(b"")
+    (tmp_path / "tags.csv").write_text("")
+    resp = await client.put("/api/settings/ai_model_custom_path", json={"value": str(tmp_path)})
+    assert resp.status_code == 200
+
+    # 3. Validate ai_model_custom_repo
+    # Invalid format
+    resp = await client.put("/api/settings/ai_model_custom_repo", json={"value": "invalid_format"})
+    assert resp.status_code == 400
+
+    # Non-existent repository (throws RepositoryNotFoundError)
+    from huggingface_hub.utils import RepositoryNotFoundError
+    mock_api_instance = MagicMock()
+    mock_response = MagicMock(status_code=404, headers={})
+    mock_api_instance.model_info.side_effect = RepositoryNotFoundError("Not found", response=mock_response)
+    mock_hf_api.return_value = mock_api_instance
+
+    resp = await client.put("/api/settings/ai_model_custom_repo", json={"value": "user/nonexistent"})
+    assert resp.status_code == 400
+    assert "not found" in resp.json()["detail"]
+
+    # Valid repository
+    mock_api_instance.model_info.side_effect = None
+    mock_api_instance.model_info.return_value = MagicMock()
+    resp = await client.put("/api/settings/ai_model_custom_repo", json={"value": "SmilingWolf/wd-v1-4-convnext-tagger-v2"})
+    assert resp.status_code == 200

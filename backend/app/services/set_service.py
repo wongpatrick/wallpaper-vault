@@ -303,6 +303,40 @@ async def bulk_update_sets(db: AsyncSession, bulk_in: SetBulkUpdate) -> int:
     await db.commit()
     return count
 
+
+def check_and_clear_stale_thumbnails(images: list[dict], thumbs_dir: Path) -> None:
+    """
+    Synchronously check modification times of original images versus cached thumbnails,
+    and delete thumbnails that are older than the original image file.
+    """
+    import os
+    for img in images:
+        img_id = img["id"]
+        local_path = img["local_path"]
+        if not local_path or not os.path.exists(local_path):
+            continue
+        try:
+            orig_mtime = os.path.getmtime(local_path)
+            for size in ["sm", "md", "lg"]:
+                thumb_path = thumbs_dir / f"{img_id}_{size}.jpg"
+                if thumb_path.exists():
+                    thumb_mtime = os.path.getmtime(thumb_path)
+                    if orig_mtime > thumb_mtime:
+                        logger.info(
+                            "Deleting stale cached thumbnail due to newer original image",
+                            image_id=img_id,
+                            size=size,
+                            path=str(thumb_path),
+                        )
+                        thumb_path.unlink()
+        except Exception as e:
+            logger.warning(
+                "Error checking thumbnail modification time",
+                image_id=img_id,
+                error=str(e),
+            )
+
+
 async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     from app.services.audit_service import calculate_phash, calculate_dominant_color
     from app.services.import_service import load_image
@@ -313,6 +347,13 @@ async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     db_set = await crud_set.get_set(db, set_id)
     if not db_set or not db_set.local_path:
         return None
+
+    # Check for stale thumbnails for existing images in the set
+    images_info = [{"id": img.id, "local_path": img.local_path} for img in db_set.images if img.id and img.local_path]
+    thumbs_dir = Path(__file__).resolve().parent.parent.parent.parent / "db" / "thumbs"
+    if images_info:
+        await anyio.to_thread.run_sync(check_and_clear_stale_thumbnails, images_info, thumbs_dir)
+
     
     folder_path = anyio.Path(db_set.local_path)
     if not await folder_path.exists() or not await folder_path.is_dir():
@@ -447,8 +488,17 @@ async def auto_tag_set(db: AsyncSession, set_id: int) -> Optional[Set]:
         return None
 
     # 2. Load settings (ignoring global enabled switch since manually triggered)
+    model_source_setting = await get_setting(db, "ai_model_source")
+    model_source = model_source_setting.value if model_source_setting and model_source_setting.value else "predefined"
+
     model_type_setting = await get_setting(db, "ai_model_type")
     model_type = model_type_setting.value if model_type_setting and model_type_setting.value else "wd14_onnx"
+
+    custom_repo_setting = await get_setting(db, "ai_model_custom_repo")
+    custom_repo = custom_repo_setting.value if custom_repo_setting and custom_repo_setting.value else None
+
+    custom_path_setting = await get_setting(db, "ai_model_custom_path")
+    custom_path = custom_path_setting.value if custom_path_setting and custom_path_setting.value else None
 
     confidence_setting = await get_setting(db, "ai_confidence_threshold")
     try:
@@ -470,7 +520,12 @@ async def auto_tag_set(db: AsyncSession, set_id: int) -> Optional[Set]:
                 rollup_threshold=rollup_threshold)
 
     # 3. Load tagger
-    tagger = get_tagger(model_type)
+    tagger = get_tagger(
+        model_source=model_source,
+        model_type=model_type,
+        custom_repo=custom_repo,
+        custom_path=custom_path
+    )
     all_detected_characters = set()
 
     # 4. Iterate over images and tag

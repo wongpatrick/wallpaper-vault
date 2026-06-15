@@ -81,14 +81,51 @@ export default function Settings() {
                             />
 
                             <Select
-                                label="AI Model Type"
-                                description="Select the AI model to use for analyzing and tagging images."
+                                label="AI Model Source"
+                                description="Choose whether to use a predefined model, a custom model from Hugging Face, or a local model folder."
                                 data={[
-                                    { value: 'wd14_onnx', label: 'WD14 ONNX (Recommended)' }
+                                    { value: 'predefined', label: 'Predefined Tagger Models' },
+                                    { value: 'huggingface', label: 'Custom Hugging Face Repository' },
+                                    { value: 'local', label: 'Custom Local Model Folder' }
                                 ]}
                                 disabled={!form.values[SETTING_KEYS.AI_AUTO_TAG_ENABLED]}
-                                {...form.getInputProps(SETTING_KEYS.AI_MODEL_TYPE)}
+                                {...form.getInputProps(SETTING_KEYS.AI_MODEL_SOURCE)}
                             />
+
+                            {form.values[SETTING_KEYS.AI_MODEL_SOURCE] === 'predefined' && (
+                                <Select
+                                    label="AI Model Type"
+                                    description="Select the AI model to use for analyzing and tagging images."
+                                    data={[
+                                        { value: 'wd14_convnext_v2', label: 'WD14 ConvNeXt v2 (Recommended)' },
+                                        { value: 'wd14_vit_v2', label: 'WD14 ViT v2 (Faster)' },
+                                        { value: 'wd14_swinv2_v2', label: 'WD14 SwinV2 v2 (More Accurate)' },
+                                        { value: 'wd_vit_large_v3', label: 'WD ViT Large v3 (Latest v3)' }
+                                    ]}
+                                    disabled={!form.values[SETTING_KEYS.AI_AUTO_TAG_ENABLED]}
+                                    {...form.getInputProps(SETTING_KEYS.AI_MODEL_TYPE)}
+                                />
+                            )}
+
+                            {form.values[SETTING_KEYS.AI_MODEL_SOURCE] === 'huggingface' && (
+                                <TextInput
+                                    label="Custom Hugging Face Repository"
+                                    description="The repository ID of the model (e.g. 'SmilingWolf/wd-v1-4-convnext-tagger-v2'). Must contain 'model.onnx' and 'selected_tags.csv'."
+                                    placeholder="username/repo"
+                                    disabled={!form.values[SETTING_KEYS.AI_AUTO_TAG_ENABLED]}
+                                    {...form.getInputProps(SETTING_KEYS.AI_MODEL_CUSTOM_REPO)}
+                                />
+                            )}
+
+                            {form.values[SETTING_KEYS.AI_MODEL_SOURCE] === 'local' && (
+                                <PathInput
+                                    label="Custom Local Model Folder"
+                                    description="Path to the local directory containing model (.onnx) and label map (.csv) files."
+                                    placeholder="C:/path/to/model/folder"
+                                    disabled={!form.values[SETTING_KEYS.AI_AUTO_TAG_ENABLED]}
+                                    {...form.getInputProps(SETTING_KEYS.AI_MODEL_CUSTOM_PATH)}
+                                />
+                            )}
 
                             <Stack gap="xs">
                                 <Group justify="space-between">

@@ -160,8 +160,17 @@ async def execute_import_item(
         auto_tag_setting = await get_setting(db, "ai_auto_tag_enabled")
         auto_tag_enabled = auto_tag_setting.value.lower() in ("true", "1", "yes") if auto_tag_setting and auto_tag_setting.value else False
 
+        model_source_setting = await get_setting(db, "ai_model_source")
+        model_source = model_source_setting.value if model_source_setting and model_source_setting.value else "predefined"
+
         model_type_setting = await get_setting(db, "ai_model_type")
         model_type = model_type_setting.value if model_type_setting and model_type_setting.value else "wd14_onnx"
+
+        custom_repo_setting = await get_setting(db, "ai_model_custom_repo")
+        custom_repo = custom_repo_setting.value if custom_repo_setting and custom_repo_setting.value else None
+
+        custom_path_setting = await get_setting(db, "ai_model_custom_path")
+        custom_path = custom_path_setting.value if custom_path_setting and custom_path_setting.value else None
 
         confidence_setting = await get_setting(db, "ai_confidence_threshold")
         try:
@@ -223,7 +232,12 @@ async def execute_import_item(
         tagger = None
         if auto_tag_enabled:
             from app.services.ai_tagging import get_tagger
-            tagger = get_tagger(model_type)
+            tagger = get_tagger(
+                model_source=model_source,
+                model_type=model_type,
+                custom_repo=custom_repo,
+                custom_path=custom_path
+            )
 
         for img_path in image_paths:
             p = Path(img_path)

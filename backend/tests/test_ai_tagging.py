@@ -384,3 +384,61 @@ def test_wd14_onnx_tagger_tag_image_pil():
     
     assert isinstance(general_tags, list)
     assert isinstance(character_tags, list)
+
+def test_get_app_models_dir():
+    """Test get_app_models_dir returns the expected subfolder path."""
+    from app.services.ai_tagging import get_app_models_dir
+    models_dir = get_app_models_dir()
+    assert isinstance(models_dir, Path)
+    assert models_dir.name == "models"
+    assert models_dir.parent.name == "Wallpaper-Vault"
+
+@patch("onnxruntime.InferenceSession")
+def test_wd14_onnx_tagger_local_loading(mock_ort_session, tmp_path):
+    """Test loading a custom local model folder."""
+    onnx_file = tmp_path / "my_model.onnx"
+    csv_file = tmp_path / "tags.csv"
+    onnx_file.write_bytes(b"dummy onnx")
+    csv_file.write_text("index,name,category,general\n0,anime,0,0")
+
+    tagger = WD14OnnxTagger(
+        model_source="local",
+        custom_path=str(tmp_path)
+    )
+    
+    assert tagger.model_path == str(onnx_file)
+    assert tagger.csv_path == str(csv_file)
+    mock_ort_session.assert_called_once()
+
+@patch("app.services.ai_tagging.hf_hub_download")
+@patch("onnxruntime.InferenceSession")
+def test_wd14_onnx_tagger_custom_repo_loading(mock_ort_session, mock_hf_download, tmp_path):
+    """Test loading a custom Hugging Face repo ID."""
+    onnx_file = tmp_path / "model.onnx"
+    csv_file = tmp_path / "selected_tags.csv"
+    onnx_file.write_bytes(b"dummy onnx")
+    csv_file.write_text("index,name,category,general\n0,anime,0,0")
+
+    mock_hf_download.side_effect = [str(onnx_file), str(csv_file)]
+
+    tagger = WD14OnnxTagger(
+        model_source="huggingface",
+        custom_repo="my-user/my-custom-repo"
+    )
+    
+    assert tagger.model_path == str(onnx_file)
+    assert tagger.csv_path == str(csv_file)
+    
+    from app.services.ai_tagging import get_app_models_dir
+    app_models_dir = get_app_models_dir()
+    
+    mock_hf_download.assert_any_call(
+        repo_id="my-user/my-custom-repo", 
+        filename="model.onnx", 
+        cache_dir=str(app_models_dir)
+    )
+    mock_hf_download.assert_any_call(
+        repo_id="my-user/my-custom-repo", 
+        filename="selected_tags.csv", 
+        cache_dir=str(app_models_dir)
+    )

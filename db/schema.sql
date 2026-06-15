@@ -145,6 +145,9 @@ CREATE INDEX IF NOT EXISTS idx_image_tags_image_id             ON image_tags(ima
 CREATE INDEX IF NOT EXISTS idx_image_tags_tag_id               ON image_tags(tag_id);
 
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_auto_tag_enabled', 'false', 'Enable AI auto tagging on import');
+INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_model_source', 'predefined', 'Source of the AI model: predefined, huggingface, or local');
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_model_type', 'wd14_onnx', 'Model type for AI auto tagging');
+INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_model_custom_repo', '', 'Custom Hugging Face model repository ID');
+INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_model_custom_path', '', 'Custom local filesystem folder path containing the model files');
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_confidence_threshold', '0.35', 'Confidence threshold (0.0 to 1.0) for tagger to apply tags to images');
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_rollup_threshold', '0.3', 'Rollup threshold (0.0 to 1.0) to promote tags to sets');

@@ -9,7 +9,7 @@ import { IconAlertTriangle, IconExclamationCircle, IconShieldCheck, IconTrash } 
 import { useUpdateImageApiImagesImageIdPatch, useDeleteImageApiImagesImageIdDelete } from '../../api/generated/images/images';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
-import type { Image as ImageModel, ImageUpdate } from '../../api/model';
+import type { Image as ImageModel, ImageUpdate, ImageDetail } from '../../api/model';
 import { ImageRating } from '../../types/enums';
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
 
@@ -47,7 +47,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
             aspect_ratio_label: image.aspect_ratio_label || '',
             rating: image.rating || ImageRating.SAFE,
             dominant_color: image.dominant_color || '',
-            tags: image.tags || []
+            tags: (image as ImageDetail).tags || []
         });
     }
 
