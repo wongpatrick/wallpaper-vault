@@ -233,9 +233,13 @@ async def merge_tags(db: AsyncSession, source_ids: list[int], target_id: int) ->
     """
     from sqlalchemy.orm import selectinload
     from app.models.set import Set
+    from app.models.image import Image
     target = await db.execute(
         select(Tag)
-        .options(selectinload(Tag.sets).selectinload(Set.tags))
+        .options(
+            selectinload(Tag.sets).selectinload(Set.tags),
+            selectinload(Tag.images).selectinload(Image.tags)
+        )
         .where(Tag.id == target_id)
     )
     target = target.scalars().first()
@@ -245,18 +249,27 @@ async def merge_tags(db: AsyncSession, source_ids: list[int], target_id: int) ->
     for sid in source_ids:
         source = await db.execute(
             select(Tag)
-            .options(selectinload(Tag.sets).selectinload(Set.tags))
+            .options(
+                selectinload(Tag.sets).selectinload(Set.tags),
+                selectinload(Tag.images).selectinload(Image.tags)
+            )
             .where(Tag.id == sid)
         )
         source = source.scalars().first()
         if not source:
             continue
             
-        for s in source.sets:
+        for s in list(source.sets):
             if target not in s.tags:
                 s.tags.append(target)
             if source in s.tags:
                 s.tags.remove(source)
+                
+        for img in list(source.images):
+            if target not in img.tags:
+                img.tags.append(target)
+            if source in img.tags:
+                img.tags.remove(source)
                 
         await db.delete(source)
         

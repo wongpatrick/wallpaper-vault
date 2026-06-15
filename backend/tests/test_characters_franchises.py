@@ -141,3 +141,38 @@ async def test_merge_characters_api(client: AsyncClient):
     assert merged_char["id"] == target_id
     assert merged_char["name"] == "Reze"
     assert merged_char["franchise"]["name"] == "Chainsaw Man"
+
+@pytest.mark.asyncio
+async def test_merge_characters_multiple_sets(db_session: AsyncSession):
+    # 1. Create target character
+    c_target = await get_or_create_character(db_session, "Target Character")
+    # 2. Create source character
+    c_source = await get_or_create_character(db_session, "Source Character")
+    await db_session.commit()
+    
+    # 3. Create two sets associated with source character
+    s1 = Set(title="Set 1")
+    s1.characters.append(c_source)
+    s2 = Set(title="Set 2")
+    s2.characters.append(c_source)
+    db_session.add_all([s1, s2])
+    await db_session.commit()
+    await db_session.refresh(s1)
+    await db_session.refresh(s2)
+    
+    # 4. Merge source into target
+    from app.crud.character import merge_characters
+    await merge_characters(db_session, [c_source.id], c_target.id)
+    
+    # 5. Verify both sets now have target character and no longer have source
+    s1_updated = (await db_session.execute(
+        select(Set).options(selectinload(Set.characters)).where(Set.id == s1.id)
+    )).scalars().first()
+    s2_updated = (await db_session.execute(
+        select(Set).options(selectinload(Set.characters)).where(Set.id == s2.id)
+    )).scalars().first()
+    
+    assert c_target in s1_updated.characters
+    assert c_source not in s1_updated.characters
+    assert c_target in s2_updated.characters
+    assert c_source not in s2_updated.characters
