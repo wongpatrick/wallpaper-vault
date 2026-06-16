@@ -50,7 +50,7 @@ async def start_audit(
     await db.execute(delete(AuditIssue).where(AuditIssue.status.in_([AuditIssueStatus.PENDING, AuditIssueStatus.IGNORED])))
     await db.commit()
     
-    task_id = await tasks.create_task(db, status=TaskStatus.ACCEPTED)
+    task_id = await tasks.create_task(db, status=TaskStatus.ACCEPTED, prefix="audit")
     background_tasks.add_task(audit_service.run_library_audit, vault_setting.value, task_id)
     
     return {"task_id": task_id, "status": TaskStatus.ACCEPTED}

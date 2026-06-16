@@ -9,8 +9,9 @@ from app.db.session import get_db
 
 from app.crud import set as crud_set
 from app.services import set_service
-from app.schemas.set import Set, SetCreate, SetImport, BatchImportRequest, BatchImportResponse, SetUpdate, SetPage, SetBulkUpdate, SetMerge
+from app.schemas.set import Set, SetCreate, SetImport, BatchImportRequest, BatchImportResponse, SetUpdate, SetPage, SetBulkUpdate, SetMerge, AutoTagResponse
 from app.core import tasks
+from app.core.enums import TaskStatus
 from app.core.exceptions import AppError
 from sqlalchemy.exc import IntegrityError
 import structlog
@@ -125,7 +126,7 @@ async def batch_import_sets(
         return await crud_set.batch_import_sets(db=db, batch_in=batch_in)
     
     # Background execution
-    task_id = await tasks.create_task(db_session=db, status="accepted")
+    task_id = await tasks.create_task(db_session=db, status="accepted", prefix="import")
     background_tasks.add_task(crud_set.run_batch_import_background, batch_in, task_id)
     
     logger.info("Started batch import background task", task_id=task_id)
@@ -224,19 +225,25 @@ async def resync_set(
     logger.info("Resynced set", set_id=set_id)
     return db_set
 
-@router.post("/{set_id}/auto-tag", response_model=Set)
+@router.post("/{set_id}/auto-tag", response_model=AutoTagResponse)
 async def auto_tag_set(
     set_id: int,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
-) -> Set:
+) -> AutoTagResponse:
     """
-    Manually run AI auto-tagging on an existing Set.
+    Manually run AI auto-tagging on an existing Set in the background.
     """
-    db_set = await set_service.auto_tag_set(db, set_id=set_id)
+    # 1. Verify set exists first before launching task
+    db_set = await crud_set.get_set(db, set_id=set_id)
     if db_set is None:
         raise HTTPException(status_code=404, detail="Set not found")
-    logger.info("Auto-tagged set", set_id=set_id)
-    return db_set
+        
+    task_id = await tasks.create_task(db_session=db, status=TaskStatus.ACCEPTED, prefix=f"autotag-{set_id}")
+    background_tasks.add_task(set_service.run_auto_tag_set_background, set_id, task_id)
+    
+    logger.info("Queued auto-tagging task for set", set_id=set_id, task_id=task_id)
+    return AutoTagResponse(task_id=task_id, status=TaskStatus.ACCEPTED)
 
 
 @router.delete("/{set_id}", response_model=Set)

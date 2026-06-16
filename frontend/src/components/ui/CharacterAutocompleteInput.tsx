@@ -13,7 +13,7 @@ export function CharacterAutocompleteInput(props: CharacterAutocompleteInputProp
 
     const data = useMemo(() => {
         if (!characters) return [];
-        return characters.map(c => c.name);
+        return Array.from(new Set(characters.map(c => c.name)));
     }, [characters]);
 
     return (

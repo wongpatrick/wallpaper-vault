@@ -22,6 +22,7 @@ interface ImageLightboxProps {
     onEdit: (image: ImageModel) => void;
     onDelete?: () => void;
     totalCount?: number;
+    disableActions?: boolean;
 }
 
 const BYTES_PER_KB = 1024;
@@ -33,7 +34,7 @@ const THUMB_WIDTH = 160;
 const THUMB_HEIGHT = 100;
 const THUMB_GAP = 8;
 
-export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit, onDelete, totalCount }: ImageLightboxProps) {
+export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit, onDelete, totalCount, disableActions }: ImageLightboxProps) {
     const deleteMutation = useDeleteImageApiImagesImageIdDelete();
     const navigate = useNavigate();
 
@@ -184,6 +185,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                             variant="subtle" 
                             color="gray" 
                             onClick={() => onEdit(currentImage)}
+                            disabled={disableActions}
                         >
                             Edit Metadata
                         </Button>
@@ -193,10 +195,16 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                             color="red" 
                             onClick={handleDelete}
                             loading={deleteMutation.isPending}
+                            disabled={disableActions}
                         >
                             Delete
                         </Button>
-                        <Button leftSection={<IconWallpaper size={18} />} color="blue" variant="filled">
+                        <Button 
+                            leftSection={<IconWallpaper size={18} />} 
+                            color="blue" 
+                            variant="filled"
+                            disabled={disableActions}
+                        >
                             Set as Wallpaper
                         </Button>
                         <ActionIcon variant="subtle" color="gray" size="xl" onClick={onClose}>

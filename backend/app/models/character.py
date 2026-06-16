@@ -12,7 +12,7 @@ class Character(Base):
     name: Mapped[str] = mapped_column(nullable=False)
     franchise_id: Mapped[Optional[int]] = mapped_column(ForeignKey("franchises.id", ondelete="SET NULL"))
 
-    franchise = relationship("Franchise", back_populates="characters")
+    franchise = relationship("Franchise", back_populates="characters", lazy="joined")
     
     sets = relationship(
         "Set",

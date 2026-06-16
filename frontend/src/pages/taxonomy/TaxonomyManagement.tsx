@@ -140,7 +140,7 @@ function CharactersTab() {
 
     const { search, setSearch, sortBy, setSortBy, page, setPage, totalPages, totalItems, result: sortedCharacters } = useTaxonomyFilterSort(characters);
 
-    const franchiseOptions = franchises?.map(f => f.name) || [];
+    const franchiseOptions = useMemo(() => Array.from(new Set(franchises?.map(f => f.name) || [])), [franchises]);
 
     const handleOpenCreate = () => {
         setEditingId(null);

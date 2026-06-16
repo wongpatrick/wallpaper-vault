@@ -21,7 +21,7 @@ export function TagAutocompleteInput(props: TagAutocompleteInputProps) {
     return (
         <TagsInput
             {...props}
-            data={searchValue.length > 0 ? (suggestions || []) : []}
+            data={Array.from(new Set(searchValue.length > 0 ? (suggestions || []) : []))}
             searchValue={searchValue}
             onSearchChange={setSearchValue}
             splitChars={[',', ' ']}

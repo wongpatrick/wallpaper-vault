@@ -73,6 +73,33 @@ async def get_character_by_name(db: AsyncSession, name: str) -> Optional[Charact
     )
     return result.scalars().first()
 
+async def get_character_by_name_and_franchise_id(db: AsyncSession, name: str, franchise_id: Optional[int] = None) -> Optional[Character]:
+    stmt = select(Character).options(selectinload(Character.franchise)).where(
+        func.lower(Character.name) == name.lower()
+    )
+    if franchise_id is not None:
+        stmt = stmt.where(Character.franchise_id == franchise_id)
+    else:
+        stmt = stmt.where(Character.franchise_id.is_(None))
+    result = await db.execute(stmt)
+    return result.scalars().first()
+
+async def get_character_by_name_and_franchise_name(db: AsyncSession, name: str, franchise_name: Optional[str] = None) -> Optional[Character]:
+    stmt = select(Character).options(selectinload(Character.franchise))
+    if franchise_name:
+        from app.models.franchise import Franchise
+        stmt = stmt.join(Character.franchise).where(
+            func.lower(Character.name) == name.lower(),
+            func.lower(Franchise.name) == franchise_name.lower()
+        )
+    else:
+        stmt = stmt.where(
+            func.lower(Character.name) == name.lower(),
+            Character.franchise_id.is_(None)
+        )
+    result = await db.execute(stmt)
+    return result.scalars().first()
+
 async def get_characters_by_names(db: AsyncSession, names: list[str]) -> Sequence[Character]:
     characters = []
     for name in names:
@@ -83,38 +110,41 @@ async def get_characters_by_names(db: AsyncSession, names: list[str]) -> Sequenc
 
 async def get_or_create_character(db: AsyncSession, name: str) -> Character:
     # Basic Title Case processing
-    name = name.strip().title()
+    name = name.strip()
     
-    # Check if character already exists
-    existing = await get_character_by_name(db, name)
-    if existing:
-        return existing
-
     import re
     match = re.match(r"^(.*?)\s*\((.*?)\)$", name)
     if match:
-        base_name = match.group(1).strip()
-        franchise_name = match.group(2).strip()
+        base_name = match.group(1).strip().title()
+        franchise_name = match.group(2).strip().title()
         
-        # Check if character with base name already exists
-        existing = await get_character_by_name(db, base_name)
+        # 1. Check if character with base name and franchise name already exists
+        existing = await get_character_by_name_and_franchise_name(db, base_name, franchise_name)
         if existing:
-            # If the existing character doesn't have a franchise associated, link it
-            if not existing.franchise_id:
-                from app.crud.franchise import get_or_create_franchise
-                franchise = await get_or_create_franchise(db, franchise_name)
-                existing.franchise = franchise
-                db.add(existing)
-                await db.flush()
             return existing
+            
+        # 2. Check if a franchise-less character with the same name exists, and upgrade it if so
+        existing_no_franchise = await get_character_by_name_and_franchise_id(db, base_name, None)
+        if existing_no_franchise:
+            from app.crud.franchise import get_or_create_franchise
+            franchise = await get_or_create_franchise(db, franchise_name)
+            existing_no_franchise.franchise = franchise
+            db.add(existing_no_franchise)
+            await db.flush()
+            return existing_no_franchise
             
         # Create new character with the base name and associated franchise
         from app.crud.franchise import get_or_create_franchise
         franchise = await get_or_create_franchise(db, franchise_name)
         db_character = Character(name=base_name, franchise=franchise)
     else:
-        # Create new character with no franchise by default
-        db_character = Character(name=name)
+        # Check if character with name and no franchise already exists
+        base_name = name.title()
+        existing = await get_character_by_name_and_franchise_id(db, base_name, None)
+        if existing:
+            return existing
+            
+        db_character = Character(name=base_name)
         
     db.add(db_character)
     try:
@@ -123,8 +153,13 @@ async def get_or_create_character(db: AsyncSession, name: str) -> Character:
         await db.flush()
     except IntegrityError:
         await db.rollback()
-        check_name = base_name if match else name
-        existing = await get_character_by_name(db, check_name)
+        # Fallback check
+        check_name = base_name
+        check_franchise = franchise_name if match else None
+        if match:
+            existing = await get_character_by_name_and_franchise_name(db, check_name, check_franchise)
+        else:
+            existing = await get_character_by_name_and_franchise_id(db, check_name, None)
         if existing:
             return existing
         raise

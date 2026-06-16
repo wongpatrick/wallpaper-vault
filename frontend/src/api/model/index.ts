@@ -17,6 +17,7 @@ export * from './auditIssuePage';
 export * from './auditIssueSetId';
 export * from './auditIssueSetTitle';
 export * from './auditStartRequest';
+export * from './autoTagResponse';
 export * from './batchImportItem';
 export * from './batchImportItemError';
 export * from './batchImportRequest';
