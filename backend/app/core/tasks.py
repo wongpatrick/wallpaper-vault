@@ -42,8 +42,9 @@ class TaskBroadcaster:
 
 broadcaster = TaskBroadcaster()
 
-async def create_task(db_session: AsyncSession, status: str = TaskStatus.ACCEPTED) -> str:
-    task_id = str(uuid.uuid4())
+async def create_task(db_session: AsyncSession, status: str = TaskStatus.ACCEPTED, prefix: Optional[str] = None) -> str:
+    raw_id = str(uuid.uuid4())
+    task_id = f"{prefix}-{raw_id}" if prefix else raw_id
     new_task = Task(id=task_id, status=status)
     db_session.add(new_task)
     await db_session.commit()

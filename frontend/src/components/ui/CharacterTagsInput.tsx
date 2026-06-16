@@ -13,11 +13,13 @@ export function CharacterTagsInput(props: CharacterTagsInputProps) {
 
     const data = useMemo(() => {
         if (!characters) return [];
-        return characters.map(c => c.name);
+        const mapped = characters.map(c => c.franchise ? `${c.name} (${c.franchise.name})` : c.name);
+        return Array.from(new Set(mapped));
     }, [characters]);
 
     return (
         <TagsInput
+            description="Use 'Name (Franchise)' to link a franchise, e.g., Kurumi (Date A Live)"
             {...props}
             data={data}
             clearable

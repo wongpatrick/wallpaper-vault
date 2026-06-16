@@ -3,13 +3,13 @@
  * Module: Set Detail Page
  * Description: Displays detailed information and a gallery view for a specific wallpaper set, supporting selection, bulk editing, and syncing.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelection } from '../../hooks/useSelection';
 import { 
     Title, Text, Container, Group, Badge, Loader, 
     Center, Alert, Stack, ActionIcon, Menu, Button, Modal,
-    TextInput, Textarea, MultiSelect, Box, Switch, LoadingOverlay
+    TextInput, Textarea, MultiSelect, Box, Switch
 } from '@mantine/core';
 import { 
     IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
@@ -21,10 +21,9 @@ import {
     useDeleteSetApiSetsSetIdDelete,
     useUpdateSetApiSetsSetIdPatch,
     useResyncSetApiSetsSetIdResyncPost,
-    useAutoTagSetApiSetsSetIdAutoTagPost,
-    getReadSetApiSetsSetIdGetQueryKey
+    useAutoTagSetApiSetsSetIdAutoTagPost
 } from '../../api/generated/sets/sets';
-import { useQueryClient } from '@tanstack/react-query';
+
 import { useBulkUpdateImagesApiImagesBulkUpdatePost } from '../../api/generated/images/images';
 import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
 import { notifications } from '@mantine/notifications';
@@ -37,12 +36,13 @@ import { ImageMoveModal } from '../../components/images/ImageMoveModal';
 import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
 import { CharacterTagsInput } from '../../components/ui/CharacterTagsInput';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
+import { useTasks } from '../../hooks/useTasks';
 import type { Image as ImageModel, BulkOperationMode } from '../../api/model';
 
 export default function SetDetail() {
     const { setId } = useParams<{ setId: string }>();
     const navigate = useNavigate();
-    const queryClient = useQueryClient();
+
     
     // 1. All hooks at the top
     const { data: set, isLoading, error, refetch } = useReadSetApiSetsSetIdGet(Number(setId));
@@ -57,6 +57,15 @@ export default function SetDetail() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [enablePathEdit, setEnablePathEdit] = useState(false);
     const [editingImage, setEditingImage] = useState<ImageModel | null>(null);
+
+    const { getTaskForSet, tasks } = useTasks();
+    const activeTask = getTaskForSet(Number(setId));
+    const isLocalTaggingActive = activeTask?.status === 'accepted' || activeTask?.status === 'processing';
+    const isAnyTaggingActive = useMemo(() => {
+        return Object.values(tasks).some(
+            (t) => t.id.startsWith('autotag-') && (t.status === 'accepted' || t.status === 'processing')
+        );
+    }, [tasks]);
 
     // Selection State
     const { selectionMode, setSelectionMode, selectedIds: selectedImageIds, toggle: toggleImageSelect, selectAll, clear: clearSelection } = useSelection();
@@ -82,10 +91,31 @@ export default function SetDetail() {
             source_url: set.source_url || '',
             local_path: set.local_path || '',
             creator_ids: set.creators?.map(c => String(c.id)) || [],
-            tags: set.tags || [],
-            characters: set.characters || []
+            tags: Array.from(new Set(set.tags || [])),
+            characters: Array.from(new Set(set.characters || []))
         });
     }
+
+    const taskStatus = activeTask?.status;
+
+    // Trigger metadata sync and refetch when the auto-tagging task finishes successfully
+    useEffect(() => {
+        if (taskStatus === 'completed') {
+            refetch().then((result) => {
+                if (result.data) {
+                    setEditForm({
+                        title: result.data.title || '',
+                        notes: result.data.notes || '',
+                        source_url: result.data.source_url || '',
+                        local_path: result.data.local_path || '',
+                        creator_ids: result.data.creators?.map(c => String(c.id)) || [],
+                        tags: Array.from(new Set(result.data.tags || [])),
+                        characters: Array.from(new Set(result.data.characters || []))
+                    });
+                }
+            });
+        }
+    }, [taskStatus, refetch]);
 
     const creatorOptions = useMemo(() => 
         creatorsData?.items?.map(c => ({ value: String(c.id), label: c.canonical_name })) || [], 
@@ -188,53 +218,18 @@ export default function SetDetail() {
 
     const handleAutoTag = async () => {
         try {
-            const updatedSet = await autoTagMutation.mutateAsync({ setId: Number(setId) });
-            notifications.show({
-                title: 'AI Auto-Tagging Complete',
-                message: 'Successfully generated tags and characters for this set.',
-                color: 'green',
-            });
-            
-            // 1. Manually update the query cache so that the UI updates immediately.
-            queryClient.setQueryData(getReadSetApiSetsSetIdGetQueryKey(Number(setId)), updatedSet);
-            
-            // 2. Keep the edit form state in sync.
-            setEditForm({
-                title: updatedSet.title || '',
-                notes: updatedSet.notes || '',
-                source_url: updatedSet.source_url || '',
-                local_path: updatedSet.local_path || '',
-                creator_ids: updatedSet.creators?.map(c => String(c.id)) || [],
-                tags: updatedSet.tags || [],
-                characters: updatedSet.characters || []
-            });
-
-            // 3. Invalidate related queries so autocomplete and list queries fetch fresh data.
-            queryClient.invalidateQueries({
-                predicate: (query) => {
-                    const key = query.queryKey[0];
-                    if (typeof key === 'string') {
-                        return key.startsWith('/api/sets') || 
-                               key.startsWith('/api/tags') || 
-                               key.startsWith('/api/characters') || 
-                               key.startsWith('/api/images') ||
-                               key === 'sets' ||
-                               key === 'tags' ||
-                               key === 'characters' ||
-                               key === 'images';
-                    }
-                    return false;
-                }
-            });
+            await autoTagMutation.mutateAsync({ setId: Number(setId) });
         } catch (err) {
-            console.error('AI Auto-tagging failed:', err);
+            console.error('Auto tagging failed:', err);
             notifications.show({
-                title: 'Auto-Tagging Failed',
-                message: 'An error occurred during AI auto-tagging.',
+                title: 'Error',
+                message: 'Failed to start AI auto-tagging.',
                 color: 'red',
             });
         }
     };
+
+
 
     const handleSelectAll = () => {
         if (!set?.images) return;
@@ -277,7 +272,6 @@ export default function SetDetail() {
 
     return (
         <Container fluid px="xl" pb={selectionMode ? 100 : "xl"} pos="relative">
-            <LoadingOverlay visible={autoTagMutation.isPending} overlayProps={{ blur: 2 }} />
             {/* Header Navigation */}
             <Group justify="space-between" mb="lg">
                 <Button 
@@ -312,21 +306,90 @@ export default function SetDetail() {
             </Group>
 
             {/* Hero Section */}
-            <Group justify="space-between" align="flex-start" mb="xl">
-                <Stack gap={4}>
+            <Stack gap="md" mb="xl">
+                {/* Title & Actions Row */}
+                <Group justify="space-between" align="center">
                     <Title order={1}>{set.title || 'Untitled Set'}</Title>
-                    <Group gap="xs">
-                        <Text size="lg" c="dimmed">{creatorNames}</Text>
-                        <Text c="dimmed" size="lg">•</Text>
-                        <Badge size="lg" variant="dot">{set.images?.length || 0} Images</Badge>
-                        <Badge size="lg" variant="outline" color="gray">{set.date_added}</Badge>
+                    <Group>
+                        <Button 
+                            leftSection={<IconRefresh size={18} />} 
+                            variant="light"
+                            color="blue"
+                            onClick={handleResync}
+                            loading={resyncMutation.isPending}
+                            disabled={autoTagMutation.isPending || isLocalTaggingActive}
+                        >
+                            Resync Folder
+                        </Button>
+                        <Button 
+                            leftSection={<IconFolder size={18} />} 
+                            variant="light"
+                            onClick={handleOpenFolder}
+                        >
+                            Open Folder
+                        </Button>
+                        <Button 
+                            leftSection={<IconSettings size={18} />} 
+                            variant="outline"
+                            onClick={() => setIsEditModalOpen(true)}
+                            disabled={autoTagMutation.isPending || isLocalTaggingActive}
+                        >
+                            Edit Set Details
+                        </Button>
+                        <Menu shadow="md" width={200} position="bottom-end">
+                            <Menu.Target>
+                                <ActionIcon variant="outline" size="lg" radius="md">
+                                    <IconDotsVertical size={18} />
+                                </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                <Menu.Label>Management</Menu.Label>
+                                <Menu.Item 
+                                    leftSection={<IconSparkles size={14} />} 
+                                    onClick={handleAutoTag}
+                                    disabled={autoTagMutation.isPending || isAnyTaggingActive}
+                                >
+                                    Run AI Auto-Tagging
+                                </Menu.Item>
+                                {set.source_url && (
+                                    <Menu.Item 
+                                        component="a" 
+                                        href={set.source_url} 
+                                        target="_blank" 
+                                        leftSection={<IconExternalLink size={14} />}
+                                    >
+                                        Source URL
+                                    </Menu.Item>
+                                )}
+                                 <Menu.Item 
+                                    leftSection={<IconTrash size={14} />} 
+                                    color="red" 
+                                    onClick={handleDelete}
+                                    disabled={autoTagMutation.isPending || isLocalTaggingActive}
+                                >
+                                    Delete Set
+                                </Menu.Item>
+                            </Menu.Dropdown>
+                        </Menu>
                     </Group>
-                    {set.notes && (
-                        <Text mt="md" fs="italic" c="dimmed" style={{ maxWidth: 800 }}>"{set.notes}"</Text>
-                    )}
-                    
-                    {/* Metadata Badges */}
-                    <Group gap="xs" mt="sm">
+                </Group>
+
+                {/* Subtitle Details */}
+                <Group gap="xs">
+                    <Text size="lg" c="dimmed">{creatorNames}</Text>
+                    <Text c="dimmed" size="lg">•</Text>
+                    <Badge size="lg" variant="dot">{set.images?.length || 0} Images</Badge>
+                    <Badge size="lg" variant="outline" color="gray">{set.date_added}</Badge>
+                </Group>
+
+                {/* Notes */}
+                {set.notes && (
+                    <Text fs="italic" c="dimmed" style={{ maxWidth: 800 }}>"{set.notes}"</Text>
+                )}
+                
+                {/* Metadata Badges */}
+                {((set.tags && set.tags.length > 0) || (set.characters && set.characters.length > 0)) && (
+                    <Group gap="xs" mt="xs">
                         {set.tags && set.tags.map(tag => (
                             <Badge key={tag} variant="light" color="gray" leftSection={<IconTag size={12} />}>
                                 {tag}
@@ -338,63 +401,8 @@ export default function SetDetail() {
                             </Badge>
                         ))}
                     </Group>
-                </Stack>
-
-                <Group>
-                    <Button 
-                        leftSection={<IconRefresh size={18} />} 
-                        variant="light"
-                        color="blue"
-                        onClick={handleResync}
-                        loading={resyncMutation.isPending}
-                    >
-                        Resync Folder
-                    </Button>
-                    <Button 
-                        leftSection={<IconFolder size={18} />} 
-                        variant="light"
-                        onClick={handleOpenFolder}
-                    >
-                        Open Folder
-                    </Button>
-                    <Button 
-                        leftSection={<IconSettings size={18} />} 
-                        variant="outline"
-                        onClick={() => setIsEditModalOpen(true)}
-                    >
-                        Edit Set Details
-                    </Button>
-                    <Menu shadow="md" width={200} position="bottom-end">
-                        <Menu.Target>
-                            <ActionIcon variant="outline" size="lg" radius="md">
-                                <IconDotsVertical size={18} />
-                            </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Label>Management</Menu.Label>
-                            <Menu.Item 
-                                leftSection={<IconSparkles size={14} />} 
-                                onClick={handleAutoTag}
-                            >
-                                Run AI Auto-Tagging
-                            </Menu.Item>
-                            {set.source_url && (
-                                <Menu.Item 
-                                    component="a" 
-                                    href={set.source_url} 
-                                    target="_blank" 
-                                    leftSection={<IconExternalLink size={14} />}
-                                >
-                                    Source URL
-                                </Menu.Item>
-                            )}
-                            <Menu.Item leftSection={<IconTrash size={14} />} color="red" onClick={handleDelete}>
-                                Delete Set
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
-                </Group>
-            </Group>
+                )}
+            </Stack>
 
             {/* Image Gallery (Masonry Layout) */}
             <Box style={{ 
@@ -427,6 +435,7 @@ export default function SetDetail() {
                     leftSection={<IconArrowRight size={14} />}
                     radius="xl"
                     onClick={() => setIsMoveModalOpen(true)}
+                    disabled={autoTagMutation.isPending || isLocalTaggingActive}
                 >
                     Move to Set
                 </Button>
@@ -436,6 +445,7 @@ export default function SetDetail() {
                     leftSection={<IconPhotoEdit size={14} />}
                     radius="xl"
                     onClick={() => setIsBulkEditOpen(true)}
+                    disabled={autoTagMutation.isPending || isLocalTaggingActive}
                 >
                     Bulk Edit
                 </Button>
@@ -449,6 +459,7 @@ export default function SetDetail() {
                 onSelectIndex={setSelectedImageIndex}
                 onEdit={(img) => setEditingImage(img)}
                 onDelete={() => refetch()}
+                disableActions={autoTagMutation.isPending || isLocalTaggingActive}
             />
 
             {/* Set Edit Modal */}

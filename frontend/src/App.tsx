@@ -3,7 +3,6 @@
  * Main application component.
  * Sets up the router, theme, global state, and background task listeners.
  */
-import { useEffect, useState } from 'react'
 import { createHashRouter, RouterProvider } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'
 import Dashboard from './pages/dashboard/dashboard'
@@ -20,9 +19,7 @@ import { Notifications } from '@mantine/notifications'
 import { ModalsProvider } from '@mantine/modals'
 import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query'
 import { NotificationProvider } from './context/NotificationProvider'
-import { useNotificationHistory } from './hooks/useNotificationHistory'
-import { TaskStatus } from './types/enums'
-import { API_BASE_URL } from './config'
+import { TaskProvider } from './context/TaskProvider'
 
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
@@ -111,73 +108,6 @@ const router = createHashRouter([
   },
 ]);
 
-function GlobalTasks() {
-  const [isTaskRunning, setIsTaskRunning] = useState(false);
-  const { showNotification } = useNotificationHistory();
-
-  useEffect(() => {
-    // Note: In a real production app, this URL should be configurable
-    const eventSource = new EventSource(`${API_BASE_URL}/api/sets/events`);
-
-    eventSource.onmessage = (event) => {
-      try {
-        const tasks: Record<string, {
-            status: string;
-            progress: number;
-            total: number;
-            error_message?: string;
-        }> = JSON.parse(event.data);
-        const taskList = Object.values(tasks);
-        
-        const hasActive = taskList.some(t => t.status === TaskStatus.PROCESSING || t.status === TaskStatus.ACCEPTED);
-        setIsTaskRunning(hasActive);
-
-        Object.entries(tasks).forEach(([tid, tinfo]) => {
-          if (tinfo.status === TaskStatus.COMPLETED) {
-            showNotification({
-              id: tid, // Use tid to prevent duplicate notifications for the same task
-              title: 'Batch Import Complete',
-              message: 'Your background import task has finished successfully.',
-              color: 'green',
-              autoClose: 5000,
-              status: TaskStatus.COMPLETED,
-            });
-          } else if (tinfo.status === TaskStatus.ERROR) {
-            showNotification({
-              id: tid,
-              title: 'Batch Import Failed',
-              message: 'An error occurred during the background import process.',
-              color: 'red',
-              autoClose: false,
-              status: TaskStatus.ERROR,
-            });
-          }
-        });
-      } catch (err) {
-        console.error('Error parsing SSE data:', err);
-      }
-    };
-
-    return () => {
-      eventSource.close();
-    };
-  }, [showNotification]);
-
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isTaskRunning) {
-        e.preventDefault();
-        e.returnValue = 'A batch import is currently running. Closing the app will interrupt the process.';
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isTaskRunning]);
-
-  return null;
-}
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -185,8 +115,9 @@ function App() {
         <ModalsProvider>
           <NotificationProvider>
             <Notifications position="top-right" />
-            <GlobalTasks />
-            <RouterProvider router={router} />
+            <TaskProvider>
+              <RouterProvider router={router} />
+            </TaskProvider>
           </NotificationProvider>
         </ModalsProvider>
       </MantineProvider>

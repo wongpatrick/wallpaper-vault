@@ -31,7 +31,17 @@ class SetBase(BaseModel):
     def extract_character_names(cls, v):
         if not v:
             return []
-        return [char.name if hasattr(char, 'name') else str(char) for char in v]
+        res = []
+        for char in v:
+            if hasattr(char, 'name'):
+                if char.franchise:
+                    res.append(f"{char.name} ({char.franchise.name})")
+                else:
+                    res.append(char.name)
+            else:
+                res.append(str(char))
+        # Deduplicate while preserving order
+        return list(dict.fromkeys(res))
 
 class SetCreate(SetBase):
     creator_ids: list[int] = Field([], description="List of creator IDs to associate with this set.")
@@ -100,3 +110,7 @@ class SetBulkUpdate(BaseModel):
 class SetMerge(BaseModel):
     source_ids: list[int] = Field(..., description="List of set IDs to merge. These sets will be deleted.")
     target_id: int = Field(..., description="The ID of the set that will receive all images from the source sets.")
+
+class AutoTagResponse(BaseModel):
+    task_id: str = Field(..., description="Unique UUID for the background auto-tagging task.")
+    status: str = Field(..., description="Current status of the task.")

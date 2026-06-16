@@ -979,7 +979,7 @@
           "sets"
         ],
         "summary": "Auto Tag Set",
-        "description": "Manually run AI auto-tagging on an existing Set.",
+        "description": "Manually run AI auto-tagging on an existing Set in the background.",
         "operationId": "auto_tag_set_api_sets__set_id__auto_tag_post",
         "parameters": [
           {
@@ -998,7 +998,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Set"
+                  "$ref": "#/components/schemas/AutoTagResponse"
                 }
               }
             }
@@ -3414,6 +3414,26 @@
         },
         "type": "object",
         "title": "AuditStartRequest"
+      },
+      "AutoTagResponse": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id",
+            "description": "Unique UUID for the background auto-tagging task."
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Current status of the task."
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "status"
+        ],
+        "title": "AutoTagResponse"
       },
       "BatchImportItem": {
         "properties": {

@@ -10,14 +10,25 @@ import classes from './Layout.module.css';
 import { useSidebarResizer } from "../../hooks/useSidebarResizer";
 import { IconPackage, IconBell, IconCheck, IconX } from "@tabler/icons-react";
 import { useNotificationHistory } from "../../hooks/useNotificationHistory";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useDisclosure } from "@mantine/hooks";
+import { useTasks } from "../../hooks/useTasks";
+import { ActionLoadingOverlay } from "../ui/ActionLoadingOverlay";
+
 
 export default function MainLayout() {
     const { width, isResizing, startResizing, isCollapsed } = useSidebarResizer();
     const { history, unreadCount, markAllAsRead, clearHistory } = useNotificationHistory();
     const [opened, setOpened] = useState(false);
     const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
+    const { tasks } = useTasks();
+
+    const activeAutoTagTask = useMemo(() => {
+        return Object.values(tasks).find(
+            (t) => t.id.startsWith('autotag-') && (t.status === 'accepted' || t.status === 'processing')
+        );
+    }, [tasks]);
+
 
     return (
         <AppShell
@@ -136,6 +147,17 @@ export default function MainLayout() {
 
             <AppShell.Main className={classes.main}>
                 <Outlet />
+                <ActionLoadingOverlay 
+                    visible={!!activeAutoTagTask} 
+                    title="Auto-tagging Set" 
+                    message={
+                        activeAutoTagTask?.status === 'processing' 
+                            ? 'Auto-tagging set...' 
+                            : 'Starting auto-tagging...'
+                    } 
+                    progress={activeAutoTagTask?.progress}
+                    total={activeAutoTagTask?.total}
+                />
             </AppShell.Main>
         </AppShell>
     )

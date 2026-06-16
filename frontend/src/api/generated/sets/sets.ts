@@ -24,6 +24,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AutoTagResponse,
   BatchImportRequest,
   BatchImportResponse,
   HTTPValidationError,
@@ -904,7 +905,7 @@ export const useResyncSetApiSetsSetIdResyncPost = <TError = ErrorType<HTTPValida
       return useMutation(mutationOptions, queryClient);
     }
     /**
- * Manually run AI auto-tagging on an existing Set.
+ * Manually run AI auto-tagging on an existing Set in the background.
  * @summary Auto Tag Set
  */
 export const autoTagSetApiSetsSetIdAutoTagPost = (
@@ -913,7 +914,7 @@ export const autoTagSetApiSetsSetIdAutoTagPost = (
 ) => {
       
       
-      return customInstance<Set>(
+      return customInstance<AutoTagResponse>(
       {url: `/api/sets/${setId}/auto-tag`, method: 'POST', signal
     },
       options);

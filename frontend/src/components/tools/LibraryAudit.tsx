@@ -22,7 +22,6 @@ import {
     ScrollArea
 } from '@mantine/core';
 import { 
-    IconCheck, 
     IconTrash, 
     IconRefresh, 
     IconSearch,
@@ -35,48 +34,38 @@ import { notifications } from '@mantine/notifications';
 import { 
     useStartAuditApiAuditStartPost,
     useGetAuditResultsApiAuditResultsGet,
-    useResolveAuditIssuesApiAuditResolvePost,
-    useGetCurrentAuditApiAuditCurrentGet
+    useResolveAuditIssuesApiAuditResolvePost
 } from '../../api/generated/audit/audit';
 import type { AuditIssue } from '../../api/model';
-import { API_BASE_URL } from '../../config';
+import { useTasks } from '../../hooks/useTasks';
 import { PaginationWithSkip } from '../ui/PaginationWithSkip';
 
 const ITEM_HEIGHT_PX = 35;
 const MAX_SCROLL_HEIGHT_PX = 150;
 
 export function LibraryAudit() {
-    const [taskId, setTaskId] = useState<string | null>(null);
-    const [progress, setProgress] = useState(0);
-    const [status, setStatus] = useState<string | null>(null);
+    const { tasks } = useTasks();
+    const auditTask = Object.values(tasks).find(
+        (t) => t.id.startsWith('audit-') && (t.status === 'accepted' || t.status === 'processing')
+    );
+    const isScanning = !!auditTask;
+    const progress = auditTask?.progress || 0;
+    const status = auditTask?.status === 'processing' 
+        ? 'Scanning...' 
+        : auditTask?.status === 'accepted' 
+        ? 'Starting scan...' 
+        : 'Processing...';
+
     const [page, setPage] = useState(1);
     const [issueType, setIssueType] = useState<string | null>(null);
 
     const startMutation = useStartAuditApiAuditStartPost();
     const resolveMutation = useResolveAuditIssuesApiAuditResolvePost();
-    const { data: currentAudit } = useGetCurrentAuditApiAuditCurrentGet({
-        query: {
-            staleTime: 0,
-            refetchOnWindowFocus: true
-        }
-    });
-
     const { data: results, refetch, isFetching } = useGetAuditResultsApiAuditResultsGet({
         skip: (page - 1) * 20,
         limit: 20,
         issue_type: issueType || undefined
     });
-
-    // Check for running audit
-    const [prevCurrentAuditId, setPrevCurrentAuditId] = useState<string | null>(null);
-    const current = currentAudit as { task_id?: string; progress?: number; status?: string } | undefined;
-    
-    if (current?.task_id && current.task_id !== prevCurrentAuditId && !taskId) {
-        setPrevCurrentAuditId(current.task_id);
-        setTaskId(current.task_id);
-        setProgress(current.progress || 0);
-        setStatus("Resuming scan...");
-    }
 
     // Derive groups for Orphans
     const groupedOrphans = results?.items?.reduce((acc, issue) => {
@@ -99,48 +88,20 @@ export function LibraryAudit() {
 
     const handleStart = async () => {
         try {
-            const res = await startMutation.mutateAsync({ data: { deep_scan: false } });
-            setTaskId(res.task_id);
-            setProgress(0);
-            setStatus("Starting scan...");
+            await startMutation.mutateAsync({ data: { deep_scan: false } });
         } catch {
             notifications.show({ title: 'Error', message: 'Failed to start audit.', color: 'red' });
         }
     };
 
-    // SSE Listener for Task Progress
+    const taskStatus = auditTask?.status;
+
+    // Refetch the integrity audit results when a scan completes successfully
     useEffect(() => {
-        if (!taskId) return;
-
-        const eventSource = new EventSource(`${API_BASE_URL}/api/sets/events`);
-        
-        eventSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data[taskId]) {
-                const task = data[taskId];
-                setProgress(task.progress || 0);
-                setStatus(task.status || "Processing...");
-                
-                if (task.status === 'completed') {
-                    setTaskId(null);
-                    refetch();
-                    notifications.show({ 
-                        title: 'Audit Complete', 
-                        message: 'Library scan finished successfully.', 
-                        color: 'green',
-                        icon: <IconCheck size={16} />
-                    });
-                    eventSource.close();
-                } else if (task.status === 'error') {
-                    setTaskId(null);
-                    notifications.show({ title: 'Error', message: task.error_message || 'Scan failed', color: 'red' });
-                    eventSource.close();
-                }
-            }
-        };
-
-        return () => eventSource.close();
-    }, [taskId, refetch]);
+        if (taskStatus === 'completed') {
+            refetch();
+        }
+    }, [taskStatus, refetch]);
 
     const handleResolve = async (ids: number[], action: string) => {
         try {
@@ -166,7 +127,7 @@ export function LibraryAudit() {
                         Find and fix broken database records (Ghosts) and untracked filesystem images (Orphans).
                     </Text>
                 </div>
-                {!taskId ? (
+                {!isScanning ? (
                     <Button 
                         leftSection={<IconSearch size={16} />} 
                         onClick={handleStart}
@@ -179,7 +140,7 @@ export function LibraryAudit() {
                 )}
             </Group>
 
-            {taskId && (
+            {isScanning && (
                 <Paper withBorder p="md" radius="md">
                     <Stack gap="xs">
                         <Group justify="space-between">

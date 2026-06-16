@@ -13,7 +13,7 @@ export function FranchiseAutocompleteInput(props: FranchiseAutocompleteInputProp
 
     const data = useMemo(() => {
         if (!franchises) return [];
-        return franchises.map(f => f.name);
+        return Array.from(new Set(franchises.map(f => f.name)));
     }, [franchises]);
 
     return (

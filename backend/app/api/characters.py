@@ -24,12 +24,16 @@ async def create_character(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new character."""
-    # Ensure name is unique
-    existing = await crud_character.get_character_by_name(db, character.name.strip().title())
+    # Ensure character name is unique within its franchise
+    existing = await crud_character.get_character_by_name_and_franchise_id(
+        db, 
+        character.name.strip().title(), 
+        character.franchise_id
+    )
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Character already exists."
+            detail="Character already exists under this franchise."
         )
     return await crud_character.create_character(db, character)
 
