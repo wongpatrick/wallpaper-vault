@@ -12,9 +12,10 @@ interface ActionLoadingOverlayProps {
     message?: string;
     progress?: number;
     total?: number;
+    bottomOffset?: number;
 }
 
-export function ActionLoadingOverlay({ visible, title, message, progress, total }: ActionLoadingOverlayProps) {
+export function ActionLoadingOverlay({ visible, title, message, progress, total, bottomOffset = 0 }: ActionLoadingOverlayProps) {
     const showProgress = total !== undefined && total > 0;
     const progressPercent = showProgress ? Math.round(((progress || 0) / total) * 100) : 0;
 
@@ -29,7 +30,7 @@ export function ActionLoadingOverlay({ visible, title, message, progress, total 
                     style={{
                         ...styles,
                         position: 'fixed',
-                        bottom: 24,
+                        bottom: 24 + bottomOffset,
                         right: 24,
                         zIndex: 1000,
                         maxWidth: 360,

@@ -86,3 +86,36 @@ class ImagePage(BaseModel):
 class ImageBulkMove(BaseModel):
     image_ids: List[int] = Field(..., description="List of image IDs to move.")
     target_set_id: int = Field(..., description="The ID of the destination set.")
+
+class ImageValidationItem(BaseModel):
+    local_path: str
+    filename: str
+    is_valid: bool
+    error: Optional[str] = None
+    phash: Optional[str] = None
+    is_duplicate: bool
+    existing_image_id: Optional[int] = None
+    existing_set_title: Optional[str] = None
+    existing_creator_names: list[str] = Field(default_factory=list)
+
+class ImageImportValidationRequest(BaseModel):
+    local_paths: list[str] = Field(..., description="List of local absolute file paths (files or folders) to validate.")
+
+class ImageImportValidationResponse(BaseModel):
+    items: list[ImageValidationItem]
+
+class ImageImportItem(BaseModel):
+    local_path: str
+    filename: Optional[str] = None
+    rating: Optional[str] = None
+    tags: Optional[list[str]] = None
+
+class ImageImportRequest(BaseModel):
+    items: list[ImageImportItem] = Field(..., description="List of items to import.")
+    creator_name: Optional[str] = Field(None, description="Global creator/artist to assign by default.")
+    set_title: Optional[str] = Field(None, description="Global set name/title to assign by default.")
+    set_id: Optional[int] = Field(None, description="Global set ID to import into, if assigning to an existing set.")
+    tags: Optional[list[str]] = Field(None, description="Global tags to assign to all imported files.")
+    rating: Optional[str] = Field("questionable", description="Global content rating.")
+    delete_source: bool = Field(False, description="Whether to delete source files after successful import.")
+

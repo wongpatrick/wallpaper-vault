@@ -41,7 +41,10 @@ export function BatchImporter() {
             const entry = item.webkitGetAsEntry();
             if (entry && entry.isDirectory) {
                 const file = item.getAsFile();
-                const absolutePath = (file as { path?: string } | null)?.path || '';
+                // Retrieve native path in Electron using the secure webUtils.getPathForFile API exposed in the preload script
+                const absolutePath = file && window.electron?.getPathForFile 
+                    ? window.electron.getPathForFile(file) 
+                    : '';
                 if (absolutePath) paths.push(absolutePath);
             }
         }

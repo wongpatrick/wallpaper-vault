@@ -117,8 +117,10 @@ export function FolderParser() {
             const entry = item.webkitGetAsEntry();
             if (entry) {
                 const file = item.getAsFile();
-                // We access the non-standard .path property provided by Electron on File objects
-                const absolutePath = (file as File & { path?: string })?.path || '';
+                // Retrieve native path in Electron using the secure webUtils.getPathForFile API exposed in the preload script
+                const absolutePath = file && window.electron?.getPathForFile 
+                    ? window.electron.getPathForFile(file) 
+                    : '';
                 
                 let setPath = absolutePath;
                 if (entry.isFile && absolutePath) {

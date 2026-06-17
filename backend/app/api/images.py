@@ -3,19 +3,26 @@ API endpoints for fetching, updating, and managing images and their duplicates.
 """
 from typing import Any
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.crud import image as crud_image
-from app.services import image_service
-from app.schemas.image import Image, ImageUpdate, ImageCreate, ImageBulkUpdate, ImageBulkMove, DuplicateGroup, DuplicateResolutionRequest, ImageWithContext, ImagePage, ImageDetail
+from app.services import image_service, import_service
+from app.schemas.image import (
+    Image, ImageUpdate, ImageCreate, ImageBulkUpdate, ImageBulkMove,
+    DuplicateGroup, DuplicateResolutionRequest, ImageWithContext, ImagePage, ImageDetail,
+    ImageImportValidationRequest, ImageImportValidationResponse, ImageImportRequest
+)
 from app.models.image import Image as ImageModel
 from app.core.exceptions import AppError
+from app.core import tasks
 from pathlib import Path
 import subprocess
 import structlog
 import sys
+import uuid
+import shutil
 
 logger = structlog.get_logger(__name__)
 
@@ -386,3 +393,77 @@ async def create_image_for_set(
         return map_image_to_schema(db_image)
     except AppError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+
+@router.post("/import/validate", response_model=ImageImportValidationResponse)
+async def validate_import_paths(
+    req: ImageImportValidationRequest,
+    db: AsyncSession = Depends(get_db)
+) -> ImageImportValidationResponse:
+    """Validate a list of local paths (files or folders) and detect duplicate images."""
+    try:
+        return await import_service.validate_local_paths(db, req.local_paths)
+    except Exception as e:
+        logger.exception("Error during local path validation")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/import/validate-files", response_model=ImageImportValidationResponse)
+async def validate_import_uploaded_files(
+    files: list[UploadFile] = File(...),
+    db: AsyncSession = Depends(get_db)
+) -> ImageImportValidationResponse:
+    """Accepts uploaded files, saves them to a temporary directory, and validates them for import."""
+    temp_dir = Path("../backend/temp_imports") / str(uuid.uuid4())
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    
+    local_paths = []
+    for file in files:
+        temp_file_path = temp_dir / file.filename
+        try:
+            with open(temp_file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            local_paths.append(str(temp_file_path.resolve()))
+        finally:
+            file.file.close()
+            
+    try:
+        return await import_service.validate_local_paths(db, local_paths)
+    except Exception as e:
+        logger.exception("Error during uploaded file validation")
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/import/scan-paths", response_model=list[str])
+async def scan_import_paths(
+    req: ImageImportValidationRequest,
+) -> list[str]:
+    """Recursively scans local paths and returns a flat list of all image file paths found."""
+    from app.core.crop import collect_image_paths
+    
+    all_file_paths = []
+    for p_str in req.local_paths:
+        p = Path(p_str)
+        if p.is_dir():
+            collected = collect_image_paths(p_str, recursive=True)
+            all_file_paths.extend(collected)
+        else:
+            all_file_paths.append(p_str)
+    return all_file_paths
+
+
+@router.post("/import", response_model=str)
+async def import_images(
+    req: ImageImportRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+) -> str:
+    """Triggers an asynchronous background task to import images and folders into the library."""
+    task_id = await tasks.create_task(db_session=db, status="accepted", prefix="import")
+    req_dict = req.model_dump()
+    background_tasks.add_task(import_service.import_images_background_task, db, req_dict, task_id)
+    logger.info("Started images import background task", task_id=task_id)
+    return task_id
+

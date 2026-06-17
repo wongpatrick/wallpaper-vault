@@ -10,6 +10,7 @@ export interface ElectronAPI {
     openPath: (path: string) => Promise<{ success: boolean; error?: string }>;
     getLoginSettings: () => Promise<boolean>;
     setLoginSettings: (openAtLogin: boolean) => Promise<boolean>;
+    getPathForFile: (file: File) => string;
 }
 
 declare global {
