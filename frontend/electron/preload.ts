@@ -4,7 +4,7 @@
  * Exposes securely selected IPC mechanisms and desktop-native 
  * functionalities to the frontend renderer process.
  */
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 contextBridge.exposeInMainWorld('electron', {
     send: (channel: string, data: unknown) => ipcRenderer.send(channel, data),
@@ -14,4 +14,5 @@ contextBridge.exposeInMainWorld('electron', {
     openPath: (path: string) => ipcRenderer.invoke('open-path', path),
     getLoginSettings: () => ipcRenderer.invoke('get-login-item-settings'),
     setLoginSettings: (openAtLogin: boolean) => ipcRenderer.invoke('set-login-item-settings', openAtLogin),
+    getPathForFile: (file: File) => webUtils.getPathForFile(file),
 })

@@ -4,7 +4,7 @@
  * Description: Manages global background task state, listens to the Server-Sent Events (SSE) stream,
  * provides browser close protection during active tasks, triggers toast notifications, and invalidates query caches.
  */
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNotificationHistory } from '../hooks/useNotificationHistory';
 import { API_BASE_URL } from '../config';
@@ -19,6 +19,12 @@ interface TaskProviderProps {
 
 export function TaskProvider({ children }: TaskProviderProps) {
     const [tasks, setTasks] = useState<Record<string, TaskInfo>>({});
+    const tasksRef = useRef(tasks);
+    
+    useEffect(() => {
+        tasksRef.current = tasks;
+    }, [tasks]);
+
     const { showNotification } = useNotificationHistory();
     const queryClient = useQueryClient();
 
@@ -117,50 +123,62 @@ export function TaskProvider({ children }: TaskProviderProps) {
         eventSource.onmessage = (event) => {
             try {
                 const incomingTasks: Record<string, Omit<TaskInfo, 'id'>> = JSON.parse(event.data);
+                const prev = tasksRef.current;
 
-                setTasks((prev) => {
-                    const updated = { ...prev };
+                const updated = { ...prev };
+                const completedTasks: string[] = [];
+                const failedTasks: [string, Omit<TaskInfo, 'id'>][] = [];
 
-                    Object.entries(incomingTasks).forEach(([tid, tinfo]) => {
-                        const existingTask = prev[tid];
-                        const wasActive = !existingTask || 
-                            existingTask.status === TaskStatus.ACCEPTED || 
-                            existingTask.status === TaskStatus.PROCESSING;
+                Object.entries(incomingTasks).forEach(([tid, tinfo]) => {
+                    const existingTask = prev[tid];
+                    const wasActive = !existingTask || 
+                        existingTask.status === TaskStatus.ACCEPTED || 
+                        existingTask.status === TaskStatus.PROCESSING;
 
-                        // Update task in local record
-                        updated[tid] = {
-                            ...tinfo,
-                            id: tid,
-                        } as TaskInfo;
+                    // Update task in local record
+                    updated[tid] = {
+                        ...tinfo,
+                        id: tid,
+                    } as TaskInfo;
 
-                        // Trigger notifications and cache invalidations only on transition to final state
-                        if (wasActive) {
-                            if (tinfo.status === TaskStatus.COMPLETED) {
-                                handleTaskCompletion(tid);
-                                // Schedule cleanup from local tasks state after 5 seconds to keep sidebar clear
-                                setTimeout(() => {
-                                    setTasks((current) => {
-                                        const next = { ...current };
-                                        delete next[tid];
-                                        return next;
-                                    });
-                                }, CLEANUP_DELAY_MS);
-                            } else if (tinfo.status === TaskStatus.ERROR) {
-                                handleTaskFailure(tid, tinfo);
-                                // Schedule cleanup from local tasks state after 5 seconds
-                                setTimeout(() => {
-                                    setTasks((current) => {
-                                        const next = { ...current };
-                                        delete next[tid];
-                                        return next;
-                                    });
-                                }, CLEANUP_DELAY_MS);
-                            }
+                    // Trigger notifications and cache invalidations only on transition to final state
+                    if (wasActive) {
+                        if (tinfo.status === TaskStatus.COMPLETED) {
+                            completedTasks.push(tid);
+                        } else if (tinfo.status === TaskStatus.ERROR) {
+                            failedTasks.push([tid, tinfo]);
                         }
-                    });
-
-                    return updated;
+                    }
                 });
+
+                // Update tasks state
+                setTasks(updated);
+
+                // Safely trigger side-effects outside of state updates to avoid React setState-in-render warnings
+                completedTasks.forEach((tid) => {
+                    handleTaskCompletion(tid);
+                    // Schedule cleanup from local tasks state after 5 seconds to keep sidebar clear
+                    setTimeout(() => {
+                        setTasks((current) => {
+                            const next = { ...current };
+                            delete next[tid];
+                            return next;
+                        });
+                    }, CLEANUP_DELAY_MS);
+                });
+
+                failedTasks.forEach(([tid, tinfo]) => {
+                    handleTaskFailure(tid, tinfo);
+                    // Schedule cleanup from local tasks state after 5 seconds
+                    setTimeout(() => {
+                        setTasks((current) => {
+                            const next = { ...current };
+                            delete next[tid];
+                            return next;
+                        });
+                    }, CLEANUP_DELAY_MS);
+                });
+
             } catch (err) {
                 console.error('Error parsing SSE task events:', err);
             }

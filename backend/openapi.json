@@ -2151,6 +2151,179 @@
         }
       }
     },
+    "/api/images/import/validate": {
+      "post": {
+        "tags": [
+          "images"
+        ],
+        "summary": "Validate Import Paths",
+        "description": "Validate a list of local paths (files or folders) and detect duplicate images.",
+        "operationId": "validate_import_paths_api_images_import_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageImportValidationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageImportValidationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/images/import/validate-files": {
+      "post": {
+        "tags": [
+          "images"
+        ],
+        "summary": "Validate Import Uploaded Files",
+        "description": "Accepts uploaded files, saves them to a temporary directory, and validates them for import.",
+        "operationId": "validate_import_uploaded_files_api_images_import_validate_files_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_validate_import_uploaded_files_api_images_import_validate_files_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageImportValidationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/images/import/scan-paths": {
+      "post": {
+        "tags": [
+          "images"
+        ],
+        "summary": "Scan Import Paths",
+        "description": "Recursively scans local paths and returns a flat list of all image file paths found.",
+        "operationId": "scan_import_paths_api_images_import_scan_paths_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageImportValidationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Response Scan Import Paths Api Images Import Scan Paths Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/images/import": {
+      "post": {
+        "tags": [
+          "images"
+        ],
+        "summary": "Import Images",
+        "description": "Triggers an asynchronous background task to import images and folders into the library.",
+        "operationId": "import_images_api_images_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "title": "Response Import Images Api Images Import Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/dashboard/": {
       "get": {
         "tags": [
@@ -3578,6 +3751,23 @@
         ],
         "title": "BatchImportResponse"
       },
+      "Body_validate_import_uploaded_files_api_images_import_validate_files_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string",
+              "contentMediaType": "application/octet-stream"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "title": "Body_validate_import_uploaded_files_api_images_import_validate_files_post"
+      },
       "BulkOperationMode": {
         "type": "string",
         "enum": [
@@ -4824,6 +5014,175 @@
         ],
         "title": "ImageDetail"
       },
+      "ImageImportItem": {
+        "properties": {
+          "local_path": {
+            "type": "string",
+            "title": "Local Path"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_path"
+        ],
+        "title": "ImageImportItem"
+      },
+      "ImageImportRequest": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ImageImportItem"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "List of items to import."
+          },
+          "creator_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creator Name",
+            "description": "Global creator/artist to assign by default."
+          },
+          "set_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Set Title",
+            "description": "Global set name/title to assign by default."
+          },
+          "set_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Set Id",
+            "description": "Global set ID to import into, if assigning to an existing set."
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "Global tags to assign to all imported files."
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating",
+            "description": "Global content rating.",
+            "default": "questionable"
+          },
+          "delete_source": {
+            "type": "boolean",
+            "title": "Delete Source",
+            "description": "Whether to delete source files after successful import.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ImageImportRequest"
+      },
+      "ImageImportValidationRequest": {
+        "properties": {
+          "local_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Local Paths",
+            "description": "List of local absolute file paths (files or folders) to validate."
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_paths"
+        ],
+        "title": "ImageImportValidationRequest"
+      },
+      "ImageImportValidationResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ImageValidationItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ImageImportValidationResponse"
+      },
       "ImagePage": {
         "properties": {
           "items": {
@@ -5047,6 +5406,85 @@
         },
         "type": "object",
         "title": "ImageUpdate"
+      },
+      "ImageValidationItem": {
+        "properties": {
+          "local_path": {
+            "type": "string",
+            "title": "Local Path"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "is_valid": {
+            "type": "boolean",
+            "title": "Is Valid"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "phash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phash"
+          },
+          "is_duplicate": {
+            "type": "boolean",
+            "title": "Is Duplicate"
+          },
+          "existing_image_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Existing Image Id"
+          },
+          "existing_set_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Existing Set Title"
+          },
+          "existing_creator_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Existing Creator Names"
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_path",
+          "filename",
+          "is_valid",
+          "is_duplicate"
+        ],
+        "title": "ImageValidationItem"
       },
       "ImageWithContext": {
         "properties": {

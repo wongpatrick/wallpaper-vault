@@ -17,6 +17,17 @@ async def startup_event() -> None:
     setup_logging()
     logger.info("Application starting up...")
     await cleanup_zombie_tasks()
+    
+    # Clean up temporary imports folder
+    import shutil
+    from pathlib import Path
+    temp_dir = Path("../backend/temp_imports")
+    if temp_dir.exists():
+        try:
+            shutil.rmtree(temp_dir)
+            logger.info("Cleaned up temporary imports directory")
+        except Exception as e:
+            logger.error("Failed to clean up temporary imports directory", error=str(e))
 
 app.add_middleware(
     CORSMiddleware,

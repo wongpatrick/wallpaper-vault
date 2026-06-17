@@ -24,6 +24,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BodyValidateImportUploadedFilesApiImagesImportValidateFilesPost,
   DuplicateGroup,
   DuplicateResolutionRequest,
   HTTPValidationError,
@@ -32,6 +33,9 @@ import type {
   ImageBulkUpdate,
   ImageCreate,
   ImageDetail,
+  ImageImportRequest,
+  ImageImportValidationRequest,
+  ImageImportValidationResponse,
   ImagePage,
   ImageUpdate,
   ReadColorStatsApiImagesColorStatsGet200Item,
@@ -1346,6 +1350,268 @@ export const useCreateImageForSetApiImagesSetSetIdPost = <TError = ErrorType<HTT
       > => {
 
       const mutationOptions = getCreateImageForSetApiImagesSetSetIdPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Validate a list of local paths (files or folders) and detect duplicate images.
+ * @summary Validate Import Paths
+ */
+export const validateImportPathsApiImagesImportValidatePost = (
+    imageImportValidationRequest: BodyType<ImageImportValidationRequest>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<ImageImportValidationResponse>(
+      {url: `/api/images/import/validate`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: imageImportValidationRequest, signal
+    },
+      options);
+    }
+  
+
+
+export const getValidateImportPathsApiImagesImportValidatePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateImportPathsApiImagesImportValidatePost>>, TError,{data: BodyType<ImageImportValidationRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof validateImportPathsApiImagesImportValidatePost>>, TError,{data: BodyType<ImageImportValidationRequest>}, TContext> => {
+
+const mutationKey = ['validateImportPathsApiImagesImportValidatePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof validateImportPathsApiImagesImportValidatePost>>, {data: BodyType<ImageImportValidationRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  validateImportPathsApiImagesImportValidatePost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ValidateImportPathsApiImagesImportValidatePostMutationResult = NonNullable<Awaited<ReturnType<typeof validateImportPathsApiImagesImportValidatePost>>>
+    export type ValidateImportPathsApiImagesImportValidatePostMutationBody = BodyType<ImageImportValidationRequest>
+    export type ValidateImportPathsApiImagesImportValidatePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Validate Import Paths
+ */
+export const useValidateImportPathsApiImagesImportValidatePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateImportPathsApiImagesImportValidatePost>>, TError,{data: BodyType<ImageImportValidationRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof validateImportPathsApiImagesImportValidatePost>>,
+        TError,
+        {data: BodyType<ImageImportValidationRequest>},
+        TContext
+      > => {
+
+      const mutationOptions = getValidateImportPathsApiImagesImportValidatePostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Accepts uploaded files, saves them to a temporary directory, and validates them for import.
+ * @summary Validate Import Uploaded Files
+ */
+export const validateImportUploadedFilesApiImagesImportValidateFilesPost = (
+    bodyValidateImportUploadedFilesApiImagesImportValidateFilesPost: BodyType<BodyValidateImportUploadedFilesApiImagesImportValidateFilesPost>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      const formData = new FormData();
+bodyValidateImportUploadedFilesApiImagesImportValidateFilesPost.files.forEach(value => formData.append(`files`, value));
+
+      return customInstance<ImageImportValidationResponse>(
+      {url: `/api/images/import/validate-files`, method: 'POST',
+      headers: {'Content-Type': 'multipart/form-data', },
+       data: formData, signal
+    },
+      options);
+    }
+  
+
+
+export const getValidateImportUploadedFilesApiImagesImportValidateFilesPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateImportUploadedFilesApiImagesImportValidateFilesPost>>, TError,{data: BodyType<BodyValidateImportUploadedFilesApiImagesImportValidateFilesPost>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof validateImportUploadedFilesApiImagesImportValidateFilesPost>>, TError,{data: BodyType<BodyValidateImportUploadedFilesApiImagesImportValidateFilesPost>}, TContext> => {
+
+const mutationKey = ['validateImportUploadedFilesApiImagesImportValidateFilesPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof validateImportUploadedFilesApiImagesImportValidateFilesPost>>, {data: BodyType<BodyValidateImportUploadedFilesApiImagesImportValidateFilesPost>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  validateImportUploadedFilesApiImagesImportValidateFilesPost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ValidateImportUploadedFilesApiImagesImportValidateFilesPostMutationResult = NonNullable<Awaited<ReturnType<typeof validateImportUploadedFilesApiImagesImportValidateFilesPost>>>
+    export type ValidateImportUploadedFilesApiImagesImportValidateFilesPostMutationBody = BodyType<BodyValidateImportUploadedFilesApiImagesImportValidateFilesPost>
+    export type ValidateImportUploadedFilesApiImagesImportValidateFilesPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Validate Import Uploaded Files
+ */
+export const useValidateImportUploadedFilesApiImagesImportValidateFilesPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateImportUploadedFilesApiImagesImportValidateFilesPost>>, TError,{data: BodyType<BodyValidateImportUploadedFilesApiImagesImportValidateFilesPost>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof validateImportUploadedFilesApiImagesImportValidateFilesPost>>,
+        TError,
+        {data: BodyType<BodyValidateImportUploadedFilesApiImagesImportValidateFilesPost>},
+        TContext
+      > => {
+
+      const mutationOptions = getValidateImportUploadedFilesApiImagesImportValidateFilesPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Recursively scans local paths and returns a flat list of all image file paths found.
+ * @summary Scan Import Paths
+ */
+export const scanImportPathsApiImagesImportScanPathsPost = (
+    imageImportValidationRequest: BodyType<ImageImportValidationRequest>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<string[]>(
+      {url: `/api/images/import/scan-paths`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: imageImportValidationRequest, signal
+    },
+      options);
+    }
+  
+
+
+export const getScanImportPathsApiImagesImportScanPathsPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scanImportPathsApiImagesImportScanPathsPost>>, TError,{data: BodyType<ImageImportValidationRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof scanImportPathsApiImagesImportScanPathsPost>>, TError,{data: BodyType<ImageImportValidationRequest>}, TContext> => {
+
+const mutationKey = ['scanImportPathsApiImagesImportScanPathsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof scanImportPathsApiImagesImportScanPathsPost>>, {data: BodyType<ImageImportValidationRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  scanImportPathsApiImagesImportScanPathsPost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ScanImportPathsApiImagesImportScanPathsPostMutationResult = NonNullable<Awaited<ReturnType<typeof scanImportPathsApiImagesImportScanPathsPost>>>
+    export type ScanImportPathsApiImagesImportScanPathsPostMutationBody = BodyType<ImageImportValidationRequest>
+    export type ScanImportPathsApiImagesImportScanPathsPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Scan Import Paths
+ */
+export const useScanImportPathsApiImagesImportScanPathsPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scanImportPathsApiImagesImportScanPathsPost>>, TError,{data: BodyType<ImageImportValidationRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof scanImportPathsApiImagesImportScanPathsPost>>,
+        TError,
+        {data: BodyType<ImageImportValidationRequest>},
+        TContext
+      > => {
+
+      const mutationOptions = getScanImportPathsApiImagesImportScanPathsPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Triggers an asynchronous background task to import images and folders into the library.
+ * @summary Import Images
+ */
+export const importImagesApiImagesImportPost = (
+    imageImportRequest: BodyType<ImageImportRequest>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<string>(
+      {url: `/api/images/import`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: imageImportRequest, signal
+    },
+      options);
+    }
+  
+
+
+export const getImportImagesApiImagesImportPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importImagesApiImagesImportPost>>, TError,{data: BodyType<ImageImportRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof importImagesApiImagesImportPost>>, TError,{data: BodyType<ImageImportRequest>}, TContext> => {
+
+const mutationKey = ['importImagesApiImagesImportPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importImagesApiImagesImportPost>>, {data: BodyType<ImageImportRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importImagesApiImagesImportPost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportImagesApiImagesImportPostMutationResult = NonNullable<Awaited<ReturnType<typeof importImagesApiImagesImportPost>>>
+    export type ImportImagesApiImagesImportPostMutationBody = BodyType<ImageImportRequest>
+    export type ImportImagesApiImagesImportPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Import Images
+ */
+export const useImportImagesApiImagesImportPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importImagesApiImagesImportPost>>, TError,{data: BodyType<ImageImportRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importImagesApiImagesImportPost>>,
+        TError,
+        {data: BodyType<ImageImportRequest>},
+        TContext
+      > => {
+
+      const mutationOptions = getImportImagesApiImagesImportPostMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }
