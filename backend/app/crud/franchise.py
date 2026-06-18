@@ -94,7 +94,7 @@ async def merge_franchises(db: AsyncSession, source_ids: list[int], target_id: i
     Re-associates all characters from the source franchises to the target franchise,
     and deletes the source franchises.
     """
-    from sqlalchemy import update, delete
+    from sqlalchemy import update
     from app.models.character import Character
     from app.models.associations import set_characters
 
