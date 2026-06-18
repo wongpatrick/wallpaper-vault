@@ -228,19 +228,13 @@ async def delete_tag(db: AsyncSession, tag_id: int) -> bool:
 async def merge_tags(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[Tag]:
     """Merges multiple source tags into a single target tag.
 
-    Re-associates all sets from the source tags to the target tag,
+    Re-associates all sets and images from the source tags to the target tag,
     and deletes the source tags.
     """
-    from sqlalchemy.orm import selectinload
-    from app.models.set import Set
-    from app.models.image import Image
+    from sqlalchemy import text
+
     target = await db.execute(
-        select(Tag)
-        .options(
-            selectinload(Tag.sets).selectinload(Set.tags),
-            selectinload(Tag.images).selectinload(Image.tags)
-        )
-        .where(Tag.id == target_id)
+        select(Tag).where(Tag.id == target_id)
     )
     target = target.scalars().first()
     if not target:
@@ -248,31 +242,38 @@ async def merge_tags(db: AsyncSession, source_ids: list[int], target_id: int) ->
 
     for sid in source_ids:
         source = await db.execute(
-            select(Tag)
-            .options(
-                selectinload(Tag.sets).selectinload(Set.tags),
-                selectinload(Tag.images).selectinload(Image.tags)
-            )
-            .where(Tag.id == sid)
+            select(Tag).where(Tag.id == sid)
         )
         source = source.scalars().first()
         if not source:
             continue
-            
-        for s in list(source.sets):
-            if target not in s.tags:
-                s.tags.append(target)
-            if source in s.tags:
-                s.tags.remove(source)
-                
-        for img in list(source.images):
-            if target not in img.tags:
-                img.tags.append(target)
-            if source in img.tags:
-                img.tags.remove(source)
-                
+
+        # Direct SQL: add target tag to sets that have source but not target
+        await db.execute(text(
+            "INSERT OR IGNORE INTO set_tags (set_id, tag_id) "
+            "SELECT set_id, :target_id FROM set_tags WHERE tag_id = :source_id"
+        ), {"target_id": target_id, "source_id": sid})
+
+        # Direct SQL: remove source tag from all sets
+        await db.execute(text(
+            "DELETE FROM set_tags WHERE tag_id = :source_id"
+        ), {"source_id": sid})
+
+        # Direct SQL: add target tag to images that have source but not target
+        await db.execute(text(
+            "INSERT OR IGNORE INTO image_tags (image_id, tag_id) "
+            "SELECT image_id, :target_id FROM image_tags WHERE tag_id = :source_id"
+        ), {"target_id": target_id, "source_id": sid})
+
+        # Direct SQL: remove source tag from all images
+        await db.execute(text(
+            "DELETE FROM image_tags WHERE tag_id = :source_id"
+        ), {"source_id": sid})
+
+        await db.flush()
         await db.delete(source)
-        
+
     await db.commit()
     await db.refresh(target)
     return await get_tag(db, target_id)
+
