@@ -349,7 +349,7 @@ function CharactersTab() {
                     </Text>
                     <Select
                         label="Primary Target"
-                        data={selectedCharacters.map(c => ({ value: String(c.id), label: c.name }))}
+                        data={selectedCharacters.map(c => ({ value: String(c.id), label: `${c.name}${c.franchise ? ` (${c.franchise.name})` : ''} — ${c.set_count} sets [#${c.id}]` }))}
                         value={targetId}
                         onChange={setTargetId}
                         required
@@ -561,7 +561,7 @@ function FranchisesTab() {
                     </Text>
                     <Select
                         label="Primary Target"
-                        data={selectedFranchises.map(f => ({ value: String(f.id), label: f.name }))}
+                        data={selectedFranchises.map(f => ({ value: String(f.id), label: `${f.name} — ${f.set_count} sets [#${f.id}]` }))}
                         value={targetId}
                         onChange={setTargetId}
                         required
@@ -770,7 +770,7 @@ function TagsTab() {
                     </Text>
                     <Select
                         label="Primary Target"
-                        data={selectedTags.map(t => ({ value: String(t.id), label: t.name }))}
+                        data={selectedTags.map(t => ({ value: String(t.id), label: `${t.name} — ${t.set_count} sets [#${t.id}]` }))}
                         value={targetId}
                         onChange={setTargetId}
                         required

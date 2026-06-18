@@ -200,15 +200,18 @@ async def delete_character(db: AsyncSession, character_id: int) -> bool:
     await db.commit()
     return True
 
-async def merge_characters(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[Character]:
+async def merge_characters(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[dict]:
     """Merges multiple source characters into a single target character.
 
     Re-associates all sets from the source characters to the target character,
     and deletes the source characters.
     """
+    from sqlalchemy import text
+    from app.models.associations import set_characters
+
     target = await db.execute(
         select(Character)
-        .options(selectinload(Character.sets).selectinload(Set.characters))
+        .options(selectinload(Character.franchise))
         .where(Character.id == target_id)
     )
     target = target.scalars().first()
@@ -217,22 +220,45 @@ async def merge_characters(db: AsyncSession, source_ids: list[int], target_id: i
 
     for sid in source_ids:
         source = await db.execute(
-            select(Character)
-            .options(selectinload(Character.sets).selectinload(Set.characters))
-            .where(Character.id == sid)
+            select(Character).where(Character.id == sid)
         )
         source = source.scalars().first()
         if not source:
             continue
-            
-        for s in list(source.sets):
-            if target not in s.characters:
-                s.characters.append(target)
-            if source in s.characters:
-                s.characters.remove(source)
-                
+
+        # Direct SQL: add target to sets that have source but not target
+        await db.execute(text(
+            "INSERT OR IGNORE INTO set_characters (set_id, character_id) "
+            "SELECT set_id, :target_id FROM set_characters WHERE character_id = :source_id"
+        ), {"target_id": target_id, "source_id": sid})
+
+        # Direct SQL: remove source from all sets
+        await db.execute(text(
+            "DELETE FROM set_characters WHERE character_id = :source_id"
+        ), {"source_id": sid})
+
+        await db.flush()
         await db.delete(source)
-        
+
     await db.commit()
-    await db.refresh(target)
-    return await get_character(db, target_id)
+
+    # Re-query with computed set_count so the response is accurate
+    stmt = (
+        select(Character, func.count(set_characters.c.set_id).label("set_count"))
+        .options(selectinload(Character.franchise))
+        .outerjoin(set_characters, Character.id == set_characters.c.character_id)
+        .where(Character.id == target_id)
+        .group_by(Character.id)
+    )
+    result = await db.execute(stmt)
+    row = result.first()
+    if not row:
+        return None
+    return {
+        "id": row.Character.id,
+        "name": row.Character.name,
+        "franchise_id": row.Character.franchise_id,
+        "franchise": row.Character.franchise,
+        "set_count": row.set_count,
+    }
+

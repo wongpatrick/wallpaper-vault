@@ -120,6 +120,7 @@ async def update_set(db: AsyncSession, set_id: int, set_in: SetUpdate) -> Set:
 async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) -> Set:
     import shutil
     import os
+    from sqlalchemy import text
     
     target_set = await crud_set.get_set(db, target_id)
     if not target_set:
@@ -181,16 +182,24 @@ async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) ->
         for img in images_to_move:
             img.set_id = target_id
             target_set.images.append(img)
-            
-        for c in source_set.creators:
-            if c not in target_set.creators:
-                target_set.creators.append(c)
-                
-        if source_set.tags:
-            current_tags = set((target_set.tags or "").split())
-            new_tags = set(source_set.tags.split())
-            combined = sorted(list(current_tags | new_tags))
-            target_set.tags = " ".join(combined) if combined else None
+
+        # Direct SQL: transfer creators from source to target (ignore duplicates)
+        await db.execute(text(
+            "INSERT OR IGNORE INTO set_creators (set_id, creator_id, role) "
+            "SELECT :target_id, creator_id, role FROM set_creators WHERE set_id = :source_id"
+        ), {"target_id": target_id, "source_id": sid})
+        await db.execute(text(
+            "DELETE FROM set_creators WHERE set_id = :source_id"
+        ), {"source_id": sid})
+
+        # Direct SQL: transfer tags from source to target (ignore duplicates)
+        await db.execute(text(
+            "INSERT OR IGNORE INTO set_tags (set_id, tag_id) "
+            "SELECT :target_id, tag_id FROM set_tags WHERE set_id = :source_id"
+        ), {"target_id": target_id, "source_id": sid})
+        await db.execute(text(
+            "DELETE FROM set_tags WHERE set_id = :source_id"
+        ), {"source_id": sid})
             
         if source_set.notes:
             target_set.notes = (target_set.notes or "") + "\n" + source_set.notes
@@ -199,6 +208,7 @@ async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) ->
         source_path = source_set.local_path
         
         if not failed_images:
+            await db.flush()
             await db.delete(source_set)
             
             if source_path and target_path and str(anyio.Path(source_path)) != str(target_path):

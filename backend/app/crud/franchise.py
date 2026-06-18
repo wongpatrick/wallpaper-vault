@@ -88,17 +88,18 @@ async def delete_franchise(db: AsyncSession, franchise_id: int) -> bool:
     await db.commit()
     return True
 
-async def merge_franchises(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[Franchise]:
+async def merge_franchises(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[dict]:
     """Merges multiple source franchises into a single target franchise.
 
     Re-associates all characters from the source franchises to the target franchise,
     and deletes the source franchises.
     """
-    from sqlalchemy.orm import selectinload
+    from sqlalchemy import update, delete
+    from app.models.character import Character
+    from app.models.associations import set_characters
+
     target = await db.execute(
-        select(Franchise)
-        .options(selectinload(Franchise.characters))
-        .where(Franchise.id == target_id)
+        select(Franchise).where(Franchise.id == target_id)
     )
     target = target.scalars().first()
     if not target:
@@ -106,19 +107,39 @@ async def merge_franchises(db: AsyncSession, source_ids: list[int], target_id: i
 
     for sid in source_ids:
         source = await db.execute(
-            select(Franchise)
-            .options(selectinload(Franchise.characters))
-            .where(Franchise.id == sid)
+            select(Franchise).where(Franchise.id == sid)
         )
         source = source.scalars().first()
         if not source:
             continue
-            
-        for char in source.characters:
-            char.franchise_id = target.id
-            
+
+        # Direct SQL UPDATE to reassign characters — bypasses ORM relationship
+        # issues and avoids conflict with ON DELETE SET NULL
+        await db.execute(
+            update(Character)
+            .where(Character.franchise_id == sid)
+            .values(franchise_id=target_id)
+        )
+        await db.flush()
         await db.delete(source)
-        
+
     await db.commit()
-    await db.refresh(target)
-    return target
+
+    # Re-query with computed set_count so the response is accurate
+    stmt = (
+        select(Franchise, func.count(set_characters.c.set_id.distinct()).label("set_count"))
+        .outerjoin(Character, Franchise.id == Character.franchise_id)
+        .outerjoin(set_characters, Character.id == set_characters.c.character_id)
+        .where(Franchise.id == target_id)
+        .group_by(Franchise.id)
+    )
+    result = await db.execute(stmt)
+    row = result.first()
+    if not row:
+        return None
+    return {
+        "id": row.Franchise.id,
+        "name": row.Franchise.name,
+        "set_count": row.set_count,
+    }
+
