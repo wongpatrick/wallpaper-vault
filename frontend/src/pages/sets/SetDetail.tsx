@@ -37,7 +37,7 @@ import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
 import { CharacterTagsInput } from '../../components/ui/CharacterTagsInput';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
 import { useTasks } from '../../hooks/useTasks';
-import type { Image as ImageModel, BulkOperationMode } from '../../api/model';
+import type { Image as ImageModel, BulkOperationMode, SetUpdate } from '../../api/model';
 
 export default function SetDetail() {
     const { setId } = useParams<{ setId: string }>();
@@ -143,7 +143,7 @@ export default function SetDetail() {
     const handleUpdate = async () => {
         try {
             const { local_path, ...otherFields } = editForm;
-            const updateData: any = {
+            const updateData: SetUpdate = {
                 ...otherFields,
                 creator_ids: editForm.creator_ids.map(Number),
                 tags: editForm.tags,
