@@ -37,7 +37,7 @@ import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
 import { CharacterTagsInput } from '../../components/ui/CharacterTagsInput';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
 import { useTasks } from '../../hooks/useTasks';
-import type { Image as ImageModel, BulkOperationMode } from '../../api/model';
+import type { Image as ImageModel, BulkOperationMode, SetUpdate } from '../../api/model';
 
 export default function SetDetail() {
     const { setId } = useParams<{ setId: string }>();
@@ -142,17 +142,24 @@ export default function SetDetail() {
     // 3. Handlers
     const handleUpdate = async () => {
         try {
+            const { local_path, ...otherFields } = editForm;
+            const updateData: SetUpdate = {
+                ...otherFields,
+                creator_ids: editForm.creator_ids.map(Number),
+                tags: editForm.tags,
+                characters: editForm.characters
+            };
+            if (enablePathEdit) {
+                updateData.local_path = local_path;
+            }
+
             await updateMutation.mutateAsync({
                 setId: Number(setId),
-                data: {
-                    ...editForm,
-                    creator_ids: editForm.creator_ids.map(Number),
-                    tags: editForm.tags,
-                    characters: editForm.characters
-                }
+                data: updateData
             });
             notifications.show({ title: 'Success', message: 'Set metadata updated', color: 'green' });
             setIsEditModalOpen(false);
+            setEnablePathEdit(false);
             refetch();
         } catch {
             notifications.show({ title: 'Error', message: 'Could not update set', color: 'red' });

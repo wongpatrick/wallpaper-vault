@@ -219,9 +219,9 @@ async def update_creator(db: AsyncSession, creator_id: int, creator_in: CreatorU
     for field in update_data:
         setattr(db_creator, field, update_data[field])
         
-    from app.crud.set import rename_set_folder_if_needed
+    from app.services.set_service import rename_set_folder_if_needed
     for s in db_creator.sets:
-        rename_set_folder_if_needed(s, raise_errors=True)
+        await rename_set_folder_if_needed(db, s, raise_errors=True)
     
     db.add(db_creator)
     await db.commit()
@@ -279,7 +279,7 @@ async def merge_creators(db: AsyncSession, source_ids: list[int], target_id: int
                 s.creators.append(target)
             if source in s.creators:
                 s.creators.remove(source)
-            await rename_set_folder_if_needed(s, raise_errors=True)
+            await rename_set_folder_if_needed(db, s, raise_errors=True)
                 
         # Delete the source creator (SQLAlchemy handles many-to-many cleanup)
         await db.delete(source)
