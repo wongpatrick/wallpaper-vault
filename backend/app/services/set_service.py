@@ -23,15 +23,16 @@ logger = structlog.get_logger(__name__)
 
 def sanitize_folder_name(name: str) -> str:
     """Removes invalid characters from a string to make it safe for directory names."""
-    return re.sub(r'[\\/:*?"<>|]', '', name).strip()
+    sanitized = re.sub(r'[\\/:*?"<>|]', '', name).strip()
+    return sanitized.rstrip('.')
 
-async def rename_set_folder_if_needed(db_set: Set, raise_errors: bool = False) -> None:
+async def rename_set_folder_if_needed(db: AsyncSession, db_set: Set, raise_errors: bool = False) -> None:
     """Checks and renames a set's physical folder to match convention using anyio.
     """
     if not db_set.local_path:
         return
         
-    creator_names = [c.canonical_name for c in db_set.creators]
+    creator_names = [sanitize_folder_name(c.canonical_name) for c in db_set.creators]
     creators_str = " & ".join(creator_names) if creator_names else "Unknown"
     sanitized_title = sanitize_folder_name(db_set.title) if db_set.title else "Untitled"
     new_folder_name = f"{creators_str} - {sanitized_title}"
@@ -46,11 +47,17 @@ async def rename_set_folder_if_needed(db_set: Set, raise_errors: bool = False) -
                 await old_path.rename(new_path)
                 db_set.local_path = str(new_path)
                 
-                if db_set.images:
-                    for img in db_set.images:
-                        img_old_path = anyio.Path(img.local_path)
-                        img_new_path = new_path / img_old_path.name
-                        img.local_path = str(img_new_path)
+                # Direct SQL UPDATE to update image paths without loading the collection
+                import sys
+                from sqlalchemy import update
+                from app.models.image import Image
+                
+                sep = "\\" if sys.platform == "win32" else "/"
+                await db.execute(
+                    update(Image)
+                    .where(Image.set_id == db_set.id)
+                    .values(local_path=str(new_path) + sep + Image.filename)
+                )
             except Exception as e:
                 logger.error("Error renaming set folder", error=str(e), exc_info=True)
                 if raise_errors:
@@ -111,7 +118,7 @@ async def update_set(db: AsyncSession, set_id: int, set_in: SetUpdate) -> Set:
         raise ResourceNotFoundError("Set not found")
         
     db_set = await crud_set.update_set(db, set_id, set_in)
-    await rename_set_folder_if_needed(db_set)
+    await rename_set_folder_if_needed(db, db_set)
     db.add(db_set)
     await db.commit()
     await db.refresh(db_set)
@@ -120,7 +127,6 @@ async def update_set(db: AsyncSession, set_id: int, set_in: SetUpdate) -> Set:
 async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) -> Set:
     import shutil
     import os
-    from sqlalchemy import text
     
     target_set = await crud_set.get_set(db, target_id)
     if not target_set:
@@ -183,23 +189,23 @@ async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) ->
             img.set_id = target_id
             target_set.images.append(img)
 
-        # Direct SQL: transfer creators from source to target (ignore duplicates)
-        await db.execute(text(
-            "INSERT OR IGNORE INTO set_creators (set_id, creator_id, role) "
-            "SELECT :target_id, creator_id, role FROM set_creators WHERE set_id = :source_id"
-        ), {"target_id": target_id, "source_id": sid})
-        await db.execute(text(
-            "DELETE FROM set_creators WHERE set_id = :source_id"
-        ), {"source_id": sid})
+        # Merge creators using ORM to avoid StaleDataError
+        for c in list(source_set.creators):
+            if c not in target_set.creators:
+                target_set.creators.append(c)
+        source_set.creators = []
 
-        # Direct SQL: transfer tags from source to target (ignore duplicates)
-        await db.execute(text(
-            "INSERT OR IGNORE INTO set_tags (set_id, tag_id) "
-            "SELECT :target_id, tag_id FROM set_tags WHERE set_id = :source_id"
-        ), {"target_id": target_id, "source_id": sid})
-        await db.execute(text(
-            "DELETE FROM set_tags WHERE set_id = :source_id"
-        ), {"source_id": sid})
+        # Merge tags using ORM
+        for t in list(source_set.tags):
+            if t not in target_set.tags:
+                target_set.tags.append(t)
+        source_set.tags = []
+
+        # Merge characters using ORM (which was previously missing!)
+        for char in list(source_set.characters):
+            if char not in target_set.characters:
+                target_set.characters.append(char)
+        source_set.characters = []
             
         if source_set.notes:
             target_set.notes = (target_set.notes or "") + "\n" + source_set.notes
@@ -219,7 +225,7 @@ async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) ->
                     
     await db.commit()
     await db.refresh(target_set)
-    await rename_set_folder_if_needed(target_set)
+    await rename_set_folder_if_needed(db, target_set)
     
     return await crud_set.get_set(db, target_id)
 

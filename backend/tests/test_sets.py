@@ -164,3 +164,71 @@ async def test_set_resync_thumbnail_regeneration(client: AsyncClient, temp_vault
     # 5. Verify the stale thumbnail file was deleted
     assert not thumb_file.exists()
 
+
+@pytest.mark.asyncio
+async def test_merge_sets_with_associations(client: AsyncClient, temp_vault: Path):
+    """Test merging sets that have characters, creators, tags, and images."""
+    await client.put("/api/settings/base_library_path", json={"value": str(temp_vault)})
+
+    # 1. Create a Creator
+    resp = await client.post("/api/creators/", json={"canonical_name": "Merge Artist"})
+    creator_id = resp.json()["id"]
+
+    # 2. Create a Character
+    resp = await client.post("/api/characters/", json={"name": "Merge Character"})
+    assert resp.status_code == 200
+
+    # 3. Create Target Set (with some tags, character, and creator)
+    resp = await client.post("/api/sets/", json={
+        "title": "Target Set",
+        "creator_ids": [creator_id],
+        "tags": ["TargetTag"],
+        "characters": ["Merge Character"]
+    })
+    assert resp.status_code == 200
+    target_id = resp.json()["id"]
+    target_path = Path(resp.json()["local_path"])
+
+    # 4. Create Source Set
+    resp = await client.post("/api/sets/", json={
+        "title": "Source Set",
+        "creator_ids": [creator_id],
+        "tags": ["SourceTag"],
+        "characters": ["Merge Character"]
+    })
+    assert resp.status_code == 200
+    source_id = resp.json()["id"]
+    source_path = Path(resp.json()["local_path"])
+
+    # Synthesize an image directly into the source physical folder
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    img_path = source_path / "source_img.jpg"
+    cv2.imwrite(str(img_path), img)
+
+    # Register the image via resync
+    resync_resp = await client.post(f"/api/sets/{source_id}/resync")
+    assert resync_resp.status_code == 200
+
+    # 5. Merge source into target
+    merge_resp = await client.post("/api/sets/merge", json={
+        "source_ids": [source_id],
+        "target_id": target_id
+    })
+    assert merge_resp.status_code == 200
+
+    # 6. Verify source set is deleted from DB
+    get_source_resp = await client.get(f"/api/sets/{source_id}")
+    assert get_source_resp.status_code == 404
+
+    # 7. Verify target set now has the merged image
+    get_target_resp = await client.get(f"/api/sets/{target_id}")
+    assert get_target_resp.status_code == 200
+    target_data = get_target_resp.json()
+
+    assert len(target_data["images"]) == 1
+    assert target_data["images"][0]["filename"] == "source_img.jpg"
+    # File should have physically moved
+    assert not img_path.exists()
+    assert (target_path / "source_img.jpg").exists()
+
+

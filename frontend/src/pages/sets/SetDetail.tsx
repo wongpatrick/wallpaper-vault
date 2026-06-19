@@ -142,17 +142,24 @@ export default function SetDetail() {
     // 3. Handlers
     const handleUpdate = async () => {
         try {
+            const { local_path, ...otherFields } = editForm;
+            const updateData: any = {
+                ...otherFields,
+                creator_ids: editForm.creator_ids.map(Number),
+                tags: editForm.tags,
+                characters: editForm.characters
+            };
+            if (enablePathEdit) {
+                updateData.local_path = local_path;
+            }
+
             await updateMutation.mutateAsync({
                 setId: Number(setId),
-                data: {
-                    ...editForm,
-                    creator_ids: editForm.creator_ids.map(Number),
-                    tags: editForm.tags,
-                    characters: editForm.characters
-                }
+                data: updateData
             });
             notifications.show({ title: 'Success', message: 'Set metadata updated', color: 'green' });
             setIsEditModalOpen(false);
+            setEnablePathEdit(false);
             refetch();
         } catch {
             notifications.show({ title: 'Error', message: 'Could not update set', color: 'red' });
