@@ -1,6 +1,7 @@
 .header {
   background-color: light-dark(var(--mantine-color-white), var(--mantine-color-dark-7));
   border-bottom: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+  -webkit-app-region: drag;
 }
 
 .navbar {
@@ -103,6 +104,42 @@
   justify-content: center;
   gap: var(--mantine-spacing-md);
   margin: 20px;
+}
+
+.noDrag {
+  -webkit-app-region: no-drag;
+}
+
+.titleBarControls {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 100%;
+  margin-right: calc(-1 * var(--mantine-spacing-md));
+  -webkit-app-region: no-drag;
+}
+
+.windowButton {
+  height: 56px;
+  width: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-0));
+  transition: background-color 0.1s ease, color 0.1s ease;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  outline: none;
+}
+
+.windowButton:hover {
+  background-color: light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05));
+}
+
+.closeButton:hover {
+  background-color: #e81123 !important;
+  color: white !important;
 }
 
 

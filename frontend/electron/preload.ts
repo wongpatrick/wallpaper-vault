@@ -8,11 +8,23 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 contextBridge.exposeInMainWorld('electron', {
     send: (channel: string, data: unknown) => ipcRenderer.send(channel, data),
-    on: (channel: string, func: (...args: unknown[]) => void) =>
-        ipcRenderer.on(channel, (event, ...args) => func(...args)),
+    on: (channel: string, func: (...args: unknown[]) => void) => {
+        const subscription = (_event: unknown, ...args: unknown[]) => func(...args);
+        ipcRenderer.on(channel, subscription);
+        return () => {
+            ipcRenderer.removeListener(channel, subscription);
+        };
+    },
     openDirectory: () => ipcRenderer.invoke('open-directory'),
     openPath: (path: string) => ipcRenderer.invoke('open-path', path),
     getLoginSettings: () => ipcRenderer.invoke('get-login-item-settings'),
     setLoginSettings: (openAtLogin: boolean) => ipcRenderer.invoke('set-login-item-settings', openAtLogin),
     getPathForFile: (file: File) => webUtils.getPathForFile(file),
+    minimize: () => ipcRenderer.invoke('window-minimize'),
+    maximize: () => ipcRenderer.invoke('window-maximize'),
+    close: () => ipcRenderer.invoke('window-close'),
+    isMaximized: () => ipcRenderer.invoke('is-maximized'),
+    getCloseBehavior: () => ipcRenderer.invoke('get-close-behavior'),
+    setCloseBehavior: (behavior: 'minimize' | 'exit') => ipcRenderer.invoke('set-close-behavior', behavior),
+    platform: process.platform,
 })

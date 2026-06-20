@@ -159,14 +159,26 @@ function createTray() {
 }
 
 function createWindow() {
+    // Disable standard application menu
+    Menu.setApplicationMenu(null);
+
     mainWindow = new BrowserWindow({
         width: 1600,
         height: 800,
+        titleBarStyle: 'hidden',
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             sandbox: false
         },
     })
+
+    mainWindow.on('maximize', () => {
+        mainWindow?.webContents.send('window-maximized-change', true);
+    });
+
+    mainWindow.on('unmaximize', () => {
+        mainWindow?.webContents.send('window-maximized-change', false);
+    });
 
     const settingsPath = path.join(app.getPath('userData'), 'window-settings.json');
 
@@ -175,13 +187,24 @@ function createWindow() {
             event.preventDefault();
 
             let hideNotification = false;
+            let closeBehavior = 'minimize';
             try {
                 if (fs.existsSync(settingsPath)) {
                     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-                    hideNotification = settings.hideMinimizeNotification;
+                    hideNotification = settings.hideMinimizeNotification || false;
+                    closeBehavior = settings.closeBehavior || 'minimize';
                 }
             } catch (err) {
                 console.error('Failed to read window settings:', err);
+            }
+
+            if (closeBehavior === 'exit') {
+                isQuitting = true;
+                if (backendProcess) {
+                    backendProcess.kill();
+                }
+                app.quit();
+                return false;
             }
 
             if (!hideNotification && mainWindow) {
@@ -196,7 +219,12 @@ function createWindow() {
 
                 if (checkboxChecked) {
                     try {
-                        fs.writeFileSync(settingsPath, JSON.stringify({ hideMinimizeNotification: true }));
+                        let currentSettings: Record<string, unknown> = {};
+                        if (fs.existsSync(settingsPath)) {
+                            currentSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+                        }
+                        currentSettings.hideMinimizeNotification = true;
+                        fs.writeFileSync(settingsPath, JSON.stringify(currentSettings, null, 2));
                     } catch (err) {
                         console.error('Failed to save window settings:', err);
                     }
@@ -242,6 +270,55 @@ function createWindow() {
             openAsHidden: true,
         });
         return app.getLoginItemSettings().openAtLogin;
+    });
+
+    ipcMain.handle('window-minimize', () => {
+        mainWindow?.minimize();
+    });
+
+    ipcMain.handle('window-maximize', () => {
+        if (mainWindow) {
+            if (mainWindow.isMaximized()) {
+                mainWindow.unmaximize();
+            } else {
+                mainWindow.maximize();
+            }
+        }
+    });
+
+    ipcMain.handle('window-close', () => {
+        mainWindow?.close();
+    });
+
+    ipcMain.handle('is-maximized', () => {
+        return mainWindow?.isMaximized() || false;
+    });
+
+    ipcMain.handle('get-close-behavior', () => {
+        try {
+            if (fs.existsSync(settingsPath)) {
+                const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+                return settings.closeBehavior || 'minimize';
+            }
+        } catch (err) {
+            console.error('Failed to read close behavior:', err);
+        }
+        return 'minimize';
+    });
+
+    ipcMain.handle('set-close-behavior', (_event, behavior: 'minimize' | 'exit') => {
+        try {
+            let settings: Record<string, unknown> = {};
+            if (fs.existsSync(settingsPath)) {
+                settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+            }
+            settings.closeBehavior = behavior;
+            fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+            return true;
+        } catch (err) {
+            console.error('Failed to save close behavior:', err);
+            return false;
+        }
     });
 
     if (process.env.VITE_DEV_SERVER_URL) {
