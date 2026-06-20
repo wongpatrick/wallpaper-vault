@@ -176,11 +176,26 @@ export default function Settings() {
                         description="Control how the application interacts with your operating system."
                         isDirty={form.isDirty()}
                     >
-                        <Switch
-                            label="Start on Windows login"
-                            description="Automatically launch the application minimized to the tray when you sign in."
-                            {...form.getInputProps(SETTING_KEYS.START_ON_LOGIN, { type: 'checkbox' })}
-                        />
+                        <Stack gap="md">
+                            <Switch
+                                label="Start on Windows login"
+                                description="Automatically launch the application minimized to the tray when you sign in."
+                                {...form.getInputProps(SETTING_KEYS.START_ON_LOGIN, { type: 'checkbox' })}
+                            />
+
+                            {window.electron && (
+                                <Select
+                                    label="Close Behavior"
+                                    description="Choose what happens when you close the main application window."
+                                    data={[
+                                        { value: 'minimize', label: 'Minimize to system tray (keep running in background)' },
+                                        { value: 'exit', label: 'Exit application completely' }
+                                    ]}
+                                    allowDeselect={false}
+                                    {...form.getInputProps(SETTING_KEYS.CLOSE_BEHAVIOR)}
+                                />
+                            )}
+                        </Stack>
                     </SettingsSection>
 
                     <AppInfoSection />

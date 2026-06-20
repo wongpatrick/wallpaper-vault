@@ -6,6 +6,7 @@
 import { Outlet } from "react-router-dom"
 import { AppShell, Title, Box, Button, Group, ActionIcon, Tooltip, Popover, Indicator, Stack, Text, Divider, ScrollArea, ThemeIcon, Burger } from "@mantine/core"
 import SideNav from "./SideNav"
+import TitleBarControls from "./TitleBarControls"
 import classes from './Layout.module.css';
 import { useSidebarResizer } from "../../hooks/useSidebarResizer";
 import { IconPackage, IconBell, IconCheck, IconX, IconCloudUpload } from "@tabler/icons-react";
@@ -270,12 +271,12 @@ export default function MainLayout() {
             padding="md"
         >
             <AppShell.Header px="md" className={classes.header}>
-                <Group h="100%" justify="space-between">
-                    <Group style={{ flex: 1, maxWidth: 500 }}>
+                <Group h="100%" justify="space-between" wrap="nowrap">
+                    <Group style={{ flex: 1, maxWidth: 500 }} className={classes.noDrag}>
                         <Burger opened={mobileOpened} onClick={toggleMobile} hiddenFrom="sm" size="sm" />
                     </Group>
 
-                    <Group gap="sm">
+                    <Group gap="sm" className={classes.noDrag} wrap="nowrap">
                         <Popover opened={opened} onChange={setOpened} position="bottom-end" withArrow shadow="md" width={320}>
                             <Popover.Target>
                                 <Tooltip label="Notifications">
@@ -339,7 +340,11 @@ export default function MainLayout() {
                             </Popover.Dropdown>
                         </Popover>
 
+                        {window.electron && window.electron.platform === 'win32' && (
+                            <Divider orientation="vertical" h={24} my="auto" />
+                        )}
 
+                        <TitleBarControls />
                     </Group>
                 </Group>
             </AppShell.Header>

@@ -14,6 +14,7 @@ export const SETTING_KEYS = {
     HORIZONTAL_TARGET_RATIO: 'horizontal_target_ratio',
     VERTICAL_TARGET_RATIO: 'vertical_target_ratio',
     START_ON_LOGIN: 'start_on_login',
+    CLOSE_BEHAVIOR: 'close_behavior',
     AI_AUTO_TAG_ENABLED: 'ai_auto_tag_enabled',
     AI_MODEL_SOURCE: 'ai_model_source',
     AI_MODEL_TYPE: 'ai_model_type',
@@ -29,6 +30,7 @@ export interface SettingsForm {
     [SETTING_KEYS.HORIZONTAL_TARGET_RATIO]: string;
     [SETTING_KEYS.VERTICAL_TARGET_RATIO]: string;
     [SETTING_KEYS.START_ON_LOGIN]: boolean;
+    [SETTING_KEYS.CLOSE_BEHAVIOR]: 'minimize' | 'exit';
     [SETTING_KEYS.AI_AUTO_TAG_ENABLED]: boolean;
     [SETTING_KEYS.AI_MODEL_SOURCE]: string;
     [SETTING_KEYS.AI_MODEL_TYPE]: string;
@@ -53,6 +55,7 @@ const SETTINGS_METADATA: SettingConfig[] = [
     { key: SETTING_KEYS.HORIZONTAL_TARGET_RATIO, defaultValue: '16/9', storage: 'backend', description: 'Target aspect ratio for horizontal images' },
     { key: SETTING_KEYS.VERTICAL_TARGET_RATIO, defaultValue: '9/16', storage: 'backend', description: 'Target aspect ratio for vertical images' },
     { key: SETTING_KEYS.START_ON_LOGIN, defaultValue: false, storage: 'electron' },
+    { key: SETTING_KEYS.CLOSE_BEHAVIOR, defaultValue: 'minimize', storage: 'electron' },
     { key: SETTING_KEYS.AI_AUTO_TAG_ENABLED, defaultValue: false, storage: 'backend', description: 'Enable AI auto-tagging for imported wallpapers' },
     { key: SETTING_KEYS.AI_MODEL_SOURCE, defaultValue: 'predefined', storage: 'backend', description: 'Source of the AI model: predefined, huggingface, or local' },
     { key: SETTING_KEYS.AI_MODEL_TYPE, defaultValue: 'wd14_onnx', storage: 'backend', description: 'AI Model to use for auto-tagging' },
@@ -97,9 +100,16 @@ export function useSettingsForm() {
                     }
                     Reflect.set(values, config.key, val);
                 } else if (config.storage === 'electron') {
-                    if (window.electron?.getLoginSettings) {
-                        const loginSetting = await window.electron.getLoginSettings();
-                        Reflect.set(values, config.key, loginSetting);
+                    if (config.key === SETTING_KEYS.START_ON_LOGIN) {
+                        if (window.electron?.getLoginSettings) {
+                            const loginSetting = await window.electron.getLoginSettings();
+                            Reflect.set(values, config.key, loginSetting);
+                        }
+                    } else if (config.key === SETTING_KEYS.CLOSE_BEHAVIOR) {
+                        if (window.electron?.getCloseBehavior) {
+                            const closeBehavior = await window.electron.getCloseBehavior();
+                            Reflect.set(values, config.key, closeBehavior);
+                        }
                     }
                 }
             }
@@ -127,8 +137,14 @@ export function useSettingsForm() {
                         } 
                     }));
                 } else if (config.storage === 'electron') {
-                    if (window.electron?.setLoginSettings) {
-                        promises.push(window.electron.setLoginSettings(value as boolean));
+                    if (config.key === SETTING_KEYS.START_ON_LOGIN) {
+                        if (window.electron?.setLoginSettings) {
+                            promises.push(window.electron.setLoginSettings(value as boolean));
+                        }
+                    } else if (config.key === SETTING_KEYS.CLOSE_BEHAVIOR) {
+                        if (window.electron?.setCloseBehavior) {
+                            promises.push(window.electron.setCloseBehavior(value as 'minimize' | 'exit'));
+                        }
                     }
                 }
             }
