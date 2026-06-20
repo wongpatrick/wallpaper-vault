@@ -38,30 +38,108 @@ async def rename_set_folder_if_needed(db: AsyncSession, db_set: Set, raise_error
     new_folder_name = f"{creators_str} - {sanitized_title}"
     
     old_path = anyio.Path(db_set.local_path)
+    new_path = old_path.with_name(new_folder_name)
     
-    if await old_path.exists() and await old_path.is_dir():
-        new_path = old_path.with_name(new_folder_name)
+    if new_path == old_path:
+        try:
+            if not await old_path.exists():
+                await old_path.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            logger.error("Error creating directory", error=str(e), exc_info=True)
+            if raise_errors:
+                raise FileSystemError(f"Failed to create directory for set '{db_set.title}': {str(e)}")
+        return
+
+    import sys
+    from sqlalchemy import select
+    from app.models.image import Image
+    
+    sep = "\\" if sys.platform == "win32" else "/"
+    
+    try:
+        # Query all images for this set to update them in the session
+        result = await db.execute(
+            select(Image).where(Image.set_id == db_set.id)
+        )
+        images = list(result.scalars().all())
+        image_by_filename = {img.filename: img for img in images}
         
-        if new_path != old_path and not await new_path.exists():
-            try:
+        if await old_path.exists() and await old_path.is_dir():
+            if not await new_path.exists():
+                # Simple rename
                 await old_path.rename(new_path)
                 db_set.local_path = str(new_path)
+                for img in images:
+                    img.local_path = str(new_path) + sep + img.filename
+            else:
+                # Target directory already exists, merge them
+                def merge_and_update_db():
+                    import shutil
+                    import hashlib
+                    from pathlib import Path
+                    
+                    src_p = Path(db_set.local_path)
+                    dest_p = Path(str(new_path))
+                    
+                    def get_file_hash(file_path: Path) -> str:
+                        hasher = hashlib.sha256()
+                        with open(file_path, "rb") as f:
+                            for chunk in iter(lambda: f.read(65536), b""):
+                                hasher.update(chunk)
+                        return hasher.hexdigest()
+                        
+                    for item in src_p.iterdir():
+                        if item.is_dir():
+                            shutil.move(str(item), str(dest_p / item.name))
+                        else:
+                            filename = item.name
+                            dest_item = dest_p / filename
+                            
+                            db_img = image_by_filename.get(filename)
+                            
+                            if dest_item.exists():
+                                if item.stat().st_size == dest_item.stat().st_size and get_file_hash(item) == get_file_hash(dest_item):
+                                    # Identical, delete source
+                                    item.unlink()
+                                    if db_img:
+                                        db_img.local_path = str(dest_item)
+                                else:
+                                    # Different, append suffix
+                                    counter = 1
+                                    stem = item.stem
+                                    suffix = item.suffix
+                                    while True:
+                                        new_filename = f"{stem}_{counter}{suffix}"
+                                        candidate = dest_p / new_filename
+                                        if not candidate.exists():
+                                            shutil.move(str(item), str(candidate))
+                                            if db_img:
+                                                db_img.filename = new_filename
+                                                db_img.local_path = str(candidate)
+                                            break
+                                        counter += 1
+                            else:
+                                shutil.move(str(item), str(dest_item))
+                                if db_img:
+                                    db_img.local_path = str(dest_item)
+                    try:
+                        src_p.rmdir()
+                    except OSError:
+                        pass
+                        
+                await anyio.to_thread.run_sync(merge_and_update_db)
+                db_set.local_path = str(new_path)
+        else:
+            # Old path does not exist, create the new path directory and update DB records
+            await new_path.mkdir(parents=True, exist_ok=True)
+            db_set.local_path = str(new_path)
+            for img in images:
+                img.local_path = str(new_path) + sep + img.filename
                 
-                # Direct SQL UPDATE to update image paths without loading the collection
-                import sys
-                from sqlalchemy import update
-                from app.models.image import Image
-                
-                sep = "\\" if sys.platform == "win32" else "/"
-                await db.execute(
-                    update(Image)
-                    .where(Image.set_id == db_set.id)
-                    .values(local_path=str(new_path) + sep + Image.filename)
-                )
-            except Exception as e:
-                logger.error("Error renaming set folder", error=str(e), exc_info=True)
-                if raise_errors:
-                    raise FileSystemError(f"Failed to rename folder for set '{db_set.title}': {str(e)}")
+    except Exception as e:
+        logger.error("Error updating set folder and paths", error=str(e), exc_info=True)
+        if raise_errors:
+            raise FileSystemError(f"Failed to update folder or paths for set '{db_set.title}': {str(e)}")
 
 async def create_set(db: AsyncSession, set_in: SetCreate) -> Set:
     """Creates a new Set record and performs necessary file system/image processing."""

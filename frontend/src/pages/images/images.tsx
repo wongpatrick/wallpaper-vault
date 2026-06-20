@@ -9,6 +9,7 @@ import { useReadImagesApiImagesGet } from '../../api/generated/images/images';
 import { ImageGridItem } from '../../components/images/ImageGridItem';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { ImageEditModal } from '../../components/images/ImageEditModal';
+import { ImageCropModal } from '../../components/images/ImageCropModal';
 import { SortControl } from '../../components/ui/SortControl';
 import { CharacterAutocompleteInput } from '../../components/ui/CharacterAutocompleteInput';
 import { FranchiseAutocompleteInput } from '../../components/ui/FranchiseAutocompleteInput';
@@ -87,6 +88,7 @@ export default function Images() {
 
     // Edit Modal state
     const [editingImage, setEditingImage] = useState<ImageModel | null>(null);
+    const [croppingImage, setCroppingImage] = useState<ImageModel | null>(null);
 
     // Fetch data
     const { data: pageData, isLoading, isFetching, error, refetch } = useReadImagesApiImagesGet({
@@ -415,6 +417,7 @@ export default function Images() {
                     setPage(1);
                     refetch();
                 }}
+                onCrop={(img) => setCroppingImage(img)}
             />
 
             {/* Edit Image */}
@@ -427,6 +430,21 @@ export default function Images() {
                     refetch();
                 }}
             />
+
+            {/* Crop Image */}
+            {croppingImage && (
+                <ImageCropModal 
+                    key={croppingImage.id}
+                    image={croppingImage}
+                    opened={!!croppingImage}
+                    onClose={() => setCroppingImage(null)}
+                    onCropSuccess={() => {
+                        setAllImages([]);
+                        setPage(1);
+                        refetch();
+                    }}
+                />
+            )}
         </Container>
     );
 }

@@ -32,6 +32,8 @@ import type {
   ImageBulkMove,
   ImageBulkUpdate,
   ImageCreate,
+  ImageCropRequest,
+  ImageCropResponse,
   ImageDetail,
   ImageImportRequest,
   ImageImportValidationRequest,
@@ -1285,6 +1287,73 @@ export const useRevealImageApiImagesImageIdRevealPost = <TError = ErrorType<HTTP
       > => {
 
       const mutationOptions = getRevealImageApiImagesImageIdRevealPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Crop an image using automatic saliency-aware cropping or custom coordinates.
+Can be run in preview mode or save mode.
+ * @summary Crop Image
+ */
+export const cropImageApiImagesImageIdCropPost = (
+    imageId: number,
+    imageCropRequest: BodyType<ImageCropRequest>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<ImageCropResponse>(
+      {url: `/api/images/${imageId}/crop`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: imageCropRequest, signal
+    },
+      options);
+    }
+  
+
+
+export const getCropImageApiImagesImageIdCropPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cropImageApiImagesImageIdCropPost>>, TError,{imageId: number;data: BodyType<ImageCropRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof cropImageApiImagesImageIdCropPost>>, TError,{imageId: number;data: BodyType<ImageCropRequest>}, TContext> => {
+
+const mutationKey = ['cropImageApiImagesImageIdCropPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cropImageApiImagesImageIdCropPost>>, {imageId: number;data: BodyType<ImageCropRequest>}> = (props) => {
+          const {imageId,data} = props ?? {};
+
+          return  cropImageApiImagesImageIdCropPost(imageId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CropImageApiImagesImageIdCropPostMutationResult = NonNullable<Awaited<ReturnType<typeof cropImageApiImagesImageIdCropPost>>>
+    export type CropImageApiImagesImageIdCropPostMutationBody = BodyType<ImageCropRequest>
+    export type CropImageApiImagesImageIdCropPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Crop Image
+ */
+export const useCropImageApiImagesImageIdCropPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cropImageApiImagesImageIdCropPost>>, TError,{imageId: number;data: BodyType<ImageCropRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cropImageApiImagesImageIdCropPost>>,
+        TError,
+        {imageId: number;data: BodyType<ImageCropRequest>},
+        TContext
+      > => {
+
+      const mutationOptions = getCropImageApiImagesImageIdCropPostMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

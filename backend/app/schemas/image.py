@@ -119,3 +119,18 @@ class ImageImportRequest(BaseModel):
     rating: Optional[str] = Field("questionable", description="Global content rating.")
     delete_source: bool = Field(False, description="Whether to delete source files after successful import.")
 
+class ImageCropRequest(BaseModel):
+    aspect_ratio: Optional[str] = Field(None, description="Target aspect ratio, e.g. '16:9', '21:9', '16:10', '9:16'")
+    x: Optional[int] = Field(None, description="Top-left X coordinate for custom crop")
+    y: Optional[int] = Field(None, description="Top-left Y coordinate for custom crop")
+    width: Optional[int] = Field(None, description="Width for custom crop")
+    height: Optional[int] = Field(None, description="Height for custom crop")
+    save_mode: str = Field("new", description="Save mode: 'new' or 'replace'")
+    preview_only: bool = Field(False, description="If True, only return the calculated crop coordinates without performing the crop operation")
+
+class ImageCropResponse(BaseModel):
+    x: Optional[int] = Field(None, description="Calculated top-left X coordinate")
+    y: Optional[int] = Field(None, description="Calculated top-left Y coordinate")
+    width: Optional[int] = Field(None, description="Calculated crop width")
+    height: Optional[int] = Field(None, description="Calculated crop height")
+    image: Optional[ImageDetail] = Field(None, description="The resulting image object (populated when preview_only=False)")

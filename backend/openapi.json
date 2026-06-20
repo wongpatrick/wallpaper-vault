@@ -2099,6 +2099,59 @@
         }
       }
     },
+    "/api/images/{image_id}/crop": {
+      "post": {
+        "tags": [
+          "images"
+        ],
+        "summary": "Crop Image",
+        "description": "Crop an image using automatic saliency-aware cropping or custom coordinates.\nCan be run in preview mode or save mode.",
+        "operationId": "crop_image_api_images__image_id__crop_post",
+        "parameters": [
+          {
+            "name": "image_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Image Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageCropRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageCropResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/images/set/{set_id}": {
       "post": {
         "tags": [
@@ -4819,6 +4872,149 @@
           "local_path"
         ],
         "title": "ImageCreate"
+      },
+      "ImageCropRequest": {
+        "properties": {
+          "aspect_ratio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aspect Ratio",
+            "description": "Target aspect ratio, e.g. '16:9', '21:9', '16:10', '9:16'"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "X",
+            "description": "Top-left X coordinate for custom crop"
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Y",
+            "description": "Top-left Y coordinate for custom crop"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width",
+            "description": "Width for custom crop"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height",
+            "description": "Height for custom crop"
+          },
+          "save_mode": {
+            "type": "string",
+            "title": "Save Mode",
+            "description": "Save mode: 'new' or 'replace'",
+            "default": "new"
+          },
+          "preview_only": {
+            "type": "boolean",
+            "title": "Preview Only",
+            "description": "If True, only return the calculated crop coordinates without performing the crop operation",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ImageCropRequest"
+      },
+      "ImageCropResponse": {
+        "properties": {
+          "x": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "X",
+            "description": "Calculated top-left X coordinate"
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Y",
+            "description": "Calculated top-left Y coordinate"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width",
+            "description": "Calculated crop width"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height",
+            "description": "Calculated crop height"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImageDetail"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The resulting image object (populated when preview_only=False)"
+          }
+        },
+        "type": "object",
+        "title": "ImageCropResponse"
       },
       "ImageDetail": {
         "properties": {

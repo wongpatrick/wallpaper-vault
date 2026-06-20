@@ -4,7 +4,7 @@
  * Description: Full-screen image viewer supporting keyboard navigation, metadata display, filmstrip thumbnail navigation, and direct image actions (edit/delete).
  */
 import { Modal, Box, Group, Stack, Text, Button, ActionIcon, Center, Image, Badge, Tooltip } from '@mantine/core';
-import { IconWallpaper, IconX, IconChevronLeft, IconChevronRight, IconEdit, IconAlertTriangle, IconExclamationCircle, IconTrash, IconFolderOpen } from '@tabler/icons-react';
+import { IconWallpaper, IconX, IconChevronLeft, IconChevronRight, IconEdit, IconAlertTriangle, IconExclamationCircle, IconTrash, IconFolderOpen, IconCrop } from '@tabler/icons-react';
 import { getImageUrl, getThumbnailUrl } from '../../utils/fileUtils';
 import type { Image as ImageModel } from '../../api/model';
 import { useDeleteImageApiImagesImageIdDelete } from '../../api/generated/images/images';
@@ -23,6 +23,7 @@ interface ImageLightboxProps {
     onDelete?: () => void;
     totalCount?: number;
     disableActions?: boolean;
+    onCrop?: (image: ImageModel) => void;
 }
 
 const BYTES_PER_KB = 1024;
@@ -34,7 +35,7 @@ const THUMB_WIDTH = 160;
 const THUMB_HEIGHT = 100;
 const THUMB_GAP = 8;
 
-export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit, onDelete, totalCount, disableActions }: ImageLightboxProps) {
+export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit, onDelete, totalCount, disableActions, onCrop }: ImageLightboxProps) {
     const deleteMutation = useDeleteImageApiImagesImageIdDelete();
     const navigate = useNavigate();
 
@@ -62,15 +63,22 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
         return window;
     }, [selectedIndex, images]);
 
+    // Close lightbox if the index becomes invalid (e.g. after deletion or list reload)
+    useEffect(() => {
+        if (selectedIndex !== null && (!images || images.length === 0 || selectedIndex >= images.length)) {
+            onClose();
+        }
+    }, [selectedIndex, images, onClose]);
+
     // Prefetch adjacent full-res images for instant navigation
     useEffect(() => {
-        if (selectedIndex === null) return;
+        if (selectedIndex === null || !images || selectedIndex >= images.length) return;
         
         const prefetchIndices = [selectedIndex - 1, selectedIndex + 1];
         prefetchIndices.forEach(idx => {
             if (idx >= 0 && idx < images.length) {
                 const img = new window.Image();
-                img.src = getImageUrl(images[idx].id);
+                img.src = getImageUrl(images[idx].id, images[idx].phash || images[idx].file_size || undefined);
             }
         });
     }, [selectedIndex, images]);
@@ -78,6 +86,8 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
     if (selectedIndex === null) return null;
 
     const currentImage = images[selectedIndex];
+    if (!currentImage) return null;
+
     const rating = currentImage.rating || ImageRating.SAFE;
 
     const borderColor = rating === ImageRating.EXPLICIT ? 'var(--mantine-color-red-filled)' : 
@@ -181,6 +191,15 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                             </Tooltip>
                         )}
                         <Button 
+                            leftSection={<IconCrop size={18} />} 
+                            variant="subtle" 
+                            color="gray" 
+                            onClick={() => onCrop?.(currentImage)}
+                            disabled={disableActions}
+                        >
+                            Crop
+                        </Button>
+                        <Button 
                             leftSection={<IconEdit size={18} />} 
                             variant="subtle" 
                             color="gray" 
@@ -216,7 +235,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                 {/* Main Image Area */}
                 <Center style={{ flex: 1, padding: '40px' }}>
                     <Image
-                        src={getImageUrl(currentImage.id)}
+                        src={getImageUrl(currentImage.id, currentImage.phash || currentImage.file_size || undefined)}
                         style={{ 
                             maxHeight: '75vh', 
                             maxWidth: '100%', 
@@ -296,7 +315,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                                     }}
                                 >
                                     <Image 
-                                        src={getThumbnailUrl(img.id, 'sm')} 
+                                        src={getThumbnailUrl(img.id, 'sm', img.phash || img.file_size || undefined)} 
                                         height={THUMB_HEIGHT} 
                                         width={THUMB_WIDTH}
                                         fit="cover" 

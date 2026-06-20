@@ -130,3 +130,141 @@ async def test_merge_creators_multiple_sets(db_session: AsyncSession):
     assert c_source not in s1_updated.creators
     assert c_target in s2_updated.creators
     assert c_source not in s2_updated.creators
+
+@pytest.mark.asyncio
+async def test_merge_creators_directory_rename(db_session: AsyncSession, tmp_path):
+    from app.crud.creator import create_creator, merge_creators
+    from app.schemas.creator import CreatorCreate
+    from app.models.set import Set
+
+    # 1. Create target and source creators
+    c_target = await create_creator(db_session, CreatorCreate(canonical_name="Target Artist"))
+    c_source = await create_creator(db_session, CreatorCreate(canonical_name="Source Artist"))
+    await db_session.commit()
+
+    # 2. Create set and physical directory
+    s_dir = tmp_path / "Source Artist - Test Set"
+    s_dir.mkdir()
+    
+    s = Set(title="Test Set", local_path=str(s_dir))
+    s.creators.append(c_source)
+    db_session.add(s)
+    await db_session.commit()
+    await db_session.refresh(s)
+
+    # 3. Merge source into target
+    await merge_creators(db_session, [c_source.id], c_target.id)
+
+    # 4. Verify directory renamed
+    new_expected_dir = tmp_path / "Target Artist - Test Set"
+    assert new_expected_dir.exists()
+    assert not s_dir.exists()
+
+@pytest.mark.asyncio
+async def test_merge_creators_directory_merge_conflict(db_session: AsyncSession, tmp_path):
+    from app.crud.creator import create_creator, merge_creators
+    from app.schemas.creator import CreatorCreate
+    from app.models.set import Set
+    from app.models.image import Image
+
+    # 1. Create target and source creators
+    c_target = await create_creator(db_session, CreatorCreate(canonical_name="Target Artist"))
+    c_source = await create_creator(db_session, CreatorCreate(canonical_name="Source Artist"))
+    await db_session.commit()
+
+    # 2. Create physical directories
+    s_dir = tmp_path / "Source Artist - Conflict Set"
+    s_dir.mkdir()
+    t_dir = tmp_path / "Target Artist - Conflict Set"
+    t_dir.mkdir()
+
+    # Write files
+    (s_dir / "identical.jpg").write_text("abc")
+    (s_dir / "different.jpg").write_text("hello")
+    
+    (t_dir / "identical.jpg").write_text("abc")
+    (t_dir / "different.jpg").write_text("world")
+    (t_dir / "target_only.jpg").write_text("only_target")
+
+    # 3. Create set and images in DB
+    s = Set(title="Conflict Set", local_path=str(s_dir))
+    s.creators.append(c_source)
+    
+    img_identical = Image(filename="identical.jpg", local_path=str(s_dir / "identical.jpg"), width=10, height=10)
+    img_different = Image(filename="different.jpg", local_path=str(s_dir / "different.jpg"), width=10, height=10)
+    s.images.extend([img_identical, img_different])
+    
+    db_session.add(s)
+    await db_session.commit()
+    await db_session.refresh(s)
+
+    # 4. Merge source into target
+    await merge_creators(db_session, [c_source.id], c_target.id)
+
+    # 5. Verify physical folders and files
+    assert not s_dir.exists()
+    assert t_dir.exists()
+    
+    # files in target directory
+    assert (t_dir / "target_only.jpg").exists()
+    assert (t_dir / "identical.jpg").read_text() == "abc"
+    assert (t_dir / "different.jpg").read_text() == "world"
+    assert (t_dir / "different_1.jpg").read_text() == "hello"
+
+    # DB image paths updated
+    await db_session.refresh(img_identical)
+    await db_session.refresh(img_different)
+    
+    import sys
+    sep = "\\" if sys.platform == "win32" else "/"
+    
+    assert img_identical.local_path == str(t_dir) + sep + "identical.jpg"
+    assert img_identical.filename == "identical.jpg"
+    
+    assert img_different.local_path == str(t_dir) + sep + "different_1.jpg"
+    assert img_different.filename == "different_1.jpg"
+
+@pytest.mark.asyncio
+async def test_merge_creators_directory_non_existent(db_session: AsyncSession, tmp_path):
+    from app.crud.creator import create_creator, merge_creators
+    from app.schemas.creator import CreatorCreate
+    from app.models.set import Set
+    from app.models.image import Image
+
+    # 1. Create target and source creators
+    c_target = await create_creator(db_session, CreatorCreate(canonical_name="Target Artist"))
+    c_source = await create_creator(db_session, CreatorCreate(canonical_name="Source Artist"))
+    await db_session.commit()
+
+    # 2. Create set with non-existent path in DB
+    fake_dir = tmp_path / "Source Artist - NonExistent Set"
+    # Do NOT create fake_dir physically
+    
+    s = Set(title="NonExistent Set", local_path=str(fake_dir))
+    s.creators.append(c_source)
+    
+    img = Image(filename="image.jpg", local_path=str(fake_dir / "image.jpg"), width=10, height=10)
+    s.images.append(img)
+    
+    db_session.add(s)
+    await db_session.commit()
+    await db_session.refresh(s)
+
+    # 3. Merge source into target
+    await merge_creators(db_session, [c_source.id], c_target.id)
+
+    # 4. Verify directory was created and DB records updated
+    new_expected_dir = tmp_path / "Target Artist - NonExistent Set"
+    assert new_expected_dir.exists()
+    assert new_expected_dir.is_dir()
+    
+    await db_session.refresh(s)
+    await db_session.refresh(img)
+    
+    import sys
+    sep = "\\" if sys.platform == "win32" else "/"
+    
+    assert s.local_path == str(new_expected_dir)
+    assert img.local_path == str(new_expected_dir) + sep + "image.jpg"
+
+
