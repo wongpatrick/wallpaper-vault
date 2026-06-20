@@ -12,7 +12,8 @@ from app.services import image_service, import_service
 from app.schemas.image import (
     Image, ImageUpdate, ImageCreate, ImageBulkUpdate, ImageBulkMove,
     DuplicateGroup, DuplicateResolutionRequest, ImageWithContext, ImagePage, ImageDetail,
-    ImageImportValidationRequest, ImageImportValidationResponse, ImageImportRequest
+    ImageImportValidationRequest, ImageImportValidationResponse, ImageImportRequest,
+    ImageCropRequest, ImageCropResponse
 )
 from app.models.image import Image as ImageModel
 from app.core.exceptions import AppError
@@ -380,6 +381,36 @@ async def reveal_image(
     except Exception as e:
         logger.exception("Failed to reveal image in file manager", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to open file manager: {e}")
+
+@router.post("/{image_id}/crop", response_model=ImageCropResponse)
+async def crop_image(
+    image_id: int,
+    crop_req: ImageCropRequest,
+    db: AsyncSession = Depends(get_db)
+) -> ImageCropResponse:
+    """
+    Crop an image using automatic saliency-aware cropping or custom coordinates.
+    Can be run in preview mode or save mode.
+    """
+    try:
+        res = await image_service.crop_image(db, image_id=image_id, crop_req=crop_req)
+        
+        mapped_img = None
+        if res.get("image") is not None:
+            mapped_img = map_image_to_schema(res["image"])
+            
+        return ImageCropResponse(
+            x=res["x"],
+            y=res["y"],
+            width=res["width"],
+            height=res["height"],
+            image=mapped_img
+        )
+    except AppError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to crop image", image_id=image_id)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/set/{set_id}", response_model=ImageDetail)
 async def create_image_for_set(

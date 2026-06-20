@@ -11,24 +11,31 @@ import { API_BASE_URL } from "../config";
  * @param imageId The ID of the image in the database.
  * @returns A string URL to be used in src attributes.
  */
-export const getImageUrl = (imageId: number | string | undefined | null): string => {
+export const getImageUrl = (imageId: number | string | undefined | null, cacheBuster?: string | number): string => {
     if (!imageId) return 'https://placehold.co/600x400?text=No+Image';
     
     const baseURL = AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
-    return `${baseURL}/api/images/file/${imageId}`;
+    const url = `${baseURL}/api/images/file/${imageId}`;
+    return cacheBuster ? `${url}?cb=${cacheBuster}` : url;
 };
 
 /**
  * Generates the URL for a resized thumbnail of an image.
  * @param imageId The ID of the image in the database.
  * @param size 'sm' (200px wide) or 'md' (400px wide).
+ * @param cacheBuster Optional query parameter value to bypass cached images when files change.
  * @returns A string URL for the thumbnail.
  */
-export const getThumbnailUrl = (imageId: number | string | undefined | null, size: 'sm' | 'md' | 'lg' = 'sm'): string => {
+export const getThumbnailUrl = (
+    imageId: number | string | undefined | null, 
+    size: 'sm' | 'md' | 'lg' = 'sm',
+    cacheBuster?: string | number
+): string => {
     if (!imageId) return 'https://placehold.co/600x400?text=No+Image';
     
     const baseURL = AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
-    return `${baseURL}/api/images/thumb/${imageId}?size=${size}`;
+    const url = `${baseURL}/api/images/thumb/${imageId}?size=${size}`;
+    return cacheBuster ? `${url}&cb=${cacheBuster}` : url;
 };
 
 /**

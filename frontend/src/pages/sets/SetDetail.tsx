@@ -34,6 +34,7 @@ import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { ImageBulkEditModal } from '../../components/images/ImageBulkEditModal';
 import { ImageMoveModal } from '../../components/images/ImageMoveModal';
 import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
+import { ImageCropModal } from '../../components/images/ImageCropModal';
 import { CharacterTagsInput } from '../../components/ui/CharacterTagsInput';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
 import { useTasks } from '../../hooks/useTasks';
@@ -57,6 +58,7 @@ export default function SetDetail() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [enablePathEdit, setEnablePathEdit] = useState(false);
     const [editingImage, setEditingImage] = useState<ImageModel | null>(null);
+    const [croppingImage, setCroppingImage] = useState<ImageModel | null>(null);
 
     const { getTaskForSet, tasks } = useTasks();
     const activeTask = getTaskForSet(Number(setId));
@@ -467,6 +469,7 @@ export default function SetDetail() {
                 onEdit={(img) => setEditingImage(img)}
                 onDelete={() => refetch()}
                 disableActions={autoTagMutation.isPending || isLocalTaggingActive}
+                onCrop={(img) => setCroppingImage(img)}
             />
 
             {/* Set Edit Modal */}
@@ -572,6 +575,17 @@ export default function SetDetail() {
                 selectedImageIds={Array.from(selectedImageIds)}
                 onSuccess={handleMoveSuccess}
             />
+
+            {/* Image Crop Modal */}
+            {croppingImage && (
+                <ImageCropModal 
+                    key={croppingImage.id}
+                    image={croppingImage}
+                    opened={!!croppingImage}
+                    onClose={() => setCroppingImage(null)}
+                    onCropSuccess={() => refetch()}
+                />
+            )}
 
             <style dangerouslySetInnerHTML={{ __html: `
                 @media (max-width: 1200px) { .masonry-grid { column-count: 3 !important; } }

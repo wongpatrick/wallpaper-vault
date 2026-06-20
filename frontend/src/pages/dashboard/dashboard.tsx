@@ -184,7 +184,7 @@ export default function Dashboard() {
                                         <Group justify="space-between" wrap="nowrap">
                                             <Group wrap="nowrap">
                                                 <Image 
-                                                    src={getImageUrl(set.images?.[0]?.id)} 
+                                                    src={getImageUrl(set.images?.[0]?.id, set.images?.[0]?.phash || set.images?.[0]?.file_size || undefined)} 
                                                     w={40} 
                                                     h={40} 
                                                     radius="sm" 
@@ -209,7 +209,7 @@ export default function Dashboard() {
                             <Card withBorder radius="md" p={0}>
                                 <Card.Section>
                                     <Image 
-                                        src={getImageUrl(randomImage.id)} 
+                                        src={getImageUrl(randomImage.id, randomImage.phash || randomImage.file_size || undefined)} 
                                         fallbackSrc="https://placehold.co/600x400?text=No+Preview"
                                         alt="Random inspiration"
                                     />

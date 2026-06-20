@@ -72,7 +72,7 @@ export function ImageGridItem({ image, onClick, selectionMode, selected, onToggl
             {...longPressProps}
         >
             <Image
-                src={getThumbnailUrl(image.id, 'md')}
+                src={getThumbnailUrl(image.id, 'md', image.phash || image.file_size || undefined)}
                 alt={image.filename}
                 loading="lazy"
                 radius={0}
