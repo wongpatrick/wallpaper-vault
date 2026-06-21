@@ -277,7 +277,7 @@ export default function SetDetail() {
         refetch();
     };
 
-    const creatorNames = set.creators?.map(c => c.canonical_name).join(' & ') || 'Unknown Creator';
+
 
     return (
         <Container fluid px="xl" pb={selectionMode ? 100 : "xl"} pos="relative">
@@ -385,7 +385,22 @@ export default function SetDetail() {
 
                 {/* Subtitle Details */}
                 <Group gap="xs">
-                    <Text size="lg" c="dimmed">{creatorNames}</Text>
+                    {set.creators && set.creators.length > 0 ? (
+                        set.creators.map(c => (
+                            <Badge 
+                                key={c.id} 
+                                size="lg" 
+                                variant="light" 
+                                color="indigo" 
+                                style={{ cursor: 'pointer', textTransform: 'none' }}
+                                onClick={() => navigate(`/creators/${c.id}`)}
+                            >
+                                {c.canonical_name}
+                            </Badge>
+                        ))
+                    ) : (
+                        <Text size="lg" c="dimmed">Unknown Creator</Text>
+                    )}
                     <Text c="dimmed" size="lg">•</Text>
                     <Badge size="lg" variant="dot">{set.images?.length || 0} Images</Badge>
                     <Badge size="lg" variant="outline" color="gray">{set.date_added}</Badge>
@@ -397,18 +412,61 @@ export default function SetDetail() {
                 )}
                 
                 {/* Metadata Badges */}
-                {((set.tags && set.tags.length > 0) || (set.characters && set.characters.length > 0)) && (
+                {((set.tags && set.tags.length > 0) || 
+                  (set.characters && set.characters.length > 0)) && (
                     <Group gap="xs" mt="xs">
                         {set.tags && set.tags.map(tag => (
-                            <Badge key={tag} variant="light" color="gray" leftSection={<IconTag size={12} />}>
+                            <Badge 
+                                key={tag} 
+                                variant="light" 
+                                color="gray" 
+                                leftSection={<IconTag size={12} />}
+                                style={{ cursor: 'pointer', textTransform: 'none' }}
+                                onClick={() => navigate(`/images?tag=${encodeURIComponent(tag)}`)}
+                            >
                                 {tag}
                             </Badge>
                         ))}
-                        {set.characters && set.characters.map(char => (
-                            <Badge key={char} variant="light" color="blue">
-                                {char}
-                            </Badge>
-                        ))}
+                        {set.characters && set.characters.map(char => {
+                            const hasFranchise = char.includes(' (');
+                            const rawName = hasFranchise ? char.split(' (')[0] : char;
+                            const franchiseName = hasFranchise ? char.split(' (')[1].slice(0, -1) : null;
+                            
+                            if (franchiseName) {
+                                return (
+                                    <Group key={char} gap={0} style={{ display: 'inline-flex', verticalAlign: 'middle', borderRadius: '4px', overflow: 'hidden' }}>
+                                        <Badge 
+                                            variant="light" 
+                                            color="blue"
+                                            style={{ cursor: 'pointer', textTransform: 'none', borderTopRightRadius: 0, borderBottomRightRadius: 0, paddingRight: 6 }}
+                                            onClick={() => navigate(`/images?character=${encodeURIComponent(rawName)}`)}
+                                        >
+                                            {rawName}
+                                        </Badge>
+                                        <Badge 
+                                            variant="light" 
+                                            color="orange"
+                                            style={{ cursor: 'pointer', textTransform: 'none', borderTopLeftRadius: 0, borderBottomLeftRadius: 0, paddingLeft: 6 }}
+                                            onClick={() => navigate(`/images?franchise=${encodeURIComponent(franchiseName)}`)}
+                                        >
+                                            {franchiseName}
+                                        </Badge>
+                                    </Group>
+                                );
+                            }
+
+                            return (
+                                <Badge 
+                                    key={char} 
+                                    variant="light" 
+                                    color="blue"
+                                    style={{ cursor: 'pointer', textTransform: 'none' }}
+                                    onClick={() => navigate(`/images?character=${encodeURIComponent(rawName)}`)}
+                                >
+                                    {char}
+                                </Badge>
+                            );
+                        })}
                     </Group>
                 )}
             </Stack>
