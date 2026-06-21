@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.set import Set
 from app.models.image import Image
 from app.schemas.set import SetCreate, SetImport, SetUpdate, SetBulkUpdate
-from app.core.exceptions import FileSystemError, ResourceNotFoundError, DuplicateResourceError
+from app.core.exceptions import FileSystemError, ResourceNotFoundError
 from app.crud import set as crud_set
 from app.crud.creator import get_creator_by_name, create_creator
 from app.schemas.creator import CreatorCreate
@@ -312,25 +312,50 @@ async def import_set(db: AsyncSession, set_in: SetImport) -> Set:
     from app.crud.settings import get_setting
     from app.services.audit_service import calculate_phash
     from app.core.enums import ImageRating
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
 
     db_creators = []
+    db_set = None
     for name in set_in.creator_names:
         creator = await get_creator_by_name(db, name)
         if not creator:
             creator = await create_creator(db, CreatorCreate(canonical_name=name))
         
         existing_set = await crud_set.get_set_by_title_and_creator(db, set_in.title, creator.id)
-        if existing_set:
-            raise DuplicateResourceError(f"Set '{set_in.title}' already exists for creator '{name}'")
+        if existing_set and db_set is None:
+            # Load the existing set with all collections to prevent lazy loading issues
+            stmt = select(Set).where(Set.id == existing_set.id).options(
+                selectinload(Set.creators),
+                selectinload(Set.images),
+                selectinload(Set.tags),
+                selectinload(Set.characters)
+            )
+            res = await db.execute(stmt)
+            db_set = res.scalars().first()
             
         db_creators.append(creator)
     
-    db_set = Set(
-        title=set_in.title,
-        local_path=set_in.local_path,
-        notes=set_in.notes
-    )
-    db_set.creators = db_creators
+    if db_set is None:
+        db_set = Set(
+            title=set_in.title,
+            local_path=set_in.local_path,
+            notes=set_in.notes
+        )
+        db_set.creators = db_creators
+        db.add(db_set)
+    else:
+        # Merge notes if provided
+        if set_in.notes:
+            if db_set.notes:
+                db_set.notes = f"{db_set.notes}\n{set_in.notes}".strip()
+            else:
+                db_set.notes = set_in.notes
+        # Ensure all creators are linked
+        existing_creator_ids = {c.id for c in db_set.creators}
+        for c in db_creators:
+            if c.id not in existing_creator_ids:
+                db_set.creators.append(c)
 
     if set_in.images:
         h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
@@ -374,9 +399,8 @@ async def import_set(db: AsyncSession, set_in: SetImport) -> Set:
                 
             new_images.append(Image(**img_data))
             
-        db_set.images = new_images
+        db_set.images.extend(new_images)
 
-    db.add(db_set)
     await db.commit()
     await db.refresh(db_set)
     return await crud_set.get_set(db, db_set.id)

@@ -323,6 +323,20 @@ function createWindow() {
 
     if (process.env.VITE_DEV_SERVER_URL) {
         mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
+        
+        mainWindow.webContents.on('before-input-event', (event, input) => {
+            if (input.type === 'keyDown') {
+                const isDevToolsShortcut =
+                    input.key === 'F12' ||
+                    (input.control && input.shift && input.key.toLowerCase() === 'i') ||
+                    (input.meta && input.alt && input.key.toLowerCase() === 'i');
+                
+                if (isDevToolsShortcut) {
+                    mainWindow?.webContents.toggleDevTools();
+                    event.preventDefault();
+                }
+            }
+        });
     } else {
         mainWindow.loadFile(path.join(__dirname, `../dist/index.html`))
     }
