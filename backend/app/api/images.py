@@ -242,6 +242,8 @@ async def read_random_image(
     min_w: Optional[int] = Query(None, alias="min_width"),
     min_h: Optional[int] = Query(None, alias="min_height"),
     creator_id: Optional[int] = None,
+    playlist_id: Optional[int] = None,
+    rating: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ) -> Image:
     """
@@ -253,7 +255,9 @@ async def read_random_image(
         aspect_ratio_label=ratio, 
         min_width=min_w, 
         min_height=min_h,
-        creator_id=creator_id
+        creator_id=creator_id,
+        playlist_id=playlist_id,
+        rating=rating
     )
     if db_image is None:
         raise HTTPException(status_code=404, detail="No images found matching criteria")
@@ -266,6 +270,8 @@ async def read_random_image_file(
     min_w: Optional[int] = Query(None, alias="min_width"),
     min_h: Optional[int] = Query(None, alias="min_height"),
     creator_id: Optional[int] = None,
+    playlist_id: Optional[int] = None,
+    rating: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
     """
@@ -277,7 +283,9 @@ async def read_random_image_file(
         aspect_ratio_label=ratio, 
         min_width=min_w, 
         min_height=min_h,
-        creator_id=creator_id
+        creator_id=creator_id,
+        playlist_id=playlist_id,
+        rating=rating
     )
     if db_image is None:
         raise HTTPException(status_code=404, detail="No images found matching criteria")

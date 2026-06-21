@@ -14,6 +14,8 @@ import Images from './pages/images/images'
 import TaxonomyManagement from './pages/taxonomy/TaxonomyManagement'
 import Tools from './pages/tools/tools'
 import Settings from './pages/settings/settings'
+import Playlists from './pages/playlists/playlists'
+import PlaylistDetail from './pages/playlists/PlaylistDetail'
 import { createTheme, MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import { ModalsProvider } from '@mantine/modals'
@@ -87,6 +89,14 @@ const router = createHashRouter([
       {
         path: "/sets/:setId",
         element: <SetDetail />,
+      },
+      {
+        path: "/playlists",
+        element: <Playlists />,
+      },
+      {
+        path: "/playlists/:playlistId",
+        element: <PlaylistDetail />,
       },
       {
         path: "/images",

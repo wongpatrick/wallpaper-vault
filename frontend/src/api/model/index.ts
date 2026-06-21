@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './addImagesApiPlaylistsPlaylistIdImagesPost200';
 export * from './auditFixAction';
 export * from './auditIssue';
 export * from './auditIssueCreatorName';
@@ -175,17 +176,34 @@ export * from './imageWithContextTags';
 export * from './imageWithContextWidth';
 export * from './libraryStats';
 export * from './libraryStatsAspectRatioDistribution';
+export * from './playlist';
+export * from './playlistCreate';
+export * from './playlistCreateDescription';
+export * from './playlistDescription';
+export * from './playlistDetail';
+export * from './playlistDetailDescription';
+export * from './playlistImageDetail';
+export * from './playlistImagesAdd';
+export * from './playlistImagesRemove';
+export * from './playlistImagesReorder';
+export * from './playlistUpdate';
+export * from './playlistUpdateDescription';
+export * from './playlistUpdateName';
 export * from './readCharactersApiCharactersGetParams';
 export * from './readColorStatsApiImagesColorStatsGet200Item';
 export * from './readColorStatsApiImagesColorStatsGetParams';
 export * from './readCreatorsApiCreatorsGetParams';
 export * from './readFranchisesApiFranchisesGetParams';
 export * from './readImagesApiImagesGetParams';
+export * from './readPlaylistRandomImageApiPlaylistsPlaylistIdRandomGetParams';
+export * from './readPlaylistRandomImageFileApiPlaylistsPlaylistIdRandomFileGetParams';
 export * from './readRandomImageApiImagesRandomGetParams';
 export * from './readRandomImageFileApiImagesRandomFileGetParams';
 export * from './readSetsApiSetsGetParams';
 export * from './readTagCloudApiTagsCloudGetParams';
 export * from './readTagsManagementApiTagsManagementGetParams';
+export * from './removeImagesApiPlaylistsPlaylistIdImagesDelete200';
+export * from './reorderImagesApiPlaylistsPlaylistIdImagesReorderPut200';
 export * from './resolveAuditIssuesApiAuditResolvePost200';
 export * from './resolveDuplicatesApiImagesDuplicatesResolvePost200';
 export * from './revealImageApiImagesImageIdRevealPost200';

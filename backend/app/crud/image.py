@@ -21,7 +21,9 @@ async def get_random_image(
     aspect_ratio_label: Optional[str] = None,
     min_width: Optional[int] = None,
     min_height: Optional[int] = None,
-    creator_id: Optional[int] = None
+    creator_id: Optional[int] = None,
+    playlist_id: Optional[int] = None,
+    rating: Optional[str] = None
 ) -> Optional[Image]:
     """Retrieves a single random image based on optional filters.
 
@@ -32,6 +34,8 @@ async def get_random_image(
         min_width: Minimum image width in pixels.
         min_height: Minimum image height in pixels.
         creator_id: Optional creator ID to filter by.
+        playlist_id: Optional playlist ID to filter by.
+        rating: Optional rating to filter by.
 
     Returns:
         A random Image object matching the filters, or None if no match is found.
@@ -44,7 +48,15 @@ async def get_random_image(
             query = query.filter(Set.tags.any(Tag.name.icontains(tag_str)))
             
     if aspect_ratio_label:
-        query = query.filter(Image.aspect_ratio_label == aspect_ratio_label)
+        # Standardise formatting variations like '16:9', '16x9', '16/9'
+        variations = {
+            aspect_ratio_label,
+            aspect_ratio_label.replace(":", "x"),
+            aspect_ratio_label.replace("x", ":"),
+            aspect_ratio_label.replace("/", "x"),
+            aspect_ratio_label.replace("/", ":")
+        }
+        query = query.filter(Image.aspect_ratio_label.in_(variations))
         
     if min_width:
         query = query.filter(Image.width >= min_width)
@@ -54,6 +66,13 @@ async def get_random_image(
         
     if creator_id:
         query = query.join(Set.creators).filter(Creator.id == creator_id)
+
+    if playlist_id:
+        from app.models.playlist import PlaylistImage
+        query = query.join(Image.playlist_images).filter(PlaylistImage.playlist_id == playlist_id)
+
+    if rating:
+        query = query.filter(Image.rating == rating)
 
     query = query.order_by(func.random()).limit(1)
     

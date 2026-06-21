@@ -3,8 +3,8 @@
  * Module: Images Directory Page
  * Description: Provides an infinite-scrolling gallery of all individual wallpapers with search, filtering, and lightbox viewing capabilities.
  */
-import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Box, SimpleGrid, SegmentedControl, Badge, ActionIcon, Tabs } from '@mantine/core';
-import { IconAlertCircle, IconSearch, IconX, IconGridDots, IconPalette } from '@tabler/icons-react';
+import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Box, SimpleGrid, SegmentedControl, Badge, ActionIcon, Tabs, Button } from '@mantine/core';
+import { IconAlertCircle, IconSearch, IconX, IconGridDots, IconPalette, IconCheck, IconPlaylist } from '@tabler/icons-react';
 import { useReadImagesApiImagesGet } from '../../api/generated/images/images';
 import { ImageGridItem } from '../../components/images/ImageGridItem';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
@@ -19,6 +19,9 @@ import { useIntersection, useViewportSize } from '@mantine/hooks';
 import { useSearchParams } from 'react-router-dom';
 import { useUrlSearch } from '../../hooks/useUrlSearch';
 import { useUrlPagination } from '../../hooks/useUrlPagination';
+import { useSelection } from '../../hooks/useSelection';
+import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
+import { AddToPlaylistModal } from '../../components/playlists/AddToPlaylistModal';
 import type { Image as ImageModel } from '../../api/model';
 
 const PAGE_SIZE = 100;
@@ -89,6 +92,10 @@ export default function Images() {
     // Edit Modal state
     const [editingImage, setEditingImage] = useState<ImageModel | null>(null);
     const [croppingImage, setCroppingImage] = useState<ImageModel | null>(null);
+
+    // Selection state
+    const { selectionMode, setSelectionMode, selectedIds: selectedImageIds, toggle: toggleImageSelect, clear: clearSelection } = useSelection();
+    const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
 
     // Fetch data
     const { data: pageData, isLoading, isFetching, error, refetch } = useReadImagesApiImagesGet({
@@ -241,10 +248,20 @@ export default function Images() {
 
     return (
         <Container fluid px="xl">
-            <Stack gap="xs" mb="xl">
-                <Title order={1} fw={800} style={{ letterSpacing: '-1px' }}>🖼️ Individual Wallpapers</Title>
-                <Text c="dimmed" size="lg">Continuous stream of your entire library.</Text>
-            </Stack>
+            <Group justify="space-between" align="flex-start" mb="xl">
+                <Stack gap={0}>
+                    <Title order={1} fw={800} style={{ letterSpacing: '-1px' }}>🖼️ Individual Wallpapers</Title>
+                    <Text c="dimmed" size="lg">Continuous stream of your entire library.</Text>
+                </Stack>
+                <Button 
+                    variant={selectionMode ? "filled" : "light"} 
+                    color={selectionMode ? "blue" : "gray"}
+                    leftSection={selectionMode ? <IconCheck size={16} /> : null}
+                    onClick={() => selectionMode ? clearSelection() : setSelectionMode(true)}
+                >
+                    {selectionMode ? "Finish Selecting" : "Select Items"}
+                </Button>
+            </Group>
 
             <Tabs value={activeTab} onChange={handleTabChange} mb="xl">
                 <Tabs.List mb="md">
@@ -375,6 +392,9 @@ export default function Images() {
                                                         key={`${image.id}-${originalIdx}`}
                                                         image={image}
                                                         onClick={() => setSelectedImageIndex(originalIdx)}
+                                                        selectionMode={selectionMode}
+                                                        selected={selectedImageIds.has(image.id)}
+                                                        onToggleSelect={() => toggleImageSelect(image.id)}
                                                     />
                                                 ))}
                                             </Stack>
@@ -445,6 +465,37 @@ export default function Images() {
                     }}
                 />
             )}
+
+            {/* Floating Selection Bar */}
+            <FloatingSelectionBar
+                mounted={selectionMode && selectedImageIds.size > 0}
+                selectedCount={selectedImageIds.size}
+                onClear={clearSelection}
+                itemLabel="images"
+                minWidth={300}
+            >
+                <Button
+                    size="xs"
+                    variant="light"
+                    color="violet"
+                    leftSection={<IconPlaylist size={14} />}
+                    radius="xl"
+                    onClick={() => setIsAddToPlaylistOpen(true)}
+                >
+                    Add to Playlist
+                </Button>
+            </FloatingSelectionBar>
+
+            {/* Add to Playlist Modal */}
+            <AddToPlaylistModal
+                opened={isAddToPlaylistOpen}
+                onClose={() => setIsAddToPlaylistOpen(false)}
+                imageIds={Array.from(selectedImageIds)}
+                onSuccess={() => {
+                    clearSelection();
+                    refetch();
+                }}
+            />
         </Container>
     );
 }
