@@ -47,7 +47,7 @@
     ],
     "win": {
       "target": "portable",
-      "icon": "public/favicon.svg"
+      "icon": "public/vault-icon.ico"
     }
   },
   "dependencies": {

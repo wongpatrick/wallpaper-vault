@@ -72,7 +72,7 @@ function createTray() {
         
         console.log('Public Directory:', publicDir);
 
-        const iconNames = ['vault-tray.png', 'tray.png', 'vault-tray.ico', 'tray.ico'];
+        const iconNames = ['vault-icon.png', 'vault-icon.ico', 'vault-tray.png', 'tray.png', 'vault-tray.ico', 'tray.ico'];
         let trayIcon: Electron.NativeImage | null = null;
 
         for (const name of iconNames) {
@@ -162,10 +162,15 @@ function createWindow() {
     // Disable standard application menu
     Menu.setApplicationMenu(null);
 
+    const publicDir = process.env.VITE_DEV_SERVER_URL 
+        ? path.resolve(__dirname, '..', 'public')
+        : path.join(process.resourcesPath, 'public');
+
     mainWindow = new BrowserWindow({
         width: 1600,
         height: 800,
         titleBarStyle: 'hidden',
+        icon: path.join(publicDir, 'vault-icon.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             sandbox: false
