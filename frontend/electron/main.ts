@@ -177,6 +177,14 @@ function createWindow() {
         },
     })
 
+    // Open HTTP/HTTPS links in the user's default browser
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('http:') || url.startsWith('https:')) {
+            shell.openExternal(url);
+        }
+        return { action: 'deny' };
+    });
+
     mainWindow.on('maximize', () => {
         mainWindow?.webContents.send('window-maximized-change', true);
     });

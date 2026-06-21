@@ -5,12 +5,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ReadRandomImageFileApiImagesRandomFileGetParams = {
+export type ReadPlaylistRandomImageFileApiPlaylistsPlaylistIdRandomFileGetParams = {
 tags?: string[] | null;
 aspect_ratio_label?: string | null;
 min_width?: number | null;
 min_height?: number | null;
 creator_id?: number | null;
-playlist_id?: number | null;
 rating?: string | null;
 };

@@ -10,6 +10,7 @@ from app.core.enums import ImageRating
 if TYPE_CHECKING:
     from app.models.set import Set
     from app.models.tag import Tag
+    from app.models.playlist import PlaylistImage
 
 class Image(Base):
     __tablename__ = "images"
@@ -36,6 +37,10 @@ class Image(Base):
     tags: Mapped[list["Tag"]] = relationship(
         secondary="image_tags",
         back_populates="images"
+    )
+    playlist_images: Mapped[list["PlaylistImage"]] = relationship(
+        back_populates="image",
+        cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:

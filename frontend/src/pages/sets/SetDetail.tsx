@@ -14,7 +14,7 @@ import {
 import { 
     IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
     IconExternalLink, IconFolder, IconTag, IconLock, IconLockOpen, IconRefresh, IconCheck,
-    IconSettings, IconPhotoEdit, IconArrowRight, IconSparkles
+    IconSettings, IconPhotoEdit, IconArrowRight, IconSparkles, IconPlaylist
 } from '@tabler/icons-react';
 import { 
     useReadSetApiSetsSetIdGet, 
@@ -37,6 +37,7 @@ import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
 import { ImageCropModal } from '../../components/images/ImageCropModal';
 import { CharacterTagsInput } from '../../components/ui/CharacterTagsInput';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
+import { AddToPlaylistModal } from '../../components/playlists/AddToPlaylistModal';
 import { useTasks } from '../../hooks/useTasks';
 import type { Image as ImageModel, BulkOperationMode, SetUpdate } from '../../api/model';
 
@@ -73,6 +74,7 @@ export default function SetDetail() {
     const { selectionMode, setSelectionMode, selectedIds: selectedImageIds, toggle: toggleImageSelect, selectAll, clear: clearSelection } = useSelection();
     const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
     const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+    const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
     
     const [editForm, setEditForm] = useState({
         title: '',
@@ -499,6 +501,17 @@ export default function SetDetail() {
                 <Button
                     size="xs"
                     variant="light"
+                    color="violet"
+                    leftSection={<IconPlaylist size={14} />}
+                    radius="xl"
+                    onClick={() => setIsAddToPlaylistOpen(true)}
+                    disabled={autoTagMutation.isPending || isLocalTaggingActive}
+                >
+                    Add to Playlist
+                </Button>
+                <Button
+                    size="xs"
+                    variant="light"
                     leftSection={<IconArrowRight size={14} />}
                     radius="xl"
                     onClick={() => setIsMoveModalOpen(true)}
@@ -644,6 +657,17 @@ export default function SetDetail() {
                     onCropSuccess={() => refetch()}
                 />
             )}
+
+            {/* Add to Playlist Modal */}
+            <AddToPlaylistModal 
+                opened={isAddToPlaylistOpen}
+                onClose={() => setIsAddToPlaylistOpen(false)}
+                imageIds={Array.from(selectedImageIds)}
+                onSuccess={() => {
+                    clearSelection();
+                    refetch();
+                }}
+            />
 
             <style dangerouslySetInnerHTML={{ __html: `
                 @media (max-width: 1200px) { .masonry-grid { column-count: 3 !important; } }
