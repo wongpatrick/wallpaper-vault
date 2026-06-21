@@ -232,3 +232,49 @@ async def test_merge_sets_with_associations(client: AsyncClient, temp_vault: Pat
     assert (target_path / "source_img.jpg").exists()
 
 
+@pytest.mark.asyncio
+async def test_import_existing_set(client: AsyncClient, temp_vault: Path):
+    """Test importing into an existing set updates notes and appends images."""
+    await client.put("/api/settings/base_library_path", json={"value": str(temp_vault)})
+
+    # Create creator
+    resp = await client.post("/api/creators/", json={"canonical_name": "Import Artist"})
+    assert resp.status_code == 200
+
+    # First import (creates the set)
+    resp = await client.post("/api/sets/import", json={
+        "title": "Import Set",
+        "creator_names": ["Import Artist"],
+        "local_path": str(temp_vault / "Import Artist - Import Set"),
+        "notes": "First note",
+        "images": []
+    })
+    assert resp.status_code == 200
+    initial_data = resp.json()
+    assert initial_data["notes"] == "First note"
+    assert len(initial_data["images"]) == 0
+
+    # Second import (same title/creator) - merges/updates set
+    img_path = temp_vault / "test_img.jpg"
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    cv2.imwrite(str(img_path), img)
+
+    resp = await client.post("/api/sets/import", json={
+        "title": "Import Set",
+        "creator_names": ["Import Artist"],
+        "local_path": str(temp_vault / "Import Artist - Import Set"),
+        "notes": "Second note",
+        "images": [
+            {
+                "filename": "test_img.jpg",
+                "local_path": str(img_path)
+            }
+        ]
+    })
+    assert resp.status_code == 200
+    updated_data = resp.json()
+    assert updated_data["notes"] == "First note\nSecond note"
+    assert len(updated_data["images"]) == 1
+    assert updated_data["images"][0]["filename"] == "test_img.jpg"
+
+
