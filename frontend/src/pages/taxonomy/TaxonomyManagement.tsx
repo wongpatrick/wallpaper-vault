@@ -3,6 +3,7 @@
  */
 /* eslint-disable no-magic-numbers */
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
     Container, Title, Tabs, Table, Button, Group, ActionIcon, 
     TextInput, Modal, Stack, Text, Select, Box, Pagination, Badge,
@@ -121,6 +122,7 @@ function useTaxonomyFilterSort<T extends { name: string; set_count?: number; fra
 
 // --- Characters Tab ---
 function CharactersTab() {
+    const navigate = useNavigate();
     const { data: characters, isLoading } = useReadCharacters(0, 1000);
     const { data: franchises } = useReadFranchises(0, 1000);
     const createMutation = useCreateCharacter();
@@ -288,10 +290,30 @@ function CharactersTab() {
                                         onChange={() => toggleSelect(char.id)}
                                     />
                                 </Table.Td>
-                                <Table.Td>{char.name}</Table.Td>
-                                <Table.Td>
-                                    {char.franchise ? char.franchise.name : <Text c="dimmed" size="sm">None</Text>}
-                                </Table.Td>
+                                 <Table.Td>
+                                    <Text 
+                                        style={{ cursor: 'pointer', display: 'inline-block' }} 
+                                        c="blue" 
+                                        fw={500}
+                                        onClick={() => navigate(`/images?character=${encodeURIComponent(char.name)}`)}
+                                    >
+                                        {char.name}
+                                    </Text>
+                                 </Table.Td>
+                                 <Table.Td>
+                                     {char.franchise ? (
+                                         <Text 
+                                             style={{ cursor: 'pointer', display: 'inline-block' }} 
+                                             c="blue" 
+                                             fw={500}
+                                             onClick={() => navigate(`/images?franchise=${encodeURIComponent(char.franchise!.name)}`)}
+                                         >
+                                             {char.franchise.name}
+                                         </Text>
+                                     ) : (
+                                         <Text c="dimmed" size="sm">None</Text>
+                                     )}
+                                 </Table.Td>
                                 <Table.Td>
                                     <Badge color="gray" variant="light">{char.set_count}</Badge>
                                 </Table.Td>
@@ -368,6 +390,7 @@ function CharactersTab() {
 
 // --- Franchises Tab ---
 function FranchisesTab() {
+    const navigate = useNavigate();
     const { data: franchises, isLoading } = useReadFranchises(0, 1000);
     const createMutation = useCreateFranchise();
     const updateMutation = useUpdateFranchise();
@@ -511,7 +534,16 @@ function FranchisesTab() {
                                         onChange={() => toggleSelect(franchise.id)}
                                     />
                                 </Table.Td>
-                                <Table.Td>{franchise.name}</Table.Td>
+                                <Table.Td>
+                                    <Text 
+                                        style={{ cursor: 'pointer', display: 'inline-block' }} 
+                                        c="blue" 
+                                        fw={500}
+                                        onClick={() => navigate(`/images?franchise=${encodeURIComponent(franchise.name)}`)}
+                                    >
+                                        {franchise.name}
+                                    </Text>
+                                </Table.Td>
                                 <Table.Td>
                                     <Badge color="gray" variant="light">{franchise.set_count}</Badge>
                                 </Table.Td>
@@ -580,6 +612,7 @@ function FranchisesTab() {
 
 // --- Tags Tab ---
 function TagsTab() {
+    const navigate = useNavigate();
     const { data: tags, isLoading } = useReadTagsManagement(0, 1000);
     const updateMutation = useUpdateTag();
     const deleteMutation = useDeleteTag();
@@ -719,7 +752,16 @@ function TagsTab() {
                                         onChange={() => toggleSelect(tag.id)}
                                     />
                                 </Table.Td>
-                                <Table.Td>{tag.name}</Table.Td>
+                                <Table.Td>
+                                    <Text 
+                                        style={{ cursor: 'pointer', display: 'inline-block' }} 
+                                        c="blue" 
+                                        fw={500}
+                                        onClick={() => navigate(`/images?tag=${encodeURIComponent(tag.name)}`)}
+                                    >
+                                        {tag.name}
+                                    </Text>
+                                </Table.Td>
                                 <Table.Td>
                                     <Badge color="gray" variant="light">{tag.set_count}</Badge>
                                 </Table.Td>
