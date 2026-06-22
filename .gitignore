@@ -67,6 +67,8 @@ logs/
 # gemini
 .gemini/
 .coverage
+.coverage.*
+htmlcov/
 
 # reports
 */faceless_report.txt

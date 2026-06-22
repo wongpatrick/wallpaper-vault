@@ -9,7 +9,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  backend-lint:
+  backend-ci:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -22,21 +22,8 @@ jobs:
         with:
           enable-cache: true
           
-      - name: Run Ruff
+      - name: Run Ruff (Lint)
         run: uv run ruff check .
-
-  backend-test:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          
-      - name: Run Pytest
+        
+      - name: Run Pytest (Tests & Coverage)
         run: uv run pytest --cov=app tests/
