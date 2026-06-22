@@ -29,6 +29,7 @@ interface PlacedWord {
 interface TagCloudProps {
     tags: TagCloudItem[];
     height?: number;
+    emptyMessage?: string;
 }
 
 // Layout constants
@@ -153,8 +154,9 @@ function buildLayout(
 
     const w = containerWidth;
     const h = height;
-    const maxCount = tags[0]?.count ?? 1;
-    const minCount = tags[tags.length - 1]?.count ?? 1;
+    const counts = tags.map((t) => t.count);
+    const maxCount = counts.length > 0 ? Math.max(...counts) : 1;
+    const minCount = counts.length > 0 ? Math.min(...counts) : 1;
     const countRange = maxCount - minCount || 1;
 
     const result: PlacedWord[] = [];
@@ -184,7 +186,7 @@ function buildLayout(
     return result;
 }
 
-export default function TagCloud({ tags, height = DEFAULT_HEIGHT }: TagCloudProps) {
+export default function TagCloud({ tags, height = DEFAULT_HEIGHT, emptyMessage = "No tags yet — start tagging your sets!" }: TagCloudProps) {
     const navigate = useNavigate();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -216,7 +218,14 @@ export default function TagCloud({ tags, height = DEFAULT_HEIGHT }: TagCloudProp
 
     // Recompute on container resize
     useEffect(() => {
-        const observer = new ResizeObserver(() => scheduleLayout());
+        let prevWidth = containerRef.current?.clientWidth || 0;
+        const observer = new ResizeObserver(() => {
+            const currentWidth = containerRef.current?.clientWidth || 0;
+            if (currentWidth !== prevWidth) {
+                prevWidth = currentWidth;
+                scheduleLayout();
+            }
+        });
         if (containerRef.current) observer.observe(containerRef.current);
         return () => observer.disconnect();
     }, [scheduleLayout]);
@@ -241,7 +250,7 @@ export default function TagCloud({ tags, height = DEFAULT_HEIGHT }: TagCloudProp
                 color: 'var(--mantine-color-dimmed)',
                 fontSize: EMPTY_STATE_FONT_SIZE,
             }}>
-                No tags yet — start tagging your sets!
+                {emptyMessage}
             </div>
         );
     }
@@ -265,15 +274,21 @@ export default function TagCloud({ tags, height = DEFAULT_HEIGHT }: TagCloudProp
                 width="100%"
                 height={height}
                 style={{ position: 'absolute', top: 0, left: 0 }}
-                aria-hidden="true"
             >
                 {placed.map((word) => (
                     <g
                         key={`${word.type}-${word.tag}`}
                         transform={`translate(${word.x}, ${word.y})`}
                         onClick={() => handleTagClick(word)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handleTagClick(word);
+                            }
+                        }}
                         style={{ cursor: 'pointer' }}
                         role="button"
+                        tabIndex={0}
                         aria-label={`Filter by ${word.type}: ${word.tag} (${word.count} uses)`}
                     >
                         {/* Invisible hit-box for easier clicking */}
@@ -303,6 +318,7 @@ export default function TagCloud({ tags, height = DEFAULT_HEIGHT }: TagCloudProp
             <style>{`
                 svg g[role="button"]:hover text { opacity: ${HOVER_OPACITY}; }
                 svg g[role="button"]:active text { opacity: ${ACTIVE_OPACITY}; }
+                svg g[role="button"]:focus-visible { outline: 2px solid var(--mantine-color-blue-filled); outline-offset: 2px; }
             `}</style>
         </div>
     );

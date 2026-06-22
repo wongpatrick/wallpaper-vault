@@ -3,6 +3,7 @@
  * Module: Dashboard Page
  * Description: The main landing page displaying library statistics, recent imports, random inspiration, and system health alerts.
  */
+import { useMemo } from 'react';
 import { 
     Title, 
     Text, 
@@ -20,7 +21,9 @@ import {
     rem,
     Card,
     Image,
-    Box
+    Box,
+    Tabs,
+    Progress
 } from '@mantine/core';
 import { 
     IconAlertCircle, 
@@ -38,6 +41,8 @@ import { useReadDashboardDataApiDashboardGet } from '../../api/generated/dashboa
 import { useReadSetsApiSetsGet } from '../../api/generated/sets/sets';
 import { useReadRandomImageApiImagesRandomGet } from '../../api/generated/images/images';
 import { useReadTagCloudApiTagsCloudGet } from '../../api/generated/tags/tags';
+import { useReadCharactersApiCharactersGet } from '../../api/generated/characters/characters';
+import { useReadFranchisesApiFranchisesGet } from '../../api/generated/franchises/franchises';
 import { formatBytes, getImageUrl } from '../../utils/fileUtils';
 import { Link, useNavigate } from 'react-router-dom';
 import TagCloud from '../../components/ui/TagCloud';
@@ -58,6 +63,38 @@ export default function Dashboard() {
 
     // 4. Fetch Tag Cloud
     const { data: tagCloud } = useReadTagCloudApiTagsCloudGet({ limit: 50 });
+
+    // 5. Fetch Characters
+    const { data: characters } = useReadCharactersApiCharactersGet({ limit: 50 });
+
+    // 6. Fetch Franchises
+    const { data: franchises } = useReadFranchisesApiFranchisesGet({ limit: 50 });
+
+    // 7. Transform characters data into TagCloudItem shape
+    const characterCloud = useMemo(() => {
+        if (!characters) return [];
+        return characters
+            .filter((c) => (c.set_count ?? 0) > 0)
+            .map((c) => ({
+                tag: c.name,
+                type: 'character',
+                count: c.set_count ?? 0,
+            }))
+            .sort((a, b) => b.count - a.count);
+    }, [characters]);
+
+    // 8. Transform franchises data into TagCloudItem shape
+    const franchiseCloud = useMemo(() => {
+        if (!franchises) return [];
+        return franchises
+            .filter((f) => (f.set_count ?? 0) > 0)
+            .map((f) => ({
+                tag: f.name,
+                type: 'franchise',
+                count: f.set_count ?? 0,
+            }))
+            .sort((a, b) => b.count - a.count);
+    }, [franchises]);
 
     if (statsLoading) {
         return (
@@ -164,14 +201,12 @@ export default function Dashboard() {
                                                 <Text size="sm" fw={500}>{label}</Text>
                                                 <Text size="xs" c="dimmed">{count} images ({percentage.toFixed(1)}%)</Text>
                                             </Group>
-                                            <div style={{ height: 8, borderRadius: 4, backgroundColor: 'var(--mantine-color-gray-2)', overflow: 'hidden' }}>
-                                                <div style={{ 
-                                                    height: '100%', 
-                                                    width: `${percentage}%`, 
-                                                    backgroundColor: getARColor(label),
-                                                    transition: 'width 0.5s ease'
-                                                }} />
-                                            </div>
+                                            <Progress 
+                                                value={percentage} 
+                                                color={getARColor(label)} 
+                                                size="sm" 
+                                                radius="xl" 
+                                            />
                                         </Box>
                                     );
                                 })}
@@ -190,7 +225,7 @@ export default function Dashboard() {
                                         <Group justify="space-between" wrap="nowrap">
                                             <Group wrap="nowrap">
                                                 <Image 
-                                                    src={getImageUrl(set.images?.[0]?.id, set.images?.[0]?.phash || set.images?.[0]?.file_size || undefined)} 
+                                                    src={set.images?.[0]?.id ? getImageUrl(set.images[0].id, set.images[0].phash || set.images[0].file_size || undefined) : null} 
                                                     w={40} 
                                                     h={40} 
                                                     radius="sm" 
@@ -206,6 +241,62 @@ export default function Dashboard() {
                                     </Paper>
                                 ))
                             )}
+                        </Stack>
+
+                        {/* 4. Taxonomy Landscape */}
+                        <Stack gap="md" mt="md">
+                            <Group justify="space-between" align="flex-end">
+                                <Box>
+                                    <Group gap="xs" mb={4}>
+                                        <ThemeIcon color="violet" variant="light" size={28} radius="md">
+                                            <IconTags size="1rem" />
+                                        </ThemeIcon>
+                                        <Title order={3} size="h4">Taxonomy Landscape</Title>
+                                    </Group>
+                                    <Text size="xs" c="dimmed" ml="xl">
+                                        Explore tags, characters, and franchises across your collection — click any to browse
+                                    </Text>
+                                </Box>
+                            </Group>
+                            <Paper withBorder p="md" radius="md">
+                                <Tabs defaultValue="tags">
+                                    <Tabs.List mb="md">
+                                        <Tabs.Tab value="tags" leftSection={<IconTags size="1rem" />}>
+                                            Tags ({tagCloud?.length || 0})
+                                        </Tabs.Tab>
+                                        <Tabs.Tab value="characters" leftSection={<IconUser size="1rem" />}>
+                                            Characters ({characterCloud.length})
+                                        </Tabs.Tab>
+                                        <Tabs.Tab value="franchises" leftSection={<IconFolders size="1rem" />}>
+                                            Franchises ({franchiseCloud.length})
+                                        </Tabs.Tab>
+                                    </Tabs.List>
+
+                                    <Tabs.Panel value="tags">
+                                        <TagCloud 
+                                            tags={tagCloud || []} 
+                                            height={300} 
+                                            emptyMessage="No tags yet — start tagging your sets!"
+                                        />
+                                    </Tabs.Panel>
+
+                                    <Tabs.Panel value="characters">
+                                        <TagCloud 
+                                            tags={characterCloud} 
+                                            height={300} 
+                                            emptyMessage="No characters yet — start adding characters to your sets!"
+                                        />
+                                    </Tabs.Panel>
+
+                                    <Tabs.Panel value="franchises">
+                                        <TagCloud 
+                                            tags={franchiseCloud} 
+                                            height={300} 
+                                            emptyMessage="No franchises yet — start adding franchises to your sets!"
+                                        />
+                                    </Tabs.Panel>
+                                </Tabs>
+                            </Paper>
                         </Stack>
                     </Stack>
 
@@ -247,28 +338,6 @@ export default function Dashboard() {
                         )}
                     </Stack>
                 </SimpleGrid>
-
-                {/* 4. Tag Landscape */}
-                {tagCloud && tagCloud.length > 0 && (
-                    <Stack gap="md">
-                        <Group justify="space-between" align="flex-end">
-                            <Box>
-                                <Group gap="xs" mb={4}>
-                                    <ThemeIcon color="violet" variant="light" size={28} radius="md">
-                                        <IconTags size="1rem" />
-                                    </ThemeIcon>
-                                    <Title order={3} size="h4">Tag Landscape</Title>
-                                </Group>
-                                <Text size="xs" c="dimmed" ml="xl">
-                                    {tagCloud.length} unique tag{tagCloud.length !== 1 ? 's' : ''} across your collection — click any to browse
-                                </Text>
-                            </Box>
-                        </Group>
-                        <Paper withBorder p="md" radius="md">
-                            <TagCloud tags={tagCloud} height={300} />
-                        </Paper>
-                    </Stack>
-                )}
             </Stack>
         </Container>
     );
