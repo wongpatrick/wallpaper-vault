@@ -24,8 +24,9 @@ The frontend is organized for maximum modularity and reusability:
 *   **`electron/`**: Main process and preload scripts for native OS features.
 
 ### 🏠 Main Views
-*   **Dashboard:** Centralized landing page displaying real-time library statistics, recent imports, and random inspiration.
+*   **Dashboard:** Centralized landing page displaying real-time library statistics (including SQLite database size), recent imports, random inspiration, and interactive word clouds for tags, characters, and franchises.
 *   **Library (Sets):** Visual grid with live search and type-based filtering.
+*   **Playlists:** Dedicated page for managing custom wallpaper lists with custom sorting and aspect ratio filters.
 *   **Artist Hub (Creators):** Portfolio views showcasing an artist's full collection with merge capabilities.
 *   **Taxonomy Hub:** Management interface for Tags, Characters, and Franchises.
 *   **Tools:** Specialized utilities for batch importing and saliency-aware image cropping.
@@ -54,5 +55,6 @@ We use **Orval** to maintain type safety across the stack.
 
 ## 🎨 Advanced Features
 - **Native OS Integration:** Open any set's folder directly in Windows Explorer via Electron's `shell` module.
+- **Playlists & DisplayFusion:** Custom playlist manager with drag-and-drop sort order, coupled with aspect ratio filtering and DisplayFusion rotation endpoint support.
 - **Precision Cropper:** A dedicated UI for creating perfect aspect-ratio crops for wallpapers using backend saliency maps.
 - **Batch Importer:** A drag-and-drop tool for bulk collection management with real-time progress tracking via SSE.

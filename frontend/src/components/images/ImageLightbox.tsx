@@ -152,7 +152,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
         >
             <Box style={{ height: '100vh', width: '100vw', position: 'relative', display: 'flex', flexDirection: 'column' }}>
                 {/* ImageLightbox Header */}
-                <Group justify="space-between" p="md" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+                <Group justify="space-between" p="md" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, WebkitAppRegion: 'no-drag' }}>
                     <Stack gap={0}>
                         <Group gap="xs">
                             <Tooltip label={currentImage.filename} position="bottom" withArrow>
