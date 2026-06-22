@@ -205,9 +205,21 @@ async def bulk_delete_sets(
         set_ids: list[int],
         db: AsyncSession = Depends(get_db)
 ) -> int:
-    count = await crud_set.bulk_delete_sets(db=db, set_ids=set_ids)
-    logger.info("Bulk deleted sets", count=count)
-    return count
+    try:
+        count = await crud_set.bulk_delete_sets(db=db, set_ids=set_ids)
+        logger.info("Bulk deleted sets", count=count)
+        return count
+    except PermissionError:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete set directory because some files or folders are currently in use by another process. Please close any open programs/folders and try again."
+        )
+    except Exception as e:
+        logger.error("Failed to bulk delete sets", set_ids=set_ids, error=str(e))
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to delete sets: {str(e)}"
+        )
 
 @router.post("/{set_id}/resync", response_model=Set)
 async def resync_set(
@@ -251,8 +263,20 @@ async def delete_set(
         set_id: int,
         db: AsyncSession = Depends(get_db)
 ) -> Set:
-    db_set = await crud_set.delete_set(db, set_id=set_id)
-    if db_set is None:
-        raise HTTPException(status_code=404, detail="Set not found")
-    logger.info("Deleted set", set_id=set_id)
-    return db_set
+    try:
+        db_set = await crud_set.delete_set(db, set_id=set_id)
+        if db_set is None:
+            raise HTTPException(status_code=404, detail="Set not found")
+        logger.info("Deleted set", set_id=set_id)
+        return db_set
+    except PermissionError:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete set directory because some files or folders are currently in use by another process. Please close any open programs/folders and try again."
+        )
+    except Exception as e:
+        logger.error("Failed to delete set", set_id=set_id, error=str(e))
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to delete set: {str(e)}"
+        )
