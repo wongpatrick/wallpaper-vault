@@ -66,12 +66,17 @@ npm run dev
 ## 🛠️ Current State
 
 ### ✅ Dashboard & Insights
-- **Landing Hub:** A centralized view displaying real-time library statistics, recent imports, and system health alerts.
+- **Landing Hub:** A centralized view displaying real-time library statistics (including SQLite database size), recent imports, and system health alerts.
 - **Random Inspiration:** Quickly discover and navigate to forgotten gems in your library directly from the home screen.
+- **Taxonomy Landscapes:** Interactive word clouds for tags, characters, and franchises to explore distribution.
 
 ### ✅ Taxonomy & Organization
 - **Characters & Franchises:** Detailed relational tracking for subjects and their respective intellectual properties or universes.
 - **Tag Management:** A robust taxonomy system for deep filtering and organizing of large collections.
+
+### ✅ Playlists & Collections
+- **Playlists:** Create, edit, and organize custom wallpaper playlists across sets with drag-and-drop sort order.
+- **Aspect Ratio Filtering:** Fine-tune rotation pools based on specific wallpaper orientations (e.g., Ultra-wide, Portrait).
 
 ### ✅ Library Management
 - **Library Grid:** Immersive browsing with cover images and rich metadata.
@@ -86,16 +91,9 @@ npm run dev
 
 ### ✅ Native Integration
 - **System Tray:** Background persistence with a custom context menu and "Minimize to Tray" behavior.
-- **DisplayFusion Support:** Custom API endpoints (`/api/images/random/file/...`) compatible with DisplayFusion for automatic wallpaper rotation.
+- **DisplayFusion Support:** Custom API endpoints (such as `/api/images/random/file/...` and playlist rotation) compatible with DisplayFusion for automatic wallpaper rotation, supporting aspect ratio filters.
 - **Native File Shell:** "Open Folder" features integrated with Electron's shell for direct filesystem access.
 - **Global Settings:** Centralized configuration store for paths, aspect ratios, and more.
-
----
-
-## 📋 Roadmap (To-Do)
-- [ ] **Collections / Playlists**: Allow users to arbitrarily group images across different sets for specific moods or multi-monitor setups (integrates with DisplayFusion).
-- [x] **AI Auto-Tagging**: Implement intelligent auto-tagging of wallpapers using machine learning models or AI vision during the import pipeline.
-- [ ] **API Security / Remote Auth**: Introduce API token/key authentication to secure the FastAPI engine before exposing it to remote clients (e.g., NAS setups).
 
 ---
 

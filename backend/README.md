@@ -68,6 +68,7 @@ Core entities include:
 - **Creators:** Artist profiles with portfolios.
 - **Sets:** Curated collections of wallpapers.
 - **Images:** Individual files with metadata (resolution, pHash).
+- **Playlists:** Curated collections of images with sorting orders.
 - **Characters:** Tagging of specific subjects within images.
 - **Franchises:** Grouping characters and images by universe/IP.
 - **Tags:** General descriptive taxonomy for images and sets.
