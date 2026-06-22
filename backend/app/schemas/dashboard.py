@@ -10,6 +10,7 @@ class LibraryStats(BaseModel):
     total_sets: int = Field(..., description="Total number of sets in the vault.")
     total_creators: int = Field(..., description="Total number of unique creators.")
     total_size_bytes: int = Field(..., description="Total disk space used by all images in bytes.")
+    database_size_bytes: int = Field(..., description="Size of the SQLite database file on disk in bytes.")
     aspect_ratio_distribution: Dict[str, int] = Field(..., description="Histogram mapping aspect ratio labels to the count of images.")
 
 class HealthAlert(BaseModel):

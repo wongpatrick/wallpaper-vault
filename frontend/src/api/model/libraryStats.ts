@@ -15,6 +15,8 @@ export interface LibraryStats {
   total_creators: number;
   /** Total disk space used by all images in bytes. */
   total_size_bytes: number;
+  /** Size of the SQLite database file on disk in bytes. */
+  database_size_bytes: number;
   /** Histogram mapping aspect ratio labels to the count of images. */
   aspect_ratio_distribution: LibraryStatsAspectRatioDistribution;
 }

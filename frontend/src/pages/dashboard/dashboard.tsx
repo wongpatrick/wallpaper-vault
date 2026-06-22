@@ -118,7 +118,7 @@ export default function Dashboard() {
                 )}
 
                 {/* 2. Library Vitals */}
-                <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
+                <SimpleGrid cols={{ base: 1, sm: 2, md: 5 }} spacing="md">
                     <StatsCard 
                         title="Total Images" 
                         value={stats?.total_images || 0} 
@@ -142,6 +142,12 @@ export default function Dashboard() {
                         value={formatBytes(stats?.total_size_bytes || 0)} 
                         icon={<IconDatabase size="1.4rem" />} 
                         color="orange" 
+                    />
+                    <StatsCard 
+                        title="Database Size" 
+                        value={formatBytes(stats?.database_size_bytes || 0)} 
+                        icon={<IconDatabase size="1.4rem" />} 
+                        color="indigo" 
                     />
                 </SimpleGrid>
 
