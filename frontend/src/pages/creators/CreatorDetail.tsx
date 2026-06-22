@@ -27,6 +27,7 @@ import {
 import { useDeleteSetApiSetsSetIdDelete, getReadSetsApiSetsGetQueryKey } from '../../api/generated/sets/sets';
 import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
+import { modals } from '@mantine/modals';
 import { SetCard } from '../../components/sets/SetCard';
 import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
 import { SetBulkOperations } from '../../components/sets/SetBulkOperations';
@@ -225,23 +226,40 @@ export default function CreatorDetail() {
         }
     };
 
-    const handleDeleteSet = async (setId: number) => {
-        try {
-            await deleteSetMutation.mutateAsync({ setId });
-            notifications.show({
-                title: 'Set deleted',
-                message: 'The set has been removed from your library.',
-                color: 'blue',
-            });
-            queryClient.invalidateQueries({ queryKey: getReadSetsApiSetsGetQueryKey() });
-            refetch();
-        } catch {
-            notifications.show({
-                title: 'Error',
-                message: 'Could not delete the set.',
-                color: 'red',
-            });
-        }
+    const handleDeleteSet = (setId: number) => {
+        const targetSet = creator?.sets?.find(s => s.id === setId);
+        modals.openConfirmModal({
+            title: 'Delete Set',
+            centered: true,
+            children: (
+                <Text size="sm">
+                    Are you sure you want to delete the set <b>"{targetSet?.title || `Set #${setId}`}"</b> ({targetSet?.images?.length || 0} images)? This will permanently remove all images in this set from your computer. This action cannot be undone.
+                </Text>
+            ),
+            labels: { confirm: 'Delete permanently', cancel: 'Cancel' },
+            confirmProps: { color: 'red' },
+            onConfirm: async () => {
+                try {
+                    await deleteSetMutation.mutateAsync({ setId });
+                    notifications.show({
+                        title: 'Set deleted',
+                        message: 'The set has been removed from your library.',
+                        color: 'blue',
+                    });
+                    queryClient.invalidateQueries({ queryKey: getReadSetsApiSetsGetQueryKey() });
+                    refetch();
+                } catch (err) {
+                    const axiosError = err as { response?: { data?: { detail?: string } } };
+                    const message = axiosError.response?.data?.detail || 'Could not delete the set.';
+                    notifications.show({
+                        title: 'Error',
+                        message: typeof message === 'string' ? message : 'Could not delete the set.',
+                        color: 'red',
+                        autoClose: 10000
+                    });
+                }
+            },
+        });
     };
 
     return (

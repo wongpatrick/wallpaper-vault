@@ -68,10 +68,13 @@ export function SetBulkOperations({
             refetch();
         } catch (err) {
             console.error('Bulk operation failed:', err);
+            const axiosError = err as { response?: { data?: { detail?: string } } };
+            const message = axiosError.response?.data?.detail || 'Bulk operation failed. Please try again.';
             notifications.show({
                 title: 'Error',
-                message: 'Bulk operation failed. Please try again.',
+                message: typeof message === 'string' ? message : 'Bulk operation failed. Please try again.',
                 color: 'red',
+                autoClose: 10000
             });
         }
     };
@@ -162,6 +165,7 @@ export function SetBulkOperations({
                 selectedCount={selectedIds.size}
                 onConfirm={handleBulkConfirm}
                 loading={bulkUpdateMutation.isPending || bulkDeleteMutation.isPending}
+                selectedSets={selectedSets}
             />
 
             <MergeSetsModal 

@@ -176,7 +176,7 @@ export default function SetDetail() {
             centered: true,
             children: (
                 <Text size="sm">
-                    Are you sure you want to delete this set? This will permanently remove all images in this set from your computer. This action cannot be undone.
+                    Are you sure you want to delete the set <b>"{set?.title}"</b> ({set?.images?.length || 0} images)? This will permanently remove all images in this set from your computer. This action cannot be undone.
                 </Text>
             ),
             labels: { confirm: 'Delete permanently', cancel: 'Cancel' },
@@ -186,8 +186,15 @@ export default function SetDetail() {
                     await deleteMutation.mutateAsync({ setId: Number(setId) });
                     notifications.show({ title: 'Set deleted', message: 'Set removed from vault', color: 'blue' });
                     navigate('/sets');
-                } catch {
-                    notifications.show({ title: 'Error', message: 'Could not delete set', color: 'red' });
+                } catch (err) {
+                    const axiosError = err as { response?: { data?: { detail?: string } } };
+                    const message = axiosError.response?.data?.detail || 'Could not delete set';
+                    notifications.show({
+                        title: 'Error',
+                        message: typeof message === 'string' ? message : 'Could not delete set',
+                        color: 'red',
+                        autoClose: 10000
+                    });
                 }
             },
         });
