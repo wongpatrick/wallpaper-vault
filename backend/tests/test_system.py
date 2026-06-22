@@ -50,6 +50,9 @@ async def test_dashboard_api_empty(client: AsyncClient):
     assert stats["total_images"] == 0
     assert stats["total_sets"] == 0
     assert stats["total_creators"] == 0
+    assert "database_size_bytes" in stats
+    assert isinstance(stats["database_size_bytes"], int)
+    assert stats["database_size_bytes"] >= 0
 
 @pytest.mark.asyncio
 async def test_dashboard_api_with_data(client: AsyncClient):
@@ -83,6 +86,9 @@ async def test_dashboard_api_with_data(client: AsyncClient):
     assert stats["total_images"] == 1
     assert stats["total_sets"] == 1
     assert stats["total_creators"] == 1
+    assert "database_size_bytes" in stats
+    assert isinstance(stats["database_size_bytes"], int)
+    assert stats["database_size_bytes"] >= 0
 
 @pytest.mark.asyncio
 @patch("huggingface_hub.HfApi")

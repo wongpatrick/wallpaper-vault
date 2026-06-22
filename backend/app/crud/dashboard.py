@@ -1,12 +1,25 @@
 """
 Database queries for dashboard statistics and system health alerts.
 """
+import os
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from app.core.config import settings
 from app.models.image import Image
 from app.models.set import Set
 from app.models.creator import Creator
 from app.schemas.dashboard import LibraryStats, HealthAlert, DashboardData
+
+def get_db_file_size() -> int:
+    """Calculates the database file size on disk in bytes."""
+    url = settings.DATABASE_URL
+    for prefix in ["sqlite+aiosqlite:///", "sqlite:///"]:
+        if url.startswith(prefix):
+            db_path = url[len(prefix):]
+            abs_path = os.path.abspath(db_path)
+            if os.path.exists(abs_path):
+                return os.path.getsize(abs_path)
+    return 0
 
 async def get_library_stats(db: AsyncSession) -> LibraryStats:
     """Aggregates overarching statistics for the entire library.
@@ -54,6 +67,7 @@ async def get_library_stats(db: AsyncSession) -> LibraryStats:
         total_sets=total_sets or 0,
         total_creators=total_creators or 0,
         total_size_bytes=int(stats_data.total_size_bytes or 0),
+        database_size_bytes=get_db_file_size(),
         aspect_ratio_distribution=ar_dist
     )
 
