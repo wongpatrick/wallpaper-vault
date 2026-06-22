@@ -9,7 +9,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  frontend-lint:
+  frontend-ci:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -29,3 +29,6 @@ jobs:
         
       - name: Run ESLint
         run: npm run lint
+        
+      - name: Run Tests
+        run: npm run test
