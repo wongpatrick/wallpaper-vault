@@ -8,19 +8,24 @@ import { useSelection } from '../../hooks/useSelection';
 import { 
     Title, Text, Container, SimpleGrid, Group, Badge, Loader, 
     Center, Alert, Stack, ActionIcon, Menu, Button, Card, 
-    TextInput, Select, Textarea, Modal, Paper
+    TextInput, Select, Textarea, Modal, Paper, SegmentedControl,
+    Input
 } from '@mantine/core';
 import { 
     IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
     IconEdit, IconDatabase, IconPhoto, IconLayersIntersect, IconAspectRatio,
-    IconCheck
+    IconCheck, IconSearch
 } from '@tabler/icons-react';
 import { 
     useReadCreatorApiCreatorsCreatorIdGet, 
     useUpdateCreatorApiCreatorsCreatorIdPatch,
     useDeleteCreatorApiCreatorsCreatorIdDelete,
-    useMergeCreatorsApiCreatorsMergePost
+    useMergeCreatorsApiCreatorsMergePost,
+    getReadCreatorsApiCreatorsGetQueryKey,
+    getReadCreatorApiCreatorsCreatorIdGetQueryKey
 } from '../../api/generated/creators/creators';
+import { useDeleteSetApiSetsSetIdDelete, getReadSetsApiSetsGetQueryKey } from '../../api/generated/sets/sets';
+import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
 import { SetCard } from '../../components/sets/SetCard';
 import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
@@ -31,20 +36,24 @@ import type { Set as SetModel, CreatorWithSets } from '../../api/model';
 import { CREATOR_TYPES } from '../../types/enums';
 
 const HTTP_STATUS_CONFLICT = 409;
+const SQUARE_RATIO_TOLERANCE = 0.05;
 
 export default function CreatorDetail() {
     const { creatorId } = useParams<{ creatorId: string }>();
     const navigate = useNavigate();
     
-    // We must pass enabled: true because the Orval generated hook defaults to enabled: !!creatorId, which disables the query for ID 0.
+    const queryClient = useQueryClient();
+    
+    // We must pass enabled: !isNaN(Number(creatorId)) because the Orval generated hook defaults to enabled: !!creatorId, which disables the query for ID 0.
     const { data: creatorData, isLoading, error, refetch } = useReadCreatorApiCreatorsCreatorIdGet(
         Number(creatorId),
-        { query: { enabled: true } }
+        { query: { enabled: !isNaN(Number(creatorId)) } }
     );
     const creator = creatorData as CreatorWithSets | undefined;
     
     const updateMutation = useUpdateCreatorApiCreatorsCreatorIdPatch();
     const deleteMutation = useDeleteCreatorApiCreatorsCreatorIdDelete();
+    const deleteSetMutation = useDeleteSetApiSetsSetIdDelete();
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -59,26 +68,79 @@ export default function CreatorDetail() {
 
     const { selectionMode, setSelectionMode, selectedIds, toggle: toggleSelect, clear: clearSelection, startSelectionWith } = useSelection();
 
+    const [searchQuery, setSearchQuery] = useState('');
+    const [sortBy, setSortBy] = useState<string>('date_added_desc');
+    const [orientationFilter, setOrientationFilter] = useState<string>('all');
 
-
-
-
-    const [prevCreatorId, setPrevCreatorId] = useState<number | null>(null);
-    if (creator && creator.id !== prevCreatorId) {
-        setPrevCreatorId(creator.id);
-        setEditForm(prev => {
-            if (prev.canonical_name === creator.canonical_name && 
-                prev.type === (creator.type || 'Artist') && 
-                prev.notes === (creator.notes || '')) {
-                return prev;
+    const processedSets = useMemo(() => {
+        if (!creator || !creator.sets) return [];
+        
+        let result = [...creator.sets];
+        
+        // 1. Filter by Search Query
+        if (searchQuery.trim()) {
+            const query = searchQuery.trim().toLowerCase();
+            result = result.filter(set => {
+                const titleMatch = set.title ? set.title.toLowerCase().includes(query) : false;
+                const tagMatch = set.tags ? set.tags.some(tag => tag.toLowerCase().includes(query)) : false;
+                const charMatch = set.characters ? set.characters.some(char => char.toLowerCase().includes(query)) : false;
+                return titleMatch || tagMatch || charMatch;
+            });
+        }
+        
+        // 2. Filter by Orientation
+        if (orientationFilter !== 'all') {
+            result = result.filter(set => {
+                if (!set.images || set.images.length === 0) return false;
+                return set.images.some(img => {
+                    const ratio = img.aspect_ratio;
+                    if (!ratio) return false;
+                    if (orientationFilter === 'landscape') return ratio > 1.0;
+                    if (orientationFilter === 'portrait') return ratio < 1.0;
+                    if (orientationFilter === 'square') return Math.abs(ratio - 1.0) < SQUARE_RATIO_TOLERANCE;
+                    return false;
+                });
+            });
+        }
+        
+        // 3. Sort
+        result.sort((a, b) => {
+            switch (sortBy) {
+                case 'title_asc':
+                    return (a.title || '').localeCompare(b.title || '');
+                case 'title_desc':
+                    return (b.title || '').localeCompare(a.title || '');
+                case 'date_added_desc':
+                    return b.date_added.localeCompare(a.date_added);
+                case 'date_added_asc':
+                    return a.date_added.localeCompare(b.date_added);
+                case 'image_count_desc':
+                    return (b.images?.length || 0) - (a.images?.length || 0);
+                case 'image_count_asc':
+                    return (a.images?.length || 0) - (b.images?.length || 0);
+                case 'folder_size_desc': {
+                    const sizeA = a.images?.reduce((sum, img) => sum + (img.file_size || 0), 0) || 0;
+                    const sizeB = b.images?.reduce((sum, img) => sum + (img.file_size || 0), 0) || 0;
+                    return sizeB - sizeA;
+                }
+                case 'folder_size_asc': {
+                    const sizeA = a.images?.reduce((sum, img) => sum + (img.file_size || 0), 0) || 0;
+                    const sizeB = b.images?.reduce((sum, img) => sum + (img.file_size || 0), 0) || 0;
+                    return sizeA - sizeB;
+                }
+                default:
+                    return 0;
             }
-            return {
-                canonical_name: creator.canonical_name,
-                type: creator.type || 'Artist',
-                notes: creator.notes || ''
-            };
         });
-    }
+        
+        return result;
+    }, [creator, searchQuery, orientationFilter, sortBy]);
+
+
+
+
+
+
 
     const stats = useMemo(() => {
         if (!creator) return [];
@@ -115,6 +177,7 @@ export default function CreatorDetail() {
             });
             notifications.show({ title: 'Success', message: 'Creator updated', color: 'green' });
             setIsEditModalOpen(false);
+            queryClient.invalidateQueries({ queryKey: getReadCreatorsApiCreatorsGetQueryKey() });
             refetch();
         } catch (error: unknown) {
             const err = error as { response?: { status?: number, data?: { detail?: Record<string, unknown> | string } } };
@@ -142,6 +205,8 @@ export default function CreatorDetail() {
             });
             notifications.show({ title: 'Success', message: 'Artists merged successfully', color: 'green' });
             setMergePrompt({ show: false, targetId: null });
+            queryClient.invalidateQueries({ queryKey: getReadCreatorsApiCreatorsGetQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getReadCreatorApiCreatorsCreatorIdGetQueryKey(mergePrompt.targetId) });
             navigate(`/creators/${mergePrompt.targetId}`);
         } catch {
             notifications.show({ title: 'Error', message: 'Could not merge artists', color: 'red' });
@@ -153,9 +218,29 @@ export default function CreatorDetail() {
             await deleteMutation.mutateAsync({ creatorId: Number(creatorId) });
             notifications.show({ title: 'Creator deleted', message: 'Artist removed from database', color: 'blue' });
             setIsDeleteModalOpen(false);
+            queryClient.invalidateQueries({ queryKey: getReadCreatorsApiCreatorsGetQueryKey() });
             navigate('/creators');
         } catch {
             notifications.show({ title: 'Error', message: 'Could not delete creator', color: 'red' });
+        }
+    };
+
+    const handleDeleteSet = async (setId: number) => {
+        try {
+            await deleteSetMutation.mutateAsync({ setId });
+            notifications.show({
+                title: 'Set deleted',
+                message: 'The set has been removed from your library.',
+                color: 'blue',
+            });
+            queryClient.invalidateQueries({ queryKey: getReadSetsApiSetsGetQueryKey() });
+            refetch();
+        } catch {
+            notifications.show({
+                title: 'Error',
+                message: 'Could not delete the set.',
+                color: 'red',
+            });
         }
     };
 
@@ -186,7 +271,18 @@ export default function CreatorDetail() {
 
                     {creator.id !== 0 && (
                         <Group>
-                            <Button leftSection={<IconEdit size={18} />} variant="light" onClick={() => setIsEditModalOpen(true)}>
+                            <Button 
+                                leftSection={<IconEdit size={18} />} 
+                                variant="light" 
+                                onClick={() => {
+                                    setEditForm({
+                                        canonical_name: creator.canonical_name,
+                                        type: creator.type || 'Artist',
+                                        notes: creator.notes || ''
+                                    });
+                                    setIsEditModalOpen(true);
+                                }}
+                            >
                                 Edit Profile
                             </Button>
                             <Menu shadow="md" width={200} position="bottom-end">
@@ -246,23 +342,72 @@ export default function CreatorDetail() {
             </Group>
             
             {creator.sets && creator.sets.length > 0 ? (
-                <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
-                    {creator.sets.map((set: SetModel) => (
-                        <SetCard 
-                            key={set.id} 
-                            set={set} 
-                            onDelete={() => {}} 
-                            selectionMode={selectionMode}
-                            selected={selectedIds.has(set.id)}
-                            onToggleSelect={() => toggleSelect(set.id)}
-                            onLongPress={() => {
-                                if (!selectionMode) {
-                                    startSelectionWith(set.id);
-                                }
-                            }}
+                <>
+                    <Group mb="xl" wrap="wrap" gap="md" align="flex-end">
+                        <TextInput
+                            label="Search"
+                            placeholder="Search titles, tags, or characters..."
+                            leftSection={<IconSearch size={16} />}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                            clearable
+                            style={{ flex: 1, minWidth: 220, maxWidth: 400 }}
                         />
-                    ))}
-                </SimpleGrid>
+                        <Input.Wrapper label="Orientation">
+                            <SegmentedControl
+                                value={orientationFilter}
+                                onChange={setOrientationFilter}
+                                data={[
+                                    { label: 'All', value: 'all' },
+                                    { label: 'Landscape', value: 'landscape' },
+                                    { label: 'Portrait', value: 'portrait' },
+                                    { label: 'Square', value: 'square' },
+                                ]}
+                            />
+                        </Input.Wrapper>
+                        <Select
+                            label="Sort By"
+                            w={200}
+                            value={sortBy}
+                            onChange={(val) => setSortBy(val || 'date_added_desc')}
+                            data={[
+                                { label: 'Date Added (Newest)', value: 'date_added_desc' },
+                                { label: 'Date Added (Oldest)', value: 'date_added_asc' },
+                                { label: 'Title (A-Z)', value: 'title_asc' },
+                                { label: 'Title (Z-A)', value: 'title_desc' },
+                                { label: 'Image Count (High-Low)', value: 'image_count_desc' },
+                                { label: 'Image Count (Low-High)', value: 'image_count_asc' },
+                                { label: 'Folder Size (Largest)', value: 'folder_size_desc' },
+                                { label: 'Folder Size (Smallest)', value: 'folder_size_asc' },
+                            ]}
+                        />
+                    </Group>
+
+                    {processedSets.length > 0 ? (
+                        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
+                            {processedSets.map((set: SetModel) => (
+                                <SetCard 
+                                    key={set.id} 
+                                    set={set} 
+                                    onDelete={handleDeleteSet} 
+                                    selectionMode={selectionMode}
+                                    selected={selectedIds.has(set.id)}
+                                    onToggleSelect={() => toggleSelect(set.id)}
+                                    onLongPress={() => {
+                                        if (!selectionMode) {
+                                            startSelectionWith(set.id);
+                                        }
+                                    }}
+                                />
+                            ))}
+                        </SimpleGrid>
+                    ) : (
+                        <Stack align="center" py={100} gap="md">
+                            <Text size="xl" fw={500} c="dimmed">No sets match your filters</Text>
+                            <Text c="dimmed">Try adjusting your search terms or clearing the orientation filter.</Text>
+                        </Stack>
+                    )}
+                </>
             ) : (
                 <Center py={100}>
                     <Text c="dimmed">This artist has no wallpaper sets yet.</Text>
