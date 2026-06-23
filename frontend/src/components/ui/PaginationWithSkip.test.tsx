@@ -5,7 +5,6 @@
  */
 /* eslint-disable no-magic-numbers */
 import { describe, it, expect, vi } from 'vitest';
-import React from 'react';
 import { render, screen, fireEvent } from '../../test/test-utils';
 import { PaginationWithSkip } from './PaginationWithSkip';
 

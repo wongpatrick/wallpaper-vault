@@ -29,18 +29,11 @@
     ],
     "extraResources": [
       {
-        "from": "../backend",
-        "to": "backend",
-        "filter": [
-          "**/*",
-          "!**/__pycache__",
-          "!**/.venv",
-          "!**/.ruff_cache",
-          "!**/.python-version"
-        ]
+        "from": "../backend/dist/wallpaper-vault-backend",
+        "to": "backend"
       },
       {
-        "from": "../db",
+        "from": "../backend/dist/clean_db",
         "to": "db"
       },
       {
@@ -49,8 +42,17 @@
       }
     ],
     "win": {
-      "target": "portable",
+      "target": [
+        "nsis"
+      ],
       "icon": "public/vault-icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Wallpaper Vault"
     }
   },
   "dependencies": {
