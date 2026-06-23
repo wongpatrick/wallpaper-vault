@@ -4,18 +4,8 @@
  * Verifies TextInput updates and mocking window.electron native directory picking.
  */
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
-import React from 'react';
 import { render, screen, fireEvent } from '../../test/test-utils';
 import { PathInput } from './PathInput';
-
-// Extend global window type to satisfy TypeScript
-declare global {
-    interface Window {
-        electron: {
-            openDirectory: () => Promise<string | null>;
-        };
-    }
-}
 
 describe('PathInput', () => {
     beforeEach(() => {

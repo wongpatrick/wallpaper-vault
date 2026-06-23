@@ -23,43 +23,86 @@ if (process.platform === 'win32') {
 // Disable hardware acceleration to rule out GPU decoding issues
 app.disableHardwareAcceleration();
 
+function logBoth(logFilePath: string, msg: string) {
+    console.log(msg);
+    try {
+        fs.appendFileSync(logFilePath, `[Electron] [${new Date().toISOString()}] ${msg}\n`);
+    } catch {
+        // ignore
+    }
+}
+
 function startBackend() {
     if (process.env.VITE_DEV_SERVER_URL) {
         console.log('Running in development mode, backend should be started externally.');
         return;
     }
 
-    console.log('Starting production backend...');
-    
+    const userDataPath = app.getPath('userData');
+    const logsDir = path.join(userDataPath, 'logs');
+    fs.mkdirSync(logsDir, { recursive: true });
+    const logFilePath = path.join(logsDir, 'combined.log');
+
+    logBoth(logFilePath, 'Starting production backend...');
+
     const resourcesPath = process.resourcesPath;
     const backendPath = path.join(resourcesPath, 'backend');
-    const dbPath = path.join(resourcesPath, 'db', 'wallpapers.db');
     
+    // Relocate database to userData to prevent data loss on updates
+    const userDbDir = path.join(userDataPath, 'db');
+    fs.mkdirSync(userDbDir, { recursive: true });
+    const userDbPath = path.join(userDbDir, 'wallpapers.db');
+    
+    const templateDbPath = path.join(resourcesPath, 'db', 'wallpapers.db');
+    if (!fs.existsSync(userDbPath)) {
+        logBoth(logFilePath, `Database not found in userData. Copying template from ${templateDbPath} to ${userDbPath}`);
+        try {
+            if (fs.existsSync(templateDbPath)) {
+                fs.copyFileSync(templateDbPath, userDbPath);
+                logBoth(logFilePath, 'Database template copied successfully.');
+            } else {
+                logBoth(logFilePath, 'WARNING: Template database not found in resources folder.');
+            }
+        } catch (error) {
+            logBoth(logFilePath, `ERROR: Failed to copy template database: ${error}`);
+        }
+    } else {
+        logBoth(logFilePath, `Using existing database in userData: ${userDbPath}`);
+    }
+
     const env = { 
         ...process.env, 
-        DATABASE_URL: `sqlite+aiosqlite:///${dbPath.replace(/\\/g, '/')}`
+        DATABASE_URL: `sqlite+aiosqlite:///${userDbPath.replace(/\\/g, '/')}`
     };
 
     try {
-        backendProcess = spawn('uv', ['run', 'uvicorn', 'app.main:app', '--port', '8000'], {
-            cwd: backendPath,
-            env,
-            shell: true
-        });
+        const binaryPath = path.join(backendPath, 'wallpaper-vault-backend.exe');
+        if (fs.existsSync(binaryPath)) {
+            logBoth(logFilePath, `Compiled backend found at ${binaryPath}. Spawning backend binary...`);
+            backendProcess = spawn(binaryPath, ['--port', '8000'], {
+                cwd: backendPath,
+                env,
+                shell: false
+            });
+        } else {
+            logBoth(logFilePath, `Compiled backend not found at ${binaryPath}. Falling back to uv run uvicorn...`);
+            backendProcess = spawn('uv', ['run', 'uvicorn', 'app.main:app', '--port', '8000'], {
+                cwd: backendPath,
+                env,
+                shell: true
+            });
+        }
 
-        backendProcess.stdout?.on('data', (data) => {
-            console.log(`Backend: ${data}`);
-        });
-
-        backendProcess.stderr?.on('data', (data) => {
-            console.error(`Backend Error: ${data}`);
-        });
+        // Pipe backend process output to the combined log file
+        const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+        backendProcess.stdout?.pipe(logStream);
+        backendProcess.stderr?.pipe(logStream);
 
         backendProcess.on('close', (code) => {
-            console.log(`Backend process exited with code ${code}`);
+            logBoth(logFilePath, `Backend process exited with code ${code}`);
         });
     } catch (error) {
-        console.error('Failed to start backend process:', error);
+        logBoth(logFilePath, `Failed to start backend process: ${error}`);
     }
 }
 

@@ -1,3 +1,4 @@
 dist/
 dist-electron/
 coverage/
+dist-build/

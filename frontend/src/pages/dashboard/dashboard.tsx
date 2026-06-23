@@ -193,23 +193,27 @@ export default function Dashboard() {
                         <Title order={3} size="h4">Aspect Ratio Distribution</Title>
                         <Paper withBorder p="md" radius="md">
                             <Stack gap="xs">
-                                {Object.entries(stats?.aspect_ratio_distribution || {}).map(([label, count]) => {
-                                    const percentage = stats?.total_images ? (count / stats.total_images) * 100 : 0;
-                                    return (
-                                        <Box key={label}>
-                                            <Group justify="space-between" mb={2}>
-                                                <Text size="sm" fw={500}>{label}</Text>
-                                                <Text size="xs" c="dimmed">{count} images ({percentage.toFixed(1)}%)</Text>
-                                            </Group>
-                                            <Progress 
-                                                value={percentage} 
-                                                color={getARColor(label)} 
-                                                size="sm" 
-                                                radius="xl" 
-                                            />
-                                        </Box>
-                                    );
-                                })}
+                                {Object.keys(stats?.aspect_ratio_distribution || {}).length === 0 ? (
+                                    <Text size="sm" c="dimmed" ta="center" py="md">No aspect ratio data available.</Text>
+                                ) : (
+                                    Object.entries(stats?.aspect_ratio_distribution || {}).map(([label, count]) => {
+                                        const percentage = stats?.total_images ? (count / stats.total_images) * 100 : 0;
+                                        return (
+                                            <Box key={label}>
+                                                <Group justify="space-between" mb={2}>
+                                                    <Text size="sm" fw={500}>{label}</Text>
+                                                    <Text size="xs" c="dimmed">{count} images ({percentage.toFixed(1)}%)</Text>
+                                                </Group>
+                                                <Progress 
+                                                    value={percentage} 
+                                                    color={getARColor(label)} 
+                                                    size="sm" 
+                                                    radius="xl" 
+                                                />
+                                            </Box>
+                                        );
+                                    })
+                                )}
                             </Stack>
                         </Paper>
 

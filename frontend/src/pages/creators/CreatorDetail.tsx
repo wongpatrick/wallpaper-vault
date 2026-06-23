@@ -368,7 +368,6 @@ export default function CreatorDetail() {
                             leftSection={<IconSearch size={16} />}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.currentTarget.value)}
-                            clearable
                             style={{ flex: 1, minWidth: 220, maxWidth: 400 }}
                         />
                         <Input.Wrapper label="Orientation">
