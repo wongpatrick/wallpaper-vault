@@ -1,10 +1,13 @@
 """
 SQLAlchemy model definition for tracking library audit issues.
 """
+
+from typing import Optional
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
 from app.models.base import Base
 from app.core.enums import AuditIssueStatus
+
 
 class AuditIssue(Base):
     __tablename__ = "audit_issues"
@@ -13,22 +16,32 @@ class AuditIssue(Base):
     task_id = Column(String, index=True)
     issue_type = Column(String)  # Uses AuditIssueType
     path = Column(Text)
-    directory = Column(Text, index=True) # Parent folder for grouping
-    
+    directory = Column(Text, index=True)  # Parent folder for grouping
+
     # Context
     image_id = Column(Integer, ForeignKey("images.id"), nullable=True)
     set_id = Column(Integer, ForeignKey("sets.id"), nullable=True)
-    
+
     # Relationships
     image = relationship("Image")
     set = relationship("Set")
-    
+
     # pHash values for visual matching
-    expected_phash = Column(String, nullable=True) # For ghosts
-    found_phash = Column(String, nullable=True)    # For orphans
-    
+    expected_phash = Column(String, nullable=True)  # For ghosts
+    found_phash = Column(String, nullable=True)  # For orphans
+
     # Match tracking
-    match_issue_id = Column(Integer, nullable=True) # Points to another AuditIssue
-    
+    match_issue_id = Column(Integer, nullable=True)  # Points to another AuditIssue
+
     status = Column(String, default=AuditIssueStatus.PENDING)
     created_at = Column(DateTime, server_default=func.now())
+
+    @property
+    def set_title(self) -> Optional[str]:
+        return self.set.title if self.set else None
+
+    @property
+    def creator_name(self) -> Optional[str]:
+        if self.set and self.set.creators:
+            return ", ".join([c.canonical_name for c in self.set.creators])
+        return None

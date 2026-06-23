@@ -131,9 +131,10 @@ export function TaskProvider({ children }: TaskProviderProps) {
 
                 Object.entries(incomingTasks).forEach(([tid, tinfo]) => {
                     const existingTask = prev[tid];
-                    const wasActive = !existingTask || 
-                        existingTask.status === TaskStatus.ACCEPTED || 
-                        existingTask.status === TaskStatus.PROCESSING;
+                    const wasActive = !existingTask || (
+                        existingTask.status !== TaskStatus.COMPLETED && 
+                        existingTask.status !== TaskStatus.ERROR
+                    );
 
                     // Update task in local record
                     updated[tid] = {
@@ -192,7 +193,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
     // Check if any background task is currently active
     const isTaskRunning = useMemo(() => {
         return Object.values(tasks).some(
-            (t) => t.status === TaskStatus.ACCEPTED || t.status === TaskStatus.PROCESSING
+            (t) => t.status !== TaskStatus.COMPLETED && t.status !== TaskStatus.ERROR
         );
     }, [tasks]);
 

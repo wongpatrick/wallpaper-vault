@@ -15,7 +15,7 @@ export function CroppedPreview({ croppedImage, width, height }: CroppedPreviewPr
     return (
         <Stack gap="xs" style={{ width: 320 }}>
             <Text fw={600} size="sm">Cropped Preview</Text>
-            <Paper withBorder p="xs" radius="md" bg="var(--mantine-color-gray-0)">
+            <Paper withBorder p="xs" radius="md" bg="light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))">
                 <img src={croppedImage} alt="Cropped" style={{ width: '100%', display: 'block', borderRadius: '4px' }} />
                 <Text size="xs" c="dimmed" mt="xs" ta="center">
                     {Math.round(width)} x {Math.round(height)} px
