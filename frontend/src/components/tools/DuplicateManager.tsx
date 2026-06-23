@@ -196,7 +196,7 @@ function DuplicateGroupCard({ group, onResolve, isResolving, viewMode }: GroupCa
 
     return (
         <Card withBorder radius="md" p={0} style={{ overflow: 'hidden' }}>
-            <Group p="md" justify="space-between" bg="var(--mantine-color-gray-0)">
+            <Group p="md" justify="space-between" bg="light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))">
                 <Group gap="sm">
                     <Badge color="blue" variant="filled">Hash: {group.phash.substring(0, 8)}</Badge>
                     <Text fw={500} size="sm">{group.images.length} Versions Found</Text>

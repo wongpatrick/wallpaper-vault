@@ -213,7 +213,7 @@ export function FolderParser() {
                     withBorder 
                     p="md" 
                     radius="md" 
-                    bg="var(--mantine-color-gray-0)"
+                    bg="light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))"
                     style={{ borderStyle: 'dashed', borderWidth: 2 }}
                 >
                     <Stack gap="xs">
@@ -295,7 +295,7 @@ export function FolderParser() {
                             </Group>
                         </Group>
                         <Table verticalSpacing="sm" withColumnBorders withTableBorder>
-                            <Table.Thead bg="var(--mantine-color-gray-0)">
+                            <Table.Thead bg="light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))">
                                 <Table.Tr>
                                     <Table.Th>Original Name</Table.Th>
                                     <Table.Th>Creator</Table.Th>

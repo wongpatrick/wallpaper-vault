@@ -46,15 +46,15 @@ const MAX_SCROLL_HEIGHT_PX = 150;
 export function LibraryAudit() {
     const { tasks } = useTasks();
     const auditTask = Object.values(tasks).find(
-        (t) => t.id.startsWith('audit-') && (t.status === 'accepted' || t.status === 'processing')
+        (t) => t.id.startsWith('audit-') && t.status !== 'completed' && t.status !== 'error'
     );
     const isScanning = !!auditTask;
     const progress = auditTask?.progress || 0;
-    const status = auditTask?.status === 'processing' 
-        ? 'Scanning...' 
-        : auditTask?.status === 'accepted' 
+    const status = auditTask?.status === 'accepted' 
         ? 'Starting scan...' 
-        : 'Processing...';
+        : auditTask?.status === 'processing' 
+        ? 'Scanning...' 
+        : auditTask?.status || 'Processing...';
 
     const [page, setPage] = useState(1);
     const [issueType, setIssueType] = useState<string | null>(null);
@@ -160,7 +160,14 @@ export function LibraryAudit() {
                             data={[
                                 { value: 'ghost', label: 'Ghosts (File Missing)' },
                                 { value: 'orphan', label: 'Orphans (Untracked)' },
-                                { value: 'duplicate_entry', label: 'Shared Files (DB Duplicates)' }
+                                { value: 'duplicate_entry', label: 'Shared Files (DB Duplicates)' },
+                                { value: 'empty_set', label: 'Empty Sets (No Images)' },
+                                { value: 'ghost_set', label: 'Ghost Sets (Folder Missing)' },
+                                { value: 'corrupted_image', label: 'Corrupted Images (Unreadable)' },
+                                { value: 'path_mismatch', label: 'Path Mismatches (Wrong Set Folder)' },
+                                { value: 'orphan_tag', label: 'Orphan Tags (Unused)' },
+                                { value: 'orphan_creator', label: 'Orphan Creators (Unused)' },
+                                { value: 'orphan_character', label: 'Orphan Characters (Unused)' }
                             ]}
                             clearable
                             value={issueType}
@@ -182,48 +189,160 @@ export function LibraryAudit() {
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
-                                {/* Ghosts Section */}
-                                {otherIssues.map((issue) => (
-                                    <Table.Tr key={issue.id}>
-                                        <Table.Td>
-                                            <Badge color="red" leftSection={<IconLinkOff size={10} />}>Ghost</Badge>
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <Stack gap={0}>
-                                                <Text size="sm" fw={500} truncate="end" maw={500}>{issue.path}</Text>
-                                                {issue.match_issue_id && (
-                                                    <Text size="xs" c="green" fw={600}>
-                                                        ✨ Visual match found! Can be repaired.
-                                                    </Text>
-                                                )}
-                                            </Stack>
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <Badge variant="outline" color="gray" size="xs">{issue.status}</Badge>
-                                        </Table.Td>
-                                        <Table.Td>
+                                {/* Other Issues (Ghosts, Empty Sets, Ghost Sets, Corrupted, Path Mismatches, DB Orphans) */}
+                                {otherIssues.map((issue) => {
+                                    let badgeColor = "red";
+                                    let badgeLabel = issue.issue_type;
+                                    let badgeIcon = <IconLinkOff size={10} />;
+                                    let displayPath = issue.path;
+                                    let description = "";
+                                    let actionButton = null;
+
+                                    if (issue.issue_type === 'ghost') {
+                                        badgeColor = "red";
+                                        badgeLabel = "Ghost";
+                                        badgeIcon = <IconLinkOff size={10} />;
+                                        description = "Database entry exists, but file is missing on disk.";
+                                        if (issue.match_issue_id) {
+                                            description += " ✨ Visual match found! Can be repaired.";
+                                            actionButton = (
+                                                <Tooltip label="Repair Link">
+                                                    <ActionIcon color="green" variant="light" onClick={() => handleResolve([issue.id], 'repair')}>
+                                                        <IconLink size={16} />
+                                                    </ActionIcon>
+                                                </Tooltip>
+                                            );
+                                        } else {
+                                            actionButton = (
+                                                <Tooltip label="Purge Record">
+                                                    <ActionIcon color="red" variant="light" onClick={() => handleResolve([issue.id], 'purge')}>
+                                                        <IconTrash size={16} />
+                                                    </ActionIcon>
+                                                </Tooltip>
+                                            );
+                                        }
+                                    } else if (issue.issue_type === 'empty_set') {
+                                        badgeColor = "yellow";
+                                        badgeLabel = "Empty Set";
+                                        badgeIcon = <IconFolder size={10} />;
+                                        description = `Set has no wallpapers.`;
+                                        actionButton = (
+                                            <Tooltip label="Purge Set Record">
+                                                <ActionIcon color="red" variant="light" onClick={() => handleResolve([issue.id], 'purge')}>
+                                                    <IconTrash size={16} />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        );
+                                    } else if (issue.issue_type === 'ghost_set') {
+                                        badgeColor = "red";
+                                        badgeLabel = "Ghost Set";
+                                        badgeIcon = <IconFolder size={10} />;
+                                        description = `Set folder does not exist on disk.`;
+                                        actionButton = (
+                                            <Tooltip label="Purge Set Record">
+                                                <ActionIcon color="red" variant="light" onClick={() => handleResolve([issue.id], 'purge')}>
+                                                    <IconTrash size={16} />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        );
+                                    } else if (issue.issue_type === 'corrupted_image') {
+                                        badgeColor = "orange";
+                                        badgeLabel = "Corrupted File";
+                                        badgeIcon = <IconLinkOff size={10} />;
+                                        description = `Image file is unreadable/corrupted.`;
+                                        actionButton = (
                                             <Group gap="xs">
-                                                {issue.match_issue_id ? (
-                                                    <Tooltip label="Repair Link">
-                                                        <ActionIcon color="green" variant="light" onClick={() => handleResolve([issue.id], 'repair')}>
-                                                            <IconLink size={16} />
-                                                        </ActionIcon>
-                                                    </Tooltip>
-                                                ) : (
-                                                    <Tooltip label="Purge Record">
-                                                        <ActionIcon color="red" variant="light" onClick={() => handleResolve([issue.id], 'purge')}>
-                                                            <IconTrash size={16} />
-                                                        </ActionIcon>
-                                                    </Tooltip>
-                                                )}
-                                            </Group>
-                                        </Table.Td>
-                                    </Table.Tr>
-                                ))}
+                                                <Tooltip label="Delete File & Record">
+                                                     <ActionIcon color="red" variant="light" onClick={() => handleResolve([issue.id], 'delete_file')}>
+                                                         <IconTrash size={16} />
+                                                     </ActionIcon>
+                                                 </Tooltip>
+                                                 <Tooltip label="Purge DB Record Only">
+                                                     <ActionIcon color="orange" variant="light" onClick={() => handleResolve([issue.id], 'purge')}>
+                                                         <IconLinkOff size={16} />
+                                                     </ActionIcon>
+                                                 </Tooltip>
+                                             </Group>
+                                         );
+                                    } else if (issue.issue_type === 'path_mismatch') {
+                                        badgeColor = "indigo";
+                                        badgeLabel = "Path Mismatch";
+                                        badgeIcon = <IconFolder size={10} />;
+                                        description = `Physical path does not reside in the set's folder.`;
+                                        actionButton = (
+                                             <Tooltip label="Re-associate Set">
+                                                 <ActionIcon color="indigo" variant="light" onClick={() => handleResolve([issue.id], 'repair')}>
+                                                     <IconLink size={16} />
+                                                 </ActionIcon>
+                                             </Tooltip>
+                                         );
+                                    } else if (issue.issue_type === 'orphan_tag') {
+                                        badgeColor = "pink";
+                                        badgeLabel = "Orphan Tag";
+                                        badgeIcon = <IconLinkOff size={10} />;
+                                        displayPath = issue.path.split(":")[0];
+                                        description = `Tag is not associated with any images or sets. ID: ${issue.path.split(":")[1]}`;
+                                        actionButton = (
+                                            <Tooltip label="Purge Tag">
+                                                <ActionIcon color="red" variant="light" onClick={() => handleResolve([issue.id], 'purge')}>
+                                                    <IconTrash size={16} />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        );
+                                    } else if (issue.issue_type === 'orphan_creator') {
+                                        badgeColor = "violet";
+                                        badgeLabel = "Orphan Creator";
+                                        badgeIcon = <IconLinkOff size={10} />;
+                                        displayPath = issue.path.split(":")[0];
+                                        description = `Creator is not associated with any sets. ID: ${issue.path.split(":")[1]}`;
+                                        actionButton = (
+                                            <Tooltip label="Purge Creator">
+                                                <ActionIcon color="red" variant="light" onClick={() => handleResolve([issue.id], 'purge')}>
+                                                    <IconTrash size={16} />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        );
+                                    } else if (issue.issue_type === 'orphan_character') {
+                                        badgeColor = "cyan";
+                                        badgeLabel = "Orphan Character";
+                                        badgeIcon = <IconLinkOff size={10} />;
+                                        displayPath = issue.path.split(":")[0];
+                                        description = `Character is not associated with any sets. ID: ${issue.path.split(":")[1]}`;
+                                        actionButton = (
+                                            <Tooltip label="Purge Character">
+                                                <ActionIcon color="red" variant="light" onClick={() => handleResolve([issue.id], 'purge')}>
+                                                    <IconTrash size={16} />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        );
+                                    }
+
+                                    return (
+                                        <Table.Tr key={issue.id}>
+                                            <Table.Td>
+                                                <Badge color={badgeColor} leftSection={badgeIcon}>{badgeLabel}</Badge>
+                                            </Table.Td>
+                                            <Table.Td>
+                                                <Stack gap={0}>
+                                                    <Text size="sm" fw={500} truncate="end" maw={500}>{displayPath}</Text>
+                                                    <Text size="xs" c="dimmed">{description}</Text>
+                                                </Stack>
+                                            </Table.Td>
+                                            <Table.Td>
+                                                <Badge variant="outline" color="gray" size="xs">{issue.status}</Badge>
+                                            </Table.Td>
+                                            <Table.Td>
+                                                <Group gap="xs">
+                                                    {actionButton}
+                                                </Group>
+                                            </Table.Td>
+                                        </Table.Tr>
+                                    );
+                                })}
 
                                 {/* Duplicates Header (if any) */}
                                 {Object.keys(groupedDuplicates).length > 0 && (
-                                    <Table.Tr bg="var(--mantine-color-gray-0)">
+                                    <Table.Tr bg="light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))">
                                         <Table.Td colSpan={4} py={10}>
                                             <Text fw={700} size="sm">Shared File References (DB Duplicates)</Text>
                                         </Table.Td>
@@ -270,7 +389,7 @@ export function LibraryAudit() {
 
                                 {/* Orphans Header (if any) */}
                                 {Object.keys(groupedOrphans).length > 0 && (
-                                    <Table.Tr bg="var(--mantine-color-gray-0)">
+                                    <Table.Tr bg="light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))">
                                         <Table.Td colSpan={4} py={10}>
                                             <Text fw={700} size="sm">Untracked Image Folders (Orphans)</Text>
                                         </Table.Td>
