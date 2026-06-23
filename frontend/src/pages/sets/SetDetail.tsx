@@ -9,7 +9,7 @@ import { useSelection } from '../../hooks/useSelection';
 import { 
     Title, Text, Container, Group, Badge, Loader, 
     Center, Alert, Stack, ActionIcon, Menu, Button, Modal,
-    TextInput, Textarea, MultiSelect, Box, Switch
+    TextInput, Textarea, Box, Switch, TagsInput
 } from '@mantine/core';
 import { 
     IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
@@ -25,7 +25,7 @@ import {
 } from '../../api/generated/sets/sets';
 
 import { useBulkUpdateImagesApiImagesBulkUpdatePost } from '../../api/generated/images/images';
-import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
+import { useReadCreatorsApiCreatorsGet, useCreateCreatorApiCreatorsPost } from '../../api/generated/creators/creators';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { ImageGridItem } from '../../components/images/ImageGridItem';
@@ -54,6 +54,7 @@ export default function SetDetail() {
     const resyncMutation = useResyncSetApiSetsSetIdResyncPost();
     const autoTagMutation = useAutoTagSetApiSetsSetIdAutoTagPost();
     const bulkUpdateMutation = useBulkUpdateImagesApiImagesBulkUpdatePost();
+    const createCreatorMutation = useCreateCreatorApiCreatorsPost();
 
     const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -81,7 +82,7 @@ export default function SetDetail() {
         notes: '',
         source_url: '',
         local_path: '',
-        creator_ids: [] as string[],
+        creator_names: [] as string[],
         tags: [] as string[],
         characters: [] as string[]
     });
@@ -94,7 +95,7 @@ export default function SetDetail() {
             notes: set.notes || '',
             source_url: set.source_url || '',
             local_path: set.local_path || '',
-            creator_ids: set.creators?.map(c => String(c.id)) || [],
+            creator_names: set.creators?.map(c => c.canonical_name) || [],
             tags: Array.from(new Set(set.tags || [])),
             characters: Array.from(new Set(set.characters || []))
         });
@@ -112,7 +113,7 @@ export default function SetDetail() {
                         notes: result.data.notes || '',
                         source_url: result.data.source_url || '',
                         local_path: result.data.local_path || '',
-                        creator_ids: result.data.creators?.map(c => String(c.id)) || [],
+                        creator_names: result.data.creators?.map(c => c.canonical_name) || [],
                         tags: Array.from(new Set(result.data.tags || [])),
                         characters: Array.from(new Set(result.data.characters || []))
                     });
@@ -121,9 +122,10 @@ export default function SetDetail() {
         }
     }, [taskStatus, refetch]);
 
-    const creatorOptions = useMemo(() => 
-        creatorsData?.items?.map(c => ({ value: String(c.id), label: c.canonical_name })) || [], 
-    [creatorsData]);
+    const creatorOptions = useMemo(() => {
+        const uniqueNames = new Set(creatorsData?.items?.map(c => c.canonical_name) || []);
+        return Array.from(uniqueNames).sort((a, b) => a.localeCompare(b));
+    }, [creatorsData]);
 
     // 2. Early returns
     if (isLoading) {
@@ -146,10 +148,32 @@ export default function SetDetail() {
     // 3. Handlers
     const handleUpdate = async () => {
         try {
-            const { local_path, ...otherFields } = editForm;
+            const { local_path, creator_names, ...otherFields } = editForm;
+            
+            const finalCreatorIds: number[] = [];
+            for (const name of creator_names) {
+                const trimmedName = name.trim();
+                if (!trimmedName) continue;
+                
+                const existing = creatorsData?.items?.find(
+                    c => c.canonical_name.toLowerCase() === trimmedName.toLowerCase()
+                );
+                
+                if (existing) {
+                    finalCreatorIds.push(existing.id);
+                } else {
+                    const newCreator = await createCreatorMutation.mutateAsync({
+                        data: { canonical_name: trimmedName }
+                    });
+                    finalCreatorIds.push(newCreator.id);
+                }
+            }
+
             const updateData: SetUpdate = {
-                ...otherFields,
-                creator_ids: editForm.creator_ids.map(Number),
+                title: otherFields.title,
+                notes: otherFields.notes || undefined,
+                source_url: otherFields.source_url || undefined,
+                creator_ids: finalCreatorIds,
                 tags: editForm.tags,
                 characters: editForm.characters
             };
@@ -567,13 +591,12 @@ export default function SetDetail() {
                         value={editForm.title} 
                         onChange={(e) => setEditForm({ ...editForm, title: e.currentTarget.value })}
                     />
-                    <MultiSelect
+                    <TagsInput
                         label="Artists / Creators"
-                        placeholder="Pick artists"
+                        placeholder="Type to create new or select existing"
                         data={creatorOptions}
-                        value={editForm.creator_ids}
-                        onChange={(ids) => setEditForm({ ...editForm, creator_ids: ids })}
-                        searchable
+                        value={editForm.creator_names}
+                        onChange={(names) => setEditForm({ ...editForm, creator_names: names })}
                         clearable
                     />
                     <TagAutocompleteInput 
@@ -625,7 +648,14 @@ export default function SetDetail() {
                         />
                     </Box>
 
-                    <Button fullWidth onClick={handleUpdate} mt="md">Save Changes</Button>
+                    <Button 
+                        fullWidth 
+                        onClick={handleUpdate} 
+                        mt="md"
+                        loading={updateMutation.isPending || createCreatorMutation.isPending}
+                    >
+                        Save Changes
+                    </Button>
                 </Stack>
             </Modal>
 
