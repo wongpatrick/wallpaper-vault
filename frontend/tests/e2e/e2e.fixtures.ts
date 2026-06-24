@@ -81,8 +81,8 @@ export const test = base.extend<E2EFixtures>({
     console.log('Database initialized successfully.');
 
     // Ensure port 8001 is completely free
-    if (process.platform === 'win32') {
-      try {
+    try {
+      if (process.platform === 'win32') {
         const netstat = spawnSync('cmd.exe', ['/c', 'netstat -ano | findstr :8001'], { encoding: 'utf-8' });
         if (netstat.stdout) {
           const lines = netstat.stdout.split('\n');
@@ -98,9 +98,21 @@ export const test = base.extend<E2EFixtures>({
             }
           }
         }
-      } catch (e) {
-        console.error('Failed to clean up port 8001', e);
+      } else {
+        // Linux/macOS: use lsof to find and kill processes on port 8001
+        const lsof = spawnSync('lsof', ['-ti', ':8001'], { encoding: 'utf-8' });
+        if (lsof.stdout) {
+          const pids = lsof.stdout.trim().split('\n').filter(Boolean);
+          for (const pid of pids) {
+            if (Number(pid) > 0 && Number(pid) !== process.pid) {
+              console.log(`Port 8001 is in use by PID ${pid}. Killing it...`);
+              spawnSync('kill', ['-9', pid]);
+            }
+          }
+        }
       }
+    } catch (e) {
+      console.error('Failed to clean up port 8001', e);
     }
 
     // 2. Spawn the backend process on port 8001 pointing to test_e2e.db
@@ -113,6 +125,8 @@ export const test = base.extend<E2EFixtures>({
       cwd: backendDir,
       shell: true,
       env: backendEnv,
+      // On Linux/macOS, detach so we can kill the entire process group on teardown
+      detached: process.platform !== 'win32',
     });
 
     backendProcess.stdout?.on('data', (data) => {
@@ -187,6 +201,11 @@ export const test = base.extend<E2EFixtures>({
     backendProcess.kill();
     if (process.platform === 'win32') {
       spawnSync('taskkill', ['/pid', String(backendProcess.pid), '/f', '/t']);
+    } else {
+      // On Linux/macOS, kill the entire process group to avoid orphaned uvicorn workers
+      try {
+        process.kill(-backendProcess.pid!, 'SIGKILL');
+      } catch { /* process may already be gone */ }
     }
   },
 
