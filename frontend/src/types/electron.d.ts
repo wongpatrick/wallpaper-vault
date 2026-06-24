@@ -10,6 +10,7 @@ export interface ElectronAPI {
     openPath: (path: string) => Promise<{ success: boolean; error?: string }>;
     getLoginSettings: () => Promise<boolean>;
     setLoginSettings: (openAtLogin: boolean) => Promise<boolean>;
+    setMockImportPath?: (path: string) => void;
     getPathForFile: (file: File) => string;
     minimize: () => Promise<void>;
     maximize: () => Promise<void>;

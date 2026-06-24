@@ -156,7 +156,13 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
                 {!selectionMode && (
                     <Menu shadow="md" width={200} position="bottom-end">
                         <Menu.Target>
-                            <ActionIcon variant="subtle" color="gray" onClick={(e) => e.stopPropagation()}>
+                            <ActionIcon 
+                                variant="subtle" 
+                                color="gray" 
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onMouseUp={(e) => e.stopPropagation()}
+                            >
                                 <IconDotsVertical size={18} />
                             </ActionIcon>
                         </Menu.Target>

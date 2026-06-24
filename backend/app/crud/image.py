@@ -152,6 +152,11 @@ async def update_image(db: AsyncSession, image_id: int, image_in: ImageUpdate) -
     db.add(db_image)
     await db.commit()
     await db.refresh(db_image)
+    
+    if db_image.set_id:
+        from app.crud.set import recalculate_set_rollup_tags
+        await recalculate_set_rollup_tags(db, db_image.set_id)
+        
     return await get_image(db, image_id)
 
 async def bulk_update_images(db: AsyncSession, bulk_in: ImageBulkUpdate) -> int:
@@ -206,8 +211,12 @@ async def delete_image_db(db: AsyncSession, image_id: int) -> Optional[Image]:
     """
     db_image = await get_image(db, image_id)
     if db_image:
+        set_id = db_image.set_id
         await db.delete(db_image)
         await db.commit()
+        if set_id:
+            from app.crud.set import recalculate_set_rollup_tags
+            await recalculate_set_rollup_tags(db, set_id)
     return db_image
 
 async def get_duplicate_groups(db: AsyncSession) -> list[dict]:

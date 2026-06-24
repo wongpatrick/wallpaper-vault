@@ -15,7 +15,9 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "preview": "vite preview",
-    "generate": "orval"
+    "generate": "orval",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "build": {
     "appId": "com.wallpaper-vault.app",
@@ -70,6 +72,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^24.12.0",

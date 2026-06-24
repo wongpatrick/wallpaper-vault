@@ -20,6 +20,12 @@ if (process.platform === 'win32') {
     app.setAppUserModelId('com.wallpaper-vault.app');
 }
 
+const userDataDirArg = process.argv.find(arg => arg.startsWith('--user-data-dir='));
+if (userDataDirArg) {
+    const customPath = userDataDirArg.split('=')[1];
+    app.setPath('userData', customPath);
+}
+
 // Disable hardware acceleration to rule out GPU decoding issues
 app.disableHardwareAcceleration();
 
@@ -239,6 +245,14 @@ function createWindow() {
     const settingsPath = path.join(app.getPath('userData'), 'window-settings.json');
 
     mainWindow.on('close', async (event) => {
+        if (process.env.NODE_ENV === 'test') {
+            isQuitting = true;
+            if (backendProcess) {
+                backendProcess.kill();
+            }
+            app.exit(0);
+            return false;
+        }
         if (!isQuitting) {
             event.preventDefault();
 
