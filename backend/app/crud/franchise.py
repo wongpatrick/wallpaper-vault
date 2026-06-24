@@ -27,6 +27,7 @@ async def get_franchises(db: AsyncSession, skip: int = 0, limit: int = 100) -> L
         .outerjoin(Character, Franchise.id == Character.franchise_id)
         .outerjoin(set_characters, Character.id == set_characters.c.character_id)
         .group_by(Franchise.id)
+        .order_by(func.count(set_characters.c.set_id.distinct()).desc(), Franchise.name.asc())
         .offset(skip).limit(limit)
     )
     result = await db.execute(stmt)
