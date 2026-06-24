@@ -49,6 +49,50 @@ async def get_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     return result.scalar_one_or_none()
 
 
+async def recalculate_set_rollup_tags(db: AsyncSession, set_id: int) -> None:
+    """Recalculates the rollup tags for a set based on image tags and rollup threshold."""
+    result = await db.execute(
+        select(Set).options(
+            selectinload(Set.images).selectinload(Image.tags),
+            selectinload(Set.tags)
+        ).filter(Set.id == set_id)
+    )
+    db_set = result.scalar_one_or_none()
+    if not db_set:
+        return
+    
+    rollup_threshold_setting = await get_setting(db, "ai_rollup_threshold")
+    if rollup_threshold_setting and rollup_threshold_setting.value:
+        try:
+            rollup_threshold = float(rollup_threshold_setting.value)
+        except ValueError:
+            rollup_threshold = 0.3
+    else:
+        rollup_threshold = 0.3
+
+    if db_set.images:
+        tag_counts = {}
+        tag_objects = {}
+        for img in db_set.images:
+            for t in img.tags:
+                tag_counts[t.name] = tag_counts.get(t.name, 0) + 1
+                tag_objects[t.name] = t
+
+        rollup_tags = []
+        num_images = len(db_set.images)
+        for tag_name, count in tag_counts.items():
+            freq = float(count) / num_images
+            if freq >= rollup_threshold:
+                rollup_tags.append(tag_objects[tag_name])
+        
+        db_set.tags = rollup_tags
+    else:
+        db_set.tags = []
+        
+    db.add(db_set)
+    await db.commit()
+
+
 async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Optional[str] = None, creator_type: Optional[str] = None, sort_by: Optional[str] = "id", sort_dir: Optional[str] = "desc", tag: Optional[str] = None, character: Optional[list[str]] = None, franchise: Optional[list[str]] = None) -> tuple[list[Set], int]:
     """Retrieves a paginated list of sets, with optional filtering.
 

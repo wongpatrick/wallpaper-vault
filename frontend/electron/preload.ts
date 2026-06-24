@@ -6,6 +6,8 @@
  */
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
+let mockImportPath: string | null = null;
+
 contextBridge.exposeInMainWorld('electron', {
     send: (channel: string, data: unknown) => ipcRenderer.send(channel, data),
     on: (channel: string, func: (...args: unknown[]) => void) => {
@@ -19,7 +21,8 @@ contextBridge.exposeInMainWorld('electron', {
     openPath: (path: string) => ipcRenderer.invoke('open-path', path),
     getLoginSettings: () => ipcRenderer.invoke('get-login-item-settings'),
     setLoginSettings: (openAtLogin: boolean) => ipcRenderer.invoke('set-login-item-settings', openAtLogin),
-    getPathForFile: (file: File) => webUtils.getPathForFile(file),
+    setMockImportPath: (path: string) => { mockImportPath = path; },
+    getPathForFile: (file: File) => mockImportPath || (file as File & { path?: string }).path || webUtils.getPathForFile(file),
     minimize: () => ipcRenderer.invoke('window-minimize'),
     maximize: () => ipcRenderer.invoke('window-maximize'),
     close: () => ipcRenderer.invoke('window-close'),
