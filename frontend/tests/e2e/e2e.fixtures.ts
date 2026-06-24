@@ -28,7 +28,8 @@ type E2EFixtures = {
 
 export const test = base.extend<E2EFixtures>({
   // Manages the test directory and dummy images
-  testDir: async (_options, runner) => {
+  // eslint-disable-next-line no-empty-pattern
+  testDir: async ({}, runner) => {
     const tempDir = path.join(__dirname, 'temp_import_dir');
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
