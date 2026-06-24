@@ -51,6 +51,7 @@ async def get_characters(db: AsyncSession, skip: int = 0, limit: int = 100) -> L
         .options(selectinload(Character.franchise))
         .outerjoin(set_characters, Character.id == set_characters.c.character_id)
         .group_by(Character.id)
+        .order_by(func.count(set_characters.c.set_id).desc(), Character.name.asc())
         .offset(skip).limit(limit)
     )
     result = await db.execute(stmt)
