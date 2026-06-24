@@ -66,7 +66,7 @@ export const test = base.extend<E2EFixtures>({
     
     // 1. Reset and initialize test database schema
     console.log('Initializing test database...');
-    const initDbResult = spawnSync('uv', ['run', 'python', '../scripts/init_test_db.py'], {
+    const initDbResult = spawnSync('uv', ['run', 'python', '../db/init_test_db.py'], {
       cwd: backendDir,
       shell: true,
       encoding: 'utf-8',
