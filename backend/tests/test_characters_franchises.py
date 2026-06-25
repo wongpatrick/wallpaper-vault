@@ -176,3 +176,101 @@ async def test_merge_characters_multiple_sets(db_session: AsyncSession):
     assert c_source not in s1_updated.characters
     assert c_target in s2_updated.characters
     assert c_source not in s2_updated.characters
+
+@pytest.mark.asyncio
+async def test_merge_franchises_crud(db_session: AsyncSession):
+    # 1. Create target franchise
+    f_target_in = FranchiseCreate(name="Marvel")
+    f_target = await create_franchise(db_session, f_target_in)
+    
+    # 2. Create source franchise
+    f_source_in = FranchiseCreate(name="MCU")
+    f_source = await create_franchise(db_session, f_source_in)
+    await db_session.commit()
+
+    # 3. Create a character in source franchise
+    c_in = CharacterCreate(name="Iron Man", franchise_id=f_source.id)
+    c = await create_character(db_session, c_in)
+    await db_session.commit()
+
+    # 4. Merge MCU (source) into Marvel (target)
+    from app.crud.franchise import merge_franchises
+    await merge_franchises(db_session, [f_source.id], f_target.id)
+
+    # 5. Verify MCU is deleted
+    f_source_deleted = await get_franchise(db_session, f_source.id)
+    assert f_source_deleted is None
+
+    # 6. Verify Iron Man is now in Marvel
+    await db_session.refresh(c)
+    assert c.franchise_id == f_target.id
+
+@pytest.mark.asyncio
+async def test_merge_franchises_api(client: AsyncClient):
+    # 1. Create target franchise
+    resp = await client.post("/api/franchises/", json={"name": "Marvel"})
+    assert resp.status_code == 200
+    target_id = resp.json()["id"]
+
+    # 2. Create source franchise
+    resp = await client.post("/api/franchises/", json={"name": "MCU"})
+    assert resp.status_code == 200
+    source_id = resp.json()["id"]
+
+    # 3. Merge source into target
+    resp = await client.post("/api/franchises/merge", json={
+        "source_ids": [source_id],
+        "target_id": target_id
+    })
+    # If there is a validation/ORM serialization error, this will fail
+    assert resp.status_code == 200
+    merged_franchise = resp.json()
+    assert merged_franchise["id"] == target_id
+    assert merged_franchise["name"] == "Marvel"
+
+@pytest.mark.asyncio
+async def test_merge_franchises_duplicate_characters(db_session: AsyncSession):
+    # 1. Create target franchise Marvel
+    f_target_in = FranchiseCreate(name="Marvel")
+    f_target = await create_franchise(db_session, f_target_in)
+    
+    # 2. Create source franchise MCU
+    f_source_in = FranchiseCreate(name="MCU")
+    f_source = await create_franchise(db_session, f_source_in)
+    await db_session.commit()
+
+    # 3. Create "Iron Man" under Marvel (target)
+    c_target_in = CharacterCreate(name="Iron Man", franchise_id=f_target.id)
+    c_target = await create_character(db_session, c_target_in)
+
+    # 4. Create "Iron Man" under MCU (source)
+    c_source_in = CharacterCreate(name="Iron Man", franchise_id=f_source.id)
+    c_source = await create_character(db_session, c_source_in)
+    await db_session.commit()
+
+    # 5. Create a set with MCU Iron Man
+    s = Set(title="MCU Iron Man Set")
+    s.characters.append(c_source)
+    db_session.add(s)
+    await db_session.commit()
+    await db_session.refresh(s)
+    
+    set_id = s.id
+
+    # 6. Merge MCU into Marvel
+    from app.crud.franchise import merge_franchises
+    await merge_franchises(db_session, [f_source.id], f_target.id)
+
+    # 7. Check if we have duplicate Iron Man characters under Marvel
+    from sqlalchemy import select
+    from app.models.character import Character
+    res = await db_session.execute(
+        select(Character).where(Character.franchise_id == f_target.id, Character.name == "Iron Man")
+    )
+    chars = res.scalars().all()
+    
+    # Check if they got merged or if both exist
+    assert len(chars) == 1, f"Expected 1 Iron Man character under Marvel, but found {len(chars)}"
+
+
+
