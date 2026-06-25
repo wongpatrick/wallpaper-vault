@@ -242,7 +242,7 @@ async def test_merge_franchises_duplicate_characters(db_session: AsyncSession):
 
     # 3. Create "Iron Man" under Marvel (target)
     c_target_in = CharacterCreate(name="Iron Man", franchise_id=f_target.id)
-    c_target = await create_character(db_session, c_target_in)
+    await create_character(db_session, c_target_in)
 
     # 4. Create "Iron Man" under MCU (source)
     c_source_in = CharacterCreate(name="Iron Man", franchise_id=f_source.id)
@@ -255,8 +255,6 @@ async def test_merge_franchises_duplicate_characters(db_session: AsyncSession):
     db_session.add(s)
     await db_session.commit()
     await db_session.refresh(s)
-    
-    set_id = s.id
 
     # 6. Merge MCU into Marvel
     from app.crud.franchise import merge_franchises
