@@ -1,6 +1,6 @@
 """CRUD operations for characters."""
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 from typing import Optional, List, Sequence
@@ -200,6 +200,26 @@ async def delete_character(db: AsyncSession, character_id: int) -> bool:
     await db.delete(db_character)
     await db.commit()
     return True
+
+async def bulk_delete_characters(db: AsyncSession, ids: list[int]) -> int:
+    """Bulk deletes multiple characters by ID and returns the number of deleted records."""
+    if not ids:
+        return 0
+    
+    from app.models.associations import set_characters
+    
+    # 1. Delete associations from set_characters
+    await db.execute(
+        delete(set_characters).where(set_characters.c.character_id.in_(ids))
+    )
+    
+    # 2. Delete the characters themselves
+    result = await db.execute(
+        delete(Character).where(Character.id.in_(ids))
+    )
+    await db.commit()
+    return result.rowcount
+
 
 async def merge_characters(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[dict]:
     """Merges multiple source characters into a single target character.

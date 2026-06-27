@@ -3,7 +3,7 @@ CRUD operations for retrieving and managing normalized tags.
 """
 from typing import Optional, List, Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.exc import IntegrityError
 from app.models.tag import Tag
 from app.models.associations import set_tags
@@ -224,6 +224,42 @@ async def delete_tag(db: AsyncSession, tag_id: int) -> bool:
     await db.delete(db_tag)
     await db.commit()
     return True
+
+async def bulk_delete_tags(db: AsyncSession, ids: list[int]) -> int:
+    """Bulk deletes multiple tags by ID, cleaning up associations and recalculating rollups."""
+    if not ids:
+        return 0
+        
+    from app.models.associations import set_tags, image_tags
+    from app.crud.set import recalculate_set_rollup_tags
+    
+    # 1. Find all sets associated with these tag IDs, so we can recalculate their rollup tags
+    stmt = select(set_tags.c.set_id).where(set_tags.c.tag_id.in_(ids))
+    affected_set_ids = (await db.execute(stmt)).scalars().all()
+    
+    # 2. Delete associations from set_tags
+    await db.execute(
+        delete(set_tags).where(set_tags.c.tag_id.in_(ids))
+    )
+    
+    # 3. Delete associations from image_tags
+    await db.execute(
+        delete(image_tags).where(image_tags.c.tag_id.in_(ids))
+    )
+    
+    # 4. Delete the tags themselves
+    result = await db.execute(
+        delete(Tag).where(Tag.id.in_(ids))
+    )
+    await db.commit()
+    db.expire_all()
+    
+    # 5. Recalculate rollup tags for affected sets
+    for set_id in affected_set_ids:
+        await recalculate_set_rollup_tags(db, set_id)
+        
+    return result.rowcount
+
 
 async def merge_tags(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[Tag]:
     """Merges multiple source tags into a single target tag.

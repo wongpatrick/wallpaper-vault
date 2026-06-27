@@ -249,3 +249,55 @@ export const useMergeTags = () => {
     },
   });
 };
+
+// --- Bulk Delete API & Hooks ---
+
+export const bulkDeleteCharacters = (ids: number[]) => {
+  return customInstance<void>({ url: `/api/characters/bulk-delete`, method: 'POST', data: { ids } });
+};
+
+export const bulkDeleteFranchises = (ids: number[]) => {
+  return customInstance<void>({ url: `/api/franchises/bulk-delete`, method: 'POST', data: { ids } });
+};
+
+export const bulkDeleteTags = (ids: number[]) => {
+  return customInstance<void>({ url: `/api/tags/bulk-delete`, method: 'POST', data: { ids } });
+};
+
+export const useBulkDeleteCharacters = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: bulkDeleteCharacters,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['characters'] });
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['sets'] });
+      queryClient.invalidateQueries({ queryKey: ['images'] });
+    },
+  });
+};
+
+export const useBulkDeleteFranchises = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: bulkDeleteFranchises,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['franchises'] });
+      queryClient.invalidateQueries({ queryKey: ['characters'] });
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['sets'] });
+    },
+  });
+};
+
+export const useBulkDeleteTags = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: bulkDeleteTags,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['sets'] });
+    },
+  });
+};
+

@@ -1,6 +1,6 @@
 """CRUD operations for franchises."""
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete, update
 from typing import Optional, List
 from app.models.franchise import Franchise
 from app.schemas.franchise import FranchiseCreate, FranchiseUpdate
@@ -88,6 +88,28 @@ async def delete_franchise(db: AsyncSession, franchise_id: int) -> bool:
     await db.delete(db_franchise)
     await db.commit()
     return True
+
+async def bulk_delete_franchises(db: AsyncSession, ids: list[int]) -> int:
+    """Bulk deletes multiple franchises by ID, dissolving relationships with characters."""
+    if not ids:
+        return 0
+        
+    from app.models.character import Character
+    
+    # 1. Update characters belonging to these franchises: set franchise_id to NULL
+    await db.execute(
+        update(Character)
+        .where(Character.franchise_id.in_(ids))
+        .values(franchise_id=None)
+    )
+    
+    # 2. Delete the franchises themselves
+    result = await db.execute(
+        delete(Franchise).where(Franchise.id.in_(ids))
+    )
+    await db.commit()
+    return result.rowcount
+
 
 async def merge_franchises(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[dict]:
     """Merges multiple source franchises into a single target franchise.
