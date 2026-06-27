@@ -155,6 +155,8 @@ async def resolve_audit_issues(
                         if issue.image_id:
                             db_image = await db.get(Image, issue.image_id)
                             if db_image:
+                                from app.services.image_service import delete_image_thumbnails
+                                delete_image_thumbnails(issue.image_id)
                                 await db.delete(db_image)
                     elif issue.issue_type in (
                         AuditIssueType.EMPTY_SET,
@@ -257,6 +259,8 @@ async def resolve_audit_issues(
                     ):
                         db_image = await db.get(Image, issue.image_id)
                         if db_image:
+                            from app.services.image_service import delete_image_thumbnails
+                            delete_image_thumbnails(issue.image_id)
                             await db.delete(db_image)
 
                     issue.status = AuditIssueStatus.RESOLVED

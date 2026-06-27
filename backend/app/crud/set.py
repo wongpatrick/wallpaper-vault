@@ -274,16 +274,10 @@ async def delete_set(db: AsyncSession, set_id: int) -> Optional[Set]:
         await db.commit()
         
         # Invalidate thumbnail cache for deleted images
-        thumbs_dir = Path(__file__).resolve().parent.parent.parent.parent / "db" / "thumbs"
+        from app.services.image_service import delete_image_thumbnails
         for img_id in image_ids:
-            for size in ["sm", "md", "lg"]:
-                thumb_file = thumbs_dir / f"{img_id}_{size}.jpg"
-                if thumb_file.exists():
-                    try:
-                        thumb_file.unlink()
-                    except Exception as e:
-                        logger.warning("Failed to delete stale thumbnail during set deletion", path=str(thumb_file), error=str(e))
-                        
+            delete_image_thumbnails(img_id)
+            
     return db_set
 
 
@@ -488,15 +482,9 @@ async def bulk_delete_sets(db: AsyncSession, set_ids: list[int]) -> int:
     await db.commit()
     
     # Invalidate thumbnail cache for all deleted images
-    thumbs_dir = Path(__file__).resolve().parent.parent.parent.parent / "db" / "thumbs"
+    from app.services.image_service import delete_image_thumbnails
     for img_id in all_image_ids:
-        for size in ["sm", "md", "lg"]:
-            thumb_file = thumbs_dir / f"{img_id}_{size}.jpg"
-            if thumb_file.exists():
-                try:
-                    thumb_file.unlink()
-                except Exception as e:
-                    logger.warning("Failed to delete stale thumbnail during bulk set deletion", path=str(thumb_file), error=str(e))
+        delete_image_thumbnails(img_id)
                     
     return len(db_sets)
 
@@ -578,10 +566,30 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task
         )
         final_results.append(processed_item)
 
+    # Check for source directories that weren't fully cleaned up
+    cleanup_warnings = []
+    if batch_in.delete_source_default:
+        for item in batch_in.items:
+            source_p = Path(item.source_path)
+            if source_p.exists() and source_p.is_dir():
+                if not list(source_p.iterdir()):
+                    try:
+                        import shutil as _shutil
+                        _shutil.rmtree(source_p)
+                        logger.info("Deleted empty batch source directory", path=item.source_path)
+                    except Exception as err:
+                        logger.error("Failed to delete empty batch source directory", path=item.source_path, error=str(err))
+                else:
+                    cleanup_warnings.append(source_p.name)
+                    logger.info("Batch source directory not empty, leaving on disk", path=item.source_path)
+
     await db.commit()
     if task_id:
         await tasks.update_task(db, task_id, progress=total_items, total=total_items)
-    return BatchImportResponse(items=final_results)
+    
+    response = BatchImportResponse(items=final_results)
+    response.cleanup_warnings = cleanup_warnings  # Attach warnings for caller
+    return response
 
 async def run_batch_import_background(batch_in: BatchImportRequest, task_id: str) -> None:
     """Entry point for running batch imports as a background task.
@@ -596,8 +604,15 @@ async def run_batch_import_background(batch_in: BatchImportRequest, task_id: str
     async with SessionLocal() as db:
         try:
             await tasks.update_task(db, task_id, status=TaskStatus.PROCESSING)
-            await batch_import_sets(db, batch_in, task_id=task_id)
-            await tasks.update_task(db, task_id, status=TaskStatus.COMPLETED)
+            response = await batch_import_sets(db, batch_in, task_id=task_id)
+            
+            warning_msg = None
+            warnings = getattr(response, 'cleanup_warnings', [])
+            if warnings:
+                folders_str = ", ".join(f"'{f}'" for f in warnings)
+                warning_msg = f"Source folder(s) {folders_str} still contained files and were left on disk."
+            
+            await tasks.update_task(db, task_id, status=TaskStatus.COMPLETED, error_message=warning_msg)
         except Exception as e:
             import traceback
             traceback.print_exc()

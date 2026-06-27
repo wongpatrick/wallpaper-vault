@@ -368,6 +368,15 @@ async def execute_import_item(
                         break
                 if not deleted:
                     logger.error("Failed to delete batch source file after retries due to lock", path=item.source_path)
+                else:
+                    # Clean up empty parent directory if empty
+                    parent = source_p.parent
+                    try:
+                        if parent.exists() and parent.is_dir() and not list(parent.iterdir()):
+                            parent.rmdir()
+                            logger.info("Deleted empty source directory", path=str(parent))
+                    except Exception as dir_err:
+                        logger.error("Failed to delete empty source directory", path=str(parent), error=str(dir_err))
 
         item.status = "success"
     except Exception as e:
@@ -533,6 +542,7 @@ async def import_images_background_task(
         global_rating = request_data.get("rating") or "questionable"
         delete_source = request_data.get("delete_source") or False
         items = request_data.get("items") or []
+        parent_dirs = set()
 
         # Get base library path
         vault_setting = await get_setting(db, "base_library_path")
@@ -806,11 +816,13 @@ async def import_images_background_task(
                     try:
                         p.unlink()
                         deleted = True
+                        parent_dirs.add(p.parent)
                         break
                     except PermissionError:
                         time.sleep(0.2)
                     except FileNotFoundError:
                         deleted = True
+                        parent_dirs.add(p.parent)
                         break
                     except Exception as cleanup_err:
                         logger.error("Failed to delete source file", path=src_path, error=str(cleanup_err))
@@ -820,23 +832,45 @@ async def import_images_background_task(
                     
             await tasks.update_task(db, task_id, progress=idx + 1, total=total_files)
 
+        cleanup_warnings = []
         if delete_source:
             dropped_dirs = set(item["dir_root"] for item in all_import_files if item.get("is_dir_child") and item.get("dir_root"))
             for d_str in dropped_dirs:
                 try:
                     d_path = Path(d_str)
-                    if d_path.exists() and d_path.is_dir() and not list(d_path.iterdir()):
-                        shutil.rmtree(d_path)
+                    if d_path.exists() and d_path.is_dir():
+                        if not list(d_path.iterdir()):
+                            shutil.rmtree(d_path)
+                            logger.info("Deleted empty source directory", path=d_str)
+                        else:
+                            cleanup_warnings.append(d_path.name)
+                            logger.info("Source directory not empty, leaving on disk", path=d_str)
                 except Exception as dir_err:
                     logger.error("Failed to delete empty source directory", path=d_str, error=str(dir_err))
 
             for item in items:
                 item_path = Path(item["local_path"])
-                if item_path.exists() and item_path.is_dir() and not list(item_path.iterdir()):
-                    try:
-                        shutil.rmtree(item_path)
-                    except Exception as err:
-                        logger.error("Failed to clean up source item path", path=str(item_path), error=str(err))
+                if item_path.exists() and item_path.is_dir():
+                    if not list(item_path.iterdir()):
+                        try:
+                            shutil.rmtree(item_path)
+                            logger.info("Deleted empty source item path", path=str(item_path))
+                        except Exception as err:
+                            logger.error("Failed to clean up source item path", path=str(item_path), error=str(err))
+                    else:
+                        folder_name = item_path.name
+                        if folder_name not in [w for w in cleanup_warnings]:
+                            cleanup_warnings.append(folder_name)
+                            logger.info("Source item path not empty, leaving on disk", path=str(item_path))
+
+            # Also check parent_dirs collected during per-file deletion
+            for parent in parent_dirs:
+                try:
+                    if parent.exists() and parent.is_dir() and not list(parent.iterdir()):
+                        parent.rmdir()
+                        logger.info("Deleted empty parent directory", path=str(parent))
+                except Exception as dir_err:
+                    logger.error("Failed to delete empty parent directory", path=str(parent), error=str(dir_err))
 
         if all_detected_characters:
             from app.crud.character import get_characters_by_names
@@ -867,7 +901,13 @@ async def import_images_background_task(
 
         db.add(db_set)
         await db.commit()
-        await tasks.update_task(db, task_id, status="completed", progress=total_files, total=total_files)
+        
+        warning_msg = None
+        if cleanup_warnings:
+            folders_str = ", ".join(f"'{f}'" for f in cleanup_warnings)
+            warning_msg = f"Source folder(s) {folders_str} still contained files and were left on disk."
+        
+        await tasks.update_task(db, task_id, status="completed", progress=total_files, total=total_files, error_message=warning_msg)
         logger.info("Background import of images completed successfully", task_id=task_id)
         
     except Exception as e:
