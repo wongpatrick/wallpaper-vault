@@ -49,16 +49,17 @@ export function TaskProvider({ children }: TaskProviderProps) {
     }, [queryClient]);
 
     // Handle notifications and cache invalidations for task completions/failures
-    const handleTaskCompletion = useCallback((tid: string) => {
+    const handleTaskCompletion = useCallback((tid: string, tinfo: { error_message?: string }) => {
         invalidateAppQueries();
 
         if (tid.startsWith('import-')) {
+            const hasWarning = !!tinfo.error_message;
             showNotification({
                 id: tid,
-                title: 'Batch Import Complete',
-                message: 'Your background import task has finished successfully.',
-                color: 'green',
-                autoClose: 5000,
+                title: hasWarning ? 'Import Complete (with warnings)' : 'Batch Import Complete',
+                message: hasWarning ? tinfo.error_message! : 'Your background import task has finished successfully.',
+                color: hasWarning ? 'orange' : 'green',
+                autoClose: hasWarning ? false : CLEANUP_DELAY_MS,
                 status: TaskStatus.COMPLETED,
             });
         } else if (tid.startsWith('autotag-')) {
@@ -126,7 +127,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
                 const prev = tasksRef.current;
 
                 const updated = { ...prev };
-                const completedTasks: string[] = [];
+                const completedTasks: [string, Omit<TaskInfo, 'id'>][] = [];
                 const failedTasks: [string, Omit<TaskInfo, 'id'>][] = [];
 
                 Object.entries(incomingTasks).forEach(([tid, tinfo]) => {
@@ -145,7 +146,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
                     // Trigger notifications and cache invalidations only on transition to final state
                     if (wasActive) {
                         if (tinfo.status === TaskStatus.COMPLETED) {
-                            completedTasks.push(tid);
+                            completedTasks.push([tid, tinfo]);
                         } else if (tinfo.status === TaskStatus.ERROR) {
                             failedTasks.push([tid, tinfo]);
                         }
@@ -156,8 +157,8 @@ export function TaskProvider({ children }: TaskProviderProps) {
                 setTasks(updated);
 
                 // Safely trigger side-effects outside of state updates to avoid React setState-in-render warnings
-                completedTasks.forEach((tid) => {
-                    handleTaskCompletion(tid);
+                completedTasks.forEach(([tid, tinfo]) => {
+                    handleTaskCompletion(tid, tinfo);
                     // Schedule cleanup from local tasks state after 5 seconds to keep sidebar clear
                     setTimeout(() => {
                         setTasks((current) => {

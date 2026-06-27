@@ -21,6 +21,19 @@ from app.crud.settings import get_setting
 
 logger = structlog.get_logger(__name__)
 
+
+def delete_image_thumbnails(image_id: int) -> None:
+    """Deletes all cached thumbnail sizes for the given image ID."""
+    thumbs_dir = Path(__file__).resolve().parent.parent.parent.parent / "db" / "thumbs"
+    for size in ["sm", "md", "lg"]:
+        thumb_file = thumbs_dir / f"{image_id}_{size}.jpg"
+        if thumb_file.exists():
+            try:
+                thumb_file.unlink()
+            except Exception as e:
+                logger.warning("Failed to delete stale thumbnail", path=str(thumb_file), error=str(e))
+
+
 async def create_image(db: AsyncSession, image_in: ImageCreate, set_id: int) -> Image:
     """Processes image file (if any) and delegates creation to CRUD."""
     existing = await db.execute(select(Image).where(Image.local_path == image_in.local_path))
@@ -81,6 +94,7 @@ async def delete_image(db: AsyncSession, image_id: int) -> Optional[Image]:
                     except Exception as e:
                         logger.error("Failed to delete image file", path=db_image.local_path, error=str(e))
                         
+            delete_image_thumbnails(image_id)
         return await crud_image.delete_image_db(db, image_id)
     return None
 
@@ -124,6 +138,7 @@ async def resolve_duplicates(db: AsyncSession, keep_id: int, remove_ids: List[in
                     file_deleted = True
             
             if file_deleted:
+                delete_image_thumbnails(rid)
                 await crud_image.delete_image_db(db, rid)
                 removed_count += 1
     

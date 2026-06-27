@@ -17,6 +17,7 @@ import {
     useReadCreatorsApiCreatorsGet
 } from '../../api/generated/creators/creators';
 import { useReadSetsApiSetsGet } from '../../api/generated/sets/sets';
+import { useReadSettingsApiSettingsGet } from '../../api/generated/settings/settings';
 import { 
     useValidateImportPathsApiImagesImportValidatePost, 
     useValidateImportUploadedFilesApiImagesImportValidateFilesPost,
@@ -63,6 +64,16 @@ export function MetadataFormModal({
     const validateFilesMutation = useValidateImportUploadedFilesApiImagesImportValidateFilesPost();
     const importImagesMutation = useImportImagesApiImagesImportPost();
     const scanPathsMutation = useScanImportPathsApiImagesImportScanPathsPost();
+    const { data: settingsData } = useReadSettingsApiSettingsGet();
+
+    // Determine if source paths are inside the vault to prevent self-deletion
+    const isSourceInVault = useMemo(() => {
+        if (!isElectron || !settingsData || initialLocalPaths.length === 0) return false;
+        const vaultSetting = settingsData.find(s => s.key === 'base_library_path');
+        if (!vaultSetting?.value) return false;
+        const vaultPath = vaultSetting.value.replace(/\\/g, '/').toLowerCase();
+        return initialLocalPaths.some(p => p.replace(/\\/g, '/').toLowerCase().startsWith(vaultPath));
+    }, [isElectron, settingsData, initialLocalPaths]);
 
     // Form State
     const [globalTags, setGlobalTags] = useState<string[]>([]);
@@ -481,13 +492,19 @@ export function MetadataFormModal({
                                         onChange={(val) => setGlobalRating(val || 'questionable')}
                                     />
                                 </Group>
-                                <Checkbox
-                                    label="Delete source files after successful import"
-                                    checked={deleteSource}
-                                    onChange={(e) => setDeleteSource(e.currentTarget.checked)}
-                                    color="red"
-                                    mt="xs"
-                                />
+                                <Tooltip
+                                    label="Source files are inside the vault and cannot be deleted."
+                                    disabled={!isSourceInVault}
+                                >
+                                    <Checkbox
+                                        label="Delete source files after successful import"
+                                        checked={isSourceInVault ? false : deleteSource}
+                                        onChange={(e) => setDeleteSource(e.currentTarget.checked)}
+                                        disabled={isSourceInVault}
+                                        color="red"
+                                        mt="xs"
+                                    />
+                                </Tooltip>
                             </Stack>
                         </Card>
 
