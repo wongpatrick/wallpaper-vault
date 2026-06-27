@@ -59,7 +59,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
                 title: hasWarning ? 'Import Complete (with warnings)' : 'Batch Import Complete',
                 message: hasWarning ? tinfo.error_message! : 'Your background import task has finished successfully.',
                 color: hasWarning ? 'orange' : 'green',
-                autoClose: hasWarning ? false : 5000,
+                autoClose: hasWarning ? false : CLEANUP_DELAY_MS,
                 status: TaskStatus.COMPLETED,
             });
         } else if (tid.startsWith('autotag-')) {
