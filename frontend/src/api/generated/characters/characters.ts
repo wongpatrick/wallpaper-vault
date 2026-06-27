@@ -24,6 +24,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BulkDeleteRequest,
   Character,
   CharacterCreate,
   CharacterMerge,
@@ -323,6 +324,71 @@ export const useDeleteCharacterApiCharactersCharacterIdDelete = <TError = ErrorT
       > => {
 
       const mutationOptions = getDeleteCharacterApiCharactersCharacterIdDeleteMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Bulk delete multiple characters.
+ * @summary Bulk Delete Characters
+ */
+export const bulkDeleteCharactersApiCharactersBulkDeletePost = (
+    bulkDeleteRequest: BodyType<BulkDeleteRequest>,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<void>(
+      {url: `/api/characters/bulk-delete`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: bulkDeleteRequest, signal
+    },
+      options);
+    }
+  
+
+
+export const getBulkDeleteCharactersApiCharactersBulkDeletePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkDeleteCharactersApiCharactersBulkDeletePost>>, TError,{data: BodyType<BulkDeleteRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkDeleteCharactersApiCharactersBulkDeletePost>>, TError,{data: BodyType<BulkDeleteRequest>}, TContext> => {
+
+const mutationKey = ['bulkDeleteCharactersApiCharactersBulkDeletePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkDeleteCharactersApiCharactersBulkDeletePost>>, {data: BodyType<BulkDeleteRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkDeleteCharactersApiCharactersBulkDeletePost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkDeleteCharactersApiCharactersBulkDeletePostMutationResult = NonNullable<Awaited<ReturnType<typeof bulkDeleteCharactersApiCharactersBulkDeletePost>>>
+    export type BulkDeleteCharactersApiCharactersBulkDeletePostMutationBody = BodyType<BulkDeleteRequest>
+    export type BulkDeleteCharactersApiCharactersBulkDeletePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Bulk Delete Characters
+ */
+export const useBulkDeleteCharactersApiCharactersBulkDeletePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkDeleteCharactersApiCharactersBulkDeletePost>>, TError,{data: BodyType<BulkDeleteRequest>}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bulkDeleteCharactersApiCharactersBulkDeletePost>>,
+        TError,
+        {data: BodyType<BulkDeleteRequest>},
+        TContext
+      > => {
+
+      const mutationOptions = getBulkDeleteCharactersApiCharactersBulkDeletePostMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

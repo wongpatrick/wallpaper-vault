@@ -28,6 +28,7 @@ export * from './batchImportResponseStatus';
 export * from './batchImportResponseSummary';
 export * from './batchImportResponseTaskId';
 export * from './bodyValidateImportUploadedFilesApiImagesImportValidateFilesPost';
+export * from './bulkDeleteRequest';
 export * from './bulkOperationMode';
 export * from './character';
 export * from './characterCreate';

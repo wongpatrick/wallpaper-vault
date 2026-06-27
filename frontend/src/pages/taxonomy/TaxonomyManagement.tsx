@@ -12,9 +12,9 @@ import {
 import { modals } from '@mantine/modals';
 import { IconEdit, IconTrash, IconPlus, IconSearch, IconSortAscending, IconSortDescending, IconArrowsSort } from '@tabler/icons-react';
 import { 
-    useReadCharacters, useCreateCharacter, useUpdateCharacter, useDeleteCharacter, useMergeCharacters,
-    useReadFranchises, useCreateFranchise, useUpdateFranchise, useDeleteFranchise, useMergeFranchises,
-    useReadTagsManagement, useUpdateTag, useDeleteTag, useMergeTags
+    useReadCharacters, useCreateCharacter, useUpdateCharacter, useDeleteCharacter, useMergeCharacters, useBulkDeleteCharacters,
+    useReadFranchises, useCreateFranchise, useUpdateFranchise, useDeleteFranchise, useMergeFranchises, useBulkDeleteFranchises,
+    useReadTagsManagement, useUpdateTag, useDeleteTag, useMergeTags, useBulkDeleteTags
 } from '../../api/taxonomy';
 import type { Character, Franchise, Tag } from '../../api/taxonomy';
 
@@ -129,6 +129,7 @@ function CharactersTab() {
     const updateMutation = useUpdateCharacter();
     const deleteMutation = useDeleteCharacter();
     const mergeMutation = useMergeCharacters();
+    const bulkDeleteMutation = useBulkDeleteCharacters();
     const createFranchiseMutation = useCreateFranchise();
 
     const [modalOpen, setModalOpen] = useState(false);
@@ -218,6 +219,25 @@ function CharactersTab() {
         setSelectedIds(new Set());
     };
 
+    const handleBulkDelete = () => {
+        if (selectedIds.size === 0) return;
+        modals.openConfirmModal({
+            title: 'Delete Selected Items?',
+            centered: true,
+            children: (
+                <Text size="sm">
+                    Are you sure you want to permanently delete {selectedIds.size} selected items? This will remove links from all associated wallpapers and sets. This action cannot be undone.
+                </Text>
+            ),
+            labels: { confirm: 'Delete Selected', cancel: 'Cancel' },
+            confirmProps: { color: 'red' },
+            onConfirm: async () => {
+                await bulkDeleteMutation.mutateAsync(Array.from(selectedIds));
+                setSelectedIds(new Set());
+            },
+        });
+    };
+
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
             setSelectedIds(new Set(sortedCharacters.map(c => c.id)));
@@ -256,6 +276,11 @@ function CharactersTab() {
                     {selectedIds.size >= 2 && (
                         <Button color="grape" onClick={() => { setTargetId(null); setMergeModalOpen(true); }}>
                             Merge Selected ({selectedIds.size})
+                        </Button>
+                    )}
+                    {selectedIds.size >= 1 && (
+                        <Button color="red" onClick={handleBulkDelete}>
+                            Delete Selected ({selectedIds.size})
                         </Button>
                     )}
                 </Group>
@@ -396,6 +421,7 @@ function FranchisesTab() {
     const updateMutation = useUpdateFranchise();
     const deleteMutation = useDeleteFranchise();
     const mergeMutation = useMergeFranchises();
+    const bulkDeleteMutation = useBulkDeleteFranchises();
 
     const [modalOpen, setModalOpen] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
@@ -464,6 +490,25 @@ function FranchisesTab() {
         setSelectedIds(new Set());
     };
 
+    const handleBulkDelete = () => {
+        if (selectedIds.size === 0) return;
+        modals.openConfirmModal({
+            title: 'Delete Selected Items?',
+            centered: true,
+            children: (
+                <Text size="sm">
+                    Are you sure you want to permanently delete {selectedIds.size} selected items? This will remove links from all associated wallpapers and sets. This action cannot be undone.
+                </Text>
+            ),
+            labels: { confirm: 'Delete Selected', cancel: 'Cancel' },
+            confirmProps: { color: 'red' },
+            onConfirm: async () => {
+                await bulkDeleteMutation.mutateAsync(Array.from(selectedIds));
+                setSelectedIds(new Set());
+            },
+        });
+    };
+
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
             setSelectedIds(new Set(sortedFranchises.map(f => f.id)));
@@ -501,6 +546,11 @@ function FranchisesTab() {
                     {selectedIds.size >= 2 && (
                         <Button color="grape" onClick={() => { setTargetId(null); setMergeModalOpen(true); }}>
                             Merge Selected ({selectedIds.size})
+                        </Button>
+                    )}
+                    {selectedIds.size >= 1 && (
+                        <Button color="red" onClick={handleBulkDelete}>
+                            Delete Selected ({selectedIds.size})
                         </Button>
                     )}
                 </Group>
@@ -617,6 +667,7 @@ function TagsTab() {
     const updateMutation = useUpdateTag();
     const deleteMutation = useDeleteTag();
     const mergeMutation = useMergeTags();
+    const bulkDeleteMutation = useBulkDeleteTags();
 
     const [modalOpen, setModalOpen] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
@@ -681,6 +732,25 @@ function TagsTab() {
         setSelectedIds(new Set());
     };
 
+    const handleBulkDelete = () => {
+        if (selectedIds.size === 0) return;
+        modals.openConfirmModal({
+            title: 'Delete Selected Items?',
+            centered: true,
+            children: (
+                <Text size="sm">
+                    Are you sure you want to permanently delete {selectedIds.size} selected items? This will remove links from all associated wallpapers and sets. This action cannot be undone.
+                </Text>
+            ),
+            labels: { confirm: 'Delete Selected', cancel: 'Cancel' },
+            confirmProps: { color: 'red' },
+            onConfirm: async () => {
+                await bulkDeleteMutation.mutateAsync(Array.from(selectedIds));
+                setSelectedIds(new Set());
+            },
+        });
+    };
+
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
             setSelectedIds(new Set(sortedTags.map(t => t.id)));
@@ -722,6 +792,11 @@ function TagsTab() {
                     {selectedIds.size >= 2 && (
                         <Button color="grape" onClick={() => { setTargetId(null); setMergeModalOpen(true); }}>
                             Merge Selected ({selectedIds.size})
+                        </Button>
+                    )}
+                    {selectedIds.size >= 1 && (
+                        <Button color="red" onClick={handleBulkDelete}>
+                            Delete Selected ({selectedIds.size})
                         </Button>
                     )}
                 </Group>
