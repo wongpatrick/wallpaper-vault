@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.crud import tag as crud_tag
 from app.schemas.tag import Tag, TagUpdate, TagMerge
+from app.schemas.bulk import BulkDeleteRequest
 
 router = APIRouter()
 
@@ -84,6 +85,16 @@ async def delete_tag(
     if not success:
         raise HTTPException(status_code=404, detail="Tag not found.")
     return None
+
+@router.post("/bulk-delete", status_code=status.HTTP_204_NO_CONTENT)
+async def bulk_delete_tags(
+    request: BulkDeleteRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Bulk delete multiple tags."""
+    await crud_tag.bulk_delete_tags(db, request.ids)
+    return None
+
 
 @router.post("/merge", response_model=Tag)
 async def merge_tags(

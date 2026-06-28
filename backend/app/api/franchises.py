@@ -5,6 +5,7 @@ from typing import List
 from app.db.session import get_db
 from app.crud import franchise as crud_franchise
 from app.schemas.franchise import Franchise, FranchiseCreate, FranchiseUpdate, FranchiseMerge
+from app.schemas.bulk import BulkDeleteRequest
 
 router = APIRouter()
 
@@ -60,6 +61,16 @@ async def delete_franchise(
     success = await crud_franchise.delete_franchise(db, franchise_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Franchise not found")
+
+@router.post("/bulk-delete", status_code=status.HTTP_204_NO_CONTENT)
+async def bulk_delete_franchises(
+    request: BulkDeleteRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Bulk delete multiple franchises."""
+    await crud_franchise.bulk_delete_franchises(db, request.ids)
+    return None
+
 
 @router.post("/merge", response_model=Franchise)
 async def merge_franchises(

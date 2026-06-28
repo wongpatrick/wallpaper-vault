@@ -5,6 +5,7 @@ from typing import List
 from app.db.session import get_db
 from app.crud import character as crud_character
 from app.schemas.character import Character, CharacterCreate, CharacterUpdate, CharacterMerge
+from app.schemas.bulk import BulkDeleteRequest
 
 router = APIRouter()
 
@@ -58,6 +59,16 @@ async def delete_character(
     success = await crud_character.delete_character(db, character_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Character not found")
+
+@router.post("/bulk-delete", status_code=status.HTTP_204_NO_CONTENT)
+async def bulk_delete_characters(
+    request: BulkDeleteRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Bulk delete multiple characters."""
+    await crud_character.bulk_delete_characters(db, request.ids)
+    return None
+
 
 @router.post("/merge", response_model=Character)
 async def merge_characters(
