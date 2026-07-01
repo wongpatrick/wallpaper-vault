@@ -37,6 +37,7 @@ interface ImportModalProps {
     initialFiles: File[];
     isElectron: boolean;
     suggestedFolder: string;
+    preselectedSetId?: string;
 }
 
 interface QueueItem extends ImageValidationItem {
@@ -55,7 +56,8 @@ export function MetadataFormModal({
     initialLocalPaths,
     initialFiles,
     isElectron,
-    suggestedFolder
+    suggestedFolder,
+    preselectedSetId
 }: ImportModalProps) {
     // API Hooks
     const { data: creatorsData } = useReadCreatorsApiCreatorsGet({ limit: 1000 });
@@ -263,21 +265,21 @@ export function MetadataFormModal({
                                 const artistNames = artistPart.split('&').map(a => a.trim()).filter(Boolean);
                                 initialMetadata[topPath] = {
                                     creatorNames: artistNames,
-                                    setIdOrTitle: `new:${titlePart}`,
-                                    searchQuery: titlePart
+                                    setIdOrTitle: preselectedSetId || `new:${titlePart}`,
+                                    searchQuery: preselectedSetId ? '' : titlePart
                                 };
                             } else {
                                 initialMetadata[topPath] = {
                                     creatorNames: [],
-                                    setIdOrTitle: `new:${folderName}`,
-                                    searchQuery: folderName
+                                    setIdOrTitle: preselectedSetId || `new:${folderName}`,
+                                    searchQuery: preselectedSetId ? '' : folderName
                                 };
                             }
                         } else {
                             if (!initialMetadata['individual']) {
                                 initialMetadata['individual'] = {
                                     creatorNames: [],
-                                    setIdOrTitle: '',
+                                    setIdOrTitle: preselectedSetId || '',
                                     searchQuery: ''
                                 };
                             }
@@ -286,8 +288,8 @@ export function MetadataFormModal({
                 } else {
                     initialMetadata['upload'] = {
                         creatorNames: [],
-                        setIdOrTitle: suggestedFolder ? `new:${suggestedFolder}` : '',
-                        searchQuery: suggestedFolder || ''
+                        setIdOrTitle: preselectedSetId || (suggestedFolder ? `new:${suggestedFolder}` : ''),
+                        searchQuery: preselectedSetId ? '' : (suggestedFolder || '')
                     };
                 }
                 setGroupsMetadata(initialMetadata);

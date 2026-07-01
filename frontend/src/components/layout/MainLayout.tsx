@@ -3,7 +3,7 @@
  * Main application layout component.
  * Provides the application shell, including the header, sidebar, and notification center.
  */
-import { Outlet } from "react-router-dom"
+import { Outlet, useLocation, useParams } from "react-router-dom"
 import { AppShell, Title, Box, Button, Group, ActionIcon, Tooltip, Popover, Indicator, Stack, Text, Divider, ScrollArea, ThemeIcon, Burger } from "@mantine/core"
 import SideNav from "./SideNav"
 import TitleBarControls from "./TitleBarControls"
@@ -20,6 +20,8 @@ const AUTO_TAG_OVERLAY_HEIGHT_PX = 110;
 
 
 export default function MainLayout() {
+    const location = useLocation();
+    const { setId } = useParams();
     const { width, isResizing, startResizing, isCollapsed } = useSidebarResizer();
     const { history, unreadCount, markAllAsRead, clearHistory } = useNotificationHistory();
     const [opened, setOpened] = useState(false);
@@ -37,7 +39,16 @@ export default function MainLayout() {
     const dragCounter = useRef(0);
 
     useEffect(() => {
+        const isToolsRoute = location.pathname.startsWith('/tools');
+
         const handleWindowDragEnter = (e: DragEvent) => {
+            if (isToolsRoute) return;
+            
+            // Only set dragging if dataTransfer types contains Files
+            const types = e.dataTransfer?.types;
+            const hasFiles = types && Array.from(types).includes('Files');
+            if (!hasFiles) return;
+
             e.preventDefault();
             e.stopPropagation();
             dragCounter.current++;
@@ -49,6 +60,7 @@ export default function MainLayout() {
         };
 
         const handleWindowDragLeave = (e: DragEvent) => {
+            if (isToolsRoute) return;
             e.preventDefault();
             e.stopPropagation();
             dragCounter.current--;
@@ -61,11 +73,18 @@ export default function MainLayout() {
         };
 
         const handleWindowDragOver = (e: DragEvent) => {
+            if (isToolsRoute) return;
+            // Need to inspect types here too so copy/link cursor feedback is correct if files are dragged
+            const types = e.dataTransfer?.types;
+            const hasFiles = types && Array.from(types).includes('Files');
+            if (!hasFiles) return;
+
             e.preventDefault();
             e.stopPropagation();
         };
 
         const handleWindowDrop = async (e: DragEvent) => {
+            if (isToolsRoute) return;
             console.log('Drop event fired!');
             e.preventDefault();
             e.stopPropagation();
@@ -242,7 +261,7 @@ export default function MainLayout() {
             window.removeEventListener('dragover', handleWindowDragOver);
             window.removeEventListener('drop', handleWindowDrop);
         };
-    }, []);
+    }, [location.pathname]);
 
 
     const activeAutoTagTask = useMemo(() => {
@@ -425,6 +444,7 @@ export default function MainLayout() {
             initialFiles={importFiles}
             isElectron={importIsElectron}
             suggestedFolder={importSuggestedFolder}
+            preselectedSetId={setId}
         />
     </div>
     )
