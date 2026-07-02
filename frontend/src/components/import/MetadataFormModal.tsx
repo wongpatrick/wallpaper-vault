@@ -77,6 +77,13 @@ export function MetadataFormModal({
         return initialLocalPaths.some(p => p.replace(/\\/g, '/').toLowerCase().startsWith(vaultPath));
     }, [isElectron, settingsData, initialLocalPaths]);
 
+    // Resolve preselected set name for warnings
+    const preselectedSetName = useMemo(() => {
+        if (!preselectedSetId || !setsData?.items) return null;
+        const set = setsData.items.find(s => s.id.toString() === preselectedSetId);
+        return set ? set.title : null;
+    }, [preselectedSetId, setsData]);
+
     // Form State
     const [globalTags, setGlobalTags] = useState<string[]>([]);
     const [globalRating, setGlobalRating] = useState<string>('questionable');
@@ -404,6 +411,13 @@ export function MetadataFormModal({
 
     const duplicateCount = useMemo(() => queue.filter(item => item.selected && item.is_duplicate).length, [queue]);
 
+    const totalItemsCount = useMemo(() => {
+        if (isValidating) {
+            return validationTotal > 0 ? validationTotal : (isElectron ? initialLocalPaths.length : initialFiles.length);
+        }
+        return queue.length;
+    }, [isValidating, validationTotal, queue.length, isElectron, initialLocalPaths.length, initialFiles.length]);
+
     // Group queue items by groupKey
     const groupedQueue = useMemo(() => {
         const groups: Record<string, QueueItem[]> = {};
@@ -424,7 +438,7 @@ export function MetadataFormModal({
             onClose={onClose}
             title={
                 <Text fw={700} size="lg">
-                    📥 Drag-and-Drop Import Manager ({queue.length} items)
+                    📥 Drag-and-Drop Import Manager ({totalItemsCount} items{isValidating ? ', scanning...' : ''})
                 </Text>
             }
             size="xl"
@@ -544,6 +558,13 @@ export function MetadataFormModal({
                                 </Card>
                             ))}
                         </Stack>
+
+                        {/* Preselected Set Warning Alert */}
+                        {preselectedSetId && preselectedSetName && (
+                            <Alert icon={<IconAlertTriangle size={16} />} title="Importing into Existing Set" color="yellow">
+                                You are dragging and dropping items directly into the existing set <strong>"{preselectedSetName}"</strong>. All dropped images will be added directly to this set rather than creating a new set.
+                            </Alert>
+                        )}
 
                         {/* Duplicate Warnings Alert */}
                         {duplicateCount > 0 && (

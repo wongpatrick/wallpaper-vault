@@ -548,12 +548,23 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task
     h_label = h_label_raw.replace("/", "x")
     v_label = v_label_raw.replace("/", "x")
     
+    # Pre-scan for Total Images across valid folders
+    from app.core.crop import collect_image_paths
+    total_images = 0
+    for item in results:
+        if item.is_valid:
+            try:
+                img_paths = collect_image_paths(item.source_path, recursive=True)
+                total_images += len(img_paths)
+            except Exception as e:
+                logger.error("Failed to collect image paths during pre-scan", path=item.source_path, error=str(e))
+                
+    progress_state = {"processed": 0, "total": total_images}
+    if task_id:
+        await tasks.update_task(db, task_id, progress=0, total=total_images)
+        
     final_results = []
-    total_items = len(results)
-    for idx, item in enumerate(results):
-        if task_id:
-            await tasks.update_task(db, task_id, progress=idx, total=total_items)
-            
+    for item in results:
         processed_item = await import_service.execute_import_item(
             db=db,
             item=item,
@@ -562,30 +573,31 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task
             v_ratio=v_ratio,
             h_label=h_label,
             v_label=v_label,
-            delete_source_default=batch_in.delete_source_default
+            delete_source_default=batch_in.delete_source_default,
+            task_id=task_id,
+            progress_state=progress_state
         )
         final_results.append(processed_item)
 
     # Check for source directories that weren't fully cleaned up
     cleanup_warnings = []
     if batch_in.delete_source_default:
+        from app.services.import_service import delete_dir_if_empty
         for item in batch_in.items:
             source_p = Path(item.source_path)
             if source_p.exists() and source_p.is_dir():
-                if not list(source_p.iterdir()):
-                    try:
-                        import shutil as _shutil
-                        _shutil.rmtree(source_p)
+                try:
+                    if delete_dir_if_empty(source_p):
                         logger.info("Deleted empty batch source directory", path=item.source_path)
-                    except Exception as err:
-                        logger.error("Failed to delete empty batch source directory", path=item.source_path, error=str(err))
-                else:
-                    cleanup_warnings.append(source_p.name)
-                    logger.info("Batch source directory not empty, leaving on disk", path=item.source_path)
+                    else:
+                        cleanup_warnings.append(source_p.name)
+                        logger.info("Batch source directory not empty, leaving on disk", path=item.source_path)
+                except Exception as err:
+                    logger.error("Failed to delete empty batch source directory", path=item.source_path, error=str(err))
 
     await db.commit()
     if task_id:
-        await tasks.update_task(db, task_id, progress=total_items, total=total_items)
+        await tasks.update_task(db, task_id, progress=progress_state["processed"], total=total_images)
     
     response = BatchImportResponse(items=final_results)
     response.cleanup_warnings = cleanup_warnings  # Attach warnings for caller

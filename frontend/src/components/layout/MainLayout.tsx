@@ -271,9 +271,29 @@ export default function MainLayout() {
     }, [tasks]);
 
     const activeImportTask = useMemo(() => {
-        return Object.values(tasks).find(
+        const importTasks = Object.values(tasks).filter(
             (t) => t.id.startsWith('import-') && (t.status === 'accepted' || t.status === 'processing')
         );
+        if (importTasks.length === 0) return null;
+
+        let progress = 0;
+        let total = 0;
+        let isProcessing = false;
+
+        importTasks.forEach(t => {
+            progress += t.progress || 0;
+            total += t.total || 0;
+            if (t.status === 'processing') {
+                isProcessing = true;
+            }
+        });
+
+        return {
+            id: 'import-consolidated',
+            status: isProcessing ? 'processing' : 'accepted',
+            progress,
+            total
+        };
     }, [tasks]);
 
 
