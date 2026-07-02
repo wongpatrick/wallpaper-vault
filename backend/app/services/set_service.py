@@ -312,8 +312,6 @@ async def import_set(db: AsyncSession, set_in: SetImport) -> Set:
     from app.crud.settings import get_setting
     from app.services.audit_service import calculate_phash
     from app.core.enums import ImageRating
-    from sqlalchemy import select
-    from sqlalchemy.orm import selectinload
 
     db_creators = []
     for name in set_in.creator_names:
