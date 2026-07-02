@@ -37,6 +37,9 @@ def delete_dir_if_empty(dir_path: Path) -> bool:
         return False
     
     ignored_names = {".ds_store", "thumbs.db", "desktop.ini"}
+    import time
+    import stat
+    max_attempts = 5
     
     try:
         # Bottom-up traversal of children
@@ -44,17 +47,38 @@ def delete_dir_if_empty(dir_path: Path) -> bool:
             if child.is_dir():
                 delete_dir_if_empty(child)
             elif child.is_file() and child.name.lower() in ignored_names:
-                try:
-                    child.unlink()
-                except Exception:
-                    pass
+                for attempt in range(max_attempts):
+                    try:
+                        try:
+                            os.chmod(child, stat.S_IWRITE)
+                        except Exception:
+                            pass
+                        child.unlink()
+                        break
+                    except (PermissionError, OSError) as e:
+                        if attempt < max_attempts - 1:
+                            time.sleep(0.2)
+                        else:
+                            logger.warning("Failed to delete ignored file inside directory", path=str(child), error=str(e))
                     
         # Now check if it's empty
         if not list(dir_path.iterdir()):
-            dir_path.rmdir()
-            return True
-    except Exception:
-        pass
+            for attempt in range(max_attempts):
+                try:
+                    try:
+                        os.chmod(dir_path, stat.S_IWRITE)
+                    except Exception:
+                        pass
+                    dir_path.rmdir()
+                    return True
+                except (PermissionError, OSError) as e:
+                    if attempt < max_attempts - 1:
+                        time.sleep(0.2)
+                    else:
+                        logger.warning("Failed to remove empty directory after retries", path=str(dir_path), error=str(e))
+                        break
+    except Exception as e:
+        logger.error("Error occurred in delete_dir_if_empty", path=str(dir_path), error=str(e))
     return False
 
 
@@ -396,12 +420,27 @@ async def execute_import_item(
         if delete_source_default:
             source_p = Path(item.source_path)
             if source_p.is_dir(): 
-                shutil.rmtree(source_p)
+                import time
+                deleted_dir = False
+                for attempt in range(5):
+                    try:
+                        shutil.rmtree(source_p)
+                        deleted_dir = True
+                        break
+                    except (PermissionError, OSError):
+                        time.sleep(0.2)
+                if not deleted_dir:
+                    logger.error("Failed to delete batch source directory after retries due to lock", path=item.source_path)
             else: 
                 import time
+                import stat
                 deleted = False
                 for attempt in range(5):
                     try:
+                        try:
+                            os.chmod(source_p, stat.S_IWRITE)
+                        except Exception:
+                            pass
                         source_p.unlink()
                         deleted = True
                         break
@@ -876,9 +915,14 @@ async def import_images_background_task(
                     
             if delete_source:
                 import time
+                import stat
                 deleted = False
                 for attempt in range(5):
                     try:
+                        try:
+                            os.chmod(p, stat.S_IWRITE)
+                        except Exception:
+                            pass
                         p.unlink()
                         deleted = True
                         parent_dirs.add(p.parent)
@@ -927,11 +971,30 @@ async def import_images_background_task(
                         logger.error("Failed to clean up source item path", path=_safe_log_val(str(item_path)), error=str(err))
 
             # Also check parent_dirs collected during per-file deletion
-            for parent in parent_dirs:
+            # Sort parent directories by depth (deepest first) to clean bottom-up
+            sorted_parents = sorted(list(parent_dirs), key=lambda x: len(x.parts), reverse=True)
+            for parent in sorted_parents:
                 try:
                     if parent.exists() and parent.is_dir():
-                        delete_dir_if_empty(parent)
-                        logger.info("Checked/cleaned parent directory", path=_safe_log_val(str(parent)))
+                        if delete_dir_if_empty(parent):
+                            logger.info("Deleted empty parent directory", path=_safe_log_val(str(parent)))
+                            
+                            # Recursively check and delete empty ancestor directories up the tree
+                            ancestor = parent.parent
+                            while ancestor and ancestor != ancestor.parent:
+                                if not ancestor.exists() or not ancestor.is_dir():
+                                    break
+                                if len(ancestor.parts) <= 1:
+                                    break
+                                if ancestor == vault_root:
+                                    break
+                                if delete_dir_if_empty(ancestor):
+                                    logger.info("Deleted empty ancestor directory", path=_safe_log_val(str(ancestor)))
+                                    ancestor = ancestor.parent
+                                else:
+                                    break
+                        else:
+                            logger.info("Parent directory not empty, leaving on disk", path=_safe_log_val(str(parent)))
                 except Exception as dir_err:
                     logger.error("Failed to delete empty parent directory", path=str(parent), error=str(dir_err))
 

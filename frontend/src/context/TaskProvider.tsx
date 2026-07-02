@@ -34,14 +34,23 @@ export function TaskProvider({ children }: TaskProviderProps) {
             predicate: (query) => {
                 const key = query.queryKey[0];
                 if (typeof key === 'string') {
-                    return key.startsWith('/api/sets') || 
-                           key.startsWith('/api/tags') || 
-                           key.startsWith('/api/characters') || 
-                           key.startsWith('/api/images') ||
-                           key === 'sets' ||
-                           key === 'tags' ||
-                           key === 'characters' ||
-                           key === 'images';
+                    const prefixes = [
+                        '/api/sets',
+                        '/api/tags',
+                        '/api/characters',
+                        '/api/images',
+                        '/api/creators',
+                        '/api/franchises'
+                    ];
+                    const exactKeys = [
+                        'sets',
+                        'tags',
+                        'characters',
+                        'images',
+                        'creators',
+                        'franchises'
+                    ];
+                    return prefixes.some(prefix => key.startsWith(prefix)) || exactKeys.includes(key);
                 }
                 return false;
             }
