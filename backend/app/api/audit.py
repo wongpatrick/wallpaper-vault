@@ -354,10 +354,10 @@ async def resolve_audit_issues(
                             await db.flush()
 
                         # 3. Create Set
-                        from app.crud.set import get_set_by_title_and_creator
+                        from app.crud.set import get_set_by_title_and_creators
 
-                        existing_set = await get_set_by_title_and_creator(
-                            db, set_title, creator.id
+                        existing_set = await get_set_by_title_and_creators(
+                            db, set_title, [creator.id], load_relations=False
                         )
                         if not existing_set:
                             new_set = Set(

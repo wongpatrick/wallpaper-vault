@@ -238,6 +238,46 @@ async def get_set_by_title_and_creator(db: AsyncSession, title: str, creator_id:
     return result.scalar_one_or_none()
 
 
+async def get_set_by_title_and_creators(
+    db: AsyncSession, 
+    title: str, 
+    creator_ids: list[int],
+    load_relations: bool = True
+) -> Optional[Set]:
+    """Checks if a set already exists with a specific title and the exact same set of creators (order-independent).
+
+    Args:
+        db: Database session.
+        title: Title of the set.
+        creator_ids: List of creator IDs.
+        load_relations: If True, loads Set's associated collections (images, tags, characters) to prevent lazy loading issues.
+
+    Returns:
+        The matching Set object, or None if not found.
+    """
+    stmt = select(Set).filter(Set.title == title)
+    if load_relations:
+        stmt = stmt.options(
+            selectinload(Set.creators),
+            selectinload(Set.images).selectinload(Image.tags),
+            selectinload(Set.tags),
+            selectinload(Set.characters)
+        )
+    else:
+        stmt = stmt.options(selectinload(Set.creators))
+        
+    result = await db.execute(stmt)
+    sets = result.scalars().all()
+    
+    target_creators = set(creator_ids)
+    for s in sets:
+        s_creators = {c.id for c in s.creators}
+        if s_creators == target_creators:
+            return s
+    return None
+
+
+
 
 async def delete_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     """Deletes a set record from the database.
