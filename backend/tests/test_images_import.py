@@ -200,3 +200,53 @@ def test_delete_dir_if_empty_recursive():
         assert not sub_user_files.exists()
         assert not base.exists()
 
+
+@pytest.mark.asyncio
+async def test_images_import_delete_source_directory(client: AsyncClient, mock_images_dir: Path, db_session: AsyncSession):
+    """Test that delete_source option deletes the source directory if it contains only imported files."""
+    with tempfile.TemporaryDirectory() as vault_dir:
+        await client.put("/api/settings/base_library_path", json={"value": vault_dir})
+        
+        temp_src_dir = Path(vault_dir) / "temp_sources_dir"
+        temp_src_dir.mkdir()
+        
+        p1 = temp_src_dir / "img1_to_del.png"
+        p2 = temp_src_dir / "img2_to_del.png"
+        shutil.copy(mock_images_dir / "img1.png", p1)
+        shutil.copy(mock_images_dir / "img2.png", p2)
+        
+        assert temp_src_dir.exists()
+        assert p1.exists()
+        assert p2.exists()
+        
+        from app.core import tasks
+        task_id = await tasks.create_task(db_session=db_session, status="accepted", prefix="import")
+        
+        import_req = {
+            "items": [
+                {"local_path": str(temp_src_dir)}
+            ],
+            "creator_name": "Test Artist",
+            "set_title": "Delete Set Dir",
+            "tags": ["wallpaper"],
+            "rating": "safe",
+            "delete_source": True
+        }
+        
+        await import_service.import_images_background_task(
+            db=db_session,
+            request_data=import_req,
+            task_id=task_id
+        )
+        
+        # Verify that they were imported successfully
+        res = await db_session.execute(select(ImageModel))
+        images = res.scalars().all()
+        assert len(images) == 2
+        
+        # Verify that both files and the directory were deleted
+        assert not p1.exists()
+        assert not p2.exists()
+        assert not temp_src_dir.exists()
+
+

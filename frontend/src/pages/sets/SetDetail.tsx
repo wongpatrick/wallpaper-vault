@@ -39,7 +39,7 @@ import { CharacterTagsInput } from '../../components/ui/CharacterTagsInput';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
 import { AddToPlaylistModal } from '../../components/playlists/AddToPlaylistModal';
 import { useTasks } from '../../hooks/useTasks';
-import type { Image as ImageModel, BulkOperationMode, SetUpdate } from '../../api/model';
+import type { Image as ImageModel, BulkOperationMode, SetUpdate, Set as SetModel } from '../../api/model';
 
 export default function SetDetail() {
     const { setId } = useParams<{ setId: string }>();
@@ -87,18 +87,20 @@ export default function SetDetail() {
         characters: [] as string[]
     });
 
-    const [prevSetId, setPrevSetId] = useState<number | null>(null);
-    if (set && set.id !== prevSetId) {
-        setPrevSetId(set.id);
-        setEditForm({
-            title: set.title || '',
-            notes: set.notes || '',
-            source_url: set.source_url || '',
-            local_path: set.local_path || '',
-            creator_names: set.creators?.map(c => c.canonical_name) || [],
-            tags: Array.from(new Set(set.tags || [])),
-            characters: Array.from(new Set(set.characters || []))
-        });
+    const [prevSet, setPrevSet] = useState<SetModel | null>(null);
+    if (set && set !== prevSet) {
+        setPrevSet(set);
+        if (!isEditModalOpen) {
+            setEditForm({
+                title: set.title || '',
+                notes: set.notes || '',
+                source_url: set.source_url || '',
+                local_path: set.local_path || '',
+                creator_names: set.creators?.map(c => c.canonical_name) || [],
+                tags: Array.from(new Set(set.tags || [])),
+                characters: Array.from(new Set(set.characters || []))
+            });
+        }
     }
 
     const isEditFormDirty = useMemo(() => {
