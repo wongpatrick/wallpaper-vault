@@ -3,6 +3,14 @@
  * TypeScript definitions for Electron inter-process communication API.
  * Declares the global Window interface for Electron bindings.
  */
+export interface BackendStatusInfo {
+    status: 'starting' | 'running' | 'stopped' | 'port-collision' | 'error';
+    autoRestartCount: number;
+    maxRestarts: number;
+    port: number;
+    errorDetails?: string;
+}
+
 export interface ElectronAPI {
     send: (channel: string, data: unknown) => void;
     on: (channel: string, func: (...args: unknown[]) => void) => () => void;
@@ -19,6 +27,11 @@ export interface ElectronAPI {
     getCloseBehavior: () => Promise<'minimize' | 'exit'>;
     setCloseBehavior: (behavior: 'minimize' | 'exit') => Promise<boolean>;
     platform: string;
+    getBackendStatus: () => Promise<BackendStatusInfo>;
+    restartBackend: () => Promise<boolean>;
+    setBackendPort: (port: number) => Promise<boolean>;
+    openBackendLogs: () => Promise<boolean>;
+    openLogsDirectory: () => Promise<boolean>;
 }
 
 declare global {
@@ -26,3 +39,4 @@ declare global {
         electron: ElectronAPI;
     }
 }
+

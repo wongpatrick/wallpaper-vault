@@ -22,6 +22,7 @@ import { ModalsProvider } from '@mantine/modals'
 import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query'
 import { NotificationProvider } from './context/NotificationProvider'
 import { TaskProvider } from './context/TaskProvider'
+import BackendStatusGuard from './components/ui/BackendStatusGuard'
 
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
@@ -126,7 +127,9 @@ function App() {
           <NotificationProvider>
             <Notifications position="top-right" />
             <TaskProvider>
-              <RouterProvider router={router} />
+              <BackendStatusGuard>
+                <RouterProvider router={router} />
+              </BackendStatusGuard>
             </TaskProvider>
           </NotificationProvider>
         </ModalsProvider>

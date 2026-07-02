@@ -3,7 +3,7 @@
  * Module: Settings Page
  * Description: The main application settings page, providing a form interface to manage library paths, import configurations, and system integration.
  */
-import { Title, Text, Container, Stack, LoadingOverlay, Button, Group, TextInput, Paper, Switch, Select, Slider } from '@mantine/core';
+import { Title, Text, Container, Stack, LoadingOverlay, Button, Group, TextInput, Paper, Switch, Select, Slider, NumberInput } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useSettingsForm, SETTING_KEYS } from './hooks/useSettingsForm';
 import { SettingsSection } from './components/SettingsSection';
@@ -184,16 +184,26 @@ export default function Settings() {
                             />
 
                             {window.electron && (
-                                <Select
-                                    label="Close Behavior"
-                                    description="Choose what happens when you close the main application window."
-                                    data={[
-                                        { value: 'minimize', label: 'Minimize to system tray (keep running in background)' },
-                                        { value: 'exit', label: 'Exit application completely' }
-                                    ]}
-                                    allowDeselect={false}
-                                    {...form.getInputProps(SETTING_KEYS.CLOSE_BEHAVIOR)}
-                                />
+                                <>
+                                    <Select
+                                        label="Close Behavior"
+                                        description="Choose what happens when you close the main application window."
+                                        data={[
+                                            { value: 'minimize', label: 'Minimize to system tray (keep running in background)' },
+                                            { value: 'exit', label: 'Exit application completely' }
+                                        ]}
+                                        allowDeselect={false}
+                                        {...form.getInputProps(SETTING_KEYS.CLOSE_BEHAVIOR)}
+                                    />
+                                    <NumberInput
+                                        label="Backend Service Port"
+                                        description="Configure the network port for the backend server. Requires application restart. (Default: 8000)"
+                                        min={1024}
+                                        max={65535}
+                                        placeholder="8000"
+                                        {...form.getInputProps(SETTING_KEYS.BACKEND_PORT)}
+                                    />
+                                </>
                             )}
                         </Stack>
                     </SettingsSection>

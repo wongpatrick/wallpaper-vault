@@ -7,6 +7,7 @@ import { useForm } from '@mantine/form';
 import { useState, useEffect } from 'react';
 import { useReadSettingsApiSettingsGet, useUpdateSettingApiSettingsKeyPut } from '../../../api/generated/settings/settings';
 import { notifications } from '@mantine/notifications';
+import { AXIOS_INSTANCE } from '../../../api/axios-instance';
 
 export const SETTING_KEYS = {
     BASE_LIBRARY_PATH: 'base_library_path',
@@ -22,6 +23,7 @@ export const SETTING_KEYS = {
     AI_MODEL_CUSTOM_PATH: 'ai_model_custom_path',
     AI_CONFIDENCE_THRESHOLD: 'ai_confidence_threshold',
     AI_ROLLUP_THRESHOLD: 'ai_rollup_threshold',
+    BACKEND_PORT: 'backend_port',
 } as const;
 
 export interface SettingsForm {
@@ -38,6 +40,7 @@ export interface SettingsForm {
     [SETTING_KEYS.AI_MODEL_CUSTOM_PATH]: string;
     [SETTING_KEYS.AI_CONFIDENCE_THRESHOLD]: number;
     [SETTING_KEYS.AI_ROLLUP_THRESHOLD]: number;
+    [SETTING_KEYS.BACKEND_PORT]: number;
 }
 
 type StorageType = 'backend' | 'electron';
@@ -63,6 +66,7 @@ const SETTINGS_METADATA: SettingConfig[] = [
     { key: SETTING_KEYS.AI_MODEL_CUSTOM_PATH, defaultValue: '', storage: 'backend', description: 'Custom local filesystem folder path containing the model files' },
     { key: SETTING_KEYS.AI_CONFIDENCE_THRESHOLD, defaultValue: 0.35, storage: 'backend', description: 'Confidence threshold for tagger' },
     { key: SETTING_KEYS.AI_ROLLUP_THRESHOLD, defaultValue: 0.30, storage: 'backend', description: 'Threshold percentage for rolling up tags to sets' },
+    { key: SETTING_KEYS.BACKEND_PORT, defaultValue: 8000, storage: 'electron' },
 ];
 
 export function useSettingsForm() {
@@ -110,6 +114,11 @@ export function useSettingsForm() {
                             const closeBehavior = await window.electron.getCloseBehavior();
                             Reflect.set(values, config.key, closeBehavior);
                         }
+                    } else if (config.key === SETTING_KEYS.BACKEND_PORT) {
+                        if (window.electron?.getBackendStatus) {
+                            const statusInfo = await window.electron.getBackendStatus();
+                            Reflect.set(values, config.key, statusInfo.port);
+                        }
                     }
                 }
             }
@@ -144,6 +153,14 @@ export function useSettingsForm() {
                     } else if (config.key === SETTING_KEYS.CLOSE_BEHAVIOR) {
                         if (window.electron?.setCloseBehavior) {
                             promises.push(window.electron.setCloseBehavior(value as 'minimize' | 'exit'));
+                        }
+                    } else if (config.key === SETTING_KEYS.BACKEND_PORT) {
+                        if (window.electron?.setBackendPort) {
+                            promises.push(window.electron.setBackendPort(value as number).then((ok) => {
+                                if (ok) {
+                                    AXIOS_INSTANCE.defaults.baseURL = `http://localhost:${value}`;
+                                }
+                            }));
                         }
                     }
                 }
