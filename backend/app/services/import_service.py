@@ -135,7 +135,7 @@ async def parse_and_validate_candidates(
     regex: re.Pattern | None
 ) -> list[BatchImportItem]:
     """Phase 2: Parse folder names and validate against existing records."""
-    from app.crud.set import get_set_by_title_and_creator
+    from app.crud.set import get_set_by_title_and_creators
     results = []
     for cand in candidates:
         path = cand["path"]
@@ -176,14 +176,20 @@ async def parse_and_validate_candidates(
             raw_names = re.split(r'\s+&\s+', item_result.creator_name)
             creator_names = [n.strip() for n in raw_names if n.strip()]
             
+            creator_ids = []
+            all_resolved = True
             for cname in creator_names:
                 c = await get_creator_by_name(db, cname)
                 if c:
-                    existing = await get_set_by_title_and_creator(db, item_result.set_title, c.id)
-                    if existing:
-                        item_result.status = "duplicate"
-                        item_result.error = "Already in vault"
-                        break
+                    creator_ids.append(c.id)
+                else:
+                    all_resolved = False
+            
+            if all_resolved and len(creator_ids) == len(creator_names):
+                existing = await get_set_by_title_and_creators(db, item_result.set_title, creator_ids, load_relations=False)
+                if existing:
+                    item_result.status = "duplicate"
+                    item_result.error = "Already in vault"
         
         results.append(item_result)
     return results
@@ -201,7 +207,7 @@ async def execute_import_item(
     progress_state: dict = None
 ) -> BatchImportItem:
     """Phase 3: Process images and save to database for a single item."""
-    from app.crud.set import get_set_by_title_and_creator
+    from app.crud.set import get_set_by_title_and_creators
     if not item.is_valid:
         item.status = "error"
         item.error = "Invalid parsing"
@@ -264,16 +270,12 @@ async def execute_import_item(
         dest_dir.mkdir(parents=True, exist_ok=True)
 
         # 3. Existing Set Check
-        is_duplicate = False
-        for c in db_creators:
-            existing = await get_set_by_title_and_creator(db, item.set_title, c.id)
-            if existing:
-                is_duplicate = True
-                break
+        creator_ids = [c.id for c in db_creators]
+        existing = await get_set_by_title_and_creators(db, item.set_title, creator_ids, load_relations=False)
         
-        if is_duplicate:
+        if existing:
             item.status = "error"
-            item.error = "Set already exists for one or more creators"
+            item.error = "Set already exists for these creators"
             if progress_state and task_id:
                 image_paths = collect_image_paths(item.source_path, recursive=True)
                 progress_state["processed"] += len(image_paths)
@@ -736,21 +738,9 @@ async def import_images_background_task(
             db_set = res.scalars().first()
         elif set_title:
             if db_creators:
-                from app.models.creator import Creator as CreatorModel
-                for c in db_creators:
-                    stmt = select(SetModel).join(SetModel.creators).where(
-                        SetModel.title == set_title,
-                        CreatorModel.id == c.id
-                    ).options(
-                        selectinload(SetModel.creators),
-                        selectinload(SetModel.images),
-                        selectinload(SetModel.tags),
-                        selectinload(SetModel.characters)
-                    )
-                    res = await db.execute(stmt)
-                    db_set = res.scalars().first()
-                    if db_set:
-                        break
+                from app.crud.set import get_set_by_title_and_creators
+                creator_ids = [c.id for c in db_creators]
+                db_set = await get_set_by_title_and_creators(db, set_title, creator_ids, load_relations=True)
             else:
                 stmt = select(SetModel).where(SetModel.title == set_title).options(
                     selectinload(SetModel.creators),

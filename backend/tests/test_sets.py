@@ -279,6 +279,42 @@ async def test_import_existing_set(client: AsyncClient, temp_vault: Path):
 
 
 @pytest.mark.asyncio
+async def test_import_sets_same_title_different_creators(client: AsyncClient, temp_vault: Path):
+    """Test that importing two sets with the same title but different creators results in two separate sets instead of merging."""
+    await client.put("/api/settings/base_library_path", json={"value": str(temp_vault)})
+
+    # First import: Set "Vol. 123" with creators ["Xiuren", "Nienie"]
+    resp1 = await client.post("/api/sets/import", json={
+        "title": "Vol. 123",
+        "creator_names": ["Xiuren", "Nienie"],
+        "local_path": str(temp_vault / "Xiuren & Nienie - Vol. 123"),
+        "notes": "First Set",
+        "images": []
+    })
+    assert resp1.status_code == 200
+    set1_data = resp1.json()
+
+    # Second import: Set "Vol. 123" with creators ["Xiuren", "Yany"]
+    resp2 = await client.post("/api/sets/import", json={
+        "title": "Vol. 123",
+        "creator_names": ["Xiuren", "Yany"],
+        "local_path": str(temp_vault / "Xiuren & Yany - Vol. 123"),
+        "notes": "Second Set",
+        "images": []
+    })
+    assert resp2.status_code == 200
+    set2_data = resp2.json()
+
+    # Verify they are two completely distinct sets with different IDs and different creators list
+    assert set1_data["id"] != set2_data["id"]
+    
+    set1_creators = {c["canonical_name"] for c in set1_data["creators"]}
+    set2_creators = {c["canonical_name"] for c in set2_data["creators"]}
+    assert set1_creators == {"Xiuren", "Nienie"}
+    assert set2_creators == {"Xiuren", "Yany"}
+
+
+@pytest.mark.asyncio
 async def test_delete_set_folder_cleanup_and_rollback(client: AsyncClient, temp_vault: Path):
     """Test that deleting a set removes its physical folder, and a locked folder rolls back the DB deletion."""
     # 1. Create a set

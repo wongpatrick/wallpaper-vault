@@ -312,29 +312,16 @@ async def import_set(db: AsyncSession, set_in: SetImport) -> Set:
     from app.crud.settings import get_setting
     from app.services.audit_service import calculate_phash
     from app.core.enums import ImageRating
-    from sqlalchemy import select
-    from sqlalchemy.orm import selectinload
 
     db_creators = []
-    db_set = None
     for name in set_in.creator_names:
         creator = await get_creator_by_name(db, name)
         if not creator:
             creator = await create_creator(db, CreatorCreate(canonical_name=name))
-        
-        existing_set = await crud_set.get_set_by_title_and_creator(db, set_in.title, creator.id)
-        if existing_set and db_set is None:
-            # Load the existing set with all collections to prevent lazy loading issues
-            stmt = select(Set).where(Set.id == existing_set.id).options(
-                selectinload(Set.creators),
-                selectinload(Set.images),
-                selectinload(Set.tags),
-                selectinload(Set.characters)
-            )
-            res = await db.execute(stmt)
-            db_set = res.scalars().first()
-            
         db_creators.append(creator)
+
+    creator_ids = [c.id for c in db_creators]
+    db_set = await crud_set.get_set_by_title_and_creators(db, set_in.title, creator_ids, load_relations=True)
     
     if db_set is None:
         db_set = Set(
