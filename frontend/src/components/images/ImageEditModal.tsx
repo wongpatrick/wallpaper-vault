@@ -4,7 +4,7 @@
  * Description: Modal component for editing metadata (rating, tags, notes, etc.) of a single image and handling its deletion.
  */
 import { Modal, Stack, TextInput, Textarea, Button, NumberInput, SegmentedControl, Text, ColorInput, Center, Box, Group } from '@mantine/core';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { IconAlertTriangle, IconExclamationCircle, IconShieldCheck, IconTrash } from '@tabler/icons-react';
 import { useUpdateImageApiImagesImageIdPatch, useDeleteImageApiImagesImageIdDelete } from '../../api/generated/images/images';
 import { notifications } from '@mantine/notifications';
@@ -22,6 +22,7 @@ interface ImageEditModalProps {
 }
 
 const MODAL_Z_INDEX = 3000;
+const CONFIRM_MODAL_Z_INDEX_OFFSET = 10;
 
 export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MODAL_Z_INDEX }: ImageEditModalProps) {
     const updateMutation = useUpdateImageApiImagesImageIdPatch();
@@ -51,6 +52,65 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
         });
     }
 
+    const isFormDirty = useMemo(() => {
+        if (!image) return false;
+        const originalTags = (image as ImageDetail).tags || [];
+        
+        const arraysEqual = (a: string[], b: string[]) => {
+            if (a.length !== b.length) return false;
+            const sortedA = [...a].sort();
+            const sortedB = [...b].sort();
+            return sortedA.every((val, idx) => val === sortedB[idx]);
+        };
+
+        return (
+            form.filename !== (image.filename || '') ||
+            form.notes !== (image.notes || '') ||
+            form.sort_order !== (image.sort_order || 0) ||
+            form.aspect_ratio_label !== (image.aspect_ratio_label || '') ||
+            form.rating !== (image.rating || ImageRating.SAFE) ||
+            form.dominant_color !== (image.dominant_color || '') ||
+            !arraysEqual(form.tags || [], originalTags)
+        );
+    }, [form, image]);
+
+    const resetForm = () => {
+        if (image) {
+            setForm({
+                filename: image.filename || '',
+                notes: image.notes || '',
+                sort_order: image.sort_order || 0,
+                aspect_ratio_label: image.aspect_ratio_label || '',
+                rating: image.rating || ImageRating.SAFE,
+                dominant_color: image.dominant_color || '',
+                tags: (image as ImageDetail).tags || []
+            });
+        }
+    };
+
+    const handleClose = () => {
+        if (isFormDirty) {
+            modals.openConfirmModal({
+                title: 'Unsaved Changes',
+                centered: true,
+                zIndex: zIndex + CONFIRM_MODAL_Z_INDEX_OFFSET,
+                children: (
+                    <Text size="sm">
+                        You have unsaved changes. Do you want to discard them?
+                    </Text>
+                ),
+                labels: { confirm: 'Discard Changes', cancel: 'Keep Editing' },
+                confirmProps: { color: 'red' },
+                onConfirm: () => {
+                    resetForm();
+                    onClose();
+                }
+            });
+        } else {
+            onClose();
+        }
+    };
+
     const handleSave = async () => {
         if (!image) return;
         try {
@@ -72,6 +132,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
         modals.openConfirmModal({
             title: 'Delete Image',
             centered: true,
+            zIndex: zIndex + CONFIRM_MODAL_Z_INDEX_OFFSET,
             children: (
                 <Text size="sm">
                     Are you sure you want to delete this image? This will permanently remove the file from your computer.
@@ -94,7 +155,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
 
 
     return (
-        <Modal opened={opened} onClose={onClose} title="Edit Image Metadata" radius="md" zIndex={zIndex}>
+        <Modal opened={opened} onClose={handleClose} title="Edit Image Metadata" radius="md" zIndex={zIndex}>
             <Stack gap="md">
                 <TextInput 
                     label="Filename" 
