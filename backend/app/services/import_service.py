@@ -31,6 +31,31 @@ def _safe_log_val(val):
     elif isinstance(val, dict):
         return {_safe_log_val(k): _safe_log_val(v) for k, v in val.items()}
     return val
+def delete_dir_if_empty(dir_path: Path) -> bool:
+    """Recursively deletes a directory if it is empty or contains only empty subdirectories and ignored files."""
+    if not dir_path.exists() or not dir_path.is_dir():
+        return False
+    
+    ignored_names = {".ds_store", "thumbs.db", "desktop.ini"}
+    
+    try:
+        # Bottom-up traversal of children
+        for child in list(dir_path.iterdir()):
+            if child.is_dir():
+                delete_dir_if_empty(child)
+            elif child.is_file() and child.name.lower() in ignored_names:
+                try:
+                    child.unlink()
+                except Exception:
+                    pass
+                    
+        # Now check if it's empty
+        if not list(dir_path.iterdir()):
+            dir_path.rmdir()
+            return True
+    except Exception:
+        pass
+    return False
 
 
 async def gather_candidates(db: AsyncSession, batch_in: BatchImportRequest) -> list[dict]:
@@ -147,7 +172,9 @@ async def execute_import_item(
     v_ratio: float,
     h_label: str,
     v_label: str,
-    delete_source_default: bool
+    delete_source_default: bool,
+    task_id: str = None,
+    progress_state: dict = None
 ) -> BatchImportItem:
     """Phase 3: Process images and save to database for a single item."""
     from app.crud.set import get_set_by_title_and_creator
@@ -223,6 +250,11 @@ async def execute_import_item(
         if is_duplicate:
             item.status = "error"
             item.error = "Set already exists for one or more creators"
+            if progress_state and task_id:
+                image_paths = collect_image_paths(item.source_path, recursive=True)
+                progress_state["processed"] += len(image_paths)
+                from app.core import tasks
+                await tasks.update_task(db, task_id, progress=progress_state["processed"], total=progress_state["total"])
             return item
 
         # 4. Process Images
@@ -240,75 +272,90 @@ async def execute_import_item(
                 custom_path=custom_path
             )
 
-        for img_path in image_paths:
-            p = Path(img_path)
-            base_out = dest_dir / p.name
-            
-            ok, final_p_str = process_image(
-                img_path, 
-                str(base_out), 
-                auto_orient=True, 
-                sort_output=False,
-                horz_ar=h_ratio,
-                vert_ar=v_ratio,
-                horz_label=h_label,
-                vert_label=v_label
-            )
-            
-            if ok:
-                final_p = Path(final_p_str)
-                img_data = load_image(final_p_str)
-                if img_data is not None:
-                    h, w = img_data.shape[:2]
-                    ratio_label = h_label if final_p.name.startswith(f"{h_label}.") else v_label
-                    
-                    from app.core.enums import ImageRating
-                    from app.services.audit_service import calculate_phash, calculate_dominant_color
-                    
-                    fx, fy = compute_focal_point(img_data)
-                    
-                    # Auto tagging if enabled
-                    image_tags_list = []
-                    if auto_tag_enabled and tagger:
-                        try:
-                            import asyncio
-                            logger.info("Running AI auto-tagging on image", path=_safe_log_val(final_p_str), model=_safe_log_val(model_type), confidence_threshold=confidence_threshold)
-                            general_tags, character_tags = await asyncio.to_thread(
-                                tagger.tag_image, 
-                                final_p_str, 
-                                threshold=confidence_threshold
-                            )
-                            # Record detected characters for Set association
-                            if character_tags:
-                                for char_name in character_tags:
-                                    all_detected_characters.add(char_name)
+        processed_in_item = 0
+        try:
+            for img_path in image_paths:
+                p = Path(img_path)
+                base_out = dest_dir / p.name
+                
+                ok, final_p_str = process_image(
+                    img_path, 
+                    str(base_out), 
+                    auto_orient=True, 
+                    sort_output=False,
+                    horz_ar=h_ratio,
+                    vert_ar=v_ratio,
+                    horz_label=h_label,
+                    vert_label=v_label
+                )
+                
+                if ok:
+                    final_p = Path(final_p_str)
+                    img_data = load_image(final_p_str)
+                    if img_data is not None:
+                        h, w = img_data.shape[:2]
+                        ratio_label = h_label if final_p.name.startswith(f"{h_label}.") else v_label
+                        
+                        from app.core.enums import ImageRating
+                        from app.services.audit_service import calculate_phash, calculate_dominant_color
+                        
+                        fx, fy = compute_focal_point(img_data)
+                        
+                        # Auto tagging if enabled
+                        image_tags_list = []
+                        if auto_tag_enabled and tagger:
+                            try:
+                                import asyncio
+                                logger.info("Running AI auto-tagging on image", path=_safe_log_val(final_p_str), model=_safe_log_val(model_type), confidence_threshold=confidence_threshold)
+                                general_tags, character_tags = await asyncio.to_thread(
+                                    tagger.tag_image, 
+                                    final_p_str, 
+                                    threshold=confidence_threshold
+                                )
+                                # Record detected characters for Set association
+                                if character_tags:
+                                    for char_name in character_tags:
+                                        all_detected_characters.add(char_name)
 
-                            logger.info("AI tagging completed for image", path=_safe_log_val(final_p_str), general_tags=_safe_log_val(general_tags), character_tags=_safe_log_val(character_tags), total_suggested=(len(general_tags) + len(character_tags)))
-                            
-                            # Resolve general tags as Image tags (prevents namespace conflicts with characters table)
-                            if general_tags:
-                                from app.crud.tag import get_tags_by_names
-                                image_tags_list = await get_tags_by_names(db, general_tags)
-                                logger.info("Associated tags to image record", path=_safe_log_val(final_p_str), count=len(image_tags_list), tags=[_safe_log_val(t.name) for t in image_tags_list])
-                        except Exception as tag_err:
-                            logger.error("Failed to run AI tagging", path=_safe_log_val(final_p_str), error=_safe_log_val(str(tag_err)))
+                                logger.info("AI tagging completed for image", path=_safe_log_val(final_p_str), general_tags=_safe_log_val(general_tags), character_tags=_safe_log_val(character_tags), total_suggested=(len(general_tags) + len(character_tags)))
+                                
+                                # Resolve general tags as Image tags (prevents namespace conflicts with characters table)
+                                if general_tags:
+                                    from app.crud.tag import get_tags_by_names
+                                    image_tags_list = await get_tags_by_names(db, general_tags)
+                                    logger.info("Associated tags to image record", path=_safe_log_val(final_p_str), count=len(image_tags_list), tags=[_safe_log_val(t.name) for t in image_tags_list])
+                            except Exception as tag_err:
+                                logger.error("Failed to run AI tagging", path=_safe_log_val(final_p_str), error=_safe_log_val(str(tag_err)))
 
-                    # Create image model and assign tags in the constructor
-                    # This avoids triggering lazy loading (MissingGreenlet) on transient objects.
-                    db_images.append(Image(
-                        filename=final_p.name,
-                        local_path=str(final_p.resolve()),
-                        width=w, height=h,
-                        file_size=final_p.stat().st_size,
-                        aspect_ratio=float(w)/float(h) if h!=0 else 0,
-                        aspect_ratio_label=ratio_label,
-                        phash=calculate_phash(final_p),
-                        dominant_color=calculate_dominant_color(final_p),
-                        rating=ImageRating.QUESTIONABLE,
-                        focal_point_x=fx,
-                        focal_point_y=fy,
-                        tags=image_tags_list
-                    ))
+                        # Create image model and assign tags in the constructor
+                        # This avoids triggering lazy loading (MissingGreenlet) on transient objects.
+                        db_images.append(Image(
+                            filename=final_p.name,
+                            local_path=str(final_p.resolve()),
+                            width=w, height=h,
+                            file_size=final_p.stat().st_size,
+                            aspect_ratio=float(w)/float(h) if h!=0 else 0,
+                            aspect_ratio_label=ratio_label,
+                            phash=calculate_phash(final_p),
+                            dominant_color=calculate_dominant_color(final_p),
+                            rating=ImageRating.QUESTIONABLE,
+                            focal_point_x=fx,
+                            focal_point_y=fy,
+                            tags=image_tags_list
+                        ))
+                
+                processed_in_item += 1
+                if progress_state and task_id:
+                    progress_state["processed"] += 1
+                    from app.core import tasks
+                    await tasks.update_task(db, task_id, progress=progress_state["processed"], total=progress_state["total"])
+        except Exception as process_err:
+            unprocessed = len(image_paths) - processed_in_item
+            if unprocessed > 0 and progress_state and task_id:
+                progress_state["processed"] += unprocessed
+                from app.core import tasks
+                await tasks.update_task(db, task_id, progress=progress_state["processed"], total=progress_state["total"])
+            raise process_err
         
         # 5. Create Set
         db_set = Set(title=item.set_title, local_path=os.path.normpath(str(dest_dir.resolve())))
@@ -382,6 +429,18 @@ async def execute_import_item(
     except Exception as e:
         item.status = "error"
         item.error = str(e)
+        if progress_state and task_id:
+            try:
+                paths = locals().get("image_paths")
+                if paths is None:
+                    paths = collect_image_paths(item.source_path, recursive=True)
+                unprocessed = len(paths) - locals().get("processed_in_item", 0)
+                if unprocessed > 0:
+                    progress_state["processed"] += unprocessed
+                    from app.core import tasks
+                    await tasks.update_task(db, task_id, progress=progress_state["processed"], total=progress_state["total"])
+            except Exception:
+                pass
     
     return item
 
@@ -524,6 +583,12 @@ async def import_images_background_task(
     task_id: str
 ) -> None:
     """Asynchronous background task to process and import multiple images/folders into the vault."""
+    import sys
+    created_session = False
+    if "pytest" not in sys.modules:
+        from app.db.session import SessionLocal
+        db = SessionLocal()
+        created_session = True
     from app.core import tasks
     from app.models.image import Image as ImageModel
     from app.models.set import Set as SetModel
@@ -839,36 +904,34 @@ async def import_images_background_task(
                 try:
                     d_path = Path(d_str)
                     if d_path.exists() and d_path.is_dir():
-                        if not list(d_path.iterdir()):
-                            shutil.rmtree(d_path)
-                            logger.info("Deleted empty source directory", path=d_str)
+                        if delete_dir_if_empty(d_path):
+                            logger.info("Deleted empty source directory", path=_safe_log_val(d_str))
                         else:
                             cleanup_warnings.append(d_path.name)
-                            logger.info("Source directory not empty, leaving on disk", path=d_str)
+                            logger.info("Source directory not empty, leaving on disk", path=_safe_log_val(d_str))
                 except Exception as dir_err:
-                    logger.error("Failed to delete empty source directory", path=d_str, error=str(dir_err))
+                    logger.error("Failed to delete empty source directory", path=_safe_log_val(d_str), error=str(dir_err))
 
             for item in items:
                 item_path = Path(item["local_path"])
                 if item_path.exists() and item_path.is_dir():
-                    if not list(item_path.iterdir()):
-                        try:
-                            shutil.rmtree(item_path)
-                            logger.info("Deleted empty source item path", path=str(item_path))
-                        except Exception as err:
-                            logger.error("Failed to clean up source item path", path=str(item_path), error=str(err))
-                    else:
-                        folder_name = item_path.name
-                        if folder_name not in [w for w in cleanup_warnings]:
-                            cleanup_warnings.append(folder_name)
-                            logger.info("Source item path not empty, leaving on disk", path=str(item_path))
+                    try:
+                        if delete_dir_if_empty(item_path):
+                            logger.info("Deleted empty source item path", path=_safe_log_val(str(item_path)))
+                        else:
+                            folder_name = item_path.name
+                            if folder_name not in cleanup_warnings:
+                                cleanup_warnings.append(folder_name)
+                                logger.info("Source item path not empty, leaving on disk", path=_safe_log_val(str(item_path)))
+                    except Exception as err:
+                        logger.error("Failed to clean up source item path", path=_safe_log_val(str(item_path)), error=str(err))
 
             # Also check parent_dirs collected during per-file deletion
             for parent in parent_dirs:
                 try:
-                    if parent.exists() and parent.is_dir() and not list(parent.iterdir()):
-                        parent.rmdir()
-                        logger.info("Deleted empty parent directory", path=str(parent))
+                    if parent.exists() and parent.is_dir():
+                        delete_dir_if_empty(parent)
+                        logger.info("Checked/cleaned parent directory", path=_safe_log_val(str(parent)))
                 except Exception as dir_err:
                     logger.error("Failed to delete empty parent directory", path=str(parent), error=str(dir_err))
 
@@ -914,4 +977,7 @@ async def import_images_background_task(
         logger.exception("Error during background import", task_id=task_id, error=str(e))
         await db.rollback()
         await tasks.update_task(db, task_id, status="error", error_message=str(e))
+    finally:
+        if created_session:
+            await db.close()
 

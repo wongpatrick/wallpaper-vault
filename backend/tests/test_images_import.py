@@ -159,3 +159,44 @@ async def test_images_import_delete_source(client: AsyncClient, mock_images_dir:
         # Verify that source files were deleted
         assert not p1.exists()
         assert not p2.exists()
+
+
+def test_delete_dir_if_empty_recursive():
+    """Test delete_dir_if_empty recursively deletes empty dirs and ignored files."""
+    from app.services.import_service import delete_dir_if_empty
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base = Path(tmpdir)
+        
+        # Scenario 1: Subdirectories are empty
+        sub_empty = base / "sub_empty"
+        sub_empty.mkdir()
+        
+        # Scenario 2: Subdirectory contains only ignored files
+        sub_ignored = base / "sub_ignored"
+        sub_ignored.mkdir()
+        (sub_ignored / "Thumbs.db").touch()
+        (sub_ignored / ".DS_Store").touch()
+        
+        # Scenario 3: Subdirectory contains non-ignored user files (should NOT be deleted)
+        sub_user_files = base / "sub_user_files"
+        sub_user_files.mkdir()
+        (sub_user_files / "readme.txt").touch()
+        
+        # Run deletion on base
+        # It shouldn't delete base completely because sub_user_files has readme.txt
+        delete_dir_if_empty(base)
+        
+        assert not sub_empty.exists()
+        assert not sub_ignored.exists()
+        assert sub_user_files.exists()
+        assert (sub_user_files / "readme.txt").exists()
+        assert base.exists()
+        
+        # If we delete readme.txt, then it should delete all of them
+        (sub_user_files / "readme.txt").unlink()
+        delete_dir_if_empty(base)
+        
+        assert not sub_user_files.exists()
+        assert not base.exists()
+
