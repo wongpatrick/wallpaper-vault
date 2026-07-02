@@ -168,6 +168,7 @@ export const test = base.extend<E2EFixtures>({
       env: {
         ...process.env,
         VITE_DEV_SERVER_URL: 'http://localhost:5174',
+        VITE_API_BASE_URL: 'http://localhost:8001',
         NODE_ENV: 'test',
         DATABASE_URL: 'sqlite+aiosqlite:///../db/test_e2e.db',
       },

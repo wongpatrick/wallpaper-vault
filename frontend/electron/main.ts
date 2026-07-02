@@ -8,13 +8,44 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import { spawn, ChildProcess } from 'node:child_process';
+import net from 'node:net';
+import http from 'node:http';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+const DEFAULT_PORT = 8000;
+const STARTUP_TIMEOUT_MS = 20000;
+const HEARTBEAT_STARTUP_INTERVAL_MS = 5000;
+const HEARTBEAT_RUNNING_INTERVAL_MS = 60000;
+const PING_TIMEOUT_MS = 2000;
+const RESTART_ATTEMPT_DELAY_MS = 2000;
+const RESTART_MANUAL_DELAY_MS = 500;
+const HTTP_STATUS_OK = 200;
+const MAX_AUTO_RESTARTS = 3;
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 let backendProcess: ChildProcess | null = null;
+
+interface BackendStatusInfo {
+    status: 'starting' | 'running' | 'stopped' | 'port-collision' | 'error';
+    autoRestartCount: number;
+    maxRestarts: number;
+    port: number;
+    errorDetails?: string;
+}
+
+let currentStatus: BackendStatusInfo = {
+    status: 'stopped',
+    autoRestartCount: 0,
+    maxRestarts: MAX_AUTO_RESTARTS,
+    port: DEFAULT_PORT
+};
+
+let monitorTimeout: NodeJS.Timeout | null = null;
+let startupTimeout: NodeJS.Timeout | null = null;
+let consecutiveFailures = 0;
 
 if (process.platform === 'win32') {
     app.setAppUserModelId('com.wallpaper-vault.app');
@@ -38,19 +69,181 @@ function logBoth(logFilePath: string, msg: string) {
     }
 }
 
-function startBackend() {
-    if (process.env.VITE_DEV_SERVER_URL) {
-        console.log('Running in development mode, backend should be started externally.');
-        return;
+function getBackendPort(): number {
+    if (process.env.VITE_API_BASE_URL) {
+        try {
+            const url = new URL(process.env.VITE_API_BASE_URL);
+            if (url.port) return parseInt(url.port, 10);
+        } catch {
+            // ignore
+        }
+    }
+    
+    try {
+        const settingsPath = path.join(app.getPath('userData'), 'window-settings.json');
+        if (fs.existsSync(settingsPath)) {
+            const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+            if (settings.backendPort && !isNaN(Number(settings.backendPort))) {
+                return parseInt(settings.backendPort, 10);
+            }
+        }
+    } catch (err) {
+        console.error('Failed to read port from settings:', err);
+    }
+    
+    return DEFAULT_PORT;
+}
+
+function updateStatus(newStatus: Partial<BackendStatusInfo>) {
+    const port = getBackendPort();
+    currentStatus = { ...currentStatus, ...newStatus, port };
+    console.log(`[Backend Status Change] ${currentStatus.status} on port ${currentStatus.port}`);
+    
+    if (newStatus.status === 'starting') {
+        if (startupTimeout) clearTimeout(startupTimeout);
+        startupTimeout = setTimeout(() => {
+            if (currentStatus.status === 'starting') {
+                logBothToCombined('ERROR: Startup timeout exceeded. Backend failed to respond within 20s.');
+                updateStatus({
+                    status: 'error',
+                    errorDetails: 'Backend took too long to start (timeout exceeded).'
+                });
+                if (backendProcess) {
+                    backendProcess.kill();
+                    backendProcess = null;
+                }
+            }
+        }, STARTUP_TIMEOUT_MS);
+    } else if (newStatus.status && newStatus.status !== 'starting') {
+        if (startupTimeout) {
+            clearTimeout(startupTimeout);
+            startupTimeout = null;
+        }
     }
 
+    if (mainWindow && !mainWindow.webContents.isDestroyed()) {
+        mainWindow.webContents.send('backend-status-change', currentStatus);
+        
+        if (currentStatus.status === 'error' || currentStatus.status === 'port-collision') {
+            mainWindow.show();
+            mainWindow.focus();
+        }
+    }
+}
+
+function logBothToCombined(msg: string) {
     const userDataPath = app.getPath('userData');
     const logsDir = path.join(userDataPath, 'logs');
     fs.mkdirSync(logsDir, { recursive: true });
     const logFilePath = path.join(logsDir, 'combined.log');
+    logBoth(logFilePath, msg);
+}
 
-    logBoth(logFilePath, 'Starting production backend...');
+function checkPortOccupied(port: number): Promise<boolean> {
+    return new Promise((resolve) => {
+        const server = net.createServer();
+        server.once('error', (err: { code?: string }) => {
+            if (err.code === 'EADDRINUSE') {
+                resolve(true);
+            } else {
+                resolve(false);
+            }
+        });
+        server.once('listening', () => {
+            server.close(() => {
+                resolve(false);
+            });
+        });
+        server.listen(port);
+    });
+}
 
+function pingBackend(port: number): Promise<boolean> {
+    return new Promise((resolve) => {
+        const req = http.get(`http://localhost:${port}/`, { timeout: PING_TIMEOUT_MS }, (res) => {
+            if (res.statusCode === HTTP_STATUS_OK) {
+                resolve(true);
+            } else {
+                resolve(false);
+            }
+        });
+        req.on('error', () => {
+            resolve(false);
+        });
+        req.on('timeout', () => {
+            req.destroy();
+            resolve(false);
+        });
+    });
+}
+
+function startMonitorLoop() {
+    if (monitorTimeout) clearTimeout(monitorTimeout);
+    
+    consecutiveFailures = 0;
+
+    const runCheck = async () => {
+        const port = getBackendPort();
+        const isHealthy = await pingBackend(port);
+        
+        if (isHealthy) {
+            consecutiveFailures = 0;
+            if (currentStatus.status === 'starting' || currentStatus.status === 'stopped' || currentStatus.status === 'error') {
+                updateStatus({ status: 'running', autoRestartCount: 0, errorDetails: undefined });
+            }
+        } else {
+            if (currentStatus.status === 'running') {
+                consecutiveFailures++;
+                console.warn(`[Monitor] Heartbeat failed (${consecutiveFailures}/3)`);
+                if (consecutiveFailures >= 3) {
+                    consecutiveFailures = 0;
+                    logBothToCombined('ERROR: Heartbeat failed 3 times consecutively. Restarting backend...');
+                    handleBackendCrash('Backend became unresponsive');
+                }
+            }
+        }
+
+        const delay = currentStatus.status === 'starting'
+            ? HEARTBEAT_STARTUP_INTERVAL_MS
+            : HEARTBEAT_RUNNING_INTERVAL_MS;
+
+        monitorTimeout = setTimeout(runCheck, delay);
+    };
+
+    runCheck();
+}
+
+function handleBackendCrash(reason: string) {
+    if (process.env.VITE_DEV_SERVER_URL) {
+        updateStatus({ status: 'stopped', errorDetails: `Backend unreachable: ${reason}` });
+        return;
+    }
+
+    if (currentStatus.autoRestartCount < currentStatus.maxRestarts) {
+        const newCount = currentStatus.autoRestartCount + 1;
+        updateStatus({ 
+            status: 'starting', 
+            autoRestartCount: newCount,
+            errorDetails: `Crashed/Unresponsive: ${reason}. Restart attempt ${newCount}/${currentStatus.maxRestarts}...` 
+        });
+        
+        setTimeout(() => {
+            spawnBackendProcess();
+        }, RESTART_ATTEMPT_DELAY_MS);
+    } else {
+        updateStatus({ 
+            status: 'error', 
+            errorDetails: `Backend crashed repeatedly. ${reason}` 
+        });
+    }
+}
+
+function spawnBackendProcess() {
+    const userDataPath = app.getPath('userData');
+    const logsDir = path.join(userDataPath, 'logs');
+    fs.mkdirSync(logsDir, { recursive: true });
+    const logFilePath = path.join(logsDir, 'combined.log');
+    
     const resourcesPath = process.resourcesPath;
     const backendPath = path.join(resourcesPath, 'backend');
     
@@ -81,35 +274,70 @@ function startBackend() {
         DATABASE_URL: `sqlite+aiosqlite:///${userDbPath.replace(/\\/g, '/')}`
     };
 
+    const port = getBackendPort();
+    const portStr = port.toString();
+
     try {
         const binaryPath = path.join(backendPath, 'wallpaper-vault-backend.exe');
         if (fs.existsSync(binaryPath)) {
-            logBoth(logFilePath, `Compiled backend found at ${binaryPath}. Spawning backend binary...`);
-            backendProcess = spawn(binaryPath, ['--port', '8000'], {
+            logBoth(logFilePath, `Compiled backend found at ${binaryPath}. Spawning backend binary on port ${portStr}...`);
+            backendProcess = spawn(binaryPath, ['--port', portStr], {
                 cwd: backendPath,
                 env,
                 shell: false
             });
         } else {
-            logBoth(logFilePath, `Compiled backend not found at ${binaryPath}. Falling back to uv run uvicorn...`);
-            backendProcess = spawn('uv', ['run', 'uvicorn', 'app.main:app', '--port', '8000'], {
+            logBoth(logFilePath, `Compiled backend not found at ${binaryPath}. Falling back to uv run uvicorn on port ${portStr}...`);
+            backendProcess = spawn('uv', ['run', 'uvicorn', 'app.main:app', '--port', portStr], {
                 cwd: backendPath,
                 env,
                 shell: true
             });
         }
 
-        // Pipe backend process output to the combined log file
         const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
         backendProcess.stdout?.pipe(logStream);
         backendProcess.stderr?.pipe(logStream);
 
         backendProcess.on('close', (code) => {
             logBoth(logFilePath, `Backend process exited with code ${code}`);
+            backendProcess = null;
+            if (!isQuitting) {
+                handleBackendCrash(`Backend process exited with code ${code}`);
+            }
         });
     } catch (error) {
         logBoth(logFilePath, `Failed to start backend process: ${error}`);
+        handleBackendCrash(`Spawn error: ${error}`);
     }
+}
+
+function startBackend() {
+    if (monitorTimeout) clearTimeout(monitorTimeout);
+    if (startupTimeout) clearTimeout(startupTimeout);
+
+    const port = getBackendPort();
+
+    if (process.env.VITE_DEV_SERVER_URL) {
+        console.log('Running in development mode, backend should be started externally.');
+        updateStatus({ status: 'starting' });
+        startMonitorLoop();
+        return;
+    }
+
+    logBothToCombined('Starting production backend check...');
+    
+    checkPortOccupied(port).then((isOccupied) => {
+        if (isOccupied) {
+            logBothToCombined(`ERROR: Port ${port} is already in use by another process.`);
+            updateStatus({ status: 'port-collision', errorDetails: `Port ${port} is occupied by another application.` });
+            return;
+        }
+
+        updateStatus({ status: 'starting' });
+        spawnBackendProcess();
+        startMonitorLoop();
+    });
 }
 
 function createTray() {
@@ -391,6 +619,59 @@ function createWindow() {
         }
     });
 
+    ipcMain.handle('get-backend-status', () => {
+        return currentStatus;
+    });
+
+    ipcMain.handle('restart-backend', async () => {
+        logBothToCombined('User requested manual backend restart.');
+        updateStatus({ status: 'starting', autoRestartCount: 0, errorDetails: undefined });
+        if (backendProcess) {
+            backendProcess.kill();
+            backendProcess = null;
+        }
+        setTimeout(() => {
+            startBackend();
+        }, RESTART_MANUAL_DELAY_MS);
+        return true;
+    });
+
+    ipcMain.handle('set-backend-port', (_event, port: number) => {
+        try {
+            let settings: Record<string, unknown> = {};
+            if (fs.existsSync(settingsPath)) {
+                settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+            }
+            settings.backendPort = port;
+            fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+            logBothToCombined(`Backend port updated in settings to ${port}`);
+            return true;
+        } catch (err) {
+            console.error('Failed to save backend port:', err);
+            return false;
+        }
+    });
+
+    ipcMain.handle('open-backend-logs', async () => {
+        const userDataPath = app.getPath('userData');
+        const logFilePath = path.join(userDataPath, 'logs', 'combined.log');
+        if (fs.existsSync(logFilePath)) {
+            await shell.openPath(logFilePath);
+            return true;
+        }
+        return false;
+    });
+
+    ipcMain.handle('open-logs-directory', async () => {
+        const userDataPath = app.getPath('userData');
+        const logsDir = path.join(userDataPath, 'logs');
+        if (fs.existsSync(logsDir)) {
+            await shell.openPath(logsDir);
+            return true;
+        }
+        return false;
+    });
+
     if (process.env.VITE_DEV_SERVER_URL) {
         mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
         
@@ -414,6 +695,8 @@ function createWindow() {
 
 app.on('before-quit', () => {
     isQuitting = true;
+    if (monitorTimeout) clearTimeout(monitorTimeout);
+    if (startupTimeout) clearTimeout(startupTimeout);
     if (backendProcess) {
         backendProcess.kill();
     }

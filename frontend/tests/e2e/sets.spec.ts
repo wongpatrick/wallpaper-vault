@@ -6,6 +6,9 @@ import { test, expect } from './e2e.fixtures';
 
 test.describe('Wallpaper Sets CRUD Workflows', () => {
   test('should display created sets, allow viewing details, and delete a set', async ({ window, testDir }) => {
+    // Wait for dashboard to load and layout to mount before dropping
+    await expect(window.locator('h1:has-text("Dashboard")')).toBeVisible({ timeout: 15000 });
+
     // 1. Setup by importing a set first
     await window.evaluate((mockPath) => {
       if (window.electron && window.electron.setMockImportPath) {

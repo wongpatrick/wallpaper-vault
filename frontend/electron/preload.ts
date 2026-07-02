@@ -29,5 +29,10 @@ contextBridge.exposeInMainWorld('electron', {
     isMaximized: () => ipcRenderer.invoke('is-maximized'),
     getCloseBehavior: () => ipcRenderer.invoke('get-close-behavior'),
     setCloseBehavior: (behavior: 'minimize' | 'exit') => ipcRenderer.invoke('set-close-behavior', behavior),
+    getBackendStatus: () => ipcRenderer.invoke('get-backend-status'),
+    restartBackend: () => ipcRenderer.invoke('restart-backend'),
+    setBackendPort: (port: number) => ipcRenderer.invoke('set-backend-port', port),
+    openBackendLogs: () => ipcRenderer.invoke('open-backend-logs'),
+    openLogsDirectory: () => ipcRenderer.invoke('open-logs-directory'),
     platform: process.platform,
 })
