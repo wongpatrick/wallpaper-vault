@@ -137,6 +137,44 @@ function CharactersTab() {
     const [name, setName] = useState('');
     const [franchiseQuery, setFranchiseQuery] = useState('');
 
+    const isFormDirty = useMemo(() => {
+        if (editingId) {
+            const original = characters?.find(c => c.id === editingId);
+            const originalName = original?.name || '';
+            const originalFranchise = original?.franchise?.name || '';
+            return name !== originalName || franchiseQuery !== originalFranchise;
+        } else {
+            return name.trim() !== '' || franchiseQuery.trim() !== '';
+        }
+    }, [editingId, name, franchiseQuery, characters]);
+
+    const handleClose = () => {
+        if (isFormDirty) {
+            modals.openConfirmModal({
+                title: 'Unsaved Changes',
+                centered: true,
+                children: (
+                    <Text size="sm">
+                        You have unsaved changes. Do you want to discard them?
+                    </Text>
+                ),
+                labels: { confirm: 'Discard Changes', cancel: 'Keep Editing' },
+                confirmProps: { color: 'red' },
+                onConfirm: () => {
+                    setName('');
+                    setFranchiseQuery('');
+                    setEditingId(null);
+                    setModalOpen(false);
+                }
+            });
+        } else {
+            setName('');
+            setFranchiseQuery('');
+            setEditingId(null);
+            setModalOpen(false);
+        }
+    };
+
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [mergeModalOpen, setMergeModalOpen] = useState(false);
     const [targetId, setTargetId] = useState<string | null>(null);
@@ -183,6 +221,9 @@ function CharactersTab() {
         } else {
             await createMutation.mutateAsync(payload);
         }
+        setName('');
+        setFranchiseQuery('');
+        setEditingId(null);
         setModalOpen(false);
     };
 
@@ -372,7 +413,7 @@ function CharactersTab() {
                 )}
             </Group>
 
-            <Modal opened={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Edit Character' : 'Add Character'}>
+            <Modal opened={modalOpen} onClose={handleClose} title={editingId ? 'Edit Character' : 'Add Character'}>
                 <Stack>
                     <TextInput label="Name" value={name} onChange={(e) => setName(e.currentTarget.value)} required />
                     <Autocomplete
@@ -427,6 +468,41 @@ function FranchisesTab() {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [name, setName] = useState('');
 
+    const isFormDirty = useMemo(() => {
+        if (editingId) {
+            const original = franchises?.find(f => f.id === editingId);
+            const originalName = original?.name || '';
+            return name !== originalName;
+        } else {
+            return name.trim() !== '';
+        }
+    }, [editingId, name, franchises]);
+
+    const handleClose = () => {
+        if (isFormDirty) {
+            modals.openConfirmModal({
+                title: 'Unsaved Changes',
+                centered: true,
+                children: (
+                    <Text size="sm">
+                        You have unsaved changes. Do you want to discard them?
+                    </Text>
+                ),
+                labels: { confirm: 'Discard Changes', cancel: 'Keep Editing' },
+                confirmProps: { color: 'red' },
+                onConfirm: () => {
+                    setName('');
+                    setEditingId(null);
+                    setModalOpen(false);
+                }
+            });
+        } else {
+            setName('');
+            setEditingId(null);
+            setModalOpen(false);
+        }
+    };
+
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [mergeModalOpen, setMergeModalOpen] = useState(false);
     const [targetId, setTargetId] = useState<string | null>(null);
@@ -454,6 +530,8 @@ function FranchisesTab() {
         } else {
             await createMutation.mutateAsync(payload);
         }
+        setName('');
+        setEditingId(null);
         setModalOpen(false);
     };
 
@@ -627,7 +705,7 @@ function FranchisesTab() {
                 )}
             </Group>
 
-            <Modal opened={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Edit Franchise' : 'Add Franchise'}>
+            <Modal opened={modalOpen} onClose={handleClose} title={editingId ? 'Edit Franchise' : 'Add Franchise'}>
                 <Stack>
                     <TextInput label="Name" value={name} onChange={(e) => setName(e.currentTarget.value)} required />
                     <Button onClick={handleSave} disabled={!name.trim() || createMutation.isPending || updateMutation.isPending}>
@@ -674,6 +752,42 @@ function TagsTab() {
     const [name, setName] = useState('');
     const [error, setError] = useState<string | null>(null);
 
+    const isFormDirty = useMemo(() => {
+        if (editingId) {
+            const original = tags?.find(t => t.id === editingId);
+            const originalName = original?.name || '';
+            return name !== originalName;
+        }
+        return false;
+    }, [editingId, name, tags]);
+
+    const handleClose = () => {
+        if (isFormDirty) {
+            modals.openConfirmModal({
+                title: 'Unsaved Changes',
+                centered: true,
+                children: (
+                    <Text size="sm">
+                        You have unsaved changes. Do you want to discard them?
+                    </Text>
+                ),
+                labels: { confirm: 'Discard Changes', cancel: 'Keep Editing' },
+                confirmProps: { color: 'red' },
+                onConfirm: () => {
+                    setName('');
+                    setError(null);
+                    setEditingId(null);
+                    setModalOpen(false);
+                }
+            });
+        } else {
+            setName('');
+            setError(null);
+            setEditingId(null);
+            setModalOpen(false);
+        }
+    };
+
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [mergeModalOpen, setMergeModalOpen] = useState(false);
     const [targetId, setTargetId] = useState<string | null>(null);
@@ -692,6 +806,9 @@ function TagsTab() {
         setError(null);
         try {
             await updateMutation.mutateAsync({ id: editingId, data: { name: name.trim() } });
+            setName('');
+            setError(null);
+            setEditingId(null);
             setModalOpen(false);
         } catch (e) {
             // @ts-expect-error - e is unknown but may have response.data.detail
@@ -870,7 +987,7 @@ function TagsTab() {
                 )}
             </Group>
 
-            <Modal opened={modalOpen} onClose={() => setModalOpen(false)} title="Edit Tag">
+            <Modal opened={modalOpen} onClose={handleClose} title="Edit Tag">
                 <Stack>
                     {error && <Text c="red" size="sm">{error}</Text>}
                     <TextInput label="Name" value={name} onChange={(e) => setName(e.currentTarget.value)} required />

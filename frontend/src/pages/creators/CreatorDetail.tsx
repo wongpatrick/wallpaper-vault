@@ -64,6 +64,25 @@ export default function CreatorDetail() {
         notes: ''
     });
 
+    const isEditFormDirty = useMemo(() => {
+        if (!creator) return false;
+        return (
+            editForm.canonical_name !== (creator.canonical_name || '') ||
+            editForm.type !== (creator.type || 'Artist') ||
+            editForm.notes !== (creator.notes || '')
+        );
+    }, [editForm, creator]);
+
+    const resetEditForm = () => {
+        if (creator) {
+            setEditForm({
+                canonical_name: creator.canonical_name,
+                type: creator.type || 'Artist',
+                notes: creator.notes || ''
+            });
+        }
+    };
+
     const mergeMutation = useMergeCreatorsApiCreatorsMergePost();
     const [mergePrompt, setMergePrompt] = useState<{ show: boolean, targetId: number | null }>({ show: false, targetId: null });
 
@@ -434,7 +453,27 @@ export default function CreatorDetail() {
             {/* Edit Modal */}
             <Modal 
                 opened={isEditModalOpen} 
-                onClose={() => setIsEditModalOpen(false)} 
+                onClose={() => {
+                    if (isEditFormDirty) {
+                        modals.openConfirmModal({
+                            title: 'Unsaved Changes',
+                            centered: true,
+                            children: (
+                                <Text size="sm">
+                                    You have unsaved changes. Do you want to discard them?
+                                </Text>
+                            ),
+                            labels: { confirm: 'Discard Changes', cancel: 'Keep Editing' },
+                            confirmProps: { color: 'red' },
+                            onConfirm: () => {
+                                setIsEditModalOpen(false);
+                                resetEditForm();
+                            }
+                        });
+                    } else {
+                        setIsEditModalOpen(false);
+                    }
+                }} 
                 title="Edit Creator Profile"
                 radius="md"
             >

@@ -10,6 +10,8 @@ import { useReadCreatorsApiCreatorsGet, useCreateCreatorApiCreatorsPost } from '
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
 import { CharacterTagsInput } from '../ui/CharacterTagsInput';
 import { notifications } from '@mantine/notifications';
+import { modals } from '@mantine/modals';
+import { Text } from '@mantine/core';
 import type { Set } from '../../api/model';
 
 interface CreateSetModalProps {
@@ -28,6 +30,47 @@ export function CreateSetModal({ opened, onClose, onSuccess }: CreateSetModalPro
     const [tags, setTags] = useState<string[]>([]);
     const [characters, setCharacters] = useState<string[]>([]);
     const [notes, setNotes] = useState('');
+
+    const isFormDirty = useMemo(() => {
+        return (
+            title.trim() !== '' ||
+            creatorNames.length > 0 ||
+            tags.length > 0 ||
+            characters.length > 0 ||
+            notes.trim() !== ''
+        );
+    }, [title, creatorNames, tags, characters, notes]);
+
+    const resetForm = () => {
+        setTitle('');
+        setCreatorNames([]);
+        setTags([]);
+        setCharacters([]);
+        setNotes('');
+    };
+
+    const handleClose = () => {
+        if (isFormDirty) {
+            modals.openConfirmModal({
+                title: 'Unsaved Changes',
+                centered: true,
+                children: (
+                    <Text size="sm">
+                        You have unsaved changes. Do you want to discard them?
+                    </Text>
+                ),
+                labels: { confirm: 'Discard Changes', cancel: 'Keep Editing' },
+                confirmProps: { color: 'red' },
+                onConfirm: () => {
+                    resetForm();
+                    onClose();
+                }
+            });
+        } else {
+            resetForm();
+            onClose();
+        }
+    };
     
     const creatorOptions = useMemo(() => {
         const uniqueNames = new Set(creatorsData?.items?.map(c => c.canonical_name) || []);
@@ -105,7 +148,7 @@ export function CreateSetModal({ opened, onClose, onSuccess }: CreateSetModalPro
     return (
         <Modal 
             opened={opened} 
-            onClose={onClose} 
+            onClose={handleClose} 
             title="Create New Set"
             size="lg"
             radius="md"
@@ -151,7 +194,7 @@ export function CreateSetModal({ opened, onClose, onSuccess }: CreateSetModalPro
                 />
                 
                 <Group justify="flex-end" mt="md">
-                    <Button variant="subtle" onClick={onClose}>Cancel</Button>
+                    <Button variant="subtle" onClick={handleClose}>Cancel</Button>
                     <Button 
                         onClick={handleCreate} 
                         loading={createSetMutation.isPending || createCreatorMutation.isPending}

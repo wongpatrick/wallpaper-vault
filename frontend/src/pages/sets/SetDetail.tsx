@@ -101,6 +101,44 @@ export default function SetDetail() {
         });
     }
 
+    const isEditFormDirty = useMemo(() => {
+        if (!set) return false;
+        const originalCreators = set.creators?.map(c => c.canonical_name) || [];
+        const originalTags = Array.from(new Set(set.tags || []));
+        const originalCharacters = Array.from(new Set(set.characters || []));
+        
+        const arraysEqual = (a: string[], b: string[]) => {
+            if (a.length !== b.length) return false;
+            const sortedA = [...a].sort();
+            const sortedB = [...b].sort();
+            return sortedA.every((val, idx) => val === sortedB[idx]);
+        };
+
+        return (
+            editForm.title !== (set.title || '') ||
+            editForm.notes !== (set.notes || '') ||
+            editForm.source_url !== (set.source_url || '') ||
+            editForm.local_path !== (set.local_path || '') ||
+            !arraysEqual(editForm.creator_names, originalCreators) ||
+            !arraysEqual(editForm.tags, originalTags) ||
+            !arraysEqual(editForm.characters, originalCharacters)
+        );
+    }, [editForm, set]);
+
+    const resetEditForm = () => {
+        if (set) {
+            setEditForm({
+                title: set.title || '',
+                notes: set.notes || '',
+                source_url: set.source_url || '',
+                local_path: set.local_path || '',
+                creator_names: set.creators?.map(c => c.canonical_name) || [],
+                tags: Array.from(new Set(set.tags || [])),
+                characters: Array.from(new Set(set.characters || []))
+            });
+        }
+    };
+
     const taskStatus = activeTask?.status;
 
     // Trigger metadata sync and refetch when the auto-tagging task finishes successfully
@@ -578,8 +616,27 @@ export default function SetDetail() {
             <Modal 
                 opened={isEditModalOpen} 
                 onClose={() => {
-                    setIsEditModalOpen(false);
-                    setEnablePathEdit(false);
+                    if (isEditFormDirty) {
+                        modals.openConfirmModal({
+                            title: 'Unsaved Changes',
+                            centered: true,
+                            children: (
+                                <Text size="sm">
+                                    You have unsaved changes. Do you want to discard them?
+                                </Text>
+                            ),
+                            labels: { confirm: 'Discard Changes', cancel: 'Keep Editing' },
+                            confirmProps: { color: 'red' },
+                            onConfirm: () => {
+                                setIsEditModalOpen(false);
+                                setEnablePathEdit(false);
+                                resetEditForm();
+                            }
+                        });
+                    } else {
+                        setIsEditModalOpen(false);
+                        setEnablePathEdit(false);
+                    }
                 }} 
                 title="Edit Set Metadata"
                 size="lg"
