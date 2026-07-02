@@ -69,7 +69,7 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
 
     useEffect(() => {
         if (!isElectron) {
-            let timeoutId: NodeJS.Timeout;
+            let timeoutId: ReturnType<typeof setTimeout>;
 
             // Web fallback check
             const checkBrowserHealth = async () => {
