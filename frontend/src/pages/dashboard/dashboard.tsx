@@ -44,11 +44,12 @@ import { useReadTagCloudApiTagsCloudGet } from '../../api/generated/tags/tags';
 import { useReadCharactersApiCharactersGet } from '../../api/generated/characters/characters';
 import { useReadFranchisesApiFranchisesGet } from '../../api/generated/franchises/franchises';
 import { formatBytes, getImageUrl } from '../../utils/fileUtils';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import TagCloud from '../../components/ui/TagCloud';
 
 export default function Dashboard() {
     const navigate = useNavigate();
+    const location = useLocation();
     
     // 1. Fetch Dashboard Stats
     const { data: dashboard, isLoading: statsLoading, error: statsError } = useReadDashboardDataApiDashboardGet();
@@ -225,7 +226,16 @@ export default function Dashboard() {
                                 <Text size="sm" c="dimmed">No sets imported yet.</Text>
                             ) : (
                                 recentSets?.items?.map((set) => (
-                                    <Paper key={set.id} withBorder p="xs" radius="md" component={Link} to={`/sets/${set.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                                    <Paper 
+                                        key={set.id} 
+                                        withBorder 
+                                        p="xs" 
+                                        radius="md" 
+                                        component={Link} 
+                                        to={`/sets/${set.id}`} 
+                                        state={{ from: location.pathname, fromLabel: 'Dashboard' }} 
+                                        style={{ textDecoration: 'none', color: 'inherit' }}
+                                    >
                                         <Group justify="space-between" wrap="nowrap">
                                             <Group wrap="nowrap">
                                                 <Image 
@@ -325,6 +335,7 @@ export default function Dashboard() {
                                     <Button 
                                         component={Link} 
                                         to={`/sets/${randomImage.set_id}`} 
+                                        state={{ from: location.pathname, fromLabel: 'Dashboard' }}
                                         variant="light" 
                                         fullWidth 
                                         leftSection={<IconExternalLink size="1rem" />}

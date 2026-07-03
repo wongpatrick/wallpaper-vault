@@ -10,9 +10,10 @@ import type { Image as ImageModel } from '../../api/model';
 import { useDeleteImageApiImagesImageIdDelete } from '../../api/generated/images/images';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ImageRating } from '../../types/enums';
 import { useMemo, useEffect } from 'react';
+import { getLabelFromPath } from '../../utils/navigationUtils';
 
 interface ImageLightboxProps {
     images: ImageModel[];
@@ -38,6 +39,7 @@ const THUMB_GAP = 8;
 export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit, onDelete, totalCount, disableActions, onCrop }: ImageLightboxProps) {
     const deleteMutation = useDeleteImageApiImagesImageIdDelete();
     const navigate = useNavigate();
+    const location = useLocation();
 
     // Compute the visible filmstrip window
     const filmstripWindow = useMemo(() => {
@@ -133,7 +135,12 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
     const navigateToSet = () => {
         if (currentImage.set_id) {
             onClose();
-            navigate(`/sets/${currentImage.set_id}`);
+            navigate(`/sets/${currentImage.set_id}`, {
+                state: {
+                    from: location.pathname,
+                    fromLabel: getLabelFromPath(location.pathname)
+                }
+            });
         }
     };
 

@@ -6,7 +6,8 @@
 import { Card, Text, Stack } from '@mantine/core';
 import type { Creator } from '../../api/model';
 import { CreatorAvatar } from './CreatorAvatar';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { getLabelFromPath } from '../../utils/navigationUtils';
 
 interface CreatorCardProps {
     creator: Creator;
@@ -14,6 +15,7 @@ interface CreatorCardProps {
 
 export function CreatorCard({ creator }: CreatorCardProps) {
     const navigate = useNavigate();
+    const location = useLocation();
 
     return (
         <Card 
@@ -21,7 +23,12 @@ export function CreatorCard({ creator }: CreatorCardProps) {
             padding="lg" 
             radius="md" 
             withBorder 
-            onClick={() => navigate(`/creators/${creator.id}`)}
+            onClick={() => navigate(`/creators/${creator.id}`, {
+                state: {
+                    from: location.pathname,
+                    fromLabel: getLabelFromPath(location.pathname)
+                }
+            })}
             style={{ 
                 cursor: 'pointer',
                 transition: 'transform 200ms ease, box-shadow 200ms ease',

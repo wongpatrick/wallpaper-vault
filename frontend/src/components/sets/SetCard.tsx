@@ -6,11 +6,12 @@
 import { useState, useEffect } from 'react';
 import { Card, Image, Group, Stack, Text, Menu, ActionIcon, Badge, rem, Checkbox, Box, Overlay } from '@mantine/core';
 import { IconDotsVertical, IconExternalLink, IconFolder, IconTrash } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 import { getThumbnailUrl, FALLBACK_IMAGE } from '../../utils/fileUtils';
 import { useLongPress } from '../../hooks/useLongPress';
 import type { Set } from '../../api/model';
+import { getLabelFromPath } from '../../utils/navigationUtils';
 
 interface SetCardProps {
     set: Set;
@@ -28,6 +29,7 @@ const DEFAULT_FOCAL_POINT = 50;
 
 export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect, onLongPress }: SetCardProps) {
     const navigate = useNavigate();
+    const location = useLocation();
     const [isHovered, setIsHovered] = useState(false);
     const [imageIndex, setImageIndex] = useState(0);
 
@@ -45,7 +47,12 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
         if (selectionMode && onToggleSelect) {
             onToggleSelect();
         } else {
-            navigate(`/sets/${set.id}`);
+            navigate(`/sets/${set.id}`, {
+                state: {
+                    from: location.pathname,
+                    fromLabel: getLabelFromPath(location.pathname)
+                }
+            });
         }
     };
 
@@ -171,7 +178,12 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
                             <Menu.Label>Actions</Menu.Label>
                             <Menu.Item 
                                 leftSection={<IconExternalLink style={{ width: rem(ICON_SIZE_PX), height: rem(ICON_SIZE_PX) }} />}
-                                onClick={() => navigate(`/sets/${set.id}`)}
+                                onClick={() => navigate(`/sets/${set.id}`, {
+                                    state: {
+                                        from: location.pathname,
+                                        fromLabel: getLabelFromPath(location.pathname)
+                                    }
+                                })}
                             >
                                 View Details
                             </Menu.Item>

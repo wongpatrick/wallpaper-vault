@@ -6,7 +6,7 @@
 import { Title, Text, Container, Table, Group, Loader, Center, Alert, ActionIcon, TextInput, Select, Stack, Button, Modal, Overlay, Box, MultiSelect, SegmentedControl, SimpleGrid } from '@mantine/core';
 import { IconAlertCircle, IconChevronRight, IconSearch, IconFilter, IconGitMerge, IconPlus, IconList, IconLayoutGrid } from '@tabler/icons-react';
 import { useReadCreatorsApiCreatorsGet, useMergeCreatorsApiCreatorsMergePost } from '../../api/generated/creators/creators';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { CREATOR_TYPES } from '../../types/enums';
 import { useState, useMemo } from 'react';
 import { notifications } from '@mantine/notifications';
@@ -23,6 +23,7 @@ const SEARCH_DEBOUNCE_MS = 500;
 
 export default function Creators() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
     const { search, localSearch, setLocalSearch } = useUrlSearch(SEARCH_DEBOUNCE_MS);
     const { page, setPage, totalPages: getTotalPages } = useUrlPagination(PAGE_SIZE);
@@ -125,7 +126,7 @@ export default function Creators() {
     const rows = creators.map((element) => (
         <Table.Tr 
             key={element.id} 
-            onClick={() => navigate(`/creators/${element.id}`)}
+            onClick={() => navigate(`/creators/${element.id}`, { state: { from: location.pathname, fromLabel: 'Creators' } })}
             style={{ cursor: 'pointer' }}
         >
             <Table.Td>

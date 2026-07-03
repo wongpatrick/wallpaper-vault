@@ -4,7 +4,7 @@
  * Description: Displays a single custom collection of wallpapers, allowing drag-and-drop reordering, Up/Down navigation, and image removal.
  */
 import { useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
     Container, Title, Text, Stack, Group, Button, SimpleGrid, Card, Image, ActionIcon, Center, Loader, Alert, Box, Tooltip, Badge
 } from '@mantine/core';
@@ -27,6 +27,7 @@ const OPACITY_DRAG = 0.4;
 export default function PlaylistDetail() {
     const { playlistId } = useParams<{ playlistId: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const numericId = Number(playlistId);
 
     const { data: playlist, isLoading, error, refetch } = useReadPlaylistApiPlaylistsPlaylistIdGet(numericId);
@@ -169,8 +170,18 @@ export default function PlaylistDetail() {
                 <Alert icon={<IconAlertCircle size="1.2rem" />} title="Error!" color="red" mb="md">
                     Could not fetch playlist details.
                 </Alert>
-                <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/playlists')}>
-                    Back to Playlists
+                <Button 
+                    variant="subtle" 
+                    leftSection={<IconArrowLeft size={16} />} 
+                    onClick={() => {
+                        if (location.state?.from) {
+                            navigate(-1);
+                        } else {
+                            navigate('/playlists');
+                        }
+                    }}
+                >
+                    Back to {location.state?.fromLabel || "Playlists"}
                 </Button>
             </Container>
         );
@@ -181,10 +192,16 @@ export default function PlaylistDetail() {
             <Button
                 variant="subtle"
                 leftSection={<IconArrowLeft size={16} />}
-                onClick={() => navigate('/playlists')}
+                onClick={() => {
+                    if (location.state?.from) {
+                        navigate(-1);
+                    } else {
+                        navigate('/playlists');
+                    }
+                }}
                 mb="xl"
             >
-                Back to Playlists
+                Back to {location.state?.fromLabel || "Playlists"}
             </Button>
 
             <Group justify="space-between" align="flex-start" mb="xl">

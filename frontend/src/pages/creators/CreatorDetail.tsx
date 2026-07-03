@@ -3,7 +3,7 @@
  * Module: Creator Detail Page
  * Description: Displays detailed information about a specific creator, including their wallpaper sets, statistics, and provides functionality to edit or delete their profile.
  */
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useSelection } from '../../hooks/useSelection';
 import { 
     Title, Text, Container, SimpleGrid, Group, Badge, Loader, 
@@ -42,6 +42,7 @@ const SQUARE_RATIO_TOLERANCE = 0.05;
 export default function CreatorDetail() {
     const { creatorId } = useParams<{ creatorId: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     
     const queryClient = useQueryClient();
     
@@ -181,8 +182,19 @@ export default function CreatorDetail() {
                 <Alert icon={<IconAlertCircle size="1rem" />} title="Error!" color="red">
                     Could not fetch creator details.
                 </Alert>
-                <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/creators')} mt="md">
-                    Back to Creators
+                <Button 
+                    variant="subtle" 
+                    leftSection={<IconArrowLeft size={16} />} 
+                    onClick={() => {
+                        if (location.state?.from) {
+                            navigate(-1);
+                        } else {
+                            navigate('/creators');
+                        }
+                    }} 
+                    mt="md"
+                >
+                    Back to {location.state?.fromLabel || "Creators"}
                 </Button>
             </Container>
         );
@@ -286,11 +298,17 @@ export default function CreatorDetail() {
             <Button 
                 variant="subtle" 
                 leftSection={<IconArrowLeft size={16} />} 
-                onClick={() => navigate(-1)} 
+                onClick={() => {
+                    if (location.state?.from) {
+                        navigate(-1);
+                    } else {
+                        navigate('/creators');
+                    }
+                }} 
                 mb="lg"
                 color="gray"
             >
-                Back to Artists
+                Back to {location.state?.fromLabel || "Artists"}
             </Button>
 
             {/* Profile Header */}

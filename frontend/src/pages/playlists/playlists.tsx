@@ -4,7 +4,7 @@
  * Description: Lists all custom collections/playlists and provides CRUD operations for them.
  */
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Container, Title, Text, Stack, Group, Button, SimpleGrid, Card, Badge, ActionIcon, Modal, TextInput, Textarea, Center, Loader, Alert
 } from '@mantine/core';
@@ -25,6 +25,7 @@ const COLUMNS_RESPONSIVE = { base: 1, sm: 2, md: 3, lg: 4 };
 
 export default function Playlists() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { data: playlists = [], isLoading, error, refetch } = useReadPlaylistsApiPlaylistsGet();
     const createMutation = useCreatePlaylistEndpointApiPlaylistsPost();
     const updateMutation = useUpdatePlaylistEndpointApiPlaylistsPlaylistIdPut();
@@ -191,7 +192,7 @@ export default function Playlists() {
                                 transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                                 cursor: 'pointer'
                             }}
-                            onClick={() => navigate(`/playlists/${playlist.id}`)}
+                            onClick={() => navigate(`/playlists/${playlist.id}`, { state: { from: location.pathname, fromLabel: 'Playlists' } })}
                             className="playlist-card"
                         >
                             <Stack justify="space-between" style={{ flex: 1 }} gap="md">
@@ -237,7 +238,7 @@ export default function Playlists() {
                                             variant="light"
                                             color="blue"
                                             radius="md"
-                                            onClick={() => navigate(`/playlists/${playlist.id}`)}
+                                            onClick={() => navigate(`/playlists/${playlist.id}`, { state: { from: location.pathname, fromLabel: 'Playlists' } })}
                                             aria-label="View playlist details"
                                         >
                                             <IconListDetails size={16} />

@@ -4,7 +4,7 @@
  * Description: Displays detailed information and a gallery view for a specific wallpaper set, supporting selection, bulk editing, and syncing.
  */
 import { useState, useMemo, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useSelection } from '../../hooks/useSelection';
 import { 
     Title, Text, Container, Group, Badge, Loader, 
@@ -44,6 +44,7 @@ import type { Image as ImageModel, BulkOperationMode, SetUpdate, Set as SetModel
 export default function SetDetail() {
     const { setId } = useParams<{ setId: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
 
     
     // 1. All hooks at the top
@@ -178,8 +179,19 @@ export default function SetDetail() {
                 <Alert icon={<IconAlertCircle size="1rem" />} title="Error!" color="red">
                     Could not fetch the set details.
                 </Alert>
-                <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/sets')} mt="md">
-                    Back to Sets
+                <Button 
+                    variant="subtle" 
+                    leftSection={<IconArrowLeft size={16} />} 
+                    onClick={() => {
+                        if (location.state?.from) {
+                            navigate(-1);
+                        } else {
+                            navigate('/sets');
+                        }
+                    }} 
+                    mt="md"
+                >
+                    Back to {location.state?.fromLabel || "Sets"}
                 </Button>
             </Container>
         );
@@ -359,10 +371,16 @@ export default function SetDetail() {
                 <Button 
                     variant="subtle" 
                     leftSection={<IconArrowLeft size={16} />} 
-                    onClick={() => navigate(-1)} 
+                    onClick={() => {
+                        if (location.state?.from) {
+                            navigate(-1);
+                        } else {
+                            navigate('/sets');
+                        }
+                    }} 
                     color="gray"
                 >
-                    Back to Library
+                    Back to {location.state?.fromLabel || "Library"}
                 </Button>
 
                 <Group gap="xs">
@@ -466,7 +484,12 @@ export default function SetDetail() {
                                 variant="light" 
                                 color="indigo" 
                                 style={{ cursor: 'pointer', textTransform: 'none' }}
-                                onClick={() => navigate(`/creators/${c.id}`)}
+                                onClick={() => navigate(`/creators/${c.id}`, {
+                                    state: {
+                                        from: location.pathname,
+                                        fromLabel: 'Sets'
+                                    }
+                                })}
                             >
                                 {c.canonical_name}
                             </Badge>
