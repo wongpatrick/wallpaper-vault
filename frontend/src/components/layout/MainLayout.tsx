@@ -7,6 +7,7 @@ import { Outlet, useLocation, useParams } from "react-router-dom"
 import { AppShell, Title, Box, Button, Group, ActionIcon, Tooltip, Popover, Indicator, Stack, Text, Divider, ScrollArea, ThemeIcon, Burger } from "@mantine/core"
 import SideNav from "./SideNav"
 import TitleBarControls from "./TitleBarControls"
+import GlobalSearch from "./GlobalSearch"
 import classes from './Layout.module.css';
 import { useSidebarResizer } from "../../hooks/useSidebarResizer";
 import { IconPackage, IconBell, IconCheck, IconX, IconCloudUpload } from "@tabler/icons-react";
@@ -311,8 +312,9 @@ export default function MainLayout() {
         >
             <AppShell.Header px="md" className={classes.header}>
                 <Group h="100%" justify="space-between" wrap="nowrap">
-                    <Group style={{ flex: 1, maxWidth: 500 }} className={classes.noDrag}>
+                    <Group style={{ flex: 1, maxWidth: 500 }} className={classes.noDrag} wrap="nowrap" gap="sm">
                         <Burger opened={mobileOpened} onClick={toggleMobile} hiddenFrom="sm" size="sm" />
+                        <GlobalSearch />
                     </Group>
 
                     <Group gap="sm" className={classes.noDrag} wrap="nowrap">
