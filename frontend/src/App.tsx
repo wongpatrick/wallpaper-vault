@@ -49,6 +49,23 @@ const theme = createTheme({
            },
          },
        },
+       AppShell: {
+         styles: {
+           header: {
+             backgroundColor: 'light-dark(var(--mantine-color-white), var(--mantine-color-dark-7))',
+             borderBottom: '1px solid light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-3))',
+           },
+           navbar: {
+             backgroundColor: 'light-dark(var(--mantine-color-white), var(--mantine-color-dark-7))',
+             borderRight: '1px solid light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-3))',
+             transition: 'width 0.2s ease',
+           },
+           main: {
+             backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))',
+             minHeight: '100vh',
+           },
+         },
+       },
      },
 });
 

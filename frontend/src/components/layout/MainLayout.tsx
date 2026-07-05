@@ -312,9 +312,11 @@ export default function MainLayout() {
         >
             <AppShell.Header px="md" className={classes.header}>
                 <Group h="100%" justify="space-between" wrap="nowrap">
-                    <Group style={{ flex: 1, maxWidth: 500 }} className={classes.noDrag} wrap="nowrap" gap="sm">
-                        <Burger opened={mobileOpened} onClick={toggleMobile} hiddenFrom="sm" size="sm" />
-                        <GlobalSearch />
+                    <Group style={{ flex: 1, maxWidth: 500 }} wrap="nowrap" gap="sm">
+                        <Burger opened={mobileOpened} onClick={toggleMobile} hiddenFrom="sm" size="sm" className={classes.noDrag} />
+                        <Box className={classes.noDrag} style={{ flex: 1, maxWidth: 320 }}>
+                            <GlobalSearch />
+                        </Box>
                     </Group>
 
                     <Group gap="sm" className={classes.noDrag} wrap="nowrap">
@@ -390,7 +392,7 @@ export default function MainLayout() {
                 </Group>
             </AppShell.Header>
 
-            <AppShell.Navbar p="md" className={`${classes.navbar} ${isResizing ? classes.navbarResizing : ''}`}>
+            <AppShell.Navbar p="md" className={isResizing ? classes.navbarResizing : ''} style={{ transition: isResizing ? 'none' : undefined }}>
                 <Box 
                     style={{ 
                         display: 'flex', 
@@ -419,7 +421,7 @@ export default function MainLayout() {
                 />
             </AppShell.Navbar>
 
-            <AppShell.Main className={classes.main}>
+            <AppShell.Main>
                 <Outlet />
                 <ActionLoadingOverlay 
                     visible={!!activeAutoTagTask} 

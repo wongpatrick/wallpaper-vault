@@ -1,15 +1,5 @@
 .header {
-  background-color: light-dark(var(--mantine-color-white), var(--mantine-color-dark-7));
-  border-bottom: 1px solid light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-3));
   -webkit-app-region: drag;
-}
-
-.navbar {
-  background-color: light-dark(var(--mantine-color-white), var(--mantine-color-dark-7));
-  border-right: 1px solid light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-3));
-  display: flex;
-  flex-direction: column;
-  transition: width 0.2s ease;
 }
 
 .navbarResizing {
@@ -53,10 +43,6 @@
   padding: 0;
 }
 
-.main {
-  background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8));
-  min-height: 100vh;
-}
 
 .notificationItem {
   transition: background-color 0.2s ease;
