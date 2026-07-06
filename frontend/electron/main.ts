@@ -680,6 +680,10 @@ function createWindow() {
         return await getOrderedDisplays();
     });
 
+    ipcMain.handle('get-system-wallpapers', async () => {
+        return await getSystemWallpapers();
+    });
+
     if (process.env.VITE_DEV_SERVER_URL) {
         mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
         
@@ -756,6 +760,7 @@ interface MonitorRotationConfig {
     playlistId: string;
     favoriteProbability: number;
     enabled: boolean;
+    style: 'fill' | 'fit' | 'stretch' | 'tile' | 'center' | 'span';
 }
 
 let globalRotationConfig = {
@@ -763,7 +768,8 @@ let globalRotationConfig = {
     interval: 15,
     source: 'entire_library',
     playlistId: '',
-    favoriteProbability: 0.4
+    favoriteProbability: 0.4,
+    style: 'fill' as 'fill' | 'fit' | 'stretch' | 'tile' | 'center' | 'span'
 };
 
 const monitorConfigs: Map<number, MonitorRotationConfig> = new Map();
@@ -772,10 +778,9 @@ let cachedOrderedDisplays: any[] | null = null;
 
 function runPsScript(scriptLines: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
-        const tempPath = path.join(app.getPath('temp'), `wv-${Date.now()}.ps1`);
-        fs.writeFileSync(tempPath, scriptLines.join('\r\n'), 'utf8');
-        exec(`Powershell.exe -ExecutionPolicy Bypass -File "${tempPath}"`, (err, stdout) => {
-            fs.unlink(tempPath, () => {});
+        const scriptText = scriptLines.join('\r\n');
+        const encoded = Buffer.from(scriptText, 'utf16le').toString('base64');
+        exec(`Powershell.exe -NoProfile -NonInteractive -EncodedCommand ${encoded}`, (err, stdout) => {
             if (err) reject(err);
             else resolve(stdout.trim());
         });
@@ -784,99 +789,16 @@ function runPsScript(scriptLines: string[]): Promise<string> {
 
 // Script 1: Get actual Windows display numbers via EnumDisplayDevices
 const winDisplayScript = [
-    '$code = @\'',
-    'using System;',
-    'using System.Collections.Generic;',
-    'using System.Runtime.InteropServices;',
-    'using System.Text.RegularExpressions;',
-    '',
-    '[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]',
-    'public struct DISPLAY_DEVICE {',
-    '    public int cb;',
-    '    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]',
-    '    public string DeviceName;',
-    '    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]',
-    '    public string DeviceString;',
-    '    public int StateFlags;',
-    '    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]',
-    '    public string DeviceID;',
-    '    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]',
-    '    public string DeviceKey;',
-    '}',
-    '',
-    '[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]',
-    'public struct DEVMODE {',
-    '    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]',
-    '    public string dmDeviceName;',
-    '    public short dmSpecVersion;',
-    '    public short dmDriverVersion;',
-    '    public short dmSize;',
-    '    public short dmDriverExtra;',
-    '    public int dmFields;',
-    '    public int dmPositionX;',
-    '    public int dmPositionY;',
-    '    public int dmDisplayOrientation;',
-    '    public int dmDisplayFixedOutput;',
-    '    public short dmColor;',
-    '    public short dmDuplex;',
-    '    public short dmYResolution;',
-    '    public short dmTTOption;',
-    '    public short dmCollate;',
-    '    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]',
-    '    public string dmFormName;',
-    '    public short dmLogPixels;',
-    '    public int dmBitsPerPel;',
-    '    public int dmPelsWidth;',
-    '    public int dmPelsHeight;',
-    '    public int dmDisplayFlags;',
-    '    public int dmDisplayFrequency;',
-    '    public int dmICMMethod;',
-    '    public int dmICMIntent;',
-    '    public int dmMediaType;',
-    '    public int dmDitherType;',
-    '    public int dmReserved1;',
-    '    public int dmReserved2;',
-    '    public int dmPanningWidth;',
-    '    public int dmPanningHeight;',
-    '}',
-    '',
-    'public class WinDisplayHelper {',
-    '    [DllImport("user32.dll", CharSet = CharSet.Unicode)]',
-    '    static extern bool EnumDisplayDevices(string lpDevice, uint iDevNum, ref DISPLAY_DEVICE lpDisplayDevice, uint dwFlags);',
-    '    [DllImport("user32.dll", CharSet = CharSet.Unicode)]',
-    '    static extern bool EnumDisplaySettingsEx(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode, uint dwFlags);',
-    '    const int ENUM_CURRENT_SETTINGS = -1;',
-    '    const int DISPLAY_DEVICE_ACTIVE = 0x1;',
-    '    public static string GetLayout() {',
-    '        var results = new List<string>();',
-    '        uint devIdx = 0;',
-    '        DISPLAY_DEVICE dd = new DISPLAY_DEVICE();',
-    '        dd.cb = Marshal.SizeOf(dd);',
-    '        while (EnumDisplayDevices(null, devIdx, ref dd, 0)) {',
-    '            if ((dd.StateFlags & DISPLAY_DEVICE_ACTIVE) != 0) {',
-    '                DEVMODE dm = new DEVMODE();',
-    '                dm.dmSize = (short)Marshal.SizeOf(dm);',
-    '                EnumDisplaySettingsEx(dd.DeviceName, ENUM_CURRENT_SETTINGS, ref dm, 0);',
-    '                string numStr = Regex.Replace(dd.DeviceName, @"[^0-9]", "");',
-    '                int winNum = 0;',
-    '                int.TryParse(numStr, out winNum);',
-    '                results.Add("{" +',
-    '                    "\\"winNum\\":" + winNum +',
-    '                    ",\\"x\\":" + dm.dmPositionX +',
-    '                    ",\\"y\\":" + dm.dmPositionY +',
-    '                    ",\\"w\\":" + dm.dmPelsWidth +',
-    '                    ",\\"h\\":" + dm.dmPelsHeight + "}");',
-    '            }',
-    '            devIdx++;',
-    '            dd.cb = Marshal.SizeOf(dd);',
-    '        }',
-    '        return "[" + string.Join(",", results) + "]";',
-    '    }',
-    '}',
-    '\'@',
-    'try { Add-Type -TypeDefinition $code -ErrorAction Stop } catch {}',
-    '[WinDisplayHelper]::GetLayout()',
+    "Add-Type -AssemblyName System.Windows.Forms",
+    "$results = @()",
+    "[System.Windows.Forms.Screen]::AllScreens | ForEach-Object {",
+    "    $winNum = [regex]::Match($_.DeviceName, '\\d+').Value",
+    "    if (!$winNum) { $winNum = 1 }",
+    "    $results += '{\"winNum\":' + $winNum + ',\"x\":' + $_.Bounds.X + ',\"y\":' + $_.Bounds.Y + ',\"w\":' + $_.Bounds.Width + ',\"h\":' + $_.Bounds.Height + '}'",
+    "}",
+    "'[' + ($results -join ',') + ']'"
 ];
+
 
 // Script 2: Get COM monitor indices and their physical coordinates
 const comDisplayScript = [
@@ -891,11 +813,11 @@ const comDisplayScript = [
     '[ComImport, Guid("B92B56A9-8B55-4E14-9A89-0199BBB6F93B"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]',
     '[CoClass(typeof(DesktopWallpaperClass))]',
     'public interface IDesktopWallpaper {',
-    '    void SetWallpaper(string monitorID, string wallpaper);',
-    '    void GetWallpaper(string monitorID, out string wallpaper);',
-    '    void GetMonitorDevicePathAt(uint monitorIndex, out string monitorID);',
+    '    void SetWallpaper([MarshalAs(UnmanagedType.LPWStr)] string monitorID, [MarshalAs(UnmanagedType.LPWStr)] string wallpaper);',
+    '    void GetWallpaper([MarshalAs(UnmanagedType.LPWStr)] string monitorID, [MarshalAs(UnmanagedType.LPWStr)] out string wallpaper);',
+    '    void GetMonitorDevicePathAt(uint monitorIndex, [MarshalAs(UnmanagedType.LPWStr)] out string monitorID);',
     '    void GetMonitorDevicePathCount(out uint count);',
-    '    void GetMonitorRECT(string monitorID, out RECT displayRect);',
+    '    void GetMonitorRECT([MarshalAs(UnmanagedType.LPWStr)] string monitorID, out RECT displayRect);',
     '}',
     'public class ComDisplayHelper {',
     '    public static string GetLayout() {',
@@ -951,20 +873,24 @@ async function getOrderedDisplays(): Promise<any[]> {
         logBothToCombined('[Rotation Coordinator] COM displays: ' + JSON.stringify(comDisplays));
 
         // Match each Windows display to a COM display by physical coordinates (both use physical pixels)
+        // Sort both arrays by coordinates (X first, then Y) to align them independent of DPI scale
+        const sortFn = (a: any, b: any) => {
+            if (Math.abs(a.x - b.x) > 50) return a.x - b.x;
+            return a.y - b.y;
+        };
+        const sortedWin = [...winDisplays].sort(sortFn);
+        const sortedCom = [...comDisplays].sort(sortFn);
+
         const winToComMap: Array<{ winNum: number; comIndex: number; x: number; y: number; w: number; h: number }> = [];
-        for (const winDisp of winDisplays) {
-            let bestCom: any = null;
-            let minDist = Infinity;
-            for (const comDisp of comDisplays) {
-                const dist = Math.abs(winDisp.x - comDisp.x) + Math.abs(winDisp.y - comDisp.y);
-                if (dist < minDist) { minDist = dist; bestCom = comDisp; }
-            }
-            if (bestCom && minDist < 100) {
-                winToComMap.push({
-                    winNum: winDisp.winNum, comIndex: bestCom.comIndex,
-                    x: winDisp.x, y: winDisp.y, w: winDisp.w, h: winDisp.h
-                });
-            }
+        for (let i = 0; i < sortedWin.length && i < sortedCom.length; i++) {
+            winToComMap.push({
+                winNum: sortedWin[i].winNum,
+                comIndex: sortedCom[i].comIndex,
+                x: sortedWin[i].x,
+                y: sortedWin[i].y,
+                w: sortedWin[i].w,
+                h: sortedWin[i].h
+            });
         }
 
         logBothToCombined('[Rotation Coordinator] Win-to-COM mapping: ' + JSON.stringify(winToComMap));
@@ -1018,7 +944,7 @@ async function getOrderedDisplays(): Promise<any[]> {
 async function fetchRotationSettings(port: number): Promise<boolean> {
     const displays = await getOrderedDisplays();
     return new Promise((resolve) => {
-        const url = `http://127.0.0.1:${port}/api/settings`;
+        const url = `http://127.0.0.1:${port}/api/settings/`;
         http.get(url, (res) => {
             let data = '';
             res.on('data', (chunk) => { data += chunk; });
@@ -1037,7 +963,8 @@ async function fetchRotationSettings(port: number): Promise<boolean> {
                             interval: parseInt(String(getVal('wallpaper_rotation_interval', '15')), 10) || 15,
                             source: String(getVal('wallpaper_rotation_source', 'entire_library')) as any,
                             playlistId: String(getVal('wallpaper_rotation_playlist_id', '')),
-                            favoriteProbability: parseFloat(String(getVal('favorite_rotation_probability', '0.4'))) || 0.4
+                            favoriteProbability: parseFloat(String(getVal('favorite_rotation_probability', '0.4'))) || 0.4,
+                            style: String(getVal('wallpaper_rotation_style', 'fill')) as any
                         };
 
 
@@ -1055,7 +982,8 @@ async function fetchRotationSettings(port: number): Promise<boolean> {
                                 interval: overrideEnabled ? (parseInt(String(getVal(`monitor_${index}_wallpaper_rotation_interval`, String(globalRotationConfig.interval))), 10) || 15) : globalRotationConfig.interval,
                                 source: (overrideEnabled ? String(getVal(`monitor_${index}_wallpaper_rotation_source`, globalRotationConfig.source)) : globalRotationConfig.source) as any,
                                 playlistId: overrideEnabled ? String(getVal(`monitor_${index}_wallpaper_rotation_playlist_id`, globalRotationConfig.playlistId)) : globalRotationConfig.playlistId,
-                                favoriteProbability: overrideEnabled ? (parseFloat(String(getVal(`monitor_${index}_favorite_rotation_probability`, String(globalRotationConfig.favoriteProbability)))) || 0.4) : globalRotationConfig.favoriteProbability
+                                favoriteProbability: overrideEnabled ? (parseFloat(String(getVal(`monitor_${index}_favorite_rotation_probability`, String(globalRotationConfig.favoriteProbability)))) || 0.4) : globalRotationConfig.favoriteProbability,
+                                style: (overrideEnabled ? String(getVal(`monitor_${index}_wallpaper_rotation_style`, globalRotationConfig.style)) : globalRotationConfig.style) as any
                             });
                         });
                         resolve(true);
@@ -1203,8 +1131,8 @@ async function triggerNativeRotation(port: number, monitorIndex: number) {
     }
 
     const url = `http://127.0.0.1:${port}${randomUrl}?${params.toString()}`;
-    http.get(url, () => {
-        // Backend handles DB logging and broadcasting
+    http.get(url, (res) => {
+        res.resume(); // Consume response data to free up socket pool
     }).on('error', (err) => {
         console.error('[Rotation Coordinator] Failed to trigger rotation:', err);
     });
@@ -1279,21 +1207,36 @@ function handleRotationEvent(port: number, image: any, targetMonitor: string) {
         }
     }
 }
-
 function applyNativeWallpaper(port: number, image: any, monitorIndex: number) {
     const tempDir = app.getPath('temp');
-    const filename = `wallpaper-vault-active-monitor-${monitorIndex === -1 ? 'all' : monitorIndex}.jpg`;
+    const filename = `wallpaper-vault-active-monitor-${monitorIndex === -1 ? 'all' : monitorIndex}-id-${image.id}.jpg`;
     const tempPath = path.join(tempDir, filename);
+
+    // Clean up older wallpaper-vault-active-monitor-X-id-*.jpg files in temp
+    try {
+        const files = fs.readdirSync(tempDir);
+        const prefix = `wallpaper-vault-active-monitor-${monitorIndex === -1 ? 'all' : monitorIndex}-id-`;
+        files.forEach((file) => {
+            if (file.startsWith(prefix) && !file.endsWith(`-id-${image.id}.jpg`)) {
+                fs.unlinkSync(path.join(tempDir, file));
+            }
+        });
+    } catch (err) {
+        console.warn('[Rotation Coordinator] Failed to clean up old temp files:', err);
+    }
 
     const fileUrl = `http://127.0.0.1:${port}/api/images/file/${image.id}`;
     console.log(`[Rotation Coordinator] Downloading active image for Monitor ${monitorIndex === -1 ? 'Global' : monitorIndex + 1} to ${tempPath}`);
+
+    const config = monitorIndex === -1 ? globalRotationConfig : (monitorConfigs.get(monitorIndex) || globalRotationConfig);
+    const style = config.style || 'fill';
 
     const fileStream = fs.createWriteStream(tempPath);
     http.get(fileUrl, (res) => {
         res.pipe(fileStream);
         fileStream.on('finish', () => {
             fileStream.close();
-            setWallpaperNatively(tempPath, monitorIndex);
+            setWallpaperNatively(tempPath, monitorIndex, style);
         });
     }).on('error', (err) => {
         console.error('[Rotation Coordinator] File download error:', err);
@@ -1301,23 +1244,93 @@ function applyNativeWallpaper(port: number, image: any, monitorIndex: number) {
     });
 }
 
-function setWallpaperNatively(imagePath: string, monitorIndex: number) {
-    const absolutePath = path.resolve(imagePath);
-    let powershellCmd = '';
+function getStyleInt(style: string): number {
+    switch (style) {
+        case 'center': return 0;
+        case 'tile': return 1;
+        case 'stretch': return 2;
+        case 'fit': return 3;
+        case 'fill': return 4;
+        case 'span': return 5;
+        default: return 4;
+    }
+}
 
-    if (monitorIndex === -1) {
-        powershellCmd = `Powershell.exe -Command "Add-Type -TypeDefinition \\"using System; using System.Runtime.InteropServices; public class Wallpaper { [DllImport(\\\\"user32.dll\\\\", CharSet = CharSet.Auto)] public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni); }\\"; [Wallpaper]::SystemParametersInfo(20, 0, \\"${absolutePath}\\", 3)"`;
-    } else {
-        powershellCmd = `Powershell.exe -Command "
+function setWallpaperNatively(imagePath: string, monitorIndex: number, style: string) {
+    const absolutePath = path.resolve(imagePath);
+    const styleInt = getStyleInt(style);
+
+    const script = `
 $code = @'
 using System;
 using System.Runtime.InteropServices;
 
-[ComImport, Guid(\\\"C2CF3110-460E-4fc1-B9D0-8A1C0C9CC4BD\\\")]
+[StructLayout(LayoutKind.Sequential)]
+public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+
+[ComImport, Guid("C2CF3110-460E-4fc1-B9D0-8A1C0C9CC4BD")]
 public class DesktopWallpaperClass {}
 
-[ComImport, Guid(\\\"B92B56A9-8B55-4E14-9A89-0199BBB6F93B\\\"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+[ComImport, Guid("B92B56A9-8B55-4E14-9A89-0199BBB6F93B"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 [CoClass(typeof(DesktopWallpaperClass))]
+public interface IDesktopWallpaper {
+    void SetWallpaper([MarshalAs(UnmanagedType.LPWStr)] string monitorID, [MarshalAs(UnmanagedType.LPWStr)] string wallpaper);
+    void GetWallpaper([MarshalAs(UnmanagedType.LPWStr)] string monitorID, [MarshalAs(UnmanagedType.LPWStr)] out string wallpaper);
+    void GetMonitorDevicePathAt(uint monitorIndex, [MarshalAs(UnmanagedType.LPWStr)] out string monitorID);
+    void GetMonitorDevicePathCount(out uint count);
+    void GetMonitorRECT([MarshalAs(UnmanagedType.LPWStr)] string monitorID, out RECT displayRect);
+    void SetBackgroundColor(uint color);
+    void GetBackgroundColor(out uint color);
+    void SetPosition(int position);
+}
+
+public class WallpaperHelper {
+    public static void SetMonitorWallpaper(int monitorIndex, string path, int position) {
+        IDesktopWallpaper wallpaper = (IDesktopWallpaper)new DesktopWallpaperClass();
+        wallpaper.SetPosition(position);
+        if (monitorIndex == -1) {
+            wallpaper.SetWallpaper(null, path);
+        } else {
+            uint count = 0;
+            wallpaper.GetMonitorDevicePathCount(out count);
+            if ((uint)monitorIndex < count) {
+                string monitorID;
+                wallpaper.GetMonitorDevicePathAt((uint)monitorIndex, out monitorID);
+                wallpaper.SetWallpaper(monitorID, path);
+            }
+        }
+    }
+}
+'@
+Add-Type -TypeDefinition $code -ErrorAction SilentlyContinue
+[WallpaperHelper]::SetMonitorWallpaper(${monitorIndex}, "${absolutePath}", ${styleInt})
+`;
+
+    const encoded = Buffer.from(script, 'utf16le').toString('base64');
+    const powershellCmd = `Powershell.exe -NoProfile -NonInteractive -EncodedCommand ${encoded}`;
+
+    console.log(`[Rotation Coordinator] Executing PowerShell background updater for Monitor ${monitorIndex === -1 ? 'Global' : monitorIndex + 1} with Style ${style}...`);
+    exec(powershellCmd, (err) => {
+        if (err) {
+            console.error('[Rotation Coordinator] PowerShell wallpaper update failed:', err);
+        } else {
+            console.log('[Rotation Coordinator] Natively set wallpaper succeeded.');
+        }
+    });
+}
+
+function getSystemWallpapers(): Promise<Array<{ comIndex: number; wallpaper: string }>> {
+    return new Promise((resolve) => {
+        const script = `
+$code = @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+
+[ComImport, Guid("C2CF3110-460E-4fc1-B9D0-8A1C0C9CC4BD")]
+public class DesktopWallpaperClass {}
+
+[ComImport, Guid("B92B56A9-8B55-4E14-9A89-0199BBB6F93B"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 public interface IDesktopWallpaper {
     void SetWallpaper([MarshalAs(UnmanagedType.LPWStr)] string monitorID, [MarshalAs(UnmanagedType.LPWStr)] string wallpaper);
     void GetWallpaper([MarshalAs(UnmanagedType.LPWStr)] string monitorID, [MarshalAs(UnmanagedType.LPWStr)] out string wallpaper);
@@ -1325,30 +1338,50 @@ public interface IDesktopWallpaper {
     void GetMonitorDevicePathCount(out uint count);
 }
 
-public class WallpaperHelper {
-    public static void SetMonitorWallpaper(uint monitorIndex, string path) {
-        IDesktopWallpaper wallpaper = (IDesktopWallpaper)new DesktopWallpaperClass();
-        uint count = 0;
-        wallpaper.GetMonitorDevicePathCount(out count);
-        if (monitorIndex < count) {
-            string monitorID;
-            wallpaper.GetMonitorDevicePathAt(monitorIndex, out monitorID);
-            wallpaper.SetWallpaper(monitorID, path);
+public class WallpaperReader {
+    public static string GetPaths() {
+        try {
+            IDesktopWallpaper w = (IDesktopWallpaper)new DesktopWallpaperClass();
+            uint count = 0;
+            w.GetMonitorDevicePathCount(out count);
+            var results = new List<string>();
+            for (uint i = 0; i < count; i++) {
+                try {
+                    string id;
+                    w.GetMonitorDevicePathAt(i, out id);
+                    string path;
+                    w.GetWallpaper(id, out path);
+                    results.Add("{\\"comIndex\\":" + i + ",\\"wallpaper\\":\\"" + path.Replace("\\\\", "\\\\\\\\").Replace("\\"", "\\\\\\\"") + "\\"}");
+                } catch {}
+            }
+            return "[" + string.Join(",", results) + "]";
+        } catch {
+            return "[]";
         }
     }
 }
 '@
-Add-Type -TypeDefinition $code
-[WallpaperHelper]::SetMonitorWallpaper(${monitorIndex}, \\"${absolutePath}\\")
-"`;
-    }
+Add-Type -TypeDefinition $code -ErrorAction SilentlyContinue
+[WallpaperReader]::GetPaths()
+`;
 
-    console.log(`[Rotation Coordinator] Executing PowerShell background updater for Monitor ${monitorIndex === -1 ? 'Global' : monitorIndex + 1}...`);
-    exec(powershellCmd, (err) => {
-        if (err) {
-            console.error('[Rotation Coordinator] PowerShell wallpaper update failed:', err);
-        } else {
-            console.log('[Rotation Coordinator] Natively set wallpaper succeeded.');
-        }
+        const encoded = Buffer.from(script, 'utf16le').toString('base64');
+        const powershellCmd = `Powershell.exe -NoProfile -NonInteractive -EncodedCommand ${encoded}`;
+
+        exec(powershellCmd, (err, stdout) => {
+            if (err) {
+                console.error('[Rotation Coordinator] Failed to get system wallpapers:', err);
+                resolve([]);
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(stdout.trim());
+                resolve(parsed);
+            } catch (parseErr) {
+                console.error('[Rotation Coordinator] Failed to parse system wallpapers output:', parseErr, stdout);
+                resolve([]);
+            }
+        });
     });
 }

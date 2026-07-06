@@ -38,6 +38,7 @@ export interface ElectronAPI {
         label: string;
         bounds: { width: number; height: number; x: number; y: number; };
     }>>;
+    getSystemWallpapers: () => Promise<Array<{ comIndex: number; wallpaper: string }>>;
 }
 
 declare global {

@@ -189,6 +189,7 @@ async def read_random_image_file_path_tags(
     ratio: str,
     tags: str,
     log_rotation: bool = Query(True),
+    target_monitor: Optional[str] = Query("all"),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
     """
@@ -205,7 +206,7 @@ async def read_random_image_file_path_tags(
     
     if log_rotation:
         from app.core.rotation import log_rotation
-        await log_rotation(db, image_id=db_image.id, aspect_ratio=db_image.aspect_ratio_label)
+        await log_rotation(db, image_id=db_image.id, aspect_ratio=db_image.aspect_ratio_label, target_monitor=target_monitor)
     
     file_path = Path(db_image.local_path)
     if not file_path.exists():
@@ -221,6 +222,7 @@ async def read_random_image_file_path_tags(
 async def read_random_image_file_path(
     ratio: str,
     log_rotation: bool = Query(True),
+    target_monitor: Optional[str] = Query("all"),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
     """
@@ -235,7 +237,7 @@ async def read_random_image_file_path(
     
     if log_rotation:
         from app.core.rotation import log_rotation
-        await log_rotation(db, image_id=db_image.id, aspect_ratio=db_image.aspect_ratio_label)
+        await log_rotation(db, image_id=db_image.id, aspect_ratio=db_image.aspect_ratio_label, target_monitor=target_monitor)
     
     file_path = Path(db_image.local_path)
     if not file_path.exists():

@@ -5,7 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetParams = {
+export type ReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGetParams = {
 log_rotation?: boolean;
 target_monitor?: string | null;
 };

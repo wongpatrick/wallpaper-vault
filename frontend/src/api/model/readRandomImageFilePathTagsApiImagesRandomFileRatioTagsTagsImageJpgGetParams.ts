@@ -7,4 +7,5 @@
 
 export type ReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGetParams = {
 log_rotation?: boolean;
+target_monitor?: string | null;
 };

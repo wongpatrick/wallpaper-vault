@@ -26,6 +26,7 @@ import type {
 import type {
   HTTPValidationError,
   ImageDetail,
+  ReadCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet200,
   TriggerSkipApiRotationHistorySkipPost200,
   TriggerSkipApiRotationHistorySkipPostParams
 } from '../../model';
@@ -213,6 +214,99 @@ export function useReadWallpaperHistoryApiRotationHistoryHistoryGet<TData = Awai
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getReadWallpaperHistoryApiRotationHistoryHistoryGetQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * Fetch the currently active wallpapers for all monitors and global.
+ * @summary Read Current Monitors Wallpapers
+ */
+export const readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet = (
+    
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<ReadCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet200>(
+      {url: `/api/rotation-history/current-monitors`, method: 'GET', signal
+    },
+      options);
+    }
+  
+
+
+
+export const getReadCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGetQueryKey = () => {
+    return [
+    `/api/rotation-history/current-monitors`
+    ] as const;
+    }
+
+    
+export const getReadCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGetQueryOptions = <TData = Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReadCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGetQueryKey();
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>> = ({ signal }) => readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet(requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ReadCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGetQueryResult = NonNullable<Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>>
+export type ReadCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGetQueryError = ErrorType<unknown>
+
+
+export function useReadCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet<TData = Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>,
+          TError,
+          Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet<TData = Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>,
+          TError,
+          Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet<TData = Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Read Current Monitors Wallpapers
+ */
+
+export function useReadCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet<TData = Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getReadCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGetQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

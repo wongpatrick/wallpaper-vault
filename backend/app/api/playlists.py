@@ -235,6 +235,8 @@ async def read_playlist_random_image_file(
 async def read_playlist_random_image_file_path(
     playlist_id: int,
     ratio: str,
+    log_rotation: bool = Query(True),
+    target_monitor: Optional[str] = Query("all"),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
     """Get a random image file from a playlist based on ratio in the path (DisplayFusion compatible)."""
@@ -249,6 +251,10 @@ async def read_playlist_random_image_file_path(
     )
     if db_image is None:
         raise HTTPException(status_code=404, detail="No images found matching criteria in this playlist")
+        
+    if log_rotation:
+        from app.core.rotation import log_rotation
+        await log_rotation(db, image_id=db_image.id, aspect_ratio=db_image.aspect_ratio_label, target_monitor=target_monitor)
         
     file_path = Path(db_image.local_path)
     if not file_path.exists():
@@ -265,6 +271,8 @@ async def read_playlist_random_image_file_path_tags(
     playlist_id: int,
     ratio: str,
     tags: str,
+    log_rotation: bool = Query(True),
+    target_monitor: Optional[str] = Query("all"),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
     """Get a random image file from a playlist based on ratio and tags in the path (DisplayFusion compatible)."""
@@ -281,6 +289,10 @@ async def read_playlist_random_image_file_path_tags(
     )
     if db_image is None:
         raise HTTPException(status_code=404, detail="No images found matching criteria in this playlist")
+        
+    if log_rotation:
+        from app.core.rotation import log_rotation
+        await log_rotation(db, image_id=db_image.id, aspect_ratio=db_image.aspect_ratio_label, target_monitor=target_monitor)
         
     file_path = Path(db_image.local_path)
     if not file_path.exists():

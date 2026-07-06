@@ -61,6 +61,48 @@ async def read_wallpaper_history(db: AsyncSession = Depends(get_db)) -> List[Ima
             
     return images
 
+@router.get("/current-monitors", response_model=dict[str, ImageDetail])
+async def read_current_monitors_wallpapers(db: AsyncSession = Depends(get_db)) -> dict[str, ImageDetail]:
+    """Fetch the currently active wallpapers for all monitors and global."""
+    from app.models.settings import Setting
+    from app.crud.image import get_image
+    
+    # Query all active image settings
+    result = await db.execute(
+        select(Setting).where(
+            Setting.key.like("monitor_%_active_image_id") | (Setting.key == "wallpaper_active_image_id")
+        )
+    )
+    settings = result.scalars().all()
+    
+    response = {}
+    for setting in settings:
+        image_id_str = setting.value
+        try:
+            image_id = int(image_id_str)
+        except ValueError:
+            continue
+            
+        img = await get_image(db, image_id)
+        if img:
+            key = "global" if setting.key == "wallpaper_active_image_id" else setting.key.split("_")[1]
+            response[key] = map_image_to_schema(img)
+            
+    # Also fetch the overall last rotated image as fallback for "global" if not set
+    if "global" not in response:
+        result_last = await db.execute(
+            select(RotationHistory)
+            .order_by(RotationHistory.timestamp.desc())
+            .limit(1)
+        )
+        last_entry = result_last.scalar_one_or_none()
+        if last_entry:
+            img = await get_image(db, last_entry.image_id)
+            if img:
+                response["global"] = map_image_to_schema(img)
+                
+    return response
+
 @router.post("/skip")
 async def trigger_skip(target_monitor: str = "all") -> dict[str, str]:
     """Broadcast a skip event to all connected Electron clients."""

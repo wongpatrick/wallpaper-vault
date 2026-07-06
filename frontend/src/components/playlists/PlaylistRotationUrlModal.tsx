@@ -3,7 +3,7 @@
  * Module: Playlist Rotation URL Modal
  * Description: Modal displaying DisplayFusion-compatible rotation URLs with aspect ratio and tag filters.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal, Stack, Text, Group, Select, TextInput, Paper, CopyButton, Tooltip, ActionIcon, Badge, Divider } from '@mantine/core';
 import { IconCopy, IconCheck, IconExternalLink, IconSettings } from '@tabler/icons-react';
 
@@ -19,6 +19,26 @@ interface PlaylistRotationUrlModalProps {
 export function PlaylistRotationUrlModal({ opened, onClose, playlistId, playlistName }: PlaylistRotationUrlModalProps) {
     const [ratio, setRatio] = useState<string | null>('16x9');
     const [tags, setTags] = useState('');
+    const [targetMonitor, setTargetMonitor] = useState<string>('all');
+    const [monitors, setMonitors] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (opened && window.electron?.getMonitors) {
+            window.electron.getMonitors().then((res) => {
+                if (Array.isArray(res)) {
+                    setMonitors(res);
+                }
+            });
+        }
+    }, [opened]);
+
+    const monitorOptions = [
+        { value: 'all', label: 'All Monitors (Global)' },
+        ...monitors.map(m => ({
+            value: String(m.index),
+            label: `Monitor ${m.winNum || m.index + 1} (${m.bounds.width}x${m.bounds.height})`
+        }))
+    ];
 
     // Clean up tags: split by comma, trim, filter empty, then join with slashes
     const cleanTagsPath = tags
@@ -46,14 +66,21 @@ export function PlaylistRotationUrlModal({ opened, onClose, playlistId, playlist
         queryParams.push(`aspect_ratio_label=${ratio}`);
     }
     if (tags) {
-        // query endpoints expect tags separated by commas or multiple parameters,
-        // we'll format it as comma separated for simple query URLs
         const cleanTags = tags.split(',').map(t => t.trim()).filter(t => t.length > 0).join(',');
         if (cleanTags) {
             queryParams.push(`tags=${cleanTags}`);
         }
     }
     const queryUrl = `${API_BASE_URL}/api/playlists/${playlistId}/random/file${queryParams.length > 0 ? `?${queryParams.join('&')}` : ''}`;
+
+    const appendQueryParam = (url: string, param: string, value: string) => {
+        if (!value) return url;
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}${param}=${encodeURIComponent(value)}`;
+    };
+
+    const finalPathUrl = targetMonitor !== 'all' ? appendQueryParam(pathUrl, 'target_monitor', targetMonitor) : pathUrl;
+    const finalQueryUrl = targetMonitor !== 'all' ? appendQueryParam(queryUrl, 'target_monitor', targetMonitor) : queryUrl;
 
     return (
         <Modal
@@ -98,6 +125,16 @@ export function PlaylistRotationUrlModal({ opened, onClose, playlistId, playlist
                     />
                 </Group>
 
+                <Select
+                    label="Target Monitor (Optional)"
+                    description="Specify which monitor updates when DisplayFusion calls this URL"
+                    placeholder="All Monitors (Global)"
+                    data={monitorOptions}
+                    value={targetMonitor}
+                    onChange={(val) => setTargetMonitor(val || 'all')}
+                    radius="md"
+                />
+
                 <Divider my="xs" />
 
                 <Stack gap="xs">
@@ -128,10 +165,10 @@ export function PlaylistRotationUrlModal({ opened, onClose, playlistId, playlist
                                     marginRight: '8px'
                                 }}
                             >
-                                {pathUrl}
+                                {finalPathUrl}
                             </Text>
                             <Group gap={5} wrap="nowrap">
-                                <CopyButton value={pathUrl} timeout={2000}>
+                                <CopyButton value={finalPathUrl} timeout={2000}>
                                     {({ copied, copy }) => (
                                         <Tooltip label={copied ? 'Copied' : 'Copy'} withArrow position="top">
                                             <ActionIcon color={copied ? 'teal' : 'gray'} variant="subtle" onClick={copy}>
@@ -141,7 +178,7 @@ export function PlaylistRotationUrlModal({ opened, onClose, playlistId, playlist
                                     )}
                                 </CopyButton>
                                 <Tooltip label="Open in browser" withArrow position="top">
-                                    <ActionIcon variant="subtle" color="gray" component="a" href={pathUrl} target="_blank">
+                                    <ActionIcon variant="subtle" color="gray" component="a" href={finalPathUrl} target="_blank">
                                         <IconExternalLink size={16} />
                                     </ActionIcon>
                                 </Tooltip>
@@ -171,10 +208,10 @@ export function PlaylistRotationUrlModal({ opened, onClose, playlistId, playlist
                                     marginRight: '8px'
                                 }}
                             >
-                                {queryUrl}
+                                {finalQueryUrl}
                             </Text>
                             <Group gap={5} wrap="nowrap">
-                                <CopyButton value={queryUrl} timeout={2000}>
+                                <CopyButton value={finalQueryUrl} timeout={2000}>
                                     {({ copied, copy }) => (
                                         <Tooltip label={copied ? 'Copied' : 'Copy'} withArrow position="top">
                                             <ActionIcon color={copied ? 'teal' : 'gray'} variant="subtle" onClick={copy}>
@@ -184,7 +221,7 @@ export function PlaylistRotationUrlModal({ opened, onClose, playlistId, playlist
                                     )}
                                 </CopyButton>
                                 <Tooltip label="Open in browser" withArrow position="top">
-                                    <ActionIcon variant="subtle" color="gray" component="a" href={queryUrl} target="_blank">
+                                    <ActionIcon variant="subtle" color="gray" component="a" href={finalQueryUrl} target="_blank">
                                         <IconExternalLink size={16} />
                                     </ActionIcon>
                                 </Tooltip>

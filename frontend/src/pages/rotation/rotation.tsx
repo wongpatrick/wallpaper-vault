@@ -4,7 +4,7 @@
  * Module: Desktop Rotation Manager Page
  * Description: Control center for desktop wallpaper rotation settings, active wallpaper monitoring, quick actions (favorite/blacklist), history, and native/DisplayFusion options with multi-monitor override support.
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     Title,
     Text,
@@ -45,7 +45,8 @@ import { notifications } from '@mantine/notifications';
 import {
     useReadCurrentWallpaperApiRotationHistoryCurrentGet,
     useReadWallpaperHistoryApiRotationHistoryHistoryGet,
-    useTriggerSkipApiRotationHistorySkipPost
+    useTriggerSkipApiRotationHistorySkipPost,
+    useReadCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet
 } from '../../api/generated/rotation-history/rotation-history';
 import { useReadSettingsApiSettingsGet, useUpdateSettingApiSettingsKeyPut } from '../../api/generated/settings/settings';
 import { useReadPlaylistsApiPlaylistsGet } from '../../api/generated/playlists/playlists';
@@ -69,6 +70,7 @@ interface ConfigState {
     favProb: number;
     source: 'entire_library' | 'playlist';
     playlistId: string;
+    style: 'fill' | 'fit' | 'stretch' | 'tile' | 'center' | 'span';
     overrideEnabled?: boolean;
 }
 
@@ -94,6 +96,9 @@ export default function RotationManagement() {
     const { data: historyList, isLoading: historyLoading, refetch: refetchHistory } = 
         useReadWallpaperHistoryApiRotationHistoryHistoryGet();
 
+    const { data: currentMonitors, refetch: refetchCurrentMonitors } = 
+        useReadCurrentMonitorsWallpapersApiRotationHistoryCurrentMonitorsGet();
+
     // 3. Fetch Playlists & Settings
     const { data: playlists } = useReadPlaylistsApiPlaylistsGet();
     const { data: dbSettings, refetch: refetchSettings } = useReadSettingsApiSettingsGet();
@@ -115,13 +120,70 @@ export default function RotationManagement() {
     // Track active wallpaper per monitor index dynamically via SSE broadcasts
     const [activeWallpapers, setActiveWallpapers] = useState<Record<string, ImageDetail>>({});
 
+    // Track active system wallpapers directly queried from Windows OS
+    const [systemWallpapers, setSystemWallpapers] = useState<Array<{ comIndex: number; wallpaper: string }>>([]);
+
+    const resolveImageFromPath = useCallback((pathStr: string) => {
+        if (!pathStr) return null;
+        
+        // 1. Check if it's our native temp file pattern: wallpaper-vault-active-monitor-X-id-Y.jpg
+        const idMatch = pathStr.match(/-id-(\d+)\.jpg$/i);
+        if (idMatch) {
+            return parseInt(idMatch[1], 10);
+        }
+        
+        // 2. Extract filename from the path
+        const filename = pathStr.split(/[/\\]/).pop();
+        if (!filename) return null;
+        
+        // 3. Search in currentImage and historyList
+        if (currentImage) {
+            if (currentImage.filename === filename || currentImage.local_path?.replace(/\\/g, '/').endsWith(filename)) {
+                return currentImage.id;
+            }
+        }
+        
+        if (historyList) {
+            const found = historyList.find(img => img.filename === filename || img.local_path?.replace(/\\/g, '/').endsWith(filename));
+            if (found) return found.id;
+        }
+        
+        // 4. Try matching numerical filename as image ID (common in temp files)
+        const nameWithoutExt = filename.substring(0, filename.lastIndexOf('.'));
+        if (/^\d+$/.test(nameWithoutExt)) {
+            const parsedId = parseInt(nameWithoutExt, 10);
+            if (currentImage && currentImage.id === parsedId) return currentImage.id;
+            if (historyList?.some(img => img.id === parsedId)) return parsedId;
+        }
+        
+        return null;
+    }, [currentImage, historyList]);
+
+    const fetchSystemWallpapers = useCallback(async () => {
+        if (window.electron?.getSystemWallpapers) {
+            try {
+                const paths = await window.electron.getSystemWallpapers();
+                setSystemWallpapers(paths);
+            } catch (err) {
+                console.error('[Rotation Management] Failed to fetch system wallpapers:', err);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchSystemWallpapers();
+        const interval = setInterval(fetchSystemWallpapers, 5000);
+        return () => clearInterval(interval);
+    }, [fetchSystemWallpapers]);
+
     // Form inputs states
     const [globalConfig, setGlobalConfig] = useState<ConfigState>({
         mode: 'displayfusion',
         interval: 15,
         favProb: 40,
         source: 'entire_library',
-        playlistId: ''
+        playlistId: '',
+        style: 'fill'
     });
 
     const [monitorConfigs, setMonitorConfigs] = useState<Record<string, ConfigState>>({});
@@ -138,13 +200,15 @@ export default function RotationManagement() {
             const gSrc = getVal('wallpaper_rotation_source', 'entire_library') as 'entire_library' | 'playlist';
             const gPlay = getVal('wallpaper_rotation_playlist_id', '');
             const gFav = Math.round(parseFloat(getVal('favorite_rotation_probability', '0.4')) * 100);
+            const gStyle = getVal('wallpaper_rotation_style', 'fill') as any;
 
             setGlobalConfig({
                 mode: gMode,
                 interval: gInt,
                 source: gSrc,
                 playlistId: gPlay,
-                favProb: gFav
+                favProb: gFav,
+                style: gStyle
             });
 
             // 2. Sync monitor-specific overrides
@@ -159,7 +223,8 @@ export default function RotationManagement() {
                     interval: overrideEnabled ? (parseInt(getVal(`monitor_${idx}_wallpaper_rotation_interval`, String(gInt)), 10) || 15) : gInt,
                     source: (overrideEnabled ? getVal(`monitor_${idx}_wallpaper_rotation_source`, gSrc) : gSrc) as 'entire_library' | 'playlist',
                     playlistId: overrideEnabled ? getVal(`monitor_${idx}_wallpaper_rotation_playlist_id`, gPlay) : gPlay,
-                    favProb: overrideEnabled ? (Math.round(parseFloat(getVal(`monitor_${idx}_favorite_rotation_probability`, String(gFav / 100))) * 100)) : gFav
+                    favProb: overrideEnabled ? (Math.round(parseFloat(getVal(`monitor_${idx}_favorite_rotation_probability`, String(gFav / 100))) * 100)) : gFav,
+                    style: (overrideEnabled ? getVal(`monitor_${idx}_wallpaper_rotation_style`, gStyle) : gStyle) as any
                 };
             });
             setMonitorConfigs(mConfigs);
@@ -176,6 +241,7 @@ export default function RotationManagement() {
                 if (data.event === 'rotation' || data.event === 'ping') {
                     refetchCurrent();
                     refetchHistory();
+                    refetchCurrentMonitors();
                     if (data.event === 'rotation') {
                         // Update active wallpaper for specific monitor target
                         const target = data.target_monitor || 'all';
@@ -183,6 +249,7 @@ export default function RotationManagement() {
                             ...prev,
                             [target]: data.image
                         }));
+                        fetchSystemWallpapers();
                     }
                 }
             } catch {
@@ -193,13 +260,78 @@ export default function RotationManagement() {
         return () => {
             eventSource.close();
         };
-    }, [refetchCurrent, refetchHistory]);
+    }, [refetchCurrent, refetchHistory, refetchCurrentMonitors, fetchSystemWallpapers]);
 
     // Determine the active wallpaper image to show in the preview card
     const activeWallpaper = useMemo(() => {
-        if (activeMonitorPreview === 'all') return currentImage;
-        return activeWallpapers[activeMonitorPreview] || currentImage;
-    }, [activeMonitorPreview, activeWallpapers, currentImage]);
+        if (activeMonitorPreview === 'all') {
+            if (currentMonitors && currentMonitors['global']) return currentMonitors['global'];
+            
+            const globalImgId = dbSettings?.find(s => s.key === 'wallpaper_active_image_id')?.value;
+            if (globalImgId) {
+                const imgId = parseInt(globalImgId, 10);
+                if (currentImage && currentImage.id === imgId) return currentImage;
+                const found = historyList?.find(img => img.id === imgId);
+                if (found) return found;
+            }
+            return currentImage;
+        }
+
+        const monitorIdxNum = parseInt(activeMonitorPreview, 10);
+
+        // 1. Try to resolve the image using the OS-level wallpaper path directly
+        const sysWallpaper = systemWallpapers.find(w => w.comIndex === monitorIdxNum);
+        if (sysWallpaper && sysWallpaper.wallpaper) {
+            const resolvedId = resolveImageFromPath(sysWallpaper.wallpaper);
+            if (resolvedId) {
+                if (currentImage && currentImage.id === resolvedId) return currentImage;
+                const found = historyList?.find(img => img.id === resolvedId);
+                if (found) return found;
+
+                // Fallback: If not in history or currentImage, check if it's the active one in currentMonitors
+                if (currentMonitors) {
+                    const monitorImg = currentMonitors[activeMonitorPreview];
+                    if (monitorImg && monitorImg.id === resolvedId) return monitorImg;
+                    const globalImg = currentMonitors['global'];
+                    if (globalImg && globalImg.id === resolvedId) return globalImg;
+                }
+            }
+        }
+
+        // 2. Fallback: Try real-time active wallpapers from SSE
+        const active = activeWallpapers[activeMonitorPreview];
+        if (active) return active;
+
+        // 3. Fallback: Check monitor-specific active image from our API
+        if (currentMonitors && currentMonitors[activeMonitorPreview]) {
+            return currentMonitors[activeMonitorPreview];
+        }
+
+        // 4. Fallback: Check monitor-specific database settings directly (offline/before API loads)
+        const activeImgId = dbSettings?.find(s => s.key === `monitor_${activeMonitorPreview}_active_image_id`)?.value;
+        if (activeImgId) {
+            const imgId = parseInt(activeImgId, 10);
+            if (currentImage && currentImage.id === imgId) return currentImage;
+            const found = historyList?.find(img => img.id === imgId);
+            if (found) return found;
+        }
+
+        // 5. Fallback: Check global active image from API
+        if (currentMonitors && currentMonitors['global']) {
+            return currentMonitors['global'];
+        }
+
+        // 6. Fallback: Check global active image in database
+        const globalImgId = dbSettings?.find(s => s.key === 'wallpaper_active_image_id')?.value;
+        if (globalImgId) {
+            const imgId = parseInt(globalImgId, 10);
+            if (currentImage && currentImage.id === imgId) return currentImage;
+            const found = historyList?.find(img => img.id === imgId);
+            if (found) return found;
+        }
+
+        return currentImage;
+    }, [activeMonitorPreview, activeWallpapers, currentImage, dbSettings, historyList, currentMonitors, systemWallpapers, resolveImageFromPath]);
 
     // Find the currently focused image details
     const focusedImage = useMemo(() => {
@@ -272,6 +404,7 @@ export default function RotationManagement() {
                 updateSetting.mutateAsync({ key: 'wallpaper_rotation_playlist_id', data: { value: globalConfig.playlistId, description: 'Global wallpaper rotation playlist ID' } }),
                 updateSetting.mutateAsync({ key: 'favorite_rotation_probability', data: { value: String(globalConfig.favProb / 100), description: 'Global favorite rotation probability' } }),
                 updateSetting.mutateAsync({ key: 'wallpaper_rotation_interval', data: { value: String(globalConfig.interval), description: 'Global wallpaper rotation interval' } }),
+                updateSetting.mutateAsync({ key: 'wallpaper_rotation_style', data: { value: globalConfig.style, description: 'Global wallpaper rotation position style' } }),
             ];
 
             monitors.forEach((m) => {
@@ -285,6 +418,7 @@ export default function RotationManagement() {
                         promises.push(updateSetting.mutateAsync({ key: `monitor_${idx}_wallpaper_rotation_playlist_id`, data: { value: conf.playlistId, description: `Monitor ${idx} rotation playlist ID` } }));
                         promises.push(updateSetting.mutateAsync({ key: `monitor_${idx}_favorite_rotation_probability`, data: { value: String(conf.favProb / 100), description: `Monitor ${idx} favorite probability` } }));
                         promises.push(updateSetting.mutateAsync({ key: `monitor_${idx}_wallpaper_rotation_interval`, data: { value: String(conf.interval), description: `Monitor ${idx} rotation interval` } }));
+                        promises.push(updateSetting.mutateAsync({ key: `monitor_${idx}_wallpaper_rotation_style`, data: { value: conf.style, description: `Monitor ${idx} rotation position style` } }));
                     }
                 }
             });
@@ -343,40 +477,50 @@ export default function RotationManagement() {
     }, [monitors]);
 
     const getMonitorThumbnail = (monitorIndex: number) => {
-        const active = activeWallpapers[String(monitorIndex)];
+        // 0. Try to resolve the image using the OS-level wallpaper path directly
+        const sysWallpaper = systemWallpapers.find(w => w.comIndex === monitorIndex);
+        if (sysWallpaper && sysWallpaper.wallpaper) {
+            const resolvedId = resolveImageFromPath(sysWallpaper.wallpaper);
+            if (resolvedId) {
+                return getImageUrl(resolvedId);
+            }
+        }
+
+        const monitorKey = String(monitorIndex);
+
+        // 1. Fallback: Try to use real-time SSE event state
+        const active = activeWallpapers[monitorKey];
         if (active) return getImageUrl(active.id, active.phash || active.file_size || undefined);
         
-        // 1. Try to get the persisted active image ID from dbSettings
+        // 2. Fallback: Check monitor-specific active image from our API
+        if (currentMonitors && currentMonitors[monitorKey]) {
+            const img = currentMonitors[monitorKey];
+            return getImageUrl(img.id, img.phash || img.file_size || undefined);
+        }
+
+        // 3. Fallback: Check monitor-specific database settings directly (offline/before API loads)
         const activeImgId = dbSettings?.find(s => s.key === `monitor_${monitorIndex}_active_image_id`)?.value;
         if (activeImgId) {
-            const imgId = parseInt(activeImgId, 10);
-            if (currentImage && currentImage.id === imgId) {
-                return getImageUrl(currentImage.id, currentImage.phash || currentImage.file_size || undefined);
-            }
-            const found = historyList?.find(img => img.id === imgId);
-            if (found) {
-                return getImageUrl(found.id, found.phash || found.file_size || undefined);
-            }
+            return getImageUrl(activeImgId);
         }
         
-        // 2. Try to get global active image ID fallback if this monitor has no overrides
-        const conf = monitorConfigs[String(monitorIndex)];
-        if (!conf || !conf.overrideEnabled) {
-            const globalImgId = dbSettings?.find(s => s.key === 'wallpaper_active_image_id')?.value;
-            if (globalImgId) {
-                const imgId = parseInt(globalImgId, 10);
-                if (currentImage && currentImage.id === imgId) {
-                    return getImageUrl(currentImage.id, currentImage.phash || currentImage.file_size || undefined);
-                }
-                const found = historyList?.find(img => img.id === imgId);
-                if (found) {
-                    return getImageUrl(found.id, found.phash || found.file_size || undefined);
-                }
-            }
-            if (currentImage) {
-                return getImageUrl(currentImage.id, currentImage.phash || currentImage.file_size || undefined);
-            }
+        // 4. Fallback: Check global active image from API
+        if (currentMonitors && currentMonitors['global']) {
+            const img = currentMonitors['global'];
+            return getImageUrl(img.id, img.phash || img.file_size || undefined);
         }
+
+        // 5. Fallback: Check global active image in database
+        const globalImgId = dbSettings?.find(s => s.key === 'wallpaper_active_image_id')?.value;
+        if (globalImgId) {
+            return getImageUrl(globalImgId);
+        }
+        
+        // 6. Fallback: Check currentImage
+        if (currentImage) {
+            return getImageUrl(currentImage.id, currentImage.phash || currentImage.file_size || undefined);
+        }
+        
         return null;
     };
 
@@ -391,6 +535,7 @@ export default function RotationManagement() {
             favProb: 40,
             source: 'entire_library',
             playlistId: '',
+            style: 'fill',
             overrideEnabled: false
         };
     }, [activeConfigTab, globalConfig, monitorConfigs]);
@@ -442,10 +587,22 @@ export default function RotationManagement() {
                                     backgroundColor: '#141517', 
                                     borderRadius: '8px', 
                                     padding: '16px',
-                                    border: '1px solid #2e2f34'
+                                    border: '1px solid #2e2f34',
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    height: '192px'
                                 }}
                             >
-                                <Box style={{ position: 'relative', width: '100%', height: '160px' }}>
+                                <Box 
+                                    style={{ 
+                                        position: 'relative', 
+                                        height: '100%', 
+                                        width: 'auto',
+                                        maxWidth: '100%',
+                                        aspectRatio: `${monitorLayout.totalWidth} / ${monitorLayout.totalHeight}`
+                                    }}
+                                >
                                     {monitors.map((m) => {
                                         const left = ((m.bounds.x - monitorLayout.minX) / monitorLayout.totalWidth) * 100;
                                         const top = ((m.bounds.y - monitorLayout.minY) / monitorLayout.totalHeight) * 100;
@@ -740,6 +897,26 @@ export default function RotationManagement() {
                                         value={activeTabConfig.mode}
                                         onChange={(val) => { if (val) updateActiveTabConfig({ mode: val as 'displayfusion' | 'native' }); }}
                                     />
+
+                                    {activeTabConfig.mode === 'native' && (
+                                        <Select 
+                                            label="Wallpaper Sizing & Style"
+                                            description={activeConfigTab === 'global' 
+                                                ? "Choose how the image is scaled and positioned on the screen." 
+                                                : "Windows natively forces a global wallpaper style. Change this on the Global tab."}
+                                            disabled={activeConfigTab !== 'global'}
+                                            data={[
+                                                { value: 'fill', label: 'Fill (Crop to aspect ratio)' },
+                                                { value: 'fit', label: 'Fit (Letterbox/Pillarbox)' },
+                                                { value: 'stretch', label: 'Stretch (Ignore aspect ratio)' },
+                                                { value: 'tile', label: 'Tile (Repeat image)' },
+                                                { value: 'center', label: 'Center (No scaling)' },
+                                                { value: 'span', label: 'Span (Stretch single image across monitors)' }
+                                            ]}
+                                            value={activeTabConfig.style}
+                                            onChange={(val) => { if (val) updateActiveTabConfig({ style: val as any }); }}
+                                        />
+                                    )}
 
                                     <Select 
                                         label="Rotation Source Pool"
