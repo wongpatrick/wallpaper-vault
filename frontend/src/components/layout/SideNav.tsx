@@ -4,7 +4,7 @@
  * Contains links to primary application views and quick actions like theme toggling.
  */
 import { ActionIcon, Group, useMantineColorScheme, Stack, Divider, Box } from '@mantine/core';
-import { IconBrush, IconDashboard, IconSettings, IconTool, IconSun, IconMoon, IconStack, IconWallpaper, IconTags, IconPlaylist } from '@tabler/icons-react';
+import { IconBrush, IconDashboard, IconSettings, IconTool, IconSun, IconMoon, IconStack, IconWallpaper, IconTags, IconPlaylist, IconDeviceDesktop } from '@tabler/icons-react';
 import NavItem from './NavItem';
 
 const mainLinks = [
@@ -13,6 +13,7 @@ const mainLinks = [
     { icon: IconStack, label: 'Sets', path: '/sets' },
     { icon: IconPlaylist, label: 'Playlists', path: '/playlists' },
     { icon: IconWallpaper, label: 'Images', path: '/images' },
+    { icon: IconDeviceDesktop, label: 'Rotation', path: '/rotation' },
     { icon: IconTags, label: 'Taxonomy', path: '/taxonomy' },
     { icon: IconTool, label: 'Tools', path: '/tools' },
 ];

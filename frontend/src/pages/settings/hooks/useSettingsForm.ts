@@ -24,6 +24,12 @@ export const SETTING_KEYS = {
     AI_CONFIDENCE_THRESHOLD: 'ai_confidence_threshold',
     AI_ROLLUP_THRESHOLD: 'ai_rollup_threshold',
     BACKEND_PORT: 'backend_port',
+    WALLPAPER_ROTATION_MODE: 'wallpaper_rotation_mode',
+    WALLPAPER_ROTATION_INTERVAL: 'wallpaper_rotation_interval',
+    FAVORITE_ROTATION_PROBABILITY: 'favorite_rotation_probability',
+    WALLPAPER_ROTATION_SOURCE: 'wallpaper_rotation_source',
+    WALLPAPER_ROTATION_PLAYLIST_ID: 'wallpaper_rotation_playlist_id',
+    WALLPAPER_ROTATION_TARGET_MONITOR: 'wallpaper_rotation_target_monitor',
 } as const;
 
 export interface SettingsForm {
@@ -41,6 +47,12 @@ export interface SettingsForm {
     [SETTING_KEYS.AI_CONFIDENCE_THRESHOLD]: number;
     [SETTING_KEYS.AI_ROLLUP_THRESHOLD]: number;
     [SETTING_KEYS.BACKEND_PORT]: number;
+    [SETTING_KEYS.WALLPAPER_ROTATION_MODE]: 'displayfusion' | 'native';
+    [SETTING_KEYS.WALLPAPER_ROTATION_INTERVAL]: number;
+    [SETTING_KEYS.FAVORITE_ROTATION_PROBABILITY]: number;
+    [SETTING_KEYS.WALLPAPER_ROTATION_SOURCE]: 'entire_library' | 'playlist';
+    [SETTING_KEYS.WALLPAPER_ROTATION_PLAYLIST_ID]: string;
+    [SETTING_KEYS.WALLPAPER_ROTATION_TARGET_MONITOR]: string;
 }
 
 type StorageType = 'backend' | 'electron';
@@ -67,6 +79,12 @@ const SETTINGS_METADATA: SettingConfig[] = [
     { key: SETTING_KEYS.AI_CONFIDENCE_THRESHOLD, defaultValue: 0.35, storage: 'backend', description: 'Confidence threshold for tagger' },
     { key: SETTING_KEYS.AI_ROLLUP_THRESHOLD, defaultValue: 0.30, storage: 'backend', description: 'Threshold percentage for rolling up tags to sets' },
     { key: SETTING_KEYS.BACKEND_PORT, defaultValue: 8000, storage: 'electron' },
+    { key: SETTING_KEYS.WALLPAPER_ROTATION_MODE, defaultValue: 'displayfusion', storage: 'backend', description: 'Wallpaper rotation mode: displayfusion or native' },
+    { key: SETTING_KEYS.WALLPAPER_ROTATION_INTERVAL, defaultValue: 15, storage: 'backend', description: 'Wallpaper rotation interval in minutes (for native mode)' },
+    { key: SETTING_KEYS.FAVORITE_ROTATION_PROBABILITY, defaultValue: 0.4, storage: 'backend', description: 'Probability rate (0.0 to 1.0) to select favorite wallpapers in random rotations' },
+    { key: SETTING_KEYS.WALLPAPER_ROTATION_SOURCE, defaultValue: 'entire_library', storage: 'backend', description: 'Wallpaper rotation source: entire_library or playlist' },
+    { key: SETTING_KEYS.WALLPAPER_ROTATION_PLAYLIST_ID, defaultValue: '', storage: 'backend', description: 'Target playlist ID to rotate (for playlist source)' },
+    { key: SETTING_KEYS.WALLPAPER_ROTATION_TARGET_MONITOR, defaultValue: 'all', storage: 'backend', description: 'Target monitor: all, or 0, 1, 2, etc.' },
 ];
 
 export function useSettingsForm() {

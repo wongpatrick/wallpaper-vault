@@ -32,6 +32,12 @@ export interface ElectronAPI {
     setBackendPort: (port: number) => Promise<boolean>;
     openBackendLogs: () => Promise<boolean>;
     openLogsDirectory: () => Promise<boolean>;
+    getMonitors: () => Promise<Array<{
+        index: number;
+        id: number;
+        label: string;
+        bounds: { width: number; height: number; x: number; y: number; };
+    }>>;
 }
 
 declare global {

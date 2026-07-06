@@ -46,6 +46,8 @@ def map_image_to_schema(img: "ImageModel") -> ImageDetail:
         notes=img.notes,
         rating=img.rating,
         dominant_color=img.dominant_color,
+        is_favorite=getattr(img, "is_favorite", False),
+        is_blacklisted=getattr(img, "is_blacklisted", False),
         date_added=str(img.date_added),
         tags=[t.name for t in img.tags] if "tags" in img.__dict__ and img.tags else []
     )
@@ -186,6 +188,7 @@ async def resolve_duplicates(
 async def read_random_image_file_path_tags(
     ratio: str,
     tags: str,
+    log_rotation: bool = Query(True),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
     """
@@ -200,6 +203,10 @@ async def read_random_image_file_path_tags(
     if db_image is None:
         raise HTTPException(status_code=404, detail="No images found matching criteria")
     
+    if log_rotation:
+        from app.core.rotation import log_rotation
+        await log_rotation(db, image_id=db_image.id, aspect_ratio=db_image.aspect_ratio_label)
+    
     file_path = Path(db_image.local_path)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Image file not found on disk")
@@ -213,6 +220,7 @@ async def read_random_image_file_path_tags(
 @router.get("/random/file/{ratio}/image.jpg")
 async def read_random_image_file_path(
     ratio: str,
+    log_rotation: bool = Query(True),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
     """
@@ -224,6 +232,10 @@ async def read_random_image_file_path(
     )
     if db_image is None:
         raise HTTPException(status_code=404, detail="No images found matching criteria")
+    
+    if log_rotation:
+        from app.core.rotation import log_rotation
+        await log_rotation(db, image_id=db_image.id, aspect_ratio=db_image.aspect_ratio_label)
     
     file_path = Path(db_image.local_path)
     if not file_path.exists():
@@ -244,6 +256,10 @@ async def read_random_image(
     creator_id: Optional[int] = None,
     playlist_id: Optional[int] = None,
     rating: Optional[str] = Query(None),
+    favorite_probability: Optional[float] = Query(None),
+    target_monitor: Optional[str] = Query("all"),
+    orientation: Optional[str] = Query(None),
+    log_rotation: bool = Query(True),
     db: AsyncSession = Depends(get_db)
 ) -> Image:
     """
@@ -257,10 +273,17 @@ async def read_random_image(
         min_height=min_h,
         creator_id=creator_id,
         playlist_id=playlist_id,
-        rating=rating
+        rating=rating,
+        favorite_probability=favorite_probability,
+        orientation=orientation
     )
     if db_image is None:
         raise HTTPException(status_code=404, detail="No images found matching criteria")
+    
+    if log_rotation:
+        from app.core.rotation import log_rotation
+        await log_rotation(db, image_id=db_image.id, aspect_ratio=db_image.aspect_ratio_label, target_monitor=target_monitor)
+    
     return map_image_to_schema(db_image)
 
 @router.get("/random/file")
@@ -272,6 +295,10 @@ async def read_random_image_file(
     creator_id: Optional[int] = None,
     playlist_id: Optional[int] = None,
     rating: Optional[str] = Query(None),
+    favorite_probability: Optional[float] = Query(None),
+    target_monitor: Optional[str] = Query("all"),
+    orientation: Optional[str] = Query(None),
+    log_rotation: bool = Query(True),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
     """
@@ -285,10 +312,16 @@ async def read_random_image_file(
         min_height=min_h,
         creator_id=creator_id,
         playlist_id=playlist_id,
-        rating=rating
+        rating=rating,
+        favorite_probability=favorite_probability,
+        orientation=orientation
     )
     if db_image is None:
         raise HTTPException(status_code=404, detail="No images found matching criteria")
+    
+    if log_rotation:
+        from app.core.rotation import log_rotation
+        await log_rotation(db, image_id=db_image.id, aspect_ratio=db_image.aspect_ratio_label, target_monitor=target_monitor)
     
     file_path = Path(db_image.local_path)
     if not file_path.exists():

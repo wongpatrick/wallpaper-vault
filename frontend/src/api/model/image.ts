@@ -46,6 +46,10 @@ export interface Image {
   focal_point_x?: ImageFocalPointX;
   /** Computed Y percentage for the focal point. */
   focal_point_y?: ImageFocalPointY;
+  /** Whether this image is marked as a favorite wallpaper. */
+  is_favorite?: boolean;
+  /** Whether this image is blacklisted from rotations. */
+  is_blacklisted?: boolean;
   /** Unique database identifier for the image. */
   id: number;
   /** ID of the set this image belongs to. */

@@ -90,6 +90,8 @@ CREATE TABLE IF NOT EXISTS images (
     notes              TEXT,
     rating             TEXT    DEFAULT 'safe',
     dominant_color     TEXT,
+    is_favorite        INTEGER NOT NULL DEFAULT 0,
+    is_blacklisted     INTEGER NOT NULL DEFAULT 0,
     date_added         TEXT    NOT NULL DEFAULT (date('now'))
 );
 
@@ -151,3 +153,17 @@ INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_model_custo
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_model_custom_path', '', 'Custom local filesystem folder path containing the model files');
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_confidence_threshold', '0.35', 'Confidence threshold (0.0 to 1.0) for tagger to apply tags to images');
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_rollup_threshold', '0.3', 'Rollup threshold (0.0 to 1.0) to promote tags to sets');
+
+CREATE TABLE IF NOT EXISTS rotation_history (
+    id           INTEGER PRIMARY KEY,
+    timestamp    TEXT    NOT NULL DEFAULT (datetime('now')),
+    image_id     INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,
+    aspect_ratio TEXT
+);
+
+INSERT OR IGNORE INTO settings (key, value, description) VALUES ('wallpaper_rotation_mode', 'displayfusion', 'Wallpaper rotation mode: displayfusion or native');
+INSERT OR IGNORE INTO settings (key, value, description) VALUES ('wallpaper_rotation_interval', '15', 'Wallpaper rotation interval in minutes (for native mode)');
+INSERT OR IGNORE INTO settings (key, value, description) VALUES ('favorite_rotation_probability', '0.4', 'Probability rate (0.0 to 1.0) to select favorite wallpapers in random rotations');
+INSERT OR IGNORE INTO settings (key, value, description) VALUES ('wallpaper_rotation_source', 'entire_library', 'Wallpaper rotation source: entire_library or playlist');
+INSERT OR IGNORE INTO settings (key, value, description) VALUES ('wallpaper_rotation_playlist_id', '', 'Target playlist ID to rotate (for playlist source)');
+INSERT OR IGNORE INTO settings (key, value, description) VALUES ('wallpaper_rotation_target_monitor', 'all', 'Target monitor: all, or 0, 1, 2, etc.');

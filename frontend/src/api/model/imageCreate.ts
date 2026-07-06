@@ -46,4 +46,8 @@ export interface ImageCreate {
   focal_point_x?: ImageCreateFocalPointX;
   /** Computed Y percentage for the focal point. */
   focal_point_y?: ImageCreateFocalPointY;
+  /** Whether this image is marked as a favorite wallpaper. */
+  is_favorite?: boolean;
+  /** Whether this image is blacklisted from rotations. */
+  is_blacklisted?: boolean;
 }

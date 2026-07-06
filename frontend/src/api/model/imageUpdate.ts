@@ -18,6 +18,8 @@ import type { ImageUpdateRating } from './imageUpdateRating';
 import type { ImageUpdateDominantColor } from './imageUpdateDominantColor';
 import type { ImageUpdateFocalPointX } from './imageUpdateFocalPointX';
 import type { ImageUpdateFocalPointY } from './imageUpdateFocalPointY';
+import type { ImageUpdateIsFavorite } from './imageUpdateIsFavorite';
+import type { ImageUpdateIsBlacklisted } from './imageUpdateIsBlacklisted';
 import type { ImageUpdateTags } from './imageUpdateTags';
 
 export interface ImageUpdate {
@@ -49,6 +51,10 @@ export interface ImageUpdate {
   focal_point_x?: ImageUpdateFocalPointX;
   /** Computed Y percentage for the focal point. */
   focal_point_y?: ImageUpdateFocalPointY;
+  /** Whether this image is marked as a favorite wallpaper. */
+  is_favorite?: ImageUpdateIsFavorite;
+  /** Whether this image is blacklisted from rotations. */
+  is_blacklisted?: ImageUpdateIsBlacklisted;
   /** Updated list of tag names for this image. */
   tags?: ImageUpdateTags;
 }

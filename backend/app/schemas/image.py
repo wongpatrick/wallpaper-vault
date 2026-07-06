@@ -20,6 +20,8 @@ class ImageBase(BaseModel):
     dominant_color: Optional[str] = Field(None, description="Hex code of the image's dominant color extracted during import.")
     focal_point_x: Optional[int] = Field(50, description="Computed X percentage for the focal point.")
     focal_point_y: Optional[int] = Field(50, description="Computed Y percentage for the focal point.")
+    is_favorite: bool = Field(False, description="Whether this image is marked as a favorite wallpaper.")
+    is_blacklisted: bool = Field(False, description="Whether this image is blacklisted from rotations.")
 class ImageCreate(ImageBase):
     pass
 
@@ -38,6 +40,8 @@ class ImageUpdate(BaseModel):
     dominant_color: Optional[str] = Field(None, description="Hex code of the dominant color.")
     focal_point_x: Optional[int] = Field(None, description="Computed X percentage for the focal point.")
     focal_point_y: Optional[int] = Field(None, description="Computed Y percentage for the focal point.")
+    is_favorite: Optional[bool] = Field(None, description="Whether this image is marked as a favorite wallpaper.")
+    is_blacklisted: Optional[bool] = Field(None, description="Whether this image is blacklisted from rotations.")
     tags: Optional[list[str]] = Field(None, description="Updated list of tag names for this image.")
 
 class Image(ImageBase):

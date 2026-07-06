@@ -149,6 +149,10 @@ async def read_playlist_random_image(
     min_h: Optional[int] = Query(None, alias="min_height"),
     creator_id: Optional[int] = None,
     rating: Optional[str] = Query(None),
+    favorite_probability: Optional[float] = Query(None),
+    target_monitor: Optional[str] = Query("all"),
+    orientation: Optional[str] = Query(None),
+    log_rotation: bool = Query(True),
     db: AsyncSession = Depends(get_db)
 ) -> ImageSchema:
     """Get a random image from a playlist, with optional filters."""
@@ -164,10 +168,16 @@ async def read_playlist_random_image(
         min_height=min_h,
         creator_id=creator_id,
         playlist_id=playlist_id,
-        rating=rating
+        rating=rating,
+        favorite_probability=favorite_probability,
+        orientation=orientation
     )
     if db_image is None:
         raise HTTPException(status_code=404, detail="No images found matching criteria in this playlist")
+        
+    if log_rotation:
+        from app.core.rotation import log_rotation
+        await log_rotation(db, image_id=db_image.id, aspect_ratio=db_image.aspect_ratio_label, target_monitor=target_monitor)
         
     from app.api.images import map_image_to_schema
     return map_image_to_schema(db_image)
@@ -181,6 +191,10 @@ async def read_playlist_random_image_file(
     min_h: Optional[int] = Query(None, alias="min_height"),
     creator_id: Optional[int] = None,
     rating: Optional[str] = Query(None),
+    favorite_probability: Optional[float] = Query(None),
+    target_monitor: Optional[str] = Query("all"),
+    orientation: Optional[str] = Query(None),
+    log_rotation: bool = Query(True),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
     """Get a random image file from a playlist, with optional filters (DisplayFusion compatible)."""
@@ -196,10 +210,16 @@ async def read_playlist_random_image_file(
         min_height=min_h,
         creator_id=creator_id,
         playlist_id=playlist_id,
-        rating=rating
+        rating=rating,
+        favorite_probability=favorite_probability,
+        orientation=orientation
     )
     if db_image is None:
         raise HTTPException(status_code=404, detail="No images found matching criteria in this playlist")
+        
+    if log_rotation:
+        from app.core.rotation import log_rotation
+        await log_rotation(db, image_id=db_image.id, aspect_ratio=db_image.aspect_ratio_label, target_monitor=target_monitor)
         
     file_path = Path(db_image.local_path)
     if not file_path.exists():
