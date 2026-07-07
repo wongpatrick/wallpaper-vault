@@ -808,11 +808,8 @@ class PowerShellDaemon {
             // Keep-alive monitor job: kills PowerShell if the parent Electron process dies unexpectedly
             const bootstrapScript = [
                 'Add-Type -AssemblyName System.Windows.Forms',
+                `$ParentPid = ${process.pid}`,
                 '$MyPid = $pid',
-                '$ParentPid = (Get-WmiObject Win32_Process -Filter "ProcessId = $MyPid").ParentProcessId',
-                'if (!$ParentPid) {',
-                '    $ParentPid = (Get-CimInstance Win32_Process -Filter "ProcessId = $MyPid").ParentProcessId',
-                '}',
                 '$null = Start-Job -ScriptBlock {',
                 '    $parentPid = $args[0]',
                 '    $mainPid = $args[1]',
@@ -906,7 +903,7 @@ class PowerShellDaemon {
                 '    }',
                 '}',
                 '\'@',
-                'Add-Type -TypeDefinition $code -ReferencedAssemblies "System.Windows.Forms" -ErrorAction SilentlyContinue',
+                'try { Add-Type -TypeDefinition $code -ReferencedAssemblies "System.Windows.Forms" -ErrorAction Stop } catch { Write-Error "Add-Type failed: $_" }',
                 'Write-Output "BOOTSTRAP_DONE"'
             ].join('\r\n');
 
