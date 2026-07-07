@@ -41,11 +41,9 @@ async def log_rotation(db: AsyncSession, image_id: int, aspect_ratio: Optional[s
     from app.models.settings import Setting
     from sqlalchemy import select
     
-    keys_to_update = []
-    if target_monitor == "all":
-        keys_to_update = ["wallpaper_active_image_id"]
-    elif target_monitor is not None:
-        keys_to_update = [f"monitor_{target_monitor}_active_image_id"]
+    keys_to_update = ["wallpaper_active_image_id"]
+    if target_monitor is not None and target_monitor != "all":
+        keys_to_update.append(f"monitor_{target_monitor}_active_image_id")
         
     for key in keys_to_update:
         stmt = select(Setting).where(Setting.key == key)

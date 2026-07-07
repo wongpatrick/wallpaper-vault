@@ -265,15 +265,48 @@ export default function RotationManagement() {
     // Determine the active wallpaper image to show in the preview card
     const activeWallpaper = useMemo(() => {
         if (activeMonitorPreview === 'all') {
-            if (currentMonitors && currentMonitors['global']) return currentMonitors['global'];
-            
-            const globalImgId = dbSettings?.find(s => s.key === 'wallpaper_active_image_id')?.value;
-            if (globalImgId) {
-                const imgId = parseInt(globalImgId, 10);
+            // Global view mirrors Monitor 1 (primary Windows display)
+            const primaryMonitor = monitors.find(m => m.winNum === 1);
+            const primaryIdx = primaryMonitor ? String(primaryMonitor.index) : '0';
+
+            // Try OS-level wallpaper path for the primary monitor
+            const primaryIdxNum = parseInt(primaryIdx, 10);
+            const sysWp = systemWallpapers.find(w => w.comIndex === primaryIdxNum);
+            if (sysWp && sysWp.wallpaper) {
+                const resolvedId = resolveImageFromPath(sysWp.wallpaper);
+                if (resolvedId) {
+                    if (currentImage && currentImage.id === resolvedId) return currentImage;
+                    const found = historyList?.find(img => img.id === resolvedId);
+                    if (found) return found;
+                    if (currentMonitors) {
+                        const monitorImg = currentMonitors[primaryIdx];
+                        if (monitorImg && monitorImg.id === resolvedId) return monitorImg;
+                        const globalImg = currentMonitors['global'];
+                        if (globalImg && globalImg.id === resolvedId) return globalImg;
+                    }
+                }
+            }
+
+            // Fallback: SSE active wallpaper for primary monitor
+            const primaryActive = activeWallpapers[primaryIdx];
+            if (primaryActive) return primaryActive;
+
+            // Fallback: API current monitors for primary monitor
+            if (currentMonitors && currentMonitors[primaryIdx]) {
+                return currentMonitors[primaryIdx];
+            }
+
+            // Fallback: Database setting for primary monitor
+            const primaryImgId = dbSettings?.find(s => s.key === `monitor_${primaryIdx}_active_image_id`)?.value;
+            if (primaryImgId) {
+                const imgId = parseInt(primaryImgId, 10);
                 if (currentImage && currentImage.id === imgId) return currentImage;
                 const found = historyList?.find(img => img.id === imgId);
                 if (found) return found;
             }
+
+            // Fallback: global API/database
+            if (currentMonitors && currentMonitors['global']) return currentMonitors['global'];
             return currentImage;
         }
 
@@ -331,7 +364,7 @@ export default function RotationManagement() {
         }
 
         return currentImage;
-    }, [activeMonitorPreview, activeWallpapers, currentImage, dbSettings, historyList, currentMonitors, systemWallpapers, resolveImageFromPath]);
+    }, [activeMonitorPreview, activeWallpapers, currentImage, dbSettings, historyList, currentMonitors, systemWallpapers, resolveImageFromPath, monitors]);
 
     // Find the currently focused image details
     const focusedImage = useMemo(() => {
