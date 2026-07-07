@@ -16,11 +16,20 @@ interface PlaylistRotationUrlModalProps {
     playlistName: string;
 }
 
+interface MonitorInfo {
+    index: number;
+    winNum?: number;
+    bounds: {
+        width: number;
+        height: number;
+    };
+}
+
 export function PlaylistRotationUrlModal({ opened, onClose, playlistId, playlistName }: PlaylistRotationUrlModalProps) {
     const [ratio, setRatio] = useState<string | null>('16x9');
     const [tags, setTags] = useState('');
     const [targetMonitor, setTargetMonitor] = useState<string>('all');
-    const [monitors, setMonitors] = useState<any[]>([]);
+    const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
 
     useEffect(() => {
         if (opened && window.electron?.getMonitors) {

@@ -200,7 +200,7 @@ export default function RotationManagement() {
             const gSrc = getVal('wallpaper_rotation_source', 'entire_library') as 'entire_library' | 'playlist';
             const gPlay = getVal('wallpaper_rotation_playlist_id', '');
             const gFav = Math.round(parseFloat(getVal('favorite_rotation_probability', '0.4')) * 100);
-            const gStyle = getVal('wallpaper_rotation_style', 'fill') as any;
+            const gStyle = getVal('wallpaper_rotation_style', 'fill') as ConfigState['style'];
 
             setGlobalConfig({
                 mode: gMode,
@@ -224,7 +224,7 @@ export default function RotationManagement() {
                     source: (overrideEnabled ? getVal(`monitor_${idx}_wallpaper_rotation_source`, gSrc) : gSrc) as 'entire_library' | 'playlist',
                     playlistId: overrideEnabled ? getVal(`monitor_${idx}_wallpaper_rotation_playlist_id`, gPlay) : gPlay,
                     favProb: overrideEnabled ? (Math.round(parseFloat(getVal(`monitor_${idx}_favorite_rotation_probability`, String(gFav / 100))) * 100)) : gFav,
-                    style: (overrideEnabled ? getVal(`monitor_${idx}_wallpaper_rotation_style`, gStyle) : gStyle) as any
+                    style: (overrideEnabled ? getVal(`monitor_${idx}_wallpaper_rotation_style`, gStyle) : gStyle) as ConfigState['style']
                 };
             });
             setMonitorConfigs(mConfigs);
@@ -947,7 +947,7 @@ export default function RotationManagement() {
                                                 { value: 'span', label: 'Span (Stretch single image across monitors)' }
                                             ]}
                                             value={activeTabConfig.style}
-                                            onChange={(val) => { if (val) updateActiveTabConfig({ style: val as any }); }}
+                                            onChange={(val) => { if (val) updateActiveTabConfig({ style: val as ConfigState['style'] }); }}
                                         />
                                     )}
 

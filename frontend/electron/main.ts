@@ -712,6 +712,7 @@ app.on('before-quit', () => {
     if (backendProcess) {
         backendProcess.kill();
     }
+    psDaemon.kill();
 });
 
 app.whenReady().then(() => {
@@ -776,76 +777,199 @@ const monitorConfigs: Map<number, MonitorRotationConfig> = new Map();
 
 let cachedOrderedDisplays: any[] | null = null;
 
-function runPsScript(scriptLines: string[]): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const scriptText = scriptLines.join('\r\n');
-        const encoded = Buffer.from(scriptText, 'utf16le').toString('base64');
-        exec(`Powershell.exe -NoProfile -NonInteractive -EncodedCommand ${encoded}`, (err, stdout) => {
-            if (err) reject(err);
-            else resolve(stdout.trim());
+class PowerShellDaemon {
+    private process: ChildProcess | null = null;
+    private queue: Array<{ cmd: string; resolve: (val: string) => void; reject: (err: Error) => void }> = [];
+    private currentCallback: { resolve: (val: string) => void; reject: (err: Error) => void } | null = null;
+    private outputBuffer = '';
+    private isReady = false;
+    private initPromise: Promise<void> | null = null;
+
+    constructor() {
+        this.initPromise = this.init();
+    }
+
+    private init(): Promise<void> {
+        return new Promise((resolve) => {
+            console.log('[PS Daemon] Starting persistent background PowerShell daemon...');
+            this.process = spawn('Powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', '-'], {
+                stdio: ['pipe', 'pipe', 'pipe']
+            });
+
+            this.process.stdout?.on('data', (data) => {
+                this.outputBuffer += data.toString();
+                this.checkOutput();
+            });
+
+            this.process.stderr?.on('data', (data) => {
+                console.error('[PS Daemon Stderr]', data.toString());
+            });
+
+            // Keep-alive monitor job: kills PowerShell if the parent Electron process dies unexpectedly
+            const bootstrapScript = [
+                'Add-Type -AssemblyName System.Windows.Forms',
+                '$MyPid = $pid',
+                '$ParentPid = (Get-WmiObject Win32_Process -Filter "ProcessId = $MyPid").ParentProcessId',
+                'if (!$ParentPid) {',
+                '    $ParentPid = (Get-CimInstance Win32_Process -Filter "ProcessId = $MyPid").ParentProcessId',
+                '}',
+                '$null = Start-Job -ScriptBlock {',
+                '    $parentPid = $args[0]',
+                '    $mainPid = $args[1]',
+                '    while ($true) {',
+                '        Start-Sleep -Seconds 5',
+                '        $parent = Get-Process -Id $parentPid -ErrorAction SilentlyContinue',
+                '        if (!$parent) {',
+                '            Stop-Process -Id $mainPid -Force -ErrorAction SilentlyContinue',
+                '            Exit',
+                '        }',
+                '    }',
+                '} -ArgumentList $ParentPid, $MyPid',
+                '$code = @\'',
+                'using System;',
+                'using System.Collections.Generic;',
+                'using System.Runtime.InteropServices;',
+                '[StructLayout(LayoutKind.Sequential)]',
+                'public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }',
+                '[ComImport, Guid("C2CF3110-460E-4fc1-B9D0-8A1C0C9CC4BD")]',
+                'public class DesktopWallpaperClass {}',
+                '[ComImport, Guid("B92B56A9-8B55-4E14-9A89-0199BBB6F93B"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]',
+                '[CoClass(typeof(DesktopWallpaperClass))]',
+                'public interface IDesktopWallpaper {',
+                '    void SetWallpaper([MarshalAs(UnmanagedType.LPWStr)] string monitorID, [MarshalAs(UnmanagedType.LPWStr)] string wallpaper);',
+                '    void GetWallpaper([MarshalAs(UnmanagedType.LPWStr)] string monitorID, [MarshalAs(UnmanagedType.LPWStr)] out string wallpaper);',
+                '    void GetMonitorDevicePathAt(uint monitorIndex, [MarshalAs(UnmanagedType.LPWStr)] out string monitorID);',
+                '    void GetMonitorDevicePathCount(out uint count);',
+                '    void GetMonitorRECT([MarshalAs(UnmanagedType.LPWStr)] string monitorID, out RECT displayRect);',
+                '    void SetBackgroundColor(uint color);',
+                '    void GetBackgroundColor(out uint color);',
+                '    void SetPosition(int position);',
+                '}',
+                'public class ComDisplayHelper {',
+                '    public static string GetLayout() {',
+                '        try {',
+                '            IDesktopWallpaper w = (IDesktopWallpaper)new DesktopWallpaperClass();',
+                '            uint count = 0;',
+                '            w.GetMonitorDevicePathCount(out count);',
+                '            var results = new List<string>();',
+                '            for (uint i = 0; i < count; i++) {',
+                '                try {',
+                '                    string id;',
+                '                    w.GetMonitorDevicePathAt(i, out id);',
+                '                    RECT r;',
+                '                    w.GetMonitorRECT(id, out r);',
+                '                    results.Add("{" +',
+                '                        "\\"comIndex\\":" + i +',
+                '                        ",\\"x\\":" + r.Left +',
+                '                        ",\\"y\\":" + r.Top +',
+                '                        ",\\"w\\":" + (r.Right - r.Left) +',
+                '                        ",\\"h\\":" + (r.Bottom - r.Top) + "}");',
+                '                } catch {}',
+                '            }',
+                '            return "[" + string.Join(",", results) + "]";',
+                '        } catch { return "[]"; }',
+                '    }',
+                '}',
+                'public class WallpaperHelper {',
+                '    public static string GetPaths() {',
+                '        try {',
+                '            IDesktopWallpaper w = (IDesktopWallpaper)new DesktopWallpaperClass();',
+                '            uint count = 0;',
+                '            w.GetMonitorDevicePathCount(out count);',
+                '            var results = new List<string>();',
+                '            for (uint i = 0; i < count; i++) {',
+                '                try {',
+                '                    string id;',
+                '                    w.GetMonitorDevicePathAt(i, out id);',
+                '                    string path;',
+                '                    w.GetWallpaper(id, out path);',
+                '                    results.Add("{\\"comIndex\\":" + i + ",\\"wallpaper\\":\\"" + path.Replace("\\\\", "\\\\\\\\").Replace("\\"", "\\\\\\\"") + "\\"}");',
+                '                } catch {}',
+                '            }',
+                '            return "[" + string.Join(",", results) + "]";',
+                '        } catch { return "[]"; }',
+                '    }',
+                '    public static void SetMonitorWallpaper(int monitorIndex, string path, int position) {',
+                '        IDesktopWallpaper w = (IDesktopWallpaper)new DesktopWallpaperClass();',
+                '        w.SetPosition(position);',
+                '        if (monitorIndex == -1) {',
+                '            w.SetWallpaper(null, path);',
+                '        } else {',
+                '            uint count = 0;',
+                '            w.GetMonitorDevicePathCount(out count);',
+                '            if ((uint)monitorIndex < count) {',
+                '                string id;',
+                '                w.GetMonitorDevicePathAt((uint)monitorIndex, out id);',
+                '                w.SetWallpaper(id, path);',
+                '            }',
+                '        }',
+                '    }',
+                '}',
+                '\'@',
+                'Add-Type -TypeDefinition $code -ReferencedAssemblies "System.Windows.Forms" -ErrorAction SilentlyContinue',
+                'Write-Output "BOOTSTRAP_DONE"'
+            ].join('\r\n');
+
+            this.currentCallback = {
+                resolve: () => {
+                    this.isReady = true;
+                    console.log('[PS Daemon] Background PowerShell daemon successfully initialized and bootstrapped.');
+                    resolve();
+                },
+                reject: (err) => console.error('[PS Daemon] Bootstrap failed:', err)
+            };
+
+            this.process.stdin?.write(bootstrapScript + '\r\n');
         });
-    });
+    }
+
+    private checkOutput() {
+        if (!this.isReady) {
+            if (this.outputBuffer.includes('BOOTSTRAP_DONE')) {
+                this.outputBuffer = this.outputBuffer.replace(/BOOTSTRAP_DONE[\r\n]*/, '');
+                const cb = this.currentCallback;
+                this.currentCallback = null;
+                cb?.resolve('');
+            }
+            return;
+        }
+
+        const marker = '__CMD_DONE__';
+        const idx = this.outputBuffer.indexOf(marker);
+        if (idx !== -1) {
+            const result = this.outputBuffer.substring(0, idx).trim();
+            this.outputBuffer = this.outputBuffer.substring(idx + marker.length).replace(/^[\r\n]*/, '');
+            const cb = this.currentCallback;
+            this.currentCallback = null;
+            cb?.resolve(result);
+            this.processNext();
+        }
+    }
+
+    private processNext() {
+        if (this.queue.length === 0 || this.currentCallback !== null) return;
+        const task = this.queue.shift();
+        if (task) {
+            this.currentCallback = { resolve: task.resolve, reject: task.reject };
+            this.process.stdin?.write(task.cmd + '\r\nWrite-Output "__CMD_DONE__"\r\n');
+        }
+    }
+
+    public async run(cmd: string): Promise<string> {
+        await this.initPromise;
+        return new Promise((resolve, reject) => {
+            this.queue.push({ cmd, resolve, reject });
+            this.processNext();
+        });
+    }
+
+    public kill() {
+        console.log('[PS Daemon] Killing background PowerShell daemon...');
+        this.process?.kill();
+    }
 }
 
-// Script 1: Get actual Windows display numbers via EnumDisplayDevices
-const winDisplayScript = [
-    "Add-Type -AssemblyName System.Windows.Forms",
-    "$results = @()",
-    "[System.Windows.Forms.Screen]::AllScreens | ForEach-Object {",
-    "    $winNum = [regex]::Match($_.DeviceName, '\\d+').Value",
-    "    if (!$winNum) { $winNum = 1 }",
-    "    $results += '{\"winNum\":' + $winNum + ',\"x\":' + $_.Bounds.X + ',\"y\":' + $_.Bounds.Y + ',\"w\":' + $_.Bounds.Width + ',\"h\":' + $_.Bounds.Height + '}'",
-    "}",
-    "'[' + ($results -join ',') + ']'"
-];
-
-
-// Script 2: Get COM monitor indices and their physical coordinates
-const comDisplayScript = [
-    '$code = @\'',
-    'using System;',
-    'using System.Collections.Generic;',
-    'using System.Runtime.InteropServices;',
-    '[StructLayout(LayoutKind.Sequential)]',
-    'public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }',
-    '[ComImport, Guid("C2CF3110-460E-4fc1-B9D0-8A1C0C9CC4BD")]',
-    'public class DesktopWallpaperClass {}',
-    '[ComImport, Guid("B92B56A9-8B55-4E14-9A89-0199BBB6F93B"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]',
-    '[CoClass(typeof(DesktopWallpaperClass))]',
-    'public interface IDesktopWallpaper {',
-    '    void SetWallpaper([MarshalAs(UnmanagedType.LPWStr)] string monitorID, [MarshalAs(UnmanagedType.LPWStr)] string wallpaper);',
-    '    void GetWallpaper([MarshalAs(UnmanagedType.LPWStr)] string monitorID, [MarshalAs(UnmanagedType.LPWStr)] out string wallpaper);',
-    '    void GetMonitorDevicePathAt(uint monitorIndex, [MarshalAs(UnmanagedType.LPWStr)] out string monitorID);',
-    '    void GetMonitorDevicePathCount(out uint count);',
-    '    void GetMonitorRECT([MarshalAs(UnmanagedType.LPWStr)] string monitorID, out RECT displayRect);',
-    '}',
-    'public class ComDisplayHelper {',
-    '    public static string GetLayout() {',
-    '        IDesktopWallpaper w = (IDesktopWallpaper)new DesktopWallpaperClass();',
-    '        uint count = 0;',
-    '        w.GetMonitorDevicePathCount(out count);',
-    '        var results = new List<string>();',
-    '        for (uint i = 0; i < count; i++) {',
-    '            try {',
-    '                string id;',
-    '                w.GetMonitorDevicePathAt(i, out id);',
-    '                RECT r;',
-    '                w.GetMonitorRECT(id, out r);',
-    '                results.Add("{" +',
-    '                    "\\"comIndex\\":" + i +',
-    '                    ",\\"x\\":" + r.Left +',
-    '                    ",\\"y\\":" + r.Top +',
-    '                    ",\\"w\\":" + (r.Right - r.Left) +',
-    '                    ",\\"h\\":" + (r.Bottom - r.Top) + "}");',
-    '            } catch {}',
-    '        }',
-    '        return "[" + string.Join(",", results) + "]";',
-    '    }',
-    '}',
-    '\'@',
-    'try { Add-Type -TypeDefinition $code -ErrorAction Stop } catch {}',
-    '[ComDisplayHelper]::GetLayout()',
-];
+const psDaemon = new PowerShellDaemon();
 
 async function getOrderedDisplays(): Promise<any[]> {
     if (cachedOrderedDisplays) return cachedOrderedDisplays;
@@ -859,10 +983,9 @@ async function getOrderedDisplays(): Promise<any[]> {
     }));
 
     try {
-        // Run both scripts in parallel
         const [winRaw, comRaw] = await Promise.all([
-            runPsScript(winDisplayScript),
-            runPsScript(comDisplayScript)
+            psDaemon.run(`$results = @(); [System.Windows.Forms.Screen]::AllScreens | ForEach-Object { $winNum = [regex]::Match($_.DeviceName, '\\d+').Value; if (!$winNum) { $winNum = 1 }; $results += '{"winNum":' + $winNum + ',"x":' + $_.Bounds.X + ',"y":' + $_.Bounds.Y + ',"w":' + $_.Bounds.Width + ',"h":' + $_.Bounds.Height + '}' }; '[' + ($results -join ',') + ']'`),
+            psDaemon.run('[ComDisplayHelper]::GetLayout()')
         ]);
 
         const winDisplays: Array<{ winNum: number; x: number; y: number; w: number; h: number }> = JSON.parse(winRaw);
@@ -1260,128 +1383,35 @@ function setWallpaperNatively(imagePath: string, monitorIndex: number, style: st
     const absolutePath = path.resolve(imagePath);
     const styleInt = getStyleInt(style);
 
-    const script = `
-$code = @'
-using System;
-using System.Runtime.InteropServices;
+    // Secure base64-encoding for the path argument to prevent command injection/parsing issues
+    const base64Path = Buffer.from(absolutePath, 'utf-8').toString('base64');
+    const cmd = `[WallpaperHelper]::SetMonitorWallpaper(${monitorIndex}, [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("${base64Path}")), ${styleInt})`;
 
-[StructLayout(LayoutKind.Sequential)]
-public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
-
-[ComImport, Guid("C2CF3110-460E-4fc1-B9D0-8A1C0C9CC4BD")]
-public class DesktopWallpaperClass {}
-
-[ComImport, Guid("B92B56A9-8B55-4E14-9A89-0199BBB6F93B"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-[CoClass(typeof(DesktopWallpaperClass))]
-public interface IDesktopWallpaper {
-    void SetWallpaper([MarshalAs(UnmanagedType.LPWStr)] string monitorID, [MarshalAs(UnmanagedType.LPWStr)] string wallpaper);
-    void GetWallpaper([MarshalAs(UnmanagedType.LPWStr)] string monitorID, [MarshalAs(UnmanagedType.LPWStr)] out string wallpaper);
-    void GetMonitorDevicePathAt(uint monitorIndex, [MarshalAs(UnmanagedType.LPWStr)] out string monitorID);
-    void GetMonitorDevicePathCount(out uint count);
-    void GetMonitorRECT([MarshalAs(UnmanagedType.LPWStr)] string monitorID, out RECT displayRect);
-    void SetBackgroundColor(uint color);
-    void GetBackgroundColor(out uint color);
-    void SetPosition(int position);
-}
-
-public class WallpaperHelper {
-    public static void SetMonitorWallpaper(int monitorIndex, string path, int position) {
-        IDesktopWallpaper wallpaper = (IDesktopWallpaper)new DesktopWallpaperClass();
-        wallpaper.SetPosition(position);
-        if (monitorIndex == -1) {
-            wallpaper.SetWallpaper(null, path);
-        } else {
-            uint count = 0;
-            wallpaper.GetMonitorDevicePathCount(out count);
-            if ((uint)monitorIndex < count) {
-                string monitorID;
-                wallpaper.GetMonitorDevicePathAt((uint)monitorIndex, out monitorID);
-                wallpaper.SetWallpaper(monitorID, path);
-            }
-        }
-    }
-}
-'@
-Add-Type -TypeDefinition $code -ErrorAction SilentlyContinue
-[WallpaperHelper]::SetMonitorWallpaper(${monitorIndex}, "${absolutePath}", ${styleInt})
-`;
-
-    const encoded = Buffer.from(script, 'utf16le').toString('base64');
-    const powershellCmd = `Powershell.exe -NoProfile -NonInteractive -EncodedCommand ${encoded}`;
-
-    console.log(`[Rotation Coordinator] Executing PowerShell background updater for Monitor ${monitorIndex === -1 ? 'Global' : monitorIndex + 1} with Style ${style}...`);
-    exec(powershellCmd, (err) => {
-        if (err) {
-            console.error('[Rotation Coordinator] PowerShell wallpaper update failed:', err);
-        } else {
+    console.log(`[Rotation Coordinator] Calling PowerShell daemon to set wallpaper for Monitor ${monitorIndex === -1 ? 'Global' : monitorIndex + 1} with Style ${style}...`);
+    psDaemon.run(cmd)
+        .then(() => {
             console.log('[Rotation Coordinator] Natively set wallpaper succeeded.');
-        }
-    });
+        })
+        .catch((err) => {
+            console.error('[Rotation Coordinator] PowerShell wallpaper update failed:', err);
+        });
 }
 
 function getSystemWallpapers(): Promise<Array<{ comIndex: number; wallpaper: string }>> {
     return new Promise((resolve) => {
-        const script = `
-$code = @'
-using System;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-
-[ComImport, Guid("C2CF3110-460E-4fc1-B9D0-8A1C0C9CC4BD")]
-public class DesktopWallpaperClass {}
-
-[ComImport, Guid("B92B56A9-8B55-4E14-9A89-0199BBB6F93B"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-public interface IDesktopWallpaper {
-    void SetWallpaper([MarshalAs(UnmanagedType.LPWStr)] string monitorID, [MarshalAs(UnmanagedType.LPWStr)] string wallpaper);
-    void GetWallpaper([MarshalAs(UnmanagedType.LPWStr)] string monitorID, [MarshalAs(UnmanagedType.LPWStr)] out string wallpaper);
-    void GetMonitorDevicePathAt(uint monitorIndex, [MarshalAs(UnmanagedType.LPWStr)] out string monitorID);
-    void GetMonitorDevicePathCount(out uint count);
-}
-
-public class WallpaperReader {
-    public static string GetPaths() {
-        try {
-            IDesktopWallpaper w = (IDesktopWallpaper)new DesktopWallpaperClass();
-            uint count = 0;
-            w.GetMonitorDevicePathCount(out count);
-            var results = new List<string>();
-            for (uint i = 0; i < count; i++) {
+        psDaemon.run('[WallpaperHelper]::GetPaths()')
+            .then((stdout) => {
                 try {
-                    string id;
-                    w.GetMonitorDevicePathAt(i, out id);
-                    string path;
-                    w.GetWallpaper(id, out path);
-                    results.Add("{\\"comIndex\\":" + i + ",\\"wallpaper\\":\\"" + path.Replace("\\\\", "\\\\\\\\").Replace("\\"", "\\\\\\\"") + "\\"}");
-                } catch {}
-            }
-            return "[" + string.Join(",", results) + "]";
-        } catch {
-            return "[]";
-        }
-    }
-}
-'@
-Add-Type -TypeDefinition $code -ErrorAction SilentlyContinue
-[WallpaperReader]::GetPaths()
-`;
-
-        const encoded = Buffer.from(script, 'utf16le').toString('base64');
-        const powershellCmd = `Powershell.exe -NoProfile -NonInteractive -EncodedCommand ${encoded}`;
-
-        exec(powershellCmd, (err, stdout) => {
-            if (err) {
+                    const parsed = JSON.parse(stdout.trim());
+                    resolve(parsed);
+                } catch (parseErr) {
+                    console.error('[Rotation Coordinator] Failed to parse system wallpapers output:', parseErr, stdout);
+                    resolve([]);
+                }
+            })
+            .catch((err) => {
                 console.error('[Rotation Coordinator] Failed to get system wallpapers:', err);
                 resolve([]);
-                return;
-            }
-
-            try {
-                const parsed = JSON.parse(stdout.trim());
-                resolve(parsed);
-            } catch (parseErr) {
-                console.error('[Rotation Coordinator] Failed to parse system wallpapers output:', parseErr, stdout);
-                resolve([]);
-            }
-        });
+            });
     });
 }
