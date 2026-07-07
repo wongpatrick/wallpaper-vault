@@ -80,10 +80,20 @@ export default function RotationManagement() {
     // 1. Query monitors from Electron
     const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
     useEffect(() => {
-        if (window.electron?.getMonitors) {
-            window.electron.getMonitors().then((res) => {
-                setMonitors(res);
+        const fetchMonitors = () => {
+            if (window.electron?.getMonitors) {
+                window.electron.getMonitors().then((res) => {
+                    setMonitors(res);
+                });
+            }
+        };
+        fetchMonitors();
+
+        if (window.electron?.on) {
+            const unsubscribe = window.electron.on('displays-changed', () => {
+                fetchMonitors();
             });
+            return unsubscribe;
         }
     }, []);
 
@@ -265,8 +275,8 @@ export default function RotationManagement() {
     // Determine the active wallpaper image to show in the preview card
     const activeWallpaper = useMemo(() => {
         if (activeMonitorPreview === 'all') {
-            // Global view mirrors Monitor 1 (primary Windows display)
-            const primaryMonitor = monitors.find(m => m.winNum === 1);
+            // Global view mirrors the primary Windows display (coordinates 0, 0)
+            const primaryMonitor = monitors.find(m => m.bounds.x === 0 && m.bounds.y === 0) || monitors.find(m => m.winNum === 1);
             const primaryIdx = primaryMonitor ? String(primaryMonitor.index) : '0';
 
             // Try OS-level wallpaper path for the primary monitor

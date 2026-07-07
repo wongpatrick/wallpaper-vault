@@ -723,17 +723,23 @@ app.whenReady().then(() => {
     setTimeout(createTray, TRAY_CREATION_DELAY_MS);
 
     // Monitor configuration/metrics change listeners to refresh coordinates cache
+    const notifyDisplaysChanged = () => {
+        cachedOrderedDisplays = null;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('displays-changed');
+        }
+    };
     screen.on('display-added', () => {
         console.log('[Rotation Coordinator] Monitor added, invalidating layout cache...');
-        cachedOrderedDisplays = null;
+        notifyDisplaysChanged();
     });
     screen.on('display-removed', () => {
         console.log('[Rotation Coordinator] Monitor removed, invalidating layout cache...');
-        cachedOrderedDisplays = null;
+        notifyDisplaysChanged();
     });
     screen.on('display-metrics-changed', () => {
         console.log('[Rotation Coordinator] Monitor metrics changed, invalidating layout cache...');
-        cachedOrderedDisplays = null;
+        notifyDisplaysChanged();
     });
 });
 
@@ -792,7 +798,7 @@ class PowerShellDaemon {
     private init(): Promise<void> {
         return new Promise((resolve, reject) => {
             logBothToCombined('[PS Daemon] Starting persistent background PowerShell daemon...');
-            this.process = spawn('Powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', '-'], {
+            this.process = spawn('Powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass'], {
                 stdio: ['pipe', 'pipe', 'pipe']
             });
 
@@ -822,28 +828,50 @@ class PowerShellDaemon {
             });
 
             // Keep-alive monitor job: kills PowerShell if the parent Electron process dies unexpectedly
-            const bootstrapScript = [
-                'Add-Type -AssemblyName System.Windows.Forms',
-                `$ParentPid = ${process.pid}`,
-                '$MyPid = $pid',
-                '$null = Start-Job -ScriptBlock {',
-                '    $parentPid = $args[0]',
-                '    $mainPid = $args[1]',
-                '    while ($true) {',
-                '        Start-Sleep -Seconds 5',
-                '        $parent = Get-Process -Id $parentPid -ErrorAction SilentlyContinue',
-                '        if (!$parent) {',
-                '            Stop-Process -Id $mainPid -Force -ErrorAction SilentlyContinue',
-                '            Exit',
-                '        }',
-                '    }',
-                '} -ArgumentList $ParentPid, $MyPid',
-                '$code = @\'',
+            const csharpCode = [
                 'using System;',
                 'using System.Collections.Generic;',
                 'using System.Runtime.InteropServices;',
                 '[StructLayout(LayoutKind.Sequential)]',
                 'public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }',
+                '[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]',
+                'public struct MonitorInfoEx {',
+                '    public int Size;',
+                '    public RECT Monitor;',
+                '    public RECT Work;',
+                '    public uint Flags;',
+                '    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]',
+                '    public string DeviceName;',
+                '}',
+                'public class WinDisplayHelper {',
+                '    [DllImport("user32.dll", CharSet = CharSet.Auto)]',
+                '    public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MonitorInfoEx lpmi);',
+                '    private delegate bool MonitorEnumDelegate(IntPtr hMonitor, IntPtr hdcMonitor, ref RECT lprcMonitor, IntPtr dwData);',
+                '    [DllImport("user32.dll")]',
+                '    private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr lprcClip, MonitorEnumDelegate lpfnEnum, IntPtr dwData);',
+                '    public static string GetDisplays() {',
+                '        var results = new List<string>();',
+                '        EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, delegate(IntPtr hMonitor, IntPtr hdcMonitor, ref RECT lprcMonitor, IntPtr dwData) {',
+                '            MonitorInfoEx mi = new MonitorInfoEx();',
+                '            mi.Size = Marshal.SizeOf(mi);',
+                '            if (GetMonitorInfo(hMonitor, ref mi)) {',
+                '                string winNum = "1";',
+                '                var match = System.Text.RegularExpressions.Regex.Match(mi.DeviceName, @"\\d+");',
+                '                if (match.Success) {',
+                '                    winNum = match.Value;',
+                '                }',
+                '                results.Add("{" +',
+                '                    "\\"winNum\\":" + winNum +',
+                '                    ",\\"x\\":" + mi.Monitor.Left +',
+                '                    ",\\"y\\":" + mi.Monitor.Top +',
+                '                    ",\\"w\\":" + (mi.Monitor.Right - mi.Monitor.Left) +',
+                '                    ",\\"h\\":" + (mi.Monitor.Bottom - mi.Monitor.Top) + "}");',
+                '            }',
+                '            return true;',
+                '        }, IntPtr.Zero);',
+                '        return "[" + string.Join(",", results) + "]";',
+                '    }',
+                '}',
                 '[ComImport, Guid("C2CF3110-460E-4fc1-B9D0-8A1C0C9CC4BD")]',
                 'public class DesktopWallpaperClass {}',
                 '[ComImport, Guid("B92B56A9-8B55-4E14-9A89-0199BBB6F93B"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]',
@@ -918,9 +946,30 @@ class PowerShellDaemon {
                 '        }',
                 '    }',
                 '}',
-                '\'@',
+            ].join('\r\n');
+
+            const base64Code = Buffer.from(csharpCode, 'utf-8').toString('base64');
+
+            const bootstrapScript = [
+                'Add-Type -AssemblyName System.Windows.Forms',
+                `$ParentPid = ${process.pid}`,
+                '$MyPid = $pid',
+                '$null = Start-Job -ScriptBlock {',
+                '    $parentPid = $args[0]',
+                '    $mainPid = $args[1]',
+                '    while ($true) {',
+                '        Start-Sleep -Seconds 5',
+                '        $parent = Get-Process -Id $parentPid -ErrorAction SilentlyContinue',
+                '        if (!$parent) {',
+                '            Stop-Process -Id $mainPid -Force -ErrorAction SilentlyContinue',
+                '            Exit',
+                '        }',
+                '    }',
+                '} -ArgumentList $ParentPid, $MyPid',
+                `$code = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("${base64Code}"))`,
                 'try { Add-Type -TypeDefinition $code -ReferencedAssemblies "System.Windows.Forms" -ErrorAction Stop } catch { Write-Error "Add-Type failed: $_" }',
-                'Write-Output "BOOTSTRAP_DONE"'
+                'Write-Output ("_" + "_BOOTSTRAP_DONE_" + "_")',
+                ''
             ].join('\r\n');
 
             this.currentCallback = {
@@ -941,8 +990,8 @@ class PowerShellDaemon {
 
     private checkOutput() {
         if (!this.isReady) {
-            if (this.outputBuffer.includes('BOOTSTRAP_DONE')) {
-                this.outputBuffer = this.outputBuffer.replace(/BOOTSTRAP_DONE[\r\n]*/, '');
+            if (this.outputBuffer.includes('__BOOTSTRAP_DONE__')) {
+                this.outputBuffer = '';
                 const cb = this.currentCallback;
                 this.currentCallback = null;
                 cb?.resolve('');
@@ -967,7 +1016,7 @@ class PowerShellDaemon {
         const task = this.queue.shift();
         if (task) {
             this.currentCallback = { resolve: task.resolve, reject: task.reject };
-            this.process.stdin?.write(task.cmd + '\r\nWrite-Output "__CMD_DONE__"\r\n');
+            this.process?.stdin?.write(`${task.cmd}\r\nWrite-Output ("_" + "_CMD_DONE_" + "_")\r\n`);
         }
     }
 
@@ -987,6 +1036,12 @@ class PowerShellDaemon {
 
 const psDaemon = new PowerShellDaemon();
 
+function extractJsonArray(stdout: string): string {
+    const lines = stdout.split(/\r?\n/);
+    const jsonLine = lines.find(line => line.trim().startsWith('[') && line.trim().endsWith(']'));
+    return jsonLine ? jsonLine.trim() : '[]';
+}
+
 async function getOrderedDisplays(): Promise<any[]> {
     if (cachedOrderedDisplays) return cachedOrderedDisplays;
 
@@ -1000,36 +1055,56 @@ async function getOrderedDisplays(): Promise<any[]> {
 
     try {
         const [winRaw, comRaw] = await Promise.all([
-            psDaemon.run(`$results = @(); [System.Windows.Forms.Screen]::AllScreens | ForEach-Object { $winNum = [regex]::Match($_.DeviceName, '\\d+').Value; if (!$winNum) { $winNum = 1 }; $results += '{"winNum":' + $winNum + ',"x":' + $_.Bounds.X + ',"y":' + $_.Bounds.Y + ',"w":' + $_.Bounds.Width + ',"h":' + $_.Bounds.Height + '}' }; '[' + ($results -join ',') + ']'`),
+            psDaemon.run('[WinDisplayHelper]::GetDisplays()'),
             psDaemon.run('[ComDisplayHelper]::GetLayout()')
         ]);
 
-        const winDisplays: Array<{ winNum: number; x: number; y: number; w: number; h: number }> = JSON.parse(winRaw);
-        const comDisplays: Array<{ comIndex: number; x: number; y: number; w: number; h: number }> = JSON.parse(comRaw);
+        const winDisplays: Array<{ winNum: number; x: number; y: number; w: number; h: number }> = JSON.parse(extractJsonArray(winRaw));
+        const comDisplays: Array<{ comIndex: number; x: number; y: number; w: number; h: number }> = JSON.parse(extractJsonArray(comRaw));
 
         logBothToCombined('[Rotation Coordinator] Electron displays: ' + JSON.stringify(displays.map(d => ({ id: d.id, bounds: d.bounds, scaleFactor: d.scaleFactor }))));
         logBothToCombined('[Rotation Coordinator] Windows displays: ' + JSON.stringify(winDisplays));
         logBothToCombined('[Rotation Coordinator] COM displays: ' + JSON.stringify(comDisplays));
 
         // Match each Windows display to a COM display by physical coordinates (both use physical pixels)
-        // Sort both arrays by coordinates (X first, then Y) to align them independent of DPI scale
-        const sortFn = (a: any, b: any) => {
-            if (Math.abs(a.x - b.x) > 50) return a.x - b.x;
-            return a.y - b.y;
-        };
-        const sortedWin = [...winDisplays].sort(sortFn);
-        const sortedCom = [...comDisplays].sort(sortFn);
-
         const winToComMap: Array<{ winNum: number; comIndex: number; x: number; y: number; w: number; h: number }> = [];
-        for (let i = 0; i < sortedWin.length && i < sortedCom.length; i++) {
-            winToComMap.push({
-                winNum: sortedWin[i].winNum,
-                comIndex: sortedCom[i].comIndex,
-                x: sortedWin[i].x,
-                y: sortedWin[i].y,
-                w: sortedWin[i].w,
-                h: sortedWin[i].h
-            });
+        for (const w of winDisplays) {
+            // Find the closest Electron display to get its scale factor
+            let bestElectron: any = null;
+            let minDist = Infinity;
+            for (const d of displays) {
+                const dist = Math.abs(w.x - d.bounds.x) + Math.abs(w.y - d.bounds.y);
+                if (dist < minDist) {
+                    minDist = dist;
+                    bestElectron = d;
+                }
+            }
+
+            const scale = bestElectron ? bestElectron.scaleFactor : 1.0;
+            const physX = w.x * scale;
+            const physY = w.y * scale;
+
+            // Find the closest COM display in physical coordinates
+            let bestCom: any = null;
+            let minComDist = Infinity;
+            for (const c of comDisplays) {
+                const dist = Math.abs(physX - c.x) + Math.abs(physY - c.y);
+                if (dist < minComDist) {
+                    minComDist = dist;
+                    bestCom = c;
+                }
+            }
+
+            if (bestCom) {
+                winToComMap.push({
+                    winNum: w.winNum,
+                    comIndex: bestCom.comIndex,
+                    x: physX,
+                    y: physY,
+                    w: w.w * scale,
+                    h: w.h * scale
+                });
+            }
         }
 
         logBothToCombined('[Rotation Coordinator] Win-to-COM mapping: ' + JSON.stringify(winToComMap));
@@ -1418,7 +1493,7 @@ function getSystemWallpapers(): Promise<Array<{ comIndex: number; wallpaper: str
         psDaemon.run('[WallpaperHelper]::GetPaths()')
             .then((stdout) => {
                 try {
-                    const parsed = JSON.parse(stdout.trim());
+                    const parsed = JSON.parse(extractJsonArray(stdout));
                     resolve(parsed);
                 } catch (parseErr) {
                     console.error('[Rotation Coordinator] Failed to parse system wallpapers output:', parseErr, stdout);
