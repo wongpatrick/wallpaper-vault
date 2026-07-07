@@ -47,7 +47,7 @@ async def get_random_image(
     query = select(Image).join(Image.set)
     
     # Always exclude blacklisted wallpapers
-    query = query.filter(Image.is_blacklisted == False)
+    query = query.filter(Image.is_blacklisted.is_(False))
     
     if tags:
         from app.models.tag import Tag
@@ -101,7 +101,7 @@ async def get_random_image(
     import random
     if random.random() < favorite_prob:
         # Try to get a favorite image first, applying all same constraints
-        fav_query = query.filter(Image.is_favorite == True).order_by(func.random()).limit(1)
+        fav_query = query.filter(Image.is_favorite.is_(True)).order_by(func.random()).limit(1)
         result = await db.execute(fav_query)
         db_image = result.scalar_one_or_none()
         if db_image:

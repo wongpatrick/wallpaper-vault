@@ -15,6 +15,7 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
+MAX_HISTORY_DISPLAY_COUNT = 5
 
 @router.get("/current", response_model=ImageDetail)
 async def read_current_wallpaper(db: AsyncSession = Depends(get_db)) -> ImageDetail:
@@ -56,7 +57,7 @@ async def read_wallpaper_history(db: AsyncSession = Depends(get_db)) -> List[Ima
         img = await get_image(db, entry.image_id)
         if img:
             images.append(map_image_to_schema(img))
-        if len(images) >= 5:
+        if len(images) >= MAX_HISTORY_DISPLAY_COUNT:
             break
             
     return images
