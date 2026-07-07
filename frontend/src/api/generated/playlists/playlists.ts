@@ -36,6 +36,8 @@ import type {
   PlaylistUpdate,
   ReadPlaylistRandomImageApiPlaylistsPlaylistIdRandomGetParams,
   ReadPlaylistRandomImageFileApiPlaylistsPlaylistIdRandomFileGetParams,
+  ReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGetParams,
+  ReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGetParams,
   RemoveImagesApiPlaylistsPlaylistIdImagesDelete200,
   ReorderImagesApiPlaylistsPlaylistIdImagesReorderPut200
 } from '../../model';
@@ -831,12 +833,14 @@ export function useReadPlaylistRandomImageFileApiPlaylistsPlaylistIdRandomFileGe
 export const readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet = (
     playlistId: number,
     ratio: string,
+    params?: ReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGetParams,
  options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
 ) => {
       
       
       return customInstance<unknown>(
-      {url: `/api/playlists/${playlistId}/random/file/${ratio}/image.jpg`, method: 'GET', signal
+      {url: `/api/playlists/${playlistId}/random/file/${ratio}/image.jpg`, method: 'GET',
+        params, signal
     },
       options);
     }
@@ -845,24 +849,26 @@ export const readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRati
 
 
 export const getReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGetQueryKey = (playlistId?: number,
-    ratio?: string,) => {
+    ratio?: string,
+    params?: ReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGetParams,) => {
     return [
-    `/api/playlists/${playlistId}/random/file/${ratio}/image.jpg`
+    `/api/playlists/${playlistId}/random/file/${ratio}/image.jpg`, ...(params ? [params]: [])
     ] as const;
     }
 
     
 export const getReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGetQueryOptions = <TData = Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(playlistId: number,
-    ratio: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+    ratio: string,
+    params?: ReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGetQueryKey(playlistId,ratio);
+  const queryKey =  queryOptions?.queryKey ?? getReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGetQueryKey(playlistId,ratio,params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>> = ({ signal }) => readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet(playlistId,ratio, requestOptions, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>> = ({ signal }) => readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet(playlistId,ratio,params, requestOptions, signal);
 
       
 
@@ -877,7 +883,8 @@ export type ReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatio
 
 export function useReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet<TData = Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
  playlistId: number,
-    ratio: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>, TError, TData>> & Pick<
+    ratio: string,
+    params: undefined |  ReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>,
           TError,
@@ -888,7 +895,8 @@ export function useReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFi
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet<TData = Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
  playlistId: number,
-    ratio: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>, TError, TData>> & Pick<
+    ratio: string,
+    params?: ReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>,
           TError,
@@ -899,7 +907,8 @@ export function useReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFi
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet<TData = Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
  playlistId: number,
-    ratio: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+    ratio: string,
+    params?: ReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -908,11 +917,12 @@ export function useReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFi
 
 export function useReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet<TData = Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
  playlistId: number,
-    ratio: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+    ratio: string,
+    params?: ReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGetQueryOptions(playlistId,ratio,options)
+  const queryOptions = getReadPlaylistRandomImageFilePathApiPlaylistsPlaylistIdRandomFileRatioImageJpgGetQueryOptions(playlistId,ratio,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -932,12 +942,14 @@ export const readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFile
     playlistId: number,
     ratio: string,
     tags: string,
+    params?: ReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGetParams,
  options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
 ) => {
       
       
       return customInstance<unknown>(
-      {url: `/api/playlists/${playlistId}/random/file/${ratio}/tags/${tags}/image.jpg`, method: 'GET', signal
+      {url: `/api/playlists/${playlistId}/random/file/${ratio}/tags/${tags}/image.jpg`, method: 'GET',
+        params, signal
     },
       options);
     }
@@ -947,25 +959,27 @@ export const readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFile
 
 export const getReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGetQueryKey = (playlistId?: number,
     ratio?: string,
-    tags?: string,) => {
+    tags?: string,
+    params?: ReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGetParams,) => {
     return [
-    `/api/playlists/${playlistId}/random/file/${ratio}/tags/${tags}/image.jpg`
+    `/api/playlists/${playlistId}/random/file/${ratio}/tags/${tags}/image.jpg`, ...(params ? [params]: [])
     ] as const;
     }
 
     
 export const getReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGetQueryOptions = <TData = Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(playlistId: number,
     ratio: string,
-    tags: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+    tags: string,
+    params?: ReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGetQueryKey(playlistId,ratio,tags);
+  const queryKey =  queryOptions?.queryKey ?? getReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGetQueryKey(playlistId,ratio,tags,params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>> = ({ signal }) => readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet(playlistId,ratio,tags, requestOptions, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>> = ({ signal }) => readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet(playlistId,ratio,tags,params, requestOptions, signal);
 
       
 
@@ -981,7 +995,8 @@ export type ReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileR
 export function useReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet<TData = Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
  playlistId: number,
     ratio: string,
-    tags: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>> & Pick<
+    tags: string,
+    params: undefined |  ReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>,
           TError,
@@ -993,7 +1008,8 @@ export function useReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRand
 export function useReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet<TData = Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
  playlistId: number,
     ratio: string,
-    tags: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>> & Pick<
+    tags: string,
+    params?: ReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>,
           TError,
@@ -1005,7 +1021,8 @@ export function useReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRand
 export function useReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet<TData = Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
  playlistId: number,
     ratio: string,
-    tags: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+    tags: string,
+    params?: ReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -1015,11 +1032,12 @@ export function useReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRand
 export function useReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet<TData = Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
  playlistId: number,
     ratio: string,
-    tags: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+    tags: string,
+    params?: ReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGetQueryOptions(playlistId,ratio,tags,options)
+  const queryOptions = getReadPlaylistRandomImageFilePathTagsApiPlaylistsPlaylistIdRandomFileRatioTagsTagsImageJpgGetQueryOptions(playlistId,ratio,tags,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

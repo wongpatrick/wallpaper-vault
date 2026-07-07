@@ -16,6 +16,7 @@ import Tools from './pages/tools/tools'
 import Settings from './pages/settings/settings'
 import Playlists from './pages/playlists/playlists'
 import PlaylistDetail from './pages/playlists/PlaylistDetail'
+import RotationManagement from './pages/rotation/rotation'
 import { createTheme, MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import { ModalsProvider } from '@mantine/modals'
@@ -131,6 +132,10 @@ const router = createHashRouter([
       {
         path: "/settings",
         element: <Settings />,
+      },
+      {
+        path: "/rotation",
+        element: <RotationManagement />,
       },
     ],
   },

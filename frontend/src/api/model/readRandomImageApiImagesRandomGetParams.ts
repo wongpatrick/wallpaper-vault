@@ -13,4 +13,8 @@ min_height?: number | null;
 creator_id?: number | null;
 playlist_id?: number | null;
 rating?: string | null;
+favorite_probability?: number | null;
+target_monitor?: string | null;
+orientation?: string | null;
+log_rotation?: boolean;
 };

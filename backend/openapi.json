@@ -1583,6 +1583,33 @@
               "type": "string",
               "title": "Tags"
             }
+          },
+          {
+            "name": "log_rotation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Log Rotation"
+            }
+          },
+          {
+            "name": "target_monitor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "all",
+              "title": "Target Monitor"
+            }
           }
         ],
         "responses": {
@@ -1623,6 +1650,33 @@
             "schema": {
               "type": "string",
               "title": "Ratio"
+            }
+          },
+          {
+            "name": "log_rotation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Log Rotation"
+            }
+          },
+          {
+            "name": "target_monitor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "all",
+              "title": "Target Monitor"
             }
           }
         ],
@@ -1770,6 +1824,65 @@
                 }
               ],
               "title": "Rating"
+            }
+          },
+          {
+            "name": "favorite_probability",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Favorite Probability"
+            }
+          },
+          {
+            "name": "target_monitor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "all",
+              "title": "Target Monitor"
+            }
+          },
+          {
+            "name": "orientation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Orientation"
+            }
+          },
+          {
+            "name": "log_rotation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Log Rotation"
             }
           }
         ],
@@ -1919,6 +2032,65 @@
                 }
               ],
               "title": "Rating"
+            }
+          },
+          {
+            "name": "favorite_probability",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Favorite Probability"
+            }
+          },
+          {
+            "name": "target_monitor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "all",
+              "title": "Target Monitor"
+            }
+          },
+          {
+            "name": "orientation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Orientation"
+            }
+          },
+          {
+            "name": "log_rotation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Log Rotation"
             }
           }
         ],
@@ -4051,6 +4223,65 @@
               ],
               "title": "Rating"
             }
+          },
+          {
+            "name": "favorite_probability",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Favorite Probability"
+            }
+          },
+          {
+            "name": "target_monitor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "all",
+              "title": "Target Monitor"
+            }
+          },
+          {
+            "name": "orientation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Orientation"
+            }
+          },
+          {
+            "name": "log_rotation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Log Rotation"
+            }
           }
         ],
         "responses": {
@@ -4193,6 +4424,65 @@
               ],
               "title": "Rating"
             }
+          },
+          {
+            "name": "favorite_probability",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Favorite Probability"
+            }
+          },
+          {
+            "name": "target_monitor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "all",
+              "title": "Target Monitor"
+            }
+          },
+          {
+            "name": "orientation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Orientation"
+            }
+          },
+          {
+            "name": "log_rotation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Log Rotation"
+            }
           }
         ],
         "responses": {
@@ -4242,6 +4532,33 @@
             "schema": {
               "type": "string",
               "title": "Ratio"
+            }
+          },
+          {
+            "name": "log_rotation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Log Rotation"
+            }
+          },
+          {
+            "name": "target_monitor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "all",
+              "title": "Target Monitor"
             }
           }
         ],
@@ -4301,6 +4618,33 @@
             "schema": {
               "type": "string",
               "title": "Tags"
+            }
+          },
+          {
+            "name": "log_rotation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Log Rotation"
+            }
+          },
+          {
+            "name": "target_monitor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "all",
+              "title": "Target Monitor"
             }
           }
         ],
@@ -4370,6 +4714,148 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rotation-history/current": {
+      "get": {
+        "tags": [
+          "rotation-history"
+        ],
+        "summary": "Read Current Wallpaper",
+        "description": "Fetch the currently active wallpaper (the last served random image).",
+        "operationId": "read_current_wallpaper_api_rotation_history_current_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rotation-history/history": {
+      "get": {
+        "tags": [
+          "rotation-history"
+        ],
+        "summary": "Read Wallpaper History",
+        "description": "Fetch the last 5 unique wallpapers served in rotation history.",
+        "operationId": "read_wallpaper_history_api_rotation_history_history_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ImageDetail"
+                  },
+                  "type": "array",
+                  "title": "Response Read Wallpaper History Api Rotation History History Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rotation-history/current-monitors": {
+      "get": {
+        "tags": [
+          "rotation-history"
+        ],
+        "summary": "Read Current Monitors Wallpapers",
+        "description": "Fetch the currently active wallpapers for all monitors and global.",
+        "operationId": "read_current_monitors_wallpapers_api_rotation_history_current_monitors_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/ImageDetail"
+                  },
+                  "type": "object",
+                  "title": "Response Read Current Monitors Wallpapers Api Rotation History Current Monitors Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rotation-history/skip": {
+      "post": {
+        "tags": [
+          "rotation-history"
+        ],
+        "summary": "Trigger Skip",
+        "description": "Broadcast a skip event to all connected Electron clients.",
+        "operationId": "trigger_skip_api_rotation_history_skip_post",
+        "parameters": [
+          {
+            "name": "target_monitor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "title": "Target Monitor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Trigger Skip Api Rotation History Skip Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rotation-history/events": {
+      "get": {
+        "tags": [
+          "rotation-history"
+        ],
+        "summary": "Event Stream",
+        "description": "Server-Sent Events (SSE) endpoint to stream rotation and skip events to clients.",
+        "operationId": "event_stream_api_rotation_history_events_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -5620,6 +6106,18 @@
             "description": "Computed Y percentage for the focal point.",
             "default": 50
           },
+          "is_favorite": {
+            "type": "boolean",
+            "title": "Is Favorite",
+            "description": "Whether this image is marked as a favorite wallpaper.",
+            "default": false
+          },
+          "is_blacklisted": {
+            "type": "boolean",
+            "title": "Is Blacklisted",
+            "description": "Whether this image is blacklisted from rotations.",
+            "default": false
+          },
           "id": {
             "type": "integer",
             "title": "Id",
@@ -5855,6 +6353,18 @@
             "title": "Focal Point Y",
             "description": "Computed Y percentage for the focal point.",
             "default": 50
+          },
+          "is_favorite": {
+            "type": "boolean",
+            "title": "Is Favorite",
+            "description": "Whether this image is marked as a favorite wallpaper.",
+            "default": false
+          },
+          "is_blacklisted": {
+            "type": "boolean",
+            "title": "Is Blacklisted",
+            "description": "Whether this image is blacklisted from rotations.",
+            "default": false
           }
         },
         "type": "object",
@@ -6166,6 +6676,18 @@
             "title": "Focal Point Y",
             "description": "Computed Y percentage for the focal point.",
             "default": 50
+          },
+          "is_favorite": {
+            "type": "boolean",
+            "title": "Is Favorite",
+            "description": "Whether this image is marked as a favorite wallpaper.",
+            "default": false
+          },
+          "is_blacklisted": {
+            "type": "boolean",
+            "title": "Is Blacklisted",
+            "description": "Whether this image is blacklisted from rotations.",
+            "default": false
           },
           "id": {
             "type": "integer",
@@ -6575,6 +7097,30 @@
             "title": "Focal Point Y",
             "description": "Computed Y percentage for the focal point."
           },
+          "is_favorite": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Favorite",
+            "description": "Whether this image is marked as a favorite wallpaper."
+          },
+          "is_blacklisted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Blacklisted",
+            "description": "Whether this image is blacklisted from rotations."
+          },
           "tags": {
             "anyOf": [
               {
@@ -6832,6 +7378,18 @@
             "title": "Focal Point Y",
             "description": "Computed Y percentage for the focal point.",
             "default": 50
+          },
+          "is_favorite": {
+            "type": "boolean",
+            "title": "Is Favorite",
+            "description": "Whether this image is marked as a favorite wallpaper.",
+            "default": false
+          },
+          "is_blacklisted": {
+            "type": "boolean",
+            "title": "Is Blacklisted",
+            "description": "Whether this image is blacklisted from rotations.",
+            "default": false
           },
           "id": {
             "type": "integer",

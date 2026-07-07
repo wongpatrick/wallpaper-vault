@@ -23,9 +23,11 @@ async def get_random_image(
     min_height: Optional[int] = None,
     creator_id: Optional[int] = None,
     playlist_id: Optional[int] = None,
-    rating: Optional[str] = None
+    rating: Optional[str] = None,
+    favorite_probability: Optional[float] = None,
+    orientation: Optional[str] = None
 ) -> Optional[Image]:
-    """Retrieves a single random image based on optional filters.
+    """Selects a random Image from the database matching the criteria.
 
     Args:
         db: Database session.
@@ -36,11 +38,16 @@ async def get_random_image(
         creator_id: Optional creator ID to filter by.
         playlist_id: Optional playlist ID to filter by.
         rating: Optional rating to filter by.
+        favorite_probability: Custom probability rate (0.0 to 1.0) overrides settings.
+        orientation: Optional orientation filter: 'landscape' or 'portrait'.
 
     Returns:
         A random Image object matching the filters, or None if no match is found.
     """
     query = select(Image).join(Image.set)
+    
+    # Always exclude blacklisted wallpapers
+    query = query.filter(Image.is_blacklisted.is_(False))
     
     if tags:
         from app.models.tag import Tag
@@ -58,6 +65,12 @@ async def get_random_image(
         }
         query = query.filter(Image.aspect_ratio_label.in_(variations))
         
+    if orientation:
+        if orientation == "landscape":
+            query = query.filter(Image.width > Image.height)
+        elif orientation == "portrait":
+            query = query.filter(Image.width < Image.height)
+        
     if min_width:
         query = query.filter(Image.width >= min_width)
         
@@ -74,8 +87,28 @@ async def get_random_image(
     if rating:
         query = query.filter(Image.rating == rating)
 
+    # Implement weighted random favoring favorites
+    if favorite_probability is not None:
+        favorite_prob = favorite_probability
+    else:
+        from app.crud.settings import get_setting
+        prob_setting = await get_setting(db, "favorite_rotation_probability")
+        try:
+            favorite_prob = float(prob_setting.value) if prob_setting else 0.4
+        except ValueError:
+            favorite_prob = 0.4
+
+    import random
+    if random.random() < favorite_prob:
+        # Try to get a favorite image first, applying all same constraints
+        fav_query = query.filter(Image.is_favorite.is_(True)).order_by(func.random()).limit(1)
+        result = await db.execute(fav_query)
+        db_image = result.scalar_one_or_none()
+        if db_image:
+            return db_image
+
+    # Fall back to standard query (any non-blacklisted image)
     query = query.order_by(func.random()).limit(1)
-    
     result = await db.execute(query)
     return result.scalar_one_or_none()
 

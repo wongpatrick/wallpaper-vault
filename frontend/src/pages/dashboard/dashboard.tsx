@@ -60,7 +60,7 @@ export default function Dashboard() {
     });
 
     // 3. Fetch Random Inspiration
-    const { data: randomImage } = useReadRandomImageApiImagesRandomGet();
+    const { data: randomImage } = useReadRandomImageApiImagesRandomGet({ log_rotation: false });
 
     // 4. Fetch Tag Cloud
     const { data: tagCloud } = useReadTagCloudApiTagsCloudGet({ limit: 50 });

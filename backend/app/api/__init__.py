@@ -14,6 +14,7 @@ from app.api import characters
 from app.api import franchises
 from app.api import playlists
 from app.api import search
+from app.api import rotation_history
 
 api_router = APIRouter()
 
@@ -29,3 +30,4 @@ api_router.include_router(characters.router, prefix="/characters", tags=["charac
 api_router.include_router(franchises.router, prefix="/franchises", tags=["franchises"])
 api_router.include_router(playlists.router, prefix="/playlists", tags=["playlists"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
+api_router.include_router(rotation_history.router, prefix="/rotation-history", tags=["rotation-history"])

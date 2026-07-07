@@ -45,6 +45,8 @@ import type {
   ReadImagesApiImagesGetParams,
   ReadRandomImageApiImagesRandomGetParams,
   ReadRandomImageFileApiImagesRandomFileGetParams,
+  ReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetParams,
+  ReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGetParams,
   ResolveDuplicatesApiImagesDuplicatesResolvePost200,
   RevealImageApiImagesImageIdRevealPost200
 } from '../../model';
@@ -544,12 +546,14 @@ export const useResolveDuplicatesApiImagesDuplicatesResolvePost = <TError = Erro
 export const readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet = (
     ratio: string,
     tags: string,
+    params?: ReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGetParams,
  options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
 ) => {
       
       
       return customInstance<unknown>(
-      {url: `/api/images/random/file/${ratio}/tags/${tags}/image.jpg`, method: 'GET', signal
+      {url: `/api/images/random/file/${ratio}/tags/${tags}/image.jpg`, method: 'GET',
+        params, signal
     },
       options);
     }
@@ -558,24 +562,26 @@ export const readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpg
 
 
 export const getReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGetQueryKey = (ratio?: string,
-    tags?: string,) => {
+    tags?: string,
+    params?: ReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGetParams,) => {
     return [
-    `/api/images/random/file/${ratio}/tags/${tags}/image.jpg`
+    `/api/images/random/file/${ratio}/tags/${tags}/image.jpg`, ...(params ? [params]: [])
     ] as const;
     }
 
     
 export const getReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGetQueryOptions = <TData = Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(ratio: string,
-    tags: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+    tags: string,
+    params?: ReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGetQueryKey(ratio,tags);
+  const queryKey =  queryOptions?.queryKey ?? getReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGetQueryKey(ratio,tags,params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>> = ({ signal }) => readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet(ratio,tags, requestOptions, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>> = ({ signal }) => readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet(ratio,tags,params, requestOptions, signal);
 
       
 
@@ -590,7 +596,8 @@ export type ReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgG
 
 export function useReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet<TData = Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
  ratio: string,
-    tags: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>> & Pick<
+    tags: string,
+    params: undefined |  ReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>,
           TError,
@@ -601,7 +608,8 @@ export function useReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsIm
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet<TData = Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
  ratio: string,
-    tags: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>> & Pick<
+    tags: string,
+    params?: ReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>,
           TError,
@@ -612,7 +620,8 @@ export function useReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsIm
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet<TData = Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
  ratio: string,
-    tags: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+    tags: string,
+    params?: ReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -621,11 +630,12 @@ export function useReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsIm
 
 export function useReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet<TData = Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
  ratio: string,
-    tags: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+    tags: string,
+    params?: ReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGetQueryOptions(ratio,tags,options)
+  const queryOptions = getReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsImageJpgGetQueryOptions(ratio,tags,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -643,12 +653,14 @@ export function useReadRandomImageFilePathTagsApiImagesRandomFileRatioTagsTagsIm
  */
 export const readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet = (
     ratio: string,
+    params?: ReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetParams,
  options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
 ) => {
       
       
       return customInstance<unknown>(
-      {url: `/api/images/random/file/${ratio}/image.jpg`, method: 'GET', signal
+      {url: `/api/images/random/file/${ratio}/image.jpg`, method: 'GET',
+        params, signal
     },
       options);
     }
@@ -656,23 +668,25 @@ export const readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet = (
 
 
 
-export const getReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetQueryKey = (ratio?: string,) => {
+export const getReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetQueryKey = (ratio?: string,
+    params?: ReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetParams,) => {
     return [
-    `/api/images/random/file/${ratio}/image.jpg`
+    `/api/images/random/file/${ratio}/image.jpg`, ...(params ? [params]: [])
     ] as const;
     }
 
     
-export const getReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetQueryOptions = <TData = Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(ratio: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+export const getReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetQueryOptions = <TData = Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(ratio: string,
+    params?: ReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetQueryKey(ratio);
+  const queryKey =  queryOptions?.queryKey ?? getReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetQueryKey(ratio,params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>> = ({ signal }) => readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet(ratio, requestOptions, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>> = ({ signal }) => readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet(ratio,params, requestOptions, signal);
 
       
 
@@ -686,7 +700,8 @@ export type ReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetQueryError
 
 
 export function useReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGet<TData = Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
- ratio: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError, TData>> & Pick<
+ ratio: string,
+    params: undefined |  ReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>,
           TError,
@@ -696,7 +711,8 @@ export function useReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGet<TD
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGet<TData = Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
- ratio: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError, TData>> & Pick<
+ ratio: string,
+    params?: ReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>,
           TError,
@@ -706,7 +722,8 @@ export function useReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGet<TD
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGet<TData = Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
- ratio: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ ratio: string,
+    params?: ReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -714,11 +731,12 @@ export function useReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGet<TD
  */
 
 export function useReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGet<TData = Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError = ErrorType<HTTPValidationError>>(
- ratio: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ ratio: string,
+    params?: ReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readRandomImageFilePathApiImagesRandomFileRatioImageJpgGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetQueryOptions(ratio,options)
+  const queryOptions = getReadRandomImageFilePathApiImagesRandomFileRatioImageJpgGetQueryOptions(ratio,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

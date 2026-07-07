@@ -31,6 +31,8 @@ class Image(Base):
     dominant_color: Mapped[Optional[str]] = mapped_column()
     focal_point_x: Mapped[Optional[int]] = mapped_column(server_default=text("50"))
     focal_point_y: Mapped[Optional[int]] = mapped_column(server_default=text("50"))
+    is_favorite: Mapped[bool] = mapped_column(server_default=text("0"), default=False)
+    is_blacklisted: Mapped[bool] = mapped_column(server_default=text("0"), default=False)
     date_added: Mapped[str] = mapped_column(server_default=text("(date('now'))"))
 
     set: Mapped["Set"] = relationship(back_populates="images")

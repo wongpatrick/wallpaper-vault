@@ -34,5 +34,7 @@ contextBridge.exposeInMainWorld('electron', {
     setBackendPort: (port: number) => ipcRenderer.invoke('set-backend-port', port),
     openBackendLogs: () => ipcRenderer.invoke('open-backend-logs'),
     openLogsDirectory: () => ipcRenderer.invoke('open-logs-directory'),
+    getMonitors: () => ipcRenderer.invoke('get-monitors'),
+    getSystemWallpapers: () => ipcRenderer.invoke('get-system-wallpapers'),
     platform: process.platform,
 })
