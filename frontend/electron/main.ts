@@ -790,19 +790,35 @@ class PowerShellDaemon {
     }
 
     private init(): Promise<void> {
-        return new Promise((resolve) => {
-            console.log('[PS Daemon] Starting persistent background PowerShell daemon...');
+        return new Promise((resolve, reject) => {
+            logBothToCombined('[PS Daemon] Starting persistent background PowerShell daemon...');
             this.process = spawn('Powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', '-'], {
                 stdio: ['pipe', 'pipe', 'pipe']
             });
 
+            this.process.on('error', (err) => {
+                logBothToCombined(`[PS Daemon] Process failed to spawn: ${err.message}`);
+                reject(err);
+            });
+
+            this.process.on('exit', (code, signal) => {
+                logBothToCombined(`[PS Daemon] Process exited with code ${code}, signal ${signal}`);
+                if (!this.isReady) {
+                    reject(new Error(`PowerShell daemon exited with code ${code} before bootstrap completed`));
+                }
+            });
+
             this.process.stdout?.on('data', (data) => {
-                this.outputBuffer += data.toString();
+                const str = data.toString();
+                logBothToCombined(`[PS Daemon Stdout] ${str.trim()}`);
+                this.outputBuffer += str;
                 this.checkOutput();
             });
 
             this.process.stderr?.on('data', (data) => {
-                console.error('[PS Daemon Stderr]', data.toString());
+                const str = data.toString();
+                logBothToCombined(`[PS Daemon Stderr] ${str.trim()}`);
+                console.error('[PS Daemon Stderr]', str);
             });
 
             // Keep-alive monitor job: kills PowerShell if the parent Electron process dies unexpectedly
@@ -910,10 +926,13 @@ class PowerShellDaemon {
             this.currentCallback = {
                 resolve: () => {
                     this.isReady = true;
-                    console.log('[PS Daemon] Background PowerShell daemon successfully initialized and bootstrapped.');
+                    logBothToCombined('[PS Daemon] Background PowerShell daemon successfully initialized and bootstrapped.');
                     resolve();
                 },
-                reject: (err) => console.error('[PS Daemon] Bootstrap failed:', err)
+                reject: (err) => {
+                    logBothToCombined(`[PS Daemon] Bootstrap failed: ${err.message}`);
+                    reject(err);
+                }
             };
 
             this.process.stdin?.write(bootstrapScript + '\r\n');
@@ -1054,7 +1073,7 @@ async function getOrderedDisplays(): Promise<any[]> {
         cachedOrderedDisplays = ordered;
         return ordered;
     } catch (err) {
-        console.error('[Rotation Coordinator] Failed to get Windows monitor layout, falling back to Electron defaults:', err);
+        logBothToCombined('[Rotation Coordinator] Failed to get Windows monitor layout, falling back to Electron defaults: ' + err);
         const fallback = makeFallback();
         cachedOrderedDisplays = fallback;
         return fallback;
