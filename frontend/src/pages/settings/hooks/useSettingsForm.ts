@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { useReadSettingsApiSettingsGet, useUpdateSettingApiSettingsKeyPut } from '../../../api/generated/settings/settings';
 import { notifications } from '@mantine/notifications';
 import { AXIOS_INSTANCE } from '../../../api/axios-instance';
+import { API_BASE_URL } from '../../../config';
 
 export const SETTING_KEYS = {
     BASE_LIBRARY_PATH: 'base_library_path',

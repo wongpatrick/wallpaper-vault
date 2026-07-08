@@ -5,7 +5,7 @@
  * prompting the user to supply the backend access token/API Key.
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal, TextInput, Button, Stack, Text, ThemeIcon, Group } from '@mantine/core';
 import { IconKey, IconRotate } from '@tabler/icons-react';
 
