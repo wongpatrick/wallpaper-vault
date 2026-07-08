@@ -8,6 +8,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query';
 import { useNotificationHistory } from '../hooks/useNotificationHistory';
 import { API_BASE_URL } from '../config';
+import { AXIOS_INSTANCE } from '../api/axios-instance';
 import { TaskStatus } from '../types/enums';
 import { TaskContext, type TaskInfo } from './TaskContext';
 
@@ -128,7 +129,18 @@ export function TaskProvider({ children }: TaskProviderProps) {
 
     // Connect to the unified SSE stream
     useEffect(() => {
-        const eventSource = new EventSource(`${API_BASE_URL}/api/sets/events`);
+        const baseURL = localStorage.getItem('backend_url') || AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
+        const token = localStorage.getItem('api_key') || '';
+        const url = new URL(`${baseURL}/api/sets/events`);
+        if (token) {
+            url.searchParams.append('api_key', token);
+        }
+        const eventSource = new EventSource(url.toString());
+
+        eventSource.onerror = () => {
+            console.error('SSE connection failed in TaskProvider. Closing EventSource to prevent retry loops.');
+            eventSource.close();
+        };
 
         eventSource.onmessage = (event) => {
             try {

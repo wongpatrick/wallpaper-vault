@@ -8,10 +8,33 @@ import Axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import { API_BASE_URL } from '../config';
 
 export const AXIOS_INSTANCE = Axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: localStorage.getItem('backend_url') || API_BASE_URL,
     paramsSerializer: {
         indexes: null
     }
+});
+
+// Request interceptor to append API key header
+AXIOS_INSTANCE.interceptors.request.use((config) => {
+    const key = localStorage.getItem('api_key') || '';
+    if (key) {
+        config.headers = config.headers || {};
+        config.headers['X-API-Key'] = key;
+    }
+    return config;
+}, (error) => {
+    return Promise.reject(error);
+});
+
+// Response interceptor to intercept 401 Unauthorized errors
+AXIOS_INSTANCE.interceptors.response.use((response) => {
+    return response;
+}, (error) => {
+    // eslint-disable-next-line no-magic-numbers
+    if (error.response && error.response.status === 401) {
+        window.dispatchEvent(new Event('unauthorized-api-call'));
+    }
+    return Promise.reject(error);
 });
 
 export const customInstance = <T>(

@@ -30,6 +30,8 @@ export const SETTING_KEYS = {
     WALLPAPER_ROTATION_SOURCE: 'wallpaper_rotation_source',
     WALLPAPER_ROTATION_PLAYLIST_ID: 'wallpaper_rotation_playlist_id',
     WALLPAPER_ROTATION_TARGET_MONITOR: 'wallpaper_rotation_target_monitor',
+    BACKEND_URL: 'backend_url',
+    API_KEY: 'api_key',
 } as const;
 
 export interface SettingsForm {
@@ -53,9 +55,11 @@ export interface SettingsForm {
     [SETTING_KEYS.WALLPAPER_ROTATION_SOURCE]: 'entire_library' | 'playlist';
     [SETTING_KEYS.WALLPAPER_ROTATION_PLAYLIST_ID]: string;
     [SETTING_KEYS.WALLPAPER_ROTATION_TARGET_MONITOR]: string;
+    [SETTING_KEYS.BACKEND_URL]: string;
+    [SETTING_KEYS.API_KEY]: string;
 }
 
-type StorageType = 'backend' | 'electron';
+type StorageType = 'backend' | 'electron' | 'localStorage';
 
 interface SettingConfig {
     key: string;
@@ -85,6 +89,8 @@ const SETTINGS_METADATA: SettingConfig[] = [
     { key: SETTING_KEYS.WALLPAPER_ROTATION_SOURCE, defaultValue: 'entire_library', storage: 'backend', description: 'Wallpaper rotation source: entire_library or playlist' },
     { key: SETTING_KEYS.WALLPAPER_ROTATION_PLAYLIST_ID, defaultValue: '', storage: 'backend', description: 'Target playlist ID to rotate (for playlist source)' },
     { key: SETTING_KEYS.WALLPAPER_ROTATION_TARGET_MONITOR, defaultValue: 'all', storage: 'backend', description: 'Target monitor: all, or 0, 1, 2, etc.' },
+    { key: SETTING_KEYS.BACKEND_URL, defaultValue: '', storage: 'localStorage' },
+    { key: SETTING_KEYS.API_KEY, defaultValue: '', storage: 'localStorage' },
 ];
 
 export function useSettingsForm() {
@@ -138,6 +144,9 @@ export function useSettingsForm() {
                             Reflect.set(values, config.key, statusInfo.port);
                         }
                     }
+                } else if (config.storage === 'localStorage') {
+                    const localVal = localStorage.getItem(config.key) ?? String(config.defaultValue);
+                    Reflect.set(values, config.key, localVal);
                 }
             }
 
@@ -180,6 +189,12 @@ export function useSettingsForm() {
                                 }
                             }));
                         }
+                    }
+                } else if (config.storage === 'localStorage') {
+                    localStorage.setItem(config.key, String(value).trim());
+                    if (config.key === SETTING_KEYS.BACKEND_URL) {
+                        const newUrl = String(value).trim() || API_BASE_URL;
+                        AXIOS_INSTANCE.defaults.baseURL = newUrl;
                     }
                 }
             }

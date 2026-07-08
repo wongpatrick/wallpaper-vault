@@ -59,24 +59,32 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
     const [isRetrying, setIsRetrying] = useState(false);
     const [isSavingPort, setIsSavingPort] = useState(false);
 
-    // Sync Axios base URL when status info port updates
+    // Sync Axios base URL when status info port/url updates
     useEffect(() => {
-        if (statusInfo.port) {
+        const customUrl = localStorage.getItem('backend_url') || '';
+        if (customUrl) {
+            AXIOS_INSTANCE.defaults.baseURL = customUrl;
+        } else if (statusInfo.port) {
             AXIOS_INSTANCE.defaults.baseURL = `http://localhost:${statusInfo.port}`;
             setCustomPort(statusInfo.port);
         }
     }, [statusInfo.port]);
 
     useEffect(() => {
-        if (!isElectron) {
-            let timeoutId: ReturnType<typeof setTimeout>;
+        const customBackendUrl = localStorage.getItem('backend_url') || '';
 
-            // Web fallback check
+        if (customBackendUrl || !isElectron) {
+            let timeoutId: ReturnType<typeof setTimeout>;
+            const targetUrl = customBackendUrl || `http://localhost:${DEFAULT_PORT}`;
+
+            // Web fallback / remote URL check
             const checkBrowserHealth = async () => {
                 let isHealthy = false;
                 try {
-                    const res = await fetch(`http://localhost:${DEFAULT_PORT}/`);
-                    if (res.ok) {
+                    const res = await fetch(`${targetUrl}/`);
+                    // Accept 200 or 401 (401 means the server is online but requires authentication)
+                    // eslint-disable-next-line no-magic-numbers
+                    if (res.status === 200 || res.status === 401) {
                         setStatusInfo({
                             status: 'running',
                             autoRestartCount: 0,
@@ -85,7 +93,7 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
                         });
                         isHealthy = true;
                     } else {
-                        throw new Error('Non-200 response');
+                        throw new Error('Non-healthy response');
                     }
                 } catch {
                     setStatusInfo({
@@ -93,7 +101,7 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
                         autoRestartCount: 0,
                         maxRestarts: 0,
                         port: DEFAULT_PORT,
-                        errorDetails: `FastAPI server not responding. Please run "uvicorn app.main:app --port ${DEFAULT_PORT}" in the backend directory.`
+                        errorDetails: `Server at ${targetUrl} is not responding. Please make sure the backend is running and accessible.`
                     });
                 }
 

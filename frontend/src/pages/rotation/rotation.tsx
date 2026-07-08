@@ -53,6 +53,7 @@ import { useReadPlaylistsApiPlaylistsGet } from '../../api/generated/playlists/p
 import { useUpdateImageApiImagesImageIdPatch } from '../../api/generated/images/images';
 import { getImageUrl } from '../../utils/fileUtils';
 import { API_BASE_URL } from '../../config';
+import { AXIOS_INSTANCE } from '../../api/axios-instance';
 import { Link, useLocation } from 'react-router-dom';
 import type { ImageDetail } from '../../api/model';
 
@@ -243,7 +244,18 @@ export default function RotationManagement() {
 
     // SSE Event Listener for real-time rotation sync
     useEffect(() => {
-        const eventSource = new EventSource(`${API_BASE_URL}/api/rotation-history/events`);
+        const baseURL = localStorage.getItem('backend_url') || AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
+        const token = localStorage.getItem('api_key') || '';
+        const url = new URL(`${baseURL}/api/rotation-history/events`);
+        if (token) {
+            url.searchParams.append('api_key', token);
+        }
+        const eventSource = new EventSource(url.toString());
+        
+        eventSource.onerror = () => {
+            console.error('SSE connection failed in rotation.tsx. Closing EventSource to prevent retry loops.');
+            eventSource.close();
+        };
         
         eventSource.onmessage = (event) => {
             try {

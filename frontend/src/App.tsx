@@ -24,6 +24,7 @@ import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react
 import { NotificationProvider } from './context/NotificationProvider'
 import { TaskProvider } from './context/TaskProvider'
 import BackendStatusGuard from './components/ui/BackendStatusGuard'
+import ApiKeyModal from './components/ui/ApiKeyModal'
 
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
@@ -148,6 +149,7 @@ function App() {
         <ModalsProvider>
           <NotificationProvider>
             <Notifications position="top-right" />
+            <ApiKeyModal />
             <TaskProvider>
               <BackendStatusGuard>
                 <RouterProvider router={router} />
