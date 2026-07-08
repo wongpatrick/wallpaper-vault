@@ -14,9 +14,16 @@ import { API_BASE_URL } from "../config";
 export const getImageUrl = (imageId: number | string | undefined | null, cacheBuster?: string | number): string => {
     if (!imageId) return 'https://placehold.co/600x400?text=No+Image';
     
-    const baseURL = AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
-    const url = `${baseURL}/api/images/file/${imageId}`;
-    return cacheBuster ? `${url}?cb=${cacheBuster}` : url;
+    const baseURL = localStorage.getItem('backend_url') || AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
+    const token = localStorage.getItem('api_key') || '';
+    let url = `${baseURL}/api/images/file/${imageId}`;
+    const params: string[] = [];
+    if (cacheBuster) params.push(`cb=${cacheBuster}`);
+    if (token) params.push(`api_key=${encodeURIComponent(token)}`);
+    if (params.length > 0) {
+        url += `?${params.join('&')}`;
+    }
+    return url;
 };
 
 /**
@@ -33,9 +40,14 @@ export const getThumbnailUrl = (
 ): string => {
     if (!imageId) return 'https://placehold.co/600x400?text=No+Image';
     
-    const baseURL = AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
-    const url = `${baseURL}/api/images/thumb/${imageId}?size=${size}`;
-    return cacheBuster ? `${url}&cb=${cacheBuster}` : url;
+    const baseURL = localStorage.getItem('backend_url') || AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
+    const token = localStorage.getItem('api_key') || '';
+    let url = `${baseURL}/api/images/thumb/${imageId}`;
+    const params: string[] = [`size=${size}`];
+    if (cacheBuster) params.push(`cb=${cacheBuster}`);
+    if (token) params.push(`api_key=${encodeURIComponent(token)}`);
+    url += `?${params.join('&')}`;
+    return url;
 };
 
 /**

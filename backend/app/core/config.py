@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Wallpaper Vault API"
 
     DATABASE_URL: str = "sqlite+aiosqlite:///../db/wallpapers.db"
+    API_KEY: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",
