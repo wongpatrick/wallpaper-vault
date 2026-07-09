@@ -47,9 +47,14 @@ npm run dev
 ```
 
 ### API Integration
-We use **Orval** to maintain type safety across the stack.
-1.  Ensure the backend is running.
-2.  Run `npm run generate` to update the hooks in `src/api/generated/`.
+We use **Orval** to maintain type safety across the stack. The generated client and models (in `src/api/generated/` and `src/api/model/`) are ignored by Git.
+
+They are automatically generated before running development, build, lint, or test scripts (via `predev`, `prebuild`, `prebuild-app`, `prelint`, `pretest`, and `pretest:watch` npm hooks).
+
+If you make backend API changes and want to manually regenerate the TypeScript types and React Query hooks, run:
+```powershell
+npm run generate
+```
 
 ---
 

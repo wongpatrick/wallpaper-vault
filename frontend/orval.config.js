@@ -9,7 +9,7 @@ module.exports = {
             httpClient: 'axios',
             override: {
                 mutator: {
-                    path: './src/api/axios-instance.ts',
+                    path: './src/api/mutator.ts',
                     name: 'customInstance'
                 }
             }
