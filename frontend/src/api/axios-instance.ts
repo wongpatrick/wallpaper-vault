@@ -4,8 +4,10 @@
  * Provides the base configuration and custom request wrapper
  * used by auto-generated API clients to interact with the backend.
  */
-import Axios, { AxiosError, type AxiosRequestConfig } from 'axios';
+import Axios from 'axios';
 import { API_BASE_URL } from '../config';
+
+import { setMutatorAxiosInstance } from './mutator';
 
 export const AXIOS_INSTANCE = Axios.create({
     baseURL: localStorage.getItem('backend_url') || API_BASE_URL,
@@ -13,6 +15,9 @@ export const AXIOS_INSTANCE = Axios.create({
         indexes: null
     }
 });
+
+// Configure the Orval custom mutator instance
+setMutatorAxiosInstance(AXIOS_INSTANCE);
 
 // Request interceptor to append API key header
 AXIOS_INSTANCE.interceptors.request.use((config) => {
@@ -37,18 +42,6 @@ AXIOS_INSTANCE.interceptors.response.use((response) => {
     return Promise.reject(error);
 });
 
-export const customInstance = <T>(
-  config: AxiosRequestConfig,
-  options?: AxiosRequestConfig,
-): Promise<T> => {
-  const promise = AXIOS_INSTANCE({
-    ...config,
-    ...options,
-  }).then(({ data }) => data);
+export { customInstance } from './mutator';
 
-  return promise;
-};
-
-export type ErrorType<Error> = AxiosError<Error>;
-
-export type BodyType<BodyData> = BodyData;
+export type { ErrorType, BodyType } from './mutator';

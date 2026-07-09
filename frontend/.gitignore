@@ -3,3 +3,5 @@ dist-electron/
 coverage/
 dist-build/
 test-results/
+src/api/generated/
+src/api/model/
