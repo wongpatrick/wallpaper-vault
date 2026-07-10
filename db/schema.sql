@@ -95,6 +95,22 @@ CREATE TABLE IF NOT EXISTS images (
     date_added         TEXT    NOT NULL DEFAULT (date('now'))
 );
 
+CREATE TABLE IF NOT EXISTS playlists (
+    id           INTEGER PRIMARY KEY,
+    name         TEXT    NOT NULL UNIQUE,
+    description  TEXT,
+    is_smart     INTEGER NOT NULL DEFAULT 0,
+    rules        TEXT, -- Stores the JSON filter rules for smart playlists
+    date_created TEXT    NOT NULL DEFAULT (date('now'))
+);
+
+CREATE TABLE IF NOT EXISTS playlist_images (
+    playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+    image_id    INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (playlist_id, image_id)
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key         TEXT PRIMARY KEY,
     value       TEXT NOT NULL,

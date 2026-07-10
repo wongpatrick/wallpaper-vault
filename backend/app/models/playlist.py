@@ -2,7 +2,7 @@
 SQLAlchemy model definition for Playlists and their association with Images.
 """
 from typing import Optional, TYPE_CHECKING
-from sqlalchemy import text, ForeignKey
+from sqlalchemy import text, ForeignKey, JSON
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.models.base import Base
 
@@ -27,6 +27,8 @@ class Playlist(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(unique=True, nullable=False)
     description: Mapped[Optional[str]] = mapped_column()
+    is_smart: Mapped[bool] = mapped_column(server_default=text("0"), default=False)
+    rules: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     date_created: Mapped[str] = mapped_column(server_default=text("(date('now'))"))
 
     # Relationship to association table

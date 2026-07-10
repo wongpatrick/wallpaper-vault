@@ -81,8 +81,15 @@ async def get_random_image(
         query = query.join(Set.creators).filter(Creator.id == creator_id)
 
     if playlist_id:
-        from app.models.playlist import PlaylistImage
-        query = query.join(Image.playlist_images).filter(PlaylistImage.playlist_id == playlist_id)
+        from app.models.playlist import Playlist
+        res_pl = await db.execute(select(Playlist).filter(Playlist.id == playlist_id))
+        playlist = res_pl.scalar_one_or_none()
+        if playlist and playlist.is_smart:
+            from app.crud.playlist import apply_smart_playlist_rules_to_query
+            query = apply_smart_playlist_rules_to_query(query, playlist.rules)
+        else:
+            from app.models.playlist import PlaylistImage
+            query = query.join(Image.playlist_images).filter(PlaylistImage.playlist_id == playlist_id)
 
     if rating:
         query = query.filter(Image.rating == rating)

@@ -100,7 +100,7 @@ export default function RotationManagement() {
 
     // 2. Fetch Current Wallpaper & History
     const { data: currentImage, isLoading: currentLoading, refetch: refetchCurrent } = 
-        useReadCurrentWallpaperApiRotationHistoryCurrentGet({
+        useReadCurrentWallpaperApiRotationHistoryCurrentGet(undefined, {
             query: { retry: false }
         });
         

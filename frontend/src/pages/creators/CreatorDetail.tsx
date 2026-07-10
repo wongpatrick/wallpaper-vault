@@ -49,6 +49,7 @@ export default function CreatorDetail() {
     // We must pass enabled: !isNaN(Number(creatorId)) because the Orval generated hook defaults to enabled: !!creatorId, which disables the query for ID 0.
     const { data: creatorData, isLoading, error, refetch } = useReadCreatorApiCreatorsCreatorIdGet(
         Number(creatorId),
+        undefined,
         { query: { enabled: !isNaN(Number(creatorId)) } }
     );
     const creator = creatorData as CreatorWithSets | undefined;

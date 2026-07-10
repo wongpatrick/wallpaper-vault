@@ -228,3 +228,72 @@ async def test_playlist_random_endpoints(client: AsyncClient, sample_data):
     resp = await client.get(f"/api/playlists/{playlist_id}/random/file/21:9/image.jpg")
     assert resp.status_code == 404
     assert "No images found matching criteria" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_smart_playlist_endpoints(client: AsyncClient, sample_data, db_session: AsyncSession):
+    images = sample_data["images"]
+    img1_id = images[0].id
+    img2_id = images[1].id
+
+    # Mark img1_id as favorite to test favorite filter
+    from app.models.image import Image as DBImage
+    from sqlalchemy import update
+    await db_session.execute(update(DBImage).where(DBImage.id == img1_id).values(is_favorite=True))
+    await db_session.commit()
+
+    # 1. Create a smart playlist targeting favorites with safe rating
+    resp = await client.post("/api/playlists", json={
+        "name": "Smart Favorites",
+        "description": "Dynamic favorites playlist",
+        "is_smart": True,
+        "rules": {
+            "is_favorite": True,
+            "ratings": ["safe"],
+            "sort_by": "date_added",
+            "sort_dir": "desc"
+        }
+    })
+    assert resp.status_code == 200
+    playlist = resp.json()
+    assert playlist["is_smart"] is True
+    assert playlist["rules"]["is_favorite"] is True
+    assert playlist["image_count"] == 1
+    playlist_id = playlist["id"]
+
+    # 2. Get smart playlist details (should fetch dynamic images list AND return is_smart/rules)
+    resp = await client.get(f"/api/playlists/{playlist_id}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["is_smart"] is True
+    assert data["rules"]["is_favorite"] is True
+    assert data["rules"]["ratings"] == ["safe"]
+    assert data["image_count"] == 1
+    assert len(data["images"]) == 1
+    assert data["images"][0]["image"]["id"] == img1_id
+
+    # 3. Block manual operations (should fail with 400)
+    resp = await client.post(f"/api/playlists/{playlist_id}/images", json={
+        "image_ids": [img2_id]
+    })
+    assert resp.status_code == 400
+    assert "Cannot manually add images" in resp.json()["detail"]
+
+    resp = await client.request(
+        "DELETE",
+        f"/api/playlists/{playlist_id}/images",
+        json={"image_ids": [img1_id]}
+    )
+    assert resp.status_code == 400
+    assert "Cannot manually remove images" in resp.json()["detail"]
+
+    resp = await client.put(f"/api/playlists/{playlist_id}/images/reorder", json={
+        "image_ids": [img1_id]
+    })
+    assert resp.status_code == 400
+    assert "Cannot manually reorder" in resp.json()["detail"]
+
+    # 4. Get random image from smart playlist
+    resp = await client.get(f"/api/playlists/{playlist_id}/random")
+    assert resp.status_code == 200
+    assert resp.json()["id"] == img1_id
