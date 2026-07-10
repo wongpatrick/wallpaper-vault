@@ -49,16 +49,26 @@ async def read_playlist(
     # Map playlist_images relation to PlaylistImageDetail
     images_list = []
     from app.api.images import map_image_to_schema
-    for pi in db_playlist.playlist_images:
-        images_list.append(PlaylistImageDetail(
-            image=map_image_to_schema(pi.image),
-            sort_order=pi.sort_order
-        ))
+    if db_playlist.is_smart:
+        images = await crud_playlist.get_smart_playlist_images(db, db_playlist)
+        for idx, img in enumerate(images):
+            images_list.append(PlaylistImageDetail(
+                image=map_image_to_schema(img),
+                sort_order=idx
+            ))
+    else:
+        for pi in db_playlist.playlist_images:
+            images_list.append(PlaylistImageDetail(
+                image=map_image_to_schema(pi.image),
+                sort_order=pi.sort_order
+            ))
         
     return PlaylistDetail(
         id=db_playlist.id,
         name=db_playlist.name,
         description=db_playlist.description,
+        is_smart=db_playlist.is_smart,
+        rules=db_playlist.rules,
         date_created=str(db_playlist.date_created),
         image_count=db_playlist.image_count,
         images=images_list
@@ -102,6 +112,8 @@ async def add_images(
     playlist = await crud_playlist.get_playlist(db, playlist_id)
     if playlist is None:
         raise HTTPException(status_code=404, detail="Playlist not found")
+    if playlist.is_smart:
+        raise HTTPException(status_code=400, detail="Cannot manually add images to a smart playlist")
         
     added_count = await crud_playlist.add_images_to_playlist(db, playlist_id, payload.image_ids)
     return {
@@ -119,6 +131,8 @@ async def remove_images(
     playlist = await crud_playlist.get_playlist(db, playlist_id)
     if playlist is None:
         raise HTTPException(status_code=404, detail="Playlist not found")
+    if playlist.is_smart:
+        raise HTTPException(status_code=400, detail="Cannot manually remove images from a smart playlist")
         
     removed_count = await crud_playlist.remove_images_from_playlist(db, playlist_id, payload.image_ids)
     return {
@@ -136,6 +150,8 @@ async def reorder_images(
     playlist = await crud_playlist.get_playlist(db, playlist_id)
     if playlist is None:
         raise HTTPException(status_code=404, detail="Playlist not found")
+    if playlist.is_smart:
+        raise HTTPException(status_code=400, detail="Cannot manually reorder a smart playlist")
         
     await crud_playlist.reorder_playlist_images(db, playlist_id, payload.image_ids)
     return {"message": "Successfully reordered playlist images"}

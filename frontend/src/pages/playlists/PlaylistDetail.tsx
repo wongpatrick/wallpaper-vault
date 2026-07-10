@@ -206,8 +206,9 @@ export default function PlaylistDetail() {
 
             <Group justify="space-between" align="flex-start" mb="xl">
                 <Stack gap={4} style={{ flex: 1 }}>
-                    <Title order={1} fw={800} style={{ letterSpacing: '-1.5px' }}>
+                    <Title order={1} fw={800} style={{ letterSpacing: '-1.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         🎵 {playlist.name}
+                        {playlist.is_smart && <Badge variant="light" color="violet" size="lg">Smart Playlist</Badge>}
                     </Title>
                     <Text size="md" c="dimmed">
                         {playlist.description || 'No description provided.'}
@@ -237,14 +238,18 @@ export default function PlaylistDetail() {
                 <Center style={{ minHeight: '30vh', flexDirection: 'column' }}>
                     <IconPlaylist size={48} style={{ opacity: 0.1 }} />
                     <Text size="lg" fw={600} c="dimmed" mt="md">
-                        This playlist is empty
+                        {playlist.is_smart ? 'No matching wallpapers' : 'This playlist is empty'}
                     </Text>
                     <Text c="dimmed" size="sm" mt={4} mb="xl">
-                        Go to individual wallpapers or sets and select images to add them here.
+                        {playlist.is_smart
+                            ? 'No wallpapers match your current rules. Try adjusting the filter criteria.'
+                            : 'Go to individual wallpapers or sets and select images to add them here.'}
                     </Text>
-                    <Button variant="outline" onClick={() => navigate('/images')}>
-                        Browse Wallpapers
-                    </Button>
+                    {!playlist.is_smart && (
+                        <Button variant="outline" onClick={() => navigate('/images')}>
+                            Browse Wallpapers
+                        </Button>
+                    )}
                 </Center>
             ) : (
                 <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
@@ -257,7 +262,7 @@ export default function PlaylistDetail() {
                                 padding={0}
                                 radius="md"
                                 withBorder
-                                draggable
+                                draggable={!playlist.is_smart}
                                 onDragStart={() => handleDragStart(idx)}
                                 onDragOver={(e) => handleDragOver(e, idx)}
                                 onDrop={(e) => handleDrop(e, idx)}
@@ -266,7 +271,7 @@ export default function PlaylistDetail() {
                                     position: 'relative',
                                     transition: 'transform 0.2s ease',
                                     opacity: draggedIndex === idx ? OPACITY_DRAG : 1,
-                                    cursor: 'grab'
+                                    cursor: playlist.is_smart ? 'default' : 'grab'
                                 }}
                                 className="playlist-item-card"
                             >
@@ -278,43 +283,45 @@ export default function PlaylistDetail() {
                                         onClick={() => setLightboxImageIndex(idx)}
                                     />
                                     
-                                    {/* Glassmorphic Top Controls */}
-                                    <Box
-                                        style={{
-                                            position: 'absolute',
-                                            top: 8,
-                                            left: 8,
-                                            right: 8,
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            zIndex: 10
-                                        }}
-                                    >
-                                        {/* Drag Handle */}
-                                        <ActionIcon
-                                            variant="glass"
-                                            color="dark"
-                                            size="md"
-                                            radius="md"
-                                            style={{ cursor: 'grab', backgroundColor: 'rgba(0,0,0,0.5)', border: 'none' }}
+                                    {/* Glassmorphic Top Controls (hidden on smart playlists) */}
+                                    {!playlist.is_smart && (
+                                        <Box
+                                            style={{
+                                                position: 'absolute',
+                                                top: 8,
+                                                left: 8,
+                                                right: 8,
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                zIndex: 10
+                                            }}
                                         >
-                                            <IconGripVertical size={16} color="white" />
-                                        </ActionIcon>
+                                            {/* Drag Handle */}
+                                            <ActionIcon
+                                                variant="glass"
+                                                color="dark"
+                                                size="md"
+                                                radius="md"
+                                                style={{ cursor: 'grab', backgroundColor: 'rgba(0,0,0,0.5)', border: 'none' }}
+                                            >
+                                                <IconGripVertical size={16} color="white" />
+                                            </ActionIcon>
 
-                                        {/* Remove Button */}
-                                        <ActionIcon
-                                            variant="filled"
-                                            color="red"
-                                            size="md"
-                                            radius="md"
-                                            onClick={() => handleRemoveImage(image.id)}
-                                            style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
-                                            title="Remove from playlist"
-                                        >
-                                            <IconTrash size={14} />
-                                        </ActionIcon>
-                                    </Box>
+                                            {/* Remove Button */}
+                                            <ActionIcon
+                                                variant="filled"
+                                                color="red"
+                                                size="md"
+                                                radius="md"
+                                                onClick={() => handleRemoveImage(image.id)}
+                                                style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+                                                title="Remove from playlist"
+                                            >
+                                                <IconTrash size={14} />
+                                            </ActionIcon>
+                                        </Box>
+                                    )}
 
                                     {/* Resolution Info Overlay */}
                                     <Box
@@ -338,36 +345,38 @@ export default function PlaylistDetail() {
                                     </Box>
                                 </Box>
 
-                                {/* Bottom Accessibility Reorder Buttons */}
-                                <Group gap="xs" p="xs" justify="space-between" style={{ backgroundColor: 'var(--mantine-color-body)' }}>
-                                    <Badge size="sm" variant="light" color="gray">
-                                        Pos: {sort_order}
-                                    </Badge>
-                                    <Group gap={4}>
-                                        <Tooltip label="Move Up">
-                                            <ActionIcon
-                                                variant="subtle"
-                                                color="gray"
-                                                size="sm"
-                                                onClick={() => handleMove(idx, 'up')}
-                                                disabled={idx === 0}
-                                            >
-                                                <IconChevronUp size={16} />
-                                            </ActionIcon>
-                                        </Tooltip>
-                                        <Tooltip label="Move Down">
-                                            <ActionIcon
-                                                variant="subtle"
-                                                color="gray"
-                                                size="sm"
-                                                onClick={() => handleMove(idx, 'down')}
-                                                disabled={idx === imagesWithOrder.length - 1}
-                                            >
-                                                <IconChevronDown size={16} />
-                                            </ActionIcon>
-                                        </Tooltip>
+                                {/* Bottom Accessibility Reorder Buttons (hidden on smart playlists) */}
+                                {!playlist.is_smart && (
+                                    <Group gap="xs" p="xs" justify="space-between" style={{ backgroundColor: 'var(--mantine-color-body)' }}>
+                                        <Badge size="sm" variant="light" color="gray">
+                                            Pos: {sort_order}
+                                        </Badge>
+                                        <Group gap={4}>
+                                            <Tooltip label="Move Up">
+                                                <ActionIcon
+                                                    variant="subtle"
+                                                    color="gray"
+                                                    size="sm"
+                                                    onClick={() => handleMove(idx, 'up')}
+                                                    disabled={idx === 0}
+                                                >
+                                                    <IconChevronUp size={16} />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                            <Tooltip label="Move Down">
+                                                <ActionIcon
+                                                    variant="subtle"
+                                                    color="gray"
+                                                    size="sm"
+                                                    onClick={() => handleMove(idx, 'down')}
+                                                    disabled={idx === imagesWithOrder.length - 1}
+                                                >
+                                                    <IconChevronDown size={16} />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        </Group>
                                     </Group>
-                                </Group>
+                                )}
                             </Card>
                         );
                     })}
