@@ -1043,7 +1043,13 @@ function extractJsonArray(stdout: string): string {
 }
 
 async function getOrderedDisplays(): Promise<any[]> {
-    if (cachedOrderedDisplays) return cachedOrderedDisplays;
+    if (cachedOrderedDisplays) {
+        if (screen.getAllDisplays().length === cachedOrderedDisplays.length) {
+            return cachedOrderedDisplays;
+        }
+        console.warn('[Rotation Coordinator] Monitor count mismatch with cache (Cache:', cachedOrderedDisplays.length, ', Actual:', screen.getAllDisplays().length, '). Invalidating monitor cache.');
+        cachedOrderedDisplays = null;
+    }
 
     const displays = screen.getAllDisplays();
 
