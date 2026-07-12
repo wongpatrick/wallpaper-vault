@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS creators (
     id             INTEGER PRIMARY KEY,
     canonical_name TEXT    NOT NULL UNIQUE,
     type           TEXT,
-    notes          TEXT
+    notes          TEXT,
+    socials        TEXT
 );
 
 CREATE TABLE IF NOT EXISTS creator_aliases (

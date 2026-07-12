@@ -125,7 +125,7 @@ export default function Playlists() {
         const rulesPayload: SmartPlaylistRules | null = isSmart ? {
             included_tags: includedTags,
             excluded_tags: excludedTags,
-            ratings: ratings,
+            ratings: ratings as SmartPlaylistRules['ratings'],
             is_favorite: isFavorite === 'favorites' ? true : isFavorite === 'non-favorites' ? false : undefined,
             min_width: minWidth ? parseInt(minWidth) : undefined,
             min_height: minHeight ? parseInt(minHeight) : undefined,

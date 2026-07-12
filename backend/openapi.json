@@ -8390,6 +8390,21 @@
             "title": "Notes",
             "description": "User-provided notes or biography for the creator."
           },
+          "socials": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CreatorSocial"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Socials",
+            "description": "List of creator's social profiles."
+          },
           "id": {
             "type": "integer",
             "title": "Id",
@@ -8444,6 +8459,21 @@
             ],
             "title": "Notes",
             "description": "User-provided notes or biography for the creator."
+          },
+          "socials": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CreatorSocial"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Socials",
+            "description": "List of creator's social profiles."
           }
         },
         "type": "object",
@@ -8509,6 +8539,29 @@
           "limit"
         ],
         "title": "CreatorPage"
+      },
+      "CreatorSocial": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "title": "Platform",
+            "description": "Name of the platform (e.g., 'Twitter', 'Pixiv')."
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Url",
+            "description": "URL to the creator's profile."
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "url"
+        ],
+        "title": "CreatorSocial"
       },
       "CreatorStats": {
         "properties": {
@@ -8595,6 +8648,21 @@
             ],
             "title": "Notes",
             "description": "User-provided notes or biography for the creator."
+          },
+          "socials": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CreatorSocial"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Socials",
+            "description": "List of creator's social profiles."
           }
         },
         "type": "object",
@@ -8630,6 +8698,21 @@
             ],
             "title": "Notes",
             "description": "User-provided notes or biography for the creator."
+          },
+          "socials": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CreatorSocial"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Socials",
+            "description": "List of creator's social profiles."
           },
           "id": {
             "type": "integer",
@@ -11350,7 +11433,12 @@
             "anyOf": [
               {
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "enum": [
+                    "safe",
+                    "questionable",
+                    "explicit"
+                  ]
                 },
                 "type": "array"
               },
@@ -11359,7 +11447,7 @@
               }
             ],
             "title": "Ratings",
-            "description": "Ratings allowed (safe, sketchy, nsfw)."
+            "description": "Ratings allowed (safe, questionable, explicit)."
           },
           "is_favorite": {
             "anyOf": [
@@ -11412,20 +11500,31 @@
           "sort_by": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "date_added",
+                  "filename",
+                  "resolution",
+                  "file_size",
+                  "rating"
+                ]
               },
               {
                 "type": "null"
               }
             ],
             "title": "Sort By",
-            "description": "Field to sort by: date_added, filename, resolution, file_size.",
+            "description": "Field to sort by: date_added, filename, resolution, file_size, rating.",
             "default": "date_added"
           },
           "sort_dir": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "asc",
+                  "desc"
+                ]
               },
               {
                 "type": "null"

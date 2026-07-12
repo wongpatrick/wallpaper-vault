@@ -192,7 +192,7 @@ async def create_creator(db: AsyncSession, creator: CreatorCreate) -> Creator:
     Returns:
         The newly created Creator object.
     """
-    db_creator = Creator(**creator.model_dump())
+    db_creator = Creator(**creator.model_dump(mode="json"))
     db.add(db_creator)
     await db.commit()
     await db.refresh(db_creator)
@@ -215,7 +215,7 @@ async def update_creator(db: AsyncSession, creator_id: int, creator_in: CreatorU
     if not db_creator:
         return None
     
-    update_data = creator_in.model_dump(exclude_unset=True)
+    update_data = creator_in.model_dump(exclude_unset=True, mode="json")
     for field in update_data:
         setattr(db_creator, field, update_data[field])
         
