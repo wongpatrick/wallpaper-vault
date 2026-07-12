@@ -3,12 +3,17 @@ Pydantic schemas for creator entities.
 Defines models for creating, updating, and returning creator data and statistics.
 """
 from typing import Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+
+class CreatorSocial(BaseModel):
+    platform: str = Field(..., description="Name of the platform (e.g., 'Twitter', 'Pixiv').")
+    url: HttpUrl = Field(..., description="URL to the creator's profile.")
 
 class CreatorBase(BaseModel):
     canonical_name: str = Field(..., description="The primary, normalized name of the artist/creator.")
     type: Optional[str] = Field(None, description="Type of creator (e.g., 'photographer', 'illustrator', 'cosplayer').")
     notes: Optional[str] = Field(None, description="User-provided notes or biography for the creator.")
+    socials: Optional[list[CreatorSocial]] = Field(None, description="List of creator's social profiles.")
 
 class CreatorCreate(CreatorBase):
     pass

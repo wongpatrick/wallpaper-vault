@@ -2,6 +2,7 @@
 SQLAlchemy model definition for creator (artist) entities.
 """
 from typing import Optional, TYPE_CHECKING
+from sqlalchemy import JSON
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.models.base import Base
 from app.models.associations import set_creators
@@ -16,6 +17,7 @@ class Creator(Base):
     canonical_name: Mapped[str] = mapped_column(nullable=False, unique=True)
     type: Mapped[Optional[str]] = mapped_column()
     notes: Mapped[Optional[str]] = mapped_column()
+    socials: Mapped[Optional[list[dict]]] = mapped_column(JSON, nullable=True)
 
     sets: Mapped[list["Set"]] = relationship(
         secondary=set_creators, 
