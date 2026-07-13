@@ -992,6 +992,8 @@ export default function RotationManagement() {
                                             value={activeTabConfig.playlistId}
                                             onChange={(val) => updateActiveTabConfig({ playlistId: val || '' })}
                                             placeholder="Choose a playlist..."
+                                            searchable
+                                            nothingFoundMessage="No playlists found"
                                         />
                                     )}
 
