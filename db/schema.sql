@@ -184,3 +184,11 @@ INSERT OR IGNORE INTO settings (key, value, description) VALUES ('favorite_rotat
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('wallpaper_rotation_source', 'entire_library', 'Wallpaper rotation source: entire_library or playlist');
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('wallpaper_rotation_playlist_id', '', 'Target playlist ID to rotate (for playlist source)');
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('wallpaper_rotation_target_monitor', 'all', 'Target monitor: all, or 0, 1, 2, etc.');
+
+CREATE TABLE IF NOT EXISTS rotation_profiles (
+    id          INTEGER PRIMARY KEY,
+    name        TEXT NOT NULL UNIQUE,
+    config_json TEXT NOT NULL, -- JSON containing all global settings & monitor override values
+    created_at  TEXT DEFAULT (datetime('now'))
+);
+
