@@ -17,6 +17,14 @@ app = FastAPI()
 async def startup_event() -> None:
     setup_logging()
     logger.info("Application starting up...")
+    
+    # Ensure all tables are created in the database
+    from app.db.session import engine
+    from app.models.base import Base
+    import app.models  # noqa: F401
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     await cleanup_zombie_tasks()
     
     # Clean up temporary imports folder

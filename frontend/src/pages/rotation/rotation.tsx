@@ -27,7 +27,9 @@ import {
     ActionIcon,
     Tooltip,
     Tabs,
-    Switch
+    Switch,
+    Modal,
+    TextInput
 } from '@mantine/core';
 import {
     IconStar,
@@ -39,7 +41,9 @@ import {
     IconInfoCircle,
     IconPhoto,
     IconDeviceDesktop,
-    IconLink
+    IconLink,
+    IconDeviceFloppy,
+    IconTrash
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import {
@@ -51,6 +55,12 @@ import {
 import { useReadSettingsApiSettingsGet, useUpdateSettingApiSettingsKeyPut } from '../../api/generated/settings/settings';
 import { useReadPlaylistsApiPlaylistsGet } from '../../api/generated/playlists/playlists';
 import { useUpdateImageApiImagesImageIdPatch } from '../../api/generated/images/images';
+import {
+    useListProfilesApiRotationProfilesGet,
+    useSaveProfileApiRotationProfilesPost,
+    useApplyProfileApiRotationProfilesIdApplyPost,
+    useDeleteProfileApiRotationProfilesIdDelete
+} from '../../api/generated/rotation-profiles/rotation-profiles';
 import { getImageUrl } from '../../utils/fileUtils';
 import { API_BASE_URL } from '../../config';
 import { AXIOS_INSTANCE } from '../../api/axios-instance';
@@ -118,6 +128,20 @@ export default function RotationManagement() {
     const skipMutation = useTriggerSkipApiRotationHistorySkipPost();
     const updateImageMutation = useUpdateImageApiImagesImageIdPatch();
     const updateSetting = useUpdateSettingApiSettingsKeyPut();
+
+    // Profiles Queries & Mutations
+    const { data: profiles, refetch: refetchProfiles } = useListProfilesApiRotationProfilesGet();
+    const saveProfileMutation = useSaveProfileApiRotationProfilesPost();
+    const applyProfileMutation = useApplyProfileApiRotationProfilesIdApplyPost();
+    const deleteProfileMutation = useDeleteProfileApiRotationProfilesIdDelete();
+
+    // Profile States
+    const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+    const [saveModalOpen, setSaveModalOpen] = useState(false);
+    const [newProfileName, setNewProfileName] = useState('');
+    const [savingProfile, setSavingProfile] = useState(false);
+    const [applyingProfile, setApplyingProfile] = useState(false);
+    const [deletingProfile, setDeletingProfile] = useState(false);
 
     // Active configuration tab
     const [activeConfigTab, setActiveConfigTab] = useState<string>('global');
@@ -495,6 +519,68 @@ export default function RotationManagement() {
             notifications.show({ title: 'Error', message: 'Failed to save settings', color: 'red' });
         } finally {
             setSaving(false);
+        }
+    };
+    const handleSaveProfile = async () => {
+        const nameClean = newProfileName.trim();
+        if (!nameClean) {
+            notifications.show({ title: 'Error', message: 'Profile name cannot be empty', color: 'red' });
+            return;
+        }
+
+        setSavingProfile(true);
+        try {
+            await saveProfileMutation.mutateAsync({
+                data: { name: nameClean }
+            });
+            notifications.show({ title: 'Success', message: `Profile '${nameClean}' saved successfully`, color: 'green' });
+            setSaveModalOpen(false);
+            setNewProfileName('');
+            refetchProfiles();
+        } catch (err) {
+            const error = err as { response?: { data?: { detail?: string } } };
+            const msg = error.response?.data?.detail || 'Failed to save profile';
+            notifications.show({ title: 'Error', message: msg, color: 'red' });
+        } finally {
+            setSavingProfile(false);
+        }
+    };
+
+    const handleApplyProfile = async () => {
+        if (!selectedProfileId) {
+            notifications.show({ title: 'Warning', message: 'Please select a profile to apply', color: 'yellow' });
+            return;
+        }
+
+        setApplyingProfile(true);
+        try {
+            await applyProfileMutation.mutateAsync({
+                id: parseInt(selectedProfileId, 10)
+            });
+            notifications.show({ title: 'Success', message: 'Profile settings applied successfully', color: 'green' });
+            refetchSettings();
+        } catch {
+            notifications.show({ title: 'Error', message: 'Failed to apply profile settings', color: 'red' });
+        } finally {
+            setApplyingProfile(false);
+        }
+    };
+
+    const handleDeleteProfile = async () => {
+        if (!selectedProfileId) return;
+
+        setDeletingProfile(true);
+        try {
+            await deleteProfileMutation.mutateAsync({
+                id: parseInt(selectedProfileId, 10)
+            });
+            notifications.show({ title: 'Success', message: 'Profile deleted successfully', color: 'green' });
+            setSelectedProfileId(null);
+            refetchProfiles();
+        } catch {
+            notifications.show({ title: 'Error', message: 'Failed to delete profile', color: 'red' });
+        } finally {
+            setDeletingProfile(false);
         }
     };
 
@@ -916,7 +1002,76 @@ export default function RotationManagement() {
 
                     {/* RIGHT COLUMN: Configuration overrides panel */}
                     <Stack gap="md">
-<Title order={3}>Rotation Configurations</Title>
+                        <Title order={3}>Configuration Profiles</Title>
+                        <Paper withBorder p="md" radius="md">
+                            <Stack gap="sm">
+                                <Select
+                                    label="Saved Profiles"
+                                    placeholder={profiles && profiles.length > 0 ? "Select a profile..." : "No profiles saved yet"}
+                                    data={profiles?.map(p => ({ value: String(p.id), label: p.name })) || []}
+                                    value={selectedProfileId}
+                                    onChange={setSelectedProfileId}
+                                    disabled={!profiles || profiles.length === 0}
+                                />
+                                <Group grow gap="xs">
+                                    <Button
+                                        variant="filled"
+                                        color="green"
+                                        leftSection={<IconDeviceFloppy size="1rem" />}
+                                        onClick={() => setSaveModalOpen(true)}
+                                    >
+                                        Save Current Settings
+                                    </Button>
+                                    <Button
+                                        variant="light"
+                                        color="blue"
+                                        disabled={!selectedProfileId}
+                                        loading={applyingProfile}
+                                        onClick={handleApplyProfile}
+                                    >
+                                        Apply Profile
+                                    </Button>
+                                    <ActionIcon
+                                        variant="light"
+                                        color="red"
+                                        size="lg"
+                                        disabled={!selectedProfileId}
+                                        loading={deletingProfile}
+                                        onClick={handleDeleteProfile}
+                                        title="Delete Profile"
+                                    >
+                                        <IconTrash size="1.2rem" />
+                                    </ActionIcon>
+                                </Group>
+                            </Stack>
+                        </Paper>
+
+                        <Modal
+                            opened={saveModalOpen}
+                            onClose={() => {
+                                setSaveModalOpen(false);
+                                setNewProfileName('');
+                            }}
+                            title="Save Settings Profile"
+                            centered
+                        >
+                            <Stack gap="md">
+                                <TextInput
+                                    label="Profile Name"
+                                    placeholder="e.g. Gaming Mode, Work Mode"
+                                    value={newProfileName}
+                                    onChange={(e) => setNewProfileName(e.currentTarget.value)}
+                                    required
+                                    data-autofocus
+                                />
+                                <Group justify="flex-end" gap="xs">
+                                    <Button variant="subtle" onClick={() => setSaveModalOpen(false)}>Cancel</Button>
+                                    <Button color="blue" onClick={handleSaveProfile} loading={savingProfile}>Save Profile</Button>
+                                </Group>
+                            </Stack>
+                        </Modal>
+
+                        <Title order={3}>Rotation Configurations</Title>
 
                         <Paper withBorder p="md" radius="md">
                             <Tabs value={activeConfigTab} onChange={(val) => setActiveConfigTab(val || 'global')}>
