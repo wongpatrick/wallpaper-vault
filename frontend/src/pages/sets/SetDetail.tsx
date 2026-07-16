@@ -633,6 +633,7 @@ export default function SetDetail() {
                 onSelectIndex={setSelectedImageIndex}
                 onEdit={(img) => setEditingImage(img)}
                 onDelete={() => refetch()}
+                onUpdated={() => refetch()}
                 disableActions={autoTagMutation.isPending || isLocalTaggingActive}
                 onCrop={(img) => setCroppingImage(img)}
             />

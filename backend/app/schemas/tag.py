@@ -13,6 +13,7 @@ class TagUpdate(BaseModel):
 class Tag(TagBase):
     id: int = Field(..., description="Unique database identifier for the tag.")
     set_count: int = Field(0, description="Number of sets associated with this tag.")
+    image_count: int = Field(0, description="Number of wallpapers associated with this tag.")
     
     model_config = ConfigDict(from_attributes=True)
 

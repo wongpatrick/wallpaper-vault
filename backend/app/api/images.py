@@ -49,7 +49,8 @@ def map_image_to_schema(img: "ImageModel") -> ImageDetail:
         is_favorite=getattr(img, "is_favorite", False),
         is_blacklisted=getattr(img, "is_blacklisted", False),
         date_added=str(img.date_added),
-        tags=[t.name for t in img.tags] if "tags" in img.__dict__ and img.tags else []
+        tags=[t.name for t in img.tags] if "tags" in img.__dict__ and img.tags else [],
+        characters=[f"{c.name} ({c.franchise.name})" if c.franchise else c.name for c in img.characters] if "characters" in img.__dict__ and img.characters else []
     )
 
 def map_image_to_context_schema(img: "ImageModel") -> ImageWithContext:

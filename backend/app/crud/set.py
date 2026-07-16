@@ -42,6 +42,7 @@ async def get_set(db: AsyncSession, set_id: int) -> Optional[Set]:
         select(Set).options(
             selectinload(Set.creators),
             selectinload(Set.images).selectinload(Image.tags),
+            selectinload(Set.images).selectinload(Image.characters),
             selectinload(Set.tags),
             selectinload(Set.characters)
         ).filter(Set.id == set_id)

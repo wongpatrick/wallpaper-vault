@@ -21,11 +21,16 @@ async def get_franchise(db: AsyncSession, franchise_id: int) -> Optional[Franchi
 
 async def get_franchises(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[dict]:
     from app.models.character import Character
-    from app.models.associations import set_characters
+    from app.models.associations import set_characters, image_characters
     stmt = (
-        select(Franchise, func.count(set_characters.c.set_id.distinct()).label("set_count"))
+        select(
+            Franchise, 
+            func.count(set_characters.c.set_id.distinct()).label("set_count"),
+            func.count(image_characters.c.image_id.distinct()).label("image_count")
+        )
         .outerjoin(Character, Franchise.id == Character.franchise_id)
         .outerjoin(set_characters, Character.id == set_characters.c.character_id)
+        .outerjoin(image_characters, Character.id == image_characters.c.character_id)
         .group_by(Franchise.id)
         .order_by(func.count(set_characters.c.set_id.distinct()).desc(), Franchise.name.asc())
         .offset(skip).limit(limit)
@@ -35,7 +40,8 @@ async def get_franchises(db: AsyncSession, skip: int = 0, limit: int = 100) -> L
         {
             "id": row.Franchise.id, 
             "name": row.Franchise.name,
-            "set_count": row.set_count
+            "set_count": row.set_count,
+            "image_count": row.image_count
         } for row in result.all()
     ]
 
@@ -148,11 +154,17 @@ async def merge_franchises(db: AsyncSession, source_ids: list[int], target_id: i
 
     await db.commit()
 
-    # Re-query with computed set_count so the response is accurate
+    # Re-query with computed counts so the response is accurate
+    from app.models.associations import set_characters, image_characters
     stmt = (
-        select(Franchise, func.count(set_characters.c.set_id.distinct()).label("set_count"))
+        select(
+            Franchise, 
+            func.count(set_characters.c.set_id.distinct()).label("set_count"),
+            func.count(image_characters.c.image_id.distinct()).label("image_count")
+        )
         .outerjoin(Character, Franchise.id == Character.franchise_id)
         .outerjoin(set_characters, Character.id == set_characters.c.character_id)
+        .outerjoin(image_characters, Character.id == image_characters.c.character_id)
         .where(Franchise.id == target_id)
         .group_by(Franchise.id)
     )
@@ -164,5 +176,6 @@ async def merge_franchises(db: AsyncSession, source_ids: list[int], target_id: i
         "id": row.Franchise.id,
         "name": row.Franchise.name,
         "set_count": row.set_count,
+        "image_count": row.image_count,
     }
 

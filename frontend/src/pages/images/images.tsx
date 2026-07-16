@@ -437,6 +437,11 @@ export default function Images() {
                     setPage(1);
                     refetch();
                 }}
+                onUpdated={() => {
+                    setAllImages([]);
+                    setPage(1);
+                    refetch();
+                }}
                 onCrop={(img) => setCroppingImage(img)}
             />
 

@@ -45,13 +45,18 @@ async def get_character(db: AsyncSession, character_id: int) -> Optional[Charact
     return result.scalars().first()
 
 async def get_characters(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[dict]:
-    from app.models.associations import set_characters
+    from app.models.associations import set_characters, image_characters
     stmt = (
-        select(Character, func.count(set_characters.c.set_id).label("set_count"))
+        select(
+            Character,
+            func.count(set_characters.c.set_id.distinct()).label("set_count"),
+            func.count(image_characters.c.image_id.distinct()).label("image_count")
+        )
         .options(selectinload(Character.franchise))
         .outerjoin(set_characters, Character.id == set_characters.c.character_id)
+        .outerjoin(image_characters, Character.id == image_characters.c.character_id)
         .group_by(Character.id)
-        .order_by(func.count(set_characters.c.set_id).desc(), Character.name.asc())
+        .order_by(func.count(set_characters.c.set_id.distinct()).desc(), Character.name.asc())
         .offset(skip).limit(limit)
     )
     result = await db.execute(stmt)
@@ -62,7 +67,8 @@ async def get_characters(db: AsyncSession, skip: int = 0, limit: int = 100) -> L
             "name": row.Character.name, 
             "franchise_id": row.Character.franchise_id,
             "franchise": row.Character.franchise,
-            "set_count": row.set_count
+            "set_count": row.set_count,
+            "image_count": row.image_count
         } for row in result.all()
     ]
 
@@ -258,16 +264,33 @@ async def merge_characters(db: AsyncSession, source_ids: list[int], target_id: i
             "DELETE FROM set_characters WHERE character_id = :source_id"
         ), {"source_id": sid})
 
+        # Direct SQL: add target to images that have source but not target
+        await db.execute(text(
+            "INSERT OR IGNORE INTO image_characters (image_id, character_id) "
+            "SELECT image_id, :target_id FROM image_characters WHERE character_id = :source_id"
+        ), {"target_id": target_id, "source_id": sid})
+
+        # Direct SQL: remove source from all images
+        await db.execute(text(
+            "DELETE FROM image_characters WHERE character_id = :source_id"
+        ), {"source_id": sid})
+
         await db.flush()
         await db.delete(source)
 
     await db.commit()
 
-    # Re-query with computed set_count so the response is accurate
+    # Re-query with computed counts so the response is accurate
+    from app.models.associations import set_characters, image_characters
     stmt = (
-        select(Character, func.count(set_characters.c.set_id).label("set_count"))
+        select(
+            Character, 
+            func.count(set_characters.c.set_id.distinct()).label("set_count"),
+            func.count(image_characters.c.image_id.distinct()).label("image_count")
+        )
         .options(selectinload(Character.franchise))
         .outerjoin(set_characters, Character.id == set_characters.c.character_id)
+        .outerjoin(image_characters, Character.id == image_characters.c.character_id)
         .where(Character.id == target_id)
         .group_by(Character.id)
     )
@@ -281,5 +304,6 @@ async def merge_characters(db: AsyncSession, source_ids: list[int], target_id: i
         "franchise_id": row.Character.franchise_id,
         "franchise": row.Character.franchise,
         "set_count": row.set_count,
+        "image_count": row.image_count,
     }
 

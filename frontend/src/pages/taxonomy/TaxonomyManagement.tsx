@@ -64,7 +64,7 @@ export default function TaxonomyManagement() {
 }
 
 // --- Common Filtering/Sorting Hook ---
-function useTaxonomyFilterSort<T extends { name: string; set_count?: number; franchise?: { name: string } | null }>(data: T[] | undefined) {
+function useTaxonomyFilterSort<T extends { name: string; set_count?: number; image_count?: number; franchise?: { name: string } | null }>(data: T[] | undefined) {
     const [search, setSearch] = useState('');
     const [sortBy, setSortBy] = useState<string | null>('set_count_desc');
     const [page, setPage] = useState(1);
@@ -84,6 +84,8 @@ function useTaxonomyFilterSort<T extends { name: string; set_count?: number; fra
             if (sortBy === 'name_desc') return b.name.localeCompare(a.name);
             if (sortBy === 'set_count_desc') return (b.set_count || 0) - (a.set_count || 0);
             if (sortBy === 'set_count_asc') return (a.set_count || 0) - (b.set_count || 0);
+            if (sortBy === 'image_count_desc') return (b.image_count || 0) - (a.image_count || 0);
+            if (sortBy === 'image_count_asc') return (a.image_count || 0) - (b.image_count || 0);
             if (sortBy === 'franchise_asc') {
                 const fa = a.franchise?.name || '';
                 const fb = b.franchise?.name || '';
@@ -344,6 +346,7 @@ function CharactersTab() {
                             <SortableHeader label="Name" sortKey="name" currentSortBy={sortBy} onSort={setSortBy} />
                             <SortableHeader label="Franchise" sortKey="franchise" currentSortBy={sortBy} onSort={setSortBy} />
                             <SortableHeader label="Sets" sortKey="set_count" currentSortBy={sortBy} onSort={setSortBy} w={100} />
+                            <SortableHeader label="Images" sortKey="image_count" currentSortBy={sortBy} onSort={setSortBy} w={100} />
                             <Table.Th w={100}>Actions</Table.Th>
                         </Table.Tr>
                     </Table.Thead>
@@ -380,9 +383,12 @@ function CharactersTab() {
                                          <Text c="dimmed" size="sm">None</Text>
                                      )}
                                  </Table.Td>
-                                <Table.Td>
-                                    <Badge color="gray" variant="light">{char.set_count}</Badge>
-                                </Table.Td>
+                                 <Table.Td>
+                                     <Badge color="gray" variant="light">{char.set_count}</Badge>
+                                 </Table.Td>
+                                 <Table.Td>
+                                     <Badge color="blue" variant="light">{char.image_count}</Badge>
+                                 </Table.Td>
                                 <Table.Td>
                                     <Group gap="xs">
                                         <Tooltip label="Edit Character">
@@ -397,11 +403,11 @@ function CharactersTab() {
                                 </Table.Td>
                             </Table.Tr>
                         ))}
-                        {!sortedCharacters.length && (
-                            <Table.Tr>
-                                <Table.Td colSpan={5} ta="center">No characters found.</Table.Td>
-                            </Table.Tr>
-                        )}
+                         {!sortedCharacters.length && (
+                             <Table.Tr>
+                                 <Table.Td colSpan={6} ta="center">No characters found.</Table.Td>
+                             </Table.Tr>
+                         )}
                     </Table.Tbody>
                 </Table>
             </Table.ScrollContainer>
@@ -650,6 +656,7 @@ function FranchisesTab() {
                             </Table.Th>
                             <SortableHeader label="Name" sortKey="name" currentSortBy={sortBy} onSort={setSortBy} />
                             <SortableHeader label="Sets" sortKey="set_count" currentSortBy={sortBy} onSort={setSortBy} w={100} />
+                            <SortableHeader label="Images" sortKey="image_count" currentSortBy={sortBy} onSort={setSortBy} w={100} />
                             <Table.Th w={100}>Actions</Table.Th>
                         </Table.Tr>
                     </Table.Thead>
@@ -672,9 +679,12 @@ function FranchisesTab() {
                                         {franchise.name}
                                     </Text>
                                 </Table.Td>
-                                <Table.Td>
-                                    <Badge color="gray" variant="light">{franchise.set_count}</Badge>
-                                </Table.Td>
+                                 <Table.Td>
+                                     <Badge color="gray" variant="light">{franchise.set_count}</Badge>
+                                 </Table.Td>
+                                 <Table.Td>
+                                     <Badge color="blue" variant="light">{franchise.image_count}</Badge>
+                                 </Table.Td>
                                 <Table.Td>
                                     <Group gap="xs">
                                         <Tooltip label="Edit Franchise">
@@ -689,11 +699,11 @@ function FranchisesTab() {
                                 </Table.Td>
                             </Table.Tr>
                         ))}
-                        {!sortedFranchises.length && (
-                            <Table.Tr>
-                                <Table.Td colSpan={4} ta="center">No franchises found.</Table.Td>
-                            </Table.Tr>
-                        )}
+                         {!sortedFranchises.length && (
+                             <Table.Tr>
+                                 <Table.Td colSpan={5} ta="center">No franchises found.</Table.Td>
+                             </Table.Tr>
+                         )}
                     </Table.Tbody>
                 </Table>
             </Table.ScrollContainer>
@@ -932,6 +942,7 @@ function TagsTab() {
                             </Table.Th>
                             <SortableHeader label="Name" sortKey="name" currentSortBy={sortBy} onSort={setSortBy} />
                             <SortableHeader label="Sets" sortKey="set_count" currentSortBy={sortBy} onSort={setSortBy} w={100} />
+                            <SortableHeader label="Images" sortKey="image_count" currentSortBy={sortBy} onSort={setSortBy} w={100} />
                             <Table.Th w={100}>Actions</Table.Th>
                         </Table.Tr>
                     </Table.Thead>
@@ -954,9 +965,12 @@ function TagsTab() {
                                         {tag.name}
                                     </Text>
                                 </Table.Td>
-                                <Table.Td>
-                                    <Badge color="gray" variant="light">{tag.set_count}</Badge>
-                                </Table.Td>
+                                 <Table.Td>
+                                     <Badge color="gray" variant="light">{tag.set_count}</Badge>
+                                 </Table.Td>
+                                 <Table.Td>
+                                     <Badge color="blue" variant="light">{tag.image_count}</Badge>
+                                 </Table.Td>
                                 <Table.Td>
                                     <Group gap="xs">
                                         <Tooltip label="Edit Tag">
@@ -971,11 +985,11 @@ function TagsTab() {
                                 </Table.Td>
                             </Table.Tr>
                         ))}
-                        {!sortedTags.length && (
-                            <Table.Tr>
-                                <Table.Td colSpan={4} ta="center">No tags found.</Table.Td>
-                            </Table.Tr>
-                        )}
+                         {!sortedTags.length && (
+                             <Table.Tr>
+                                 <Table.Td colSpan={5} ta="center">No tags found.</Table.Td>
+                             </Table.Tr>
+                         )}
                     </Table.Tbody>
                 </Table>
             </Table.ScrollContainer>

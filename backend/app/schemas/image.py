@@ -43,6 +43,7 @@ class ImageUpdate(BaseModel):
     is_favorite: Optional[bool] = Field(None, description="Whether this image is marked as a favorite wallpaper.")
     is_blacklisted: Optional[bool] = Field(None, description="Whether this image is blacklisted from rotations.")
     tags: Optional[list[str]] = Field(None, description="Updated list of tag names for this image.")
+    characters: Optional[list[str]] = Field(None, description="Updated list of character names for this image.")
 
 class Image(ImageBase):
     id: int = Field(..., description="Unique database identifier for the image.")
@@ -53,6 +54,7 @@ class Image(ImageBase):
 
 class ImageDetail(Image):
     tags: list[str] = Field(default_factory=list, description="List of descriptive tag names for the image.")
+    characters: list[str] = Field(default_factory=list, description="List of character names for the image.")
 
     @field_validator('tags', mode='before')
     @classmethod
@@ -60,6 +62,13 @@ class ImageDetail(Image):
         if not v:
             return []
         return [tag.name if hasattr(tag, 'name') else str(tag) for tag in v]
+
+    @field_validator('characters', mode='before')
+    @classmethod
+    def extract_character_names(cls, v):
+        if not v:
+            return []
+        return [f"{c.name} ({c.franchise.name})" if hasattr(c, 'franchise') and c.franchise else (c.name if hasattr(c, 'name') else str(c)) for c in v]
 
 class ImageWithContext(Image):
     set_title: str = Field(..., description="The title of the set this image belongs to.")

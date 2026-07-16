@@ -3,7 +3,7 @@ from typing import Optional
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey
 from app.models.base import Base
-from app.models.associations import set_characters
+from app.models.associations import set_characters, image_characters
 
 class Character(Base):
     __tablename__ = "characters"
@@ -17,5 +17,11 @@ class Character(Base):
     sets = relationship(
         "Set",
         secondary=set_characters,
+        back_populates="characters"
+    )
+
+    images = relationship(
+        "Image",
+        secondary=image_characters,
         back_populates="characters"
     )
