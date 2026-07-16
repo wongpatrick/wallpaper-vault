@@ -155,7 +155,7 @@ async def merge_franchises(db: AsyncSession, source_ids: list[int], target_id: i
     await db.commit()
 
     # Re-query with computed counts so the response is accurate
-    from app.models.associations import set_characters, image_characters
+    from app.models.associations import image_characters
     stmt = (
         select(
             Franchise, 
