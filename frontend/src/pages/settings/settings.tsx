@@ -168,6 +168,8 @@ export default function Settings() {
                                     A tag must appear in at least this percentage of images in a Set to be automatically rolled up to the Set level.
                                 </Text>
                             </Stack>
+
+
                         </Stack>
                     </SettingsSection>
 

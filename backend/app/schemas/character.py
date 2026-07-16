@@ -18,6 +18,7 @@ class Character(CharacterBase):
     id: int = Field(..., description="Unique database identifier for the character.")
     franchise: Optional["Franchise"] = Field(None, description="The franchise this character belongs to.")
     set_count: int = Field(0, description="Number of sets featuring this character.")
+    image_count: int = Field(0, description="Number of wallpapers featuring this character.")
 
     model_config = ConfigDict(from_attributes=True)
 

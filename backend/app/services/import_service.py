@@ -329,6 +329,7 @@ async def execute_import_item(
                         
                         # Auto tagging if enabled
                         image_tags_list = []
+                        image_characters_list = []
                         if auto_tag_enabled and tagger:
                             try:
                                 import asyncio
@@ -350,6 +351,11 @@ async def execute_import_item(
                                     from app.crud.tag import get_tags_by_names
                                     image_tags_list = await get_tags_by_names(db, general_tags)
                                     logger.info("Associated tags to image record", path=_safe_log_val(final_p_str), count=len(image_tags_list), tags=[_safe_log_val(t.name) for t in image_tags_list])
+                                
+                                if character_tags:
+                                    from app.crud.character import get_characters_by_names
+                                    image_characters_list = await get_characters_by_names(db, character_tags)
+                                    logger.info("Associated characters to image record", path=_safe_log_val(final_p_str), count=len(image_characters_list), characters=[_safe_log_val(c.name) for c in image_characters_list])
                             except Exception as tag_err:
                                 logger.error("Failed to run AI tagging", path=_safe_log_val(final_p_str), error=_safe_log_val(str(tag_err)))
 
@@ -367,7 +373,8 @@ async def execute_import_item(
                             rating=ImageRating.QUESTIONABLE,
                             focal_point_x=fx,
                             focal_point_y=fy,
-                            tags=image_tags_list
+                            tags=image_tags_list,
+                            characters=image_characters_list
                         ))
                 
                 processed_in_item += 1

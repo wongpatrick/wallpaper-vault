@@ -4,14 +4,15 @@
  * Description: Modal component for editing metadata (rating, tags, notes, etc.) of a single image and handling its deletion.
  */
 import { Modal, Stack, TextInput, Textarea, Button, NumberInput, SegmentedControl, Text, ColorInput, Center, Box, Group } from '@mantine/core';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { IconAlertTriangle, IconExclamationCircle, IconShieldCheck, IconTrash } from '@tabler/icons-react';
-import { useUpdateImageApiImagesImageIdPatch, useDeleteImageApiImagesImageIdDelete } from '../../api/generated/images/images';
+import { useUpdateImageApiImagesImageIdPatch, useDeleteImageApiImagesImageIdDelete, useReadImageApiImagesImageIdGet } from '../../api/generated/images/images';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import type { Image as ImageModel, ImageUpdate, ImageDetail } from '../../api/model';
 import { ImageRating } from '../../types/enums';
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
+import { CharacterTagsInput } from '../ui/CharacterTagsInput';
 
 interface ImageEditModalProps {
     image: ImageModel | null;
@@ -27,6 +28,12 @@ const CONFIRM_MODAL_Z_INDEX_OFFSET = 10;
 export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MODAL_Z_INDEX }: ImageEditModalProps) {
     const updateMutation = useUpdateImageApiImagesImageIdPatch();
     const deleteMutation = useDeleteImageApiImagesImageIdDelete();
+
+    const { data: imageDetail } = useReadImageApiImagesImageIdGet(
+        image?.id || 0,
+        undefined,
+        { query: { enabled: !!image?.id } }
+    );
     
     const [form, setForm] = useState<ImageUpdate>({
         filename: '',
@@ -35,7 +42,8 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
         aspect_ratio_label: '',
         rating: ImageRating.SAFE,
         dominant_color: '',
-        tags: []
+        tags: [],
+        characters: []
     });
 
     const [prevImageId, setPrevImageId] = useState<number | null>(null);
@@ -48,13 +56,28 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
             aspect_ratio_label: image.aspect_ratio_label || '',
             rating: image.rating || ImageRating.SAFE,
             dominant_color: image.dominant_color || '',
-            tags: (image as ImageDetail).tags || []
+            tags: (image as ImageDetail).tags || [],
+            characters: (image as ImageDetail).characters || []
         });
     }
+
+    // Update tags and characters form fields once detailed image metadata is loaded
+    useEffect(() => {
+        if (imageDetail) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setForm(prev => ({
+                ...prev,
+                tags: imageDetail.tags || [],
+                characters: imageDetail.characters || []
+            }));
+        }
+    }, [imageDetail]);
+
 
     const isFormDirty = useMemo(() => {
         if (!image) return false;
         const originalTags = (image as ImageDetail).tags || [];
+        const originalCharacters = (image as ImageDetail).characters || [];
         
         const arraysEqual = (a: string[], b: string[]) => {
             if (a.length !== b.length) return false;
@@ -70,7 +93,8 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
             form.aspect_ratio_label !== (image.aspect_ratio_label || '') ||
             form.rating !== (image.rating || ImageRating.SAFE) ||
             form.dominant_color !== (image.dominant_color || '') ||
-            !arraysEqual(form.tags || [], originalTags)
+            !arraysEqual(form.tags || [], originalTags) ||
+            !arraysEqual(form.characters || [], originalCharacters)
         );
     }, [form, image]);
 
@@ -83,7 +107,8 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
                 aspect_ratio_label: image.aspect_ratio_label || '',
                 rating: image.rating || ImageRating.SAFE,
                 dominant_color: image.dominant_color || '',
-                tags: (image as ImageDetail).tags || []
+                tags: (image as ImageDetail).tags || [],
+                characters: (image as ImageDetail).characters || []
             });
         }
     };
@@ -211,6 +236,13 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
                     placeholder="Add tags..."
                     value={form.tags || []}
                     onChange={(tags) => setForm({ ...form, tags })}
+                />
+
+                <CharacterTagsInput 
+                    label="Characters"
+                    placeholder="Add characters..."
+                    value={form.characters || []}
+                    onChange={(characters) => setForm({ ...form, characters })}
                 />
 
                 <TextInput 

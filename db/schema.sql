@@ -76,6 +76,12 @@ CREATE TABLE IF NOT EXISTS set_characters (
     PRIMARY KEY (set_id, character_id)
 );
 
+CREATE TABLE IF NOT EXISTS image_characters (
+    image_id     INTEGER NOT NULL REFERENCES images(id)       ON DELETE CASCADE,
+    character_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    PRIMARY KEY (image_id, character_id)
+);
+
 CREATE TABLE IF NOT EXISTS images (
     id                 INTEGER PRIMARY KEY,
     set_id             INTEGER NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
@@ -162,6 +168,8 @@ CREATE INDEX IF NOT EXISTS idx_set_characters_set_id           ON set_characters
 CREATE INDEX IF NOT EXISTS idx_set_characters_character_id     ON set_characters(character_id);
 CREATE INDEX IF NOT EXISTS idx_image_tags_image_id             ON image_tags(image_id);
 CREATE INDEX IF NOT EXISTS idx_image_tags_tag_id               ON image_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_image_characters_image_id       ON image_characters(image_id);
+CREATE INDEX IF NOT EXISTS idx_image_characters_character_id   ON image_characters(character_id);
 
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_auto_tag_enabled', 'false', 'Enable AI auto tagging on import');
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_model_source', 'predefined', 'Source of the AI model: predefined, huggingface, or local');
@@ -184,6 +192,7 @@ INSERT OR IGNORE INTO settings (key, value, description) VALUES ('favorite_rotat
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('wallpaper_rotation_source', 'entire_library', 'Wallpaper rotation source: entire_library or playlist');
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('wallpaper_rotation_playlist_id', '', 'Target playlist ID to rotate (for playlist source)');
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('wallpaper_rotation_target_monitor', 'all', 'Target monitor: all, or 0, 1, 2, etc.');
+
 
 CREATE TABLE IF NOT EXISTS rotation_profiles (
     id          INTEGER PRIMARY KEY,

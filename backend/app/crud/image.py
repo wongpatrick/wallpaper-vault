@@ -131,7 +131,7 @@ async def get_image(db: AsyncSession, image_id: int) -> Optional[Image]:
     """
     result = await db.execute(
         select(Image)
-        .options(selectinload(Image.tags))
+        .options(selectinload(Image.tags), selectinload(Image.characters))
         .filter(Image.id == image_id)
     )
     return result.scalar_one_or_none()
@@ -181,13 +181,17 @@ async def update_image(db: AsyncSession, image_id: int, image_in: ImageUpdate) -
     if not db_image:
         return None
     
-    update_data = image_in.model_dump(exclude_unset=True, exclude={"tags"})
+    update_data = image_in.model_dump(exclude_unset=True, exclude={"tags", "characters"})
     for field in update_data:
         setattr(db_image, field, update_data[field])
         
     if image_in.tags is not None:
         from app.crud.tag import get_tags_by_names
         db_image.tags = await get_tags_by_names(db, image_in.tags)
+        
+    if image_in.characters is not None:
+        from app.crud.character import get_characters_by_names
+        db_image.characters = await get_characters_by_names(db, image_in.characters)
     
     db.add(db_image)
     await db.commit()

@@ -3,16 +3,18 @@
  * Module: ImageLightbox Component
  * Description: Full-screen image viewer supporting keyboard navigation, metadata display, filmstrip thumbnail navigation, and direct image actions (edit/delete).
  */
-import { Modal, Box, Group, Stack, Text, Button, ActionIcon, Center, Image, Badge, Tooltip } from '@mantine/core';
-import { IconWallpaper, IconX, IconChevronLeft, IconChevronRight, IconEdit, IconAlertTriangle, IconExclamationCircle, IconTrash, IconFolderOpen, IconCrop } from '@tabler/icons-react';
+import { Modal, Box, Group, Stack, Text, ActionIcon, Center, Image, Badge, Tooltip, Loader, ScrollArea } from '@mantine/core';
+import { IconWallpaper, IconX, IconChevronLeft, IconChevronRight, IconEdit, IconAlertTriangle, IconExclamationCircle, IconTrash, IconFolderOpen, IconCrop, IconTag } from '@tabler/icons-react';
 import { getImageUrl, getThumbnailUrl } from '../../utils/fileUtils';
 import type { Image as ImageModel } from '../../api/model';
-import { useDeleteImageApiImagesImageIdDelete } from '../../api/generated/images/images';
+import { useDeleteImageApiImagesImageIdDelete, useReadImageApiImagesImageIdGet, useUpdateImageApiImagesImageIdPatch } from '../../api/generated/images/images';
+import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
+import { CharacterTagsInput } from '../ui/CharacterTagsInput';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ImageRating } from '../../types/enums';
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { getLabelFromPath } from '../../utils/navigationUtils';
 
 interface ImageLightboxProps {
@@ -22,6 +24,7 @@ interface ImageLightboxProps {
     onSelectIndex: (index: number) => void;
     onEdit: (image: ImageModel) => void;
     onDelete?: () => void;
+    onUpdated?: () => void;
     totalCount?: number;
     disableActions?: boolean;
     onCrop?: (image: ImageModel) => void;
@@ -35,11 +38,70 @@ const FILMSTRIP_HALF = Math.floor(FILMSTRIP_VISIBLE / 2);
 const THUMB_WIDTH = 160;
 const THUMB_HEIGHT = 100;
 const THUMB_GAP = 8;
+const SIDEBAR_WIDTH = 320;
+const ARROW_OFFSET_DEFAULT = 20;
+const ARROW_OFFSET_WITH_SIDEBAR = SIDEBAR_WIDTH + ARROW_OFFSET_DEFAULT;
 
-export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit, onDelete, totalCount, disableActions, onCrop }: ImageLightboxProps) {
+export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit, onDelete, onUpdated, totalCount, disableActions, onCrop }: ImageLightboxProps) {
     const deleteMutation = useDeleteImageApiImagesImageIdDelete();
     const navigate = useNavigate();
     const location = useLocation();
+
+    // Sidebar state (persist collapsed/expanded state in localStorage)
+    const [sidebarOpen, setSidebarOpen] = useState(() => {
+        const saved = localStorage.getItem('lightbox_sidebar_open');
+        return saved !== null ? saved === 'true' : true;
+    });
+
+    const toggleSidebar = () => {
+        setSidebarOpen(prev => {
+            const next = !prev;
+            localStorage.setItem('lightbox_sidebar_open', String(next));
+            return next;
+        });
+    };
+
+    const currentImage = selectedIndex !== null ? images[selectedIndex] : null;
+
+    // Fetch individual image details (including tags)
+    const { data: imageDetail, refetch: refetchImageDetail, isFetching: isDetailFetching } = useReadImageApiImagesImageIdGet(
+        currentImage?.id || 0,
+        undefined,
+        { query: { enabled: !!currentImage?.id } }
+    );
+
+    // Mutation for updating image tags
+    const updateMutation = useUpdateImageApiImagesImageIdPatch();
+
+    const handleUpdateTags = async (newTags: string[]) => {
+        if (!currentImage) return;
+        try {
+            await updateMutation.mutateAsync({
+                imageId: currentImage.id,
+                data: { tags: newTags }
+            });
+            notifications.show({ title: 'Tags Updated', message: 'Tags saved successfully', color: 'green', autoClose: 1500 });
+            refetchImageDetail();
+            onUpdated?.();
+        } catch {
+            notifications.show({ title: 'Error', message: 'Failed to update tags', color: 'red' });
+        }
+    };
+
+    const handleUpdateCharacters = async (newCharacters: string[]) => {
+        if (!currentImage) return;
+        try {
+            await updateMutation.mutateAsync({
+                imageId: currentImage.id,
+                data: { characters: newCharacters }
+            });
+            notifications.show({ title: 'Characters Updated', message: 'Characters saved successfully', color: 'green', autoClose: 1500 });
+            refetchImageDetail();
+            onUpdated?.();
+        } catch {
+            notifications.show({ title: 'Error', message: 'Failed to update characters', color: 'red' });
+        }
+    };
 
     // Compute the visible filmstrip window
     const filmstripWindow = useMemo(() => {
@@ -85,10 +147,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
         });
     }, [selectedIndex, images]);
 
-    if (selectedIndex === null) return null;
-
-    const currentImage = images[selectedIndex];
-    if (!currentImage) return null;
+    if (selectedIndex === null || !currentImage) return null;
 
     const rating = currentImage.rating || ImageRating.SAFE;
 
@@ -159,7 +218,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
         >
             <Box style={{ height: '100vh', width: '100vw', position: 'relative', display: 'flex', flexDirection: 'column' }}>
                 {/* ImageLightbox Header */}
-                <Group justify="space-between" p="md" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, WebkitAppRegion: 'no-drag' }}>
+                <Group justify="space-between" p="md" style={{ position: 'absolute', top: 0, left: 0, right: sidebarOpen ? SIDEBAR_WIDTH : 0, zIndex: 10, WebkitAppRegion: 'no-drag', transition: 'right 0.2s ease' }}>
                     <Stack gap={0}>
                         <Group gap="xs">
                             <Tooltip label={currentImage.filename} position="bottom" withArrow>
@@ -184,75 +243,145 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                             </Text>
                         </Group>
                     </Stack>
-                    <Group>
+                    <Group gap="sm" wrap="nowrap">
                         {currentImage.set_id && (
                             <Tooltip label="View Set">
-                                <Button 
-                                    leftSection={<IconFolderOpen size={18} />} 
+                                <ActionIcon 
                                     variant="subtle" 
                                     color="gray" 
+                                    size="lg"
                                     onClick={navigateToSet}
                                 >
-                                    Set
-                                </Button>
+                                    <IconFolderOpen size={20} />
+                                </ActionIcon>
                             </Tooltip>
                         )}
-                        <Button 
-                            leftSection={<IconCrop size={18} />} 
-                            variant="subtle" 
-                            color="gray" 
-                            onClick={() => onCrop?.(currentImage)}
-                            disabled={disableActions}
-                        >
-                            Crop
-                        </Button>
-                        <Button 
-                            leftSection={<IconEdit size={18} />} 
-                            variant="subtle" 
-                            color="gray" 
-                            onClick={() => onEdit(currentImage)}
-                            disabled={disableActions}
-                        >
-                            Edit Metadata
-                        </Button>
-                        <Button 
-                            leftSection={<IconTrash size={18} />} 
-                            variant="subtle" 
-                            color="red" 
-                            onClick={handleDelete}
-                            loading={deleteMutation.isPending}
-                            disabled={disableActions}
-                        >
-                            Delete
-                        </Button>
-                        <Button 
-                            leftSection={<IconWallpaper size={18} />} 
-                            color="blue" 
-                            variant="filled"
-                            disabled={disableActions}
-                        >
-                            Set as Wallpaper
-                        </Button>
+                        <Tooltip label="Crop Image">
+                            <ActionIcon 
+                                variant="subtle" 
+                                color="gray" 
+                                size="lg"
+                                onClick={() => onCrop?.(currentImage)}
+                                disabled={disableActions}
+                            >
+                                <IconCrop size={20} />
+                            </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Toggle Tags Sidebar">
+                            <ActionIcon 
+                                variant={sidebarOpen ? "filled" : "subtle"} 
+                                color={sidebarOpen ? "blue" : "gray"} 
+                                size="lg"
+                                onClick={toggleSidebar}
+                            >
+                                <IconTag size={20} />
+                            </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Edit Metadata">
+                            <ActionIcon 
+                                variant="subtle" 
+                                color="gray" 
+                                size="lg"
+                                onClick={() => onEdit(currentImage)}
+                                disabled={disableActions}
+                            >
+                                <IconEdit size={20} />
+                            </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Delete Image">
+                            <ActionIcon 
+                                variant="subtle" 
+                                color="red" 
+                                size="lg"
+                                onClick={handleDelete}
+                                loading={deleteMutation.isPending}
+                                disabled={disableActions}
+                            >
+                                <IconTrash size={20} />
+                            </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Set as Wallpaper">
+                            <ActionIcon 
+                                variant="filled" 
+                                color="blue" 
+                                size="lg"
+                                disabled={disableActions}
+                            >
+                                <IconWallpaper size={20} />
+                            </ActionIcon>
+                        </Tooltip>
                         <ActionIcon variant="subtle" color="gray" size="xl" onClick={onClose}>
                             <IconX size={28} />
                         </ActionIcon>
                     </Group>
                 </Group>
 
-                {/* Main Image Area */}
-                <Center style={{ flex: 1, padding: '40px' }}>
-                    <Image
-                        src={getImageUrl(currentImage.id, currentImage.phash || currentImage.file_size || undefined)}
-                        style={{ 
-                            maxHeight: '75vh', 
-                            maxWidth: '100%', 
-                            objectFit: 'contain',
-                            border: rating !== ImageRating.SAFE ? `4px solid ${borderColor}` : 'none',
-                            boxSizing: 'border-box',
-                            borderRadius: '4px'
-                        }}
-                    />
-                </Center>
+                {/* Content Area (Image + Sidebar) */}
+                <Box style={{ flex: 1, display: 'flex', minHeight: 0, width: '100%', position: 'relative' }}>
+                    <Center style={{ flex: 1, padding: '40px', position: 'relative' }}>
+                        <Image
+                            src={getImageUrl(currentImage.id, currentImage.phash || currentImage.file_size || undefined)}
+                            style={{ 
+                                maxHeight: '75vh', 
+                                maxWidth: '100%', 
+                                objectFit: 'contain',
+                                border: rating !== ImageRating.SAFE ? `4px solid ${borderColor}` : 'none',
+                                boxSizing: 'border-box',
+                                borderRadius: '4px'
+                            }}
+                        />
+                    </Center>
+
+                    {/* Sidebar details panel */}
+                    {sidebarOpen && (
+                        <Box 
+                            style={{ 
+                                width: SIDEBAR_WIDTH, 
+                                borderLeft: '1px solid var(--mantine-color-dark-4)', 
+                                backgroundColor: 'rgba(20, 20, 20, 0.95)',
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                padding: '24px 16px',
+                                boxSizing: 'border-box',
+                                zIndex: 10
+                            }}
+                        >
+                            <ScrollArea h="100%">
+                                <Stack gap="md">
+                                    <Group justify="space-between" align="center">
+                                        <Text fw={600} size="lg" c="white">Wallpaper Tags</Text>
+                                        {(isDetailFetching || updateMutation.isPending) && (
+                                            <Loader size="xs" color="blue" />
+                                        )}
+                                    </Group>
+                                    
+                                    <Box>
+                                        <Text fw={500} size="sm" c="gray.3" mb={6}>General Tags</Text>
+                                        <TagAutocompleteInput 
+                                            label=""
+                                            placeholder="Add tags..."
+                                            value={imageDetail?.tags || []}
+                                            onChange={handleUpdateTags}
+                                        />
+                                    </Box>
+
+                                    <Box>
+                                        <Text fw={500} size="sm" c="gray.3" mb={6}>Characters</Text>
+                                        <CharacterTagsInput 
+                                            placeholder="Add characters..."
+                                            value={imageDetail?.characters || []}
+                                            onChange={handleUpdateCharacters}
+                                        />
+                                    </Box>
+                                    
+                                    <Text size="xs" c="dimmed">
+                                        Tags and characters are saved automatically.
+                                    </Text>
+                                </Stack>
+                            </ScrollArea>
+                        </Box>
+                    )}
+                </Box>
 
                 {/* Navigation Arrows */}
                 <ActionIcon 
@@ -261,7 +390,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                     size={60} 
                     onClick={handlePrev}
                     disabled={selectedIndex === 0}
-                    style={{ position: 'absolute', left: 20, top: '50%', transform: 'translateY(-50%)' }}
+                    style={{ position: 'absolute', left: ARROW_OFFSET_DEFAULT, top: '50%', transform: 'translateY(-50%)' }}
                 >
                     <IconChevronLeft size={48} />
                 </ActionIcon>
@@ -272,7 +401,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                     size={60} 
                     onClick={handleNext}
                     disabled={selectedIndex === images.length - 1}
-                    style={{ position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)' }}
+                    style={{ position: 'absolute', right: sidebarOpen ? ARROW_OFFSET_WITH_SIDEBAR : ARROW_OFFSET_DEFAULT, top: '50%', transform: 'translateY(-50%)', transition: 'right 0.2s ease' }}
                 >
                     <IconChevronRight size={48} />
                 </ActionIcon>

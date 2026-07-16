@@ -14,6 +14,7 @@ class FranchiseUpdate(BaseModel):
 class Franchise(FranchiseBase):
     id: int = Field(..., description="Unique database identifier for the franchise.")
     set_count: int = Field(0, description="Number of sets featuring characters from this franchise.")
+    image_count: int = Field(0, description="Number of wallpapers featuring characters from this franchise.")
 
     model_config = ConfigDict(from_attributes=True)
 

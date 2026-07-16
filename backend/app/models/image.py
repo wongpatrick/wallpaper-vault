@@ -10,6 +10,7 @@ from app.core.enums import ImageRating
 if TYPE_CHECKING:
     from app.models.set import Set
     from app.models.tag import Tag
+    from app.models.character import Character
     from app.models.playlist import PlaylistImage
 
 class Image(Base):
@@ -38,6 +39,10 @@ class Image(Base):
     set: Mapped["Set"] = relationship(back_populates="images")
     tags: Mapped[list["Tag"]] = relationship(
         secondary="image_tags",
+        back_populates="images"
+    )
+    characters: Mapped[list["Character"]] = relationship(
+        secondary="image_characters",
         back_populates="images"
     )
     playlist_images: Mapped[list["PlaylistImage"]] = relationship(

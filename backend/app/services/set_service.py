@@ -649,6 +649,9 @@ async def auto_tag_set(db: AsyncSession, set_id: int, task_id: Optional[str] = N
                     if task_id:
                         await tasks.update_task(db, task_id, progress=index + 1)
                     continue
+
+                # Ensure tags and characters relationships are fully loaded
+                await db.refresh(img, ["tags", "characters"])
                 
                 p = Path(img.local_path)
                 if not p.exists():
@@ -668,6 +671,20 @@ async def auto_tag_set(db: AsyncSession, set_id: int, task_id: Optional[str] = N
                     if character_tags:
                         for char_name in character_tags:
                             all_detected_characters.add(char_name)
+
+                        from app.crud.character import get_characters_by_names
+                        image_characters_list = await get_characters_by_names(db, character_tags)
+                        current_char_ids = {c.id for c in img.characters}
+                        char_added_count = 0
+                        for c in image_characters_list:
+                            if c.id not in current_char_ids:
+                                img.characters.append(c)
+                                current_char_ids.add(c.id)
+                                char_added_count += 1
+                        logger.info("Merged characters to image record", 
+                                    path=_safe_log_val(img.local_path), 
+                                    total_associated=len(img.characters), 
+                                    newly_added=char_added_count)
 
                     logger.info("AI tagging completed for image", 
                                 path=_safe_log_val(img.local_path), 
