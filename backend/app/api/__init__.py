@@ -16,6 +16,7 @@ from app.api import playlists
 from app.api import search
 from app.api import rotation_history
 from app.api import rotation_profiles
+from app.api import rotation_rules
 
 api_router = APIRouter()
 
@@ -33,3 +34,4 @@ api_router.include_router(playlists.router, prefix="/playlists", tags=["playlist
 api_router.include_router(search.router, prefix="/search", tags=["search"])
 api_router.include_router(rotation_history.router, prefix="/rotation-history", tags=["rotation-history"])
 api_router.include_router(rotation_profiles.router, prefix="/rotation-profiles", tags=["rotation-profiles"])
+api_router.include_router(rotation_rules.router, prefix="/rotation-rules", tags=["rotation-rules"])

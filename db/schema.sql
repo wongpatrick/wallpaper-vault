@@ -201,3 +201,19 @@ CREATE TABLE IF NOT EXISTS rotation_profiles (
     created_at  TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS rotation_rules (
+    id           INTEGER PRIMARY KEY,
+    name         TEXT    NOT NULL,
+    priority     INTEGER NOT NULL DEFAULT 0,
+    enabled      INTEGER NOT NULL DEFAULT 1,
+    start_date   TEXT,      -- MM-DD
+    end_date     TEXT,      -- MM-DD
+    days_of_week TEXT,      -- Comma separated (e.g. "1,2,3,4,5" for Mon-Fri)
+    start_time   TEXT,      -- HH:MM
+    end_time     TEXT,      -- HH:MM
+    source       TEXT    NOT NULL, -- "entire_library" or "playlist"
+    playlist_id  INTEGER REFERENCES playlists(id) ON DELETE SET NULL,
+    style        TEXT              -- "fill", "fit", "stretch", "center", "span"
+);
+
+
