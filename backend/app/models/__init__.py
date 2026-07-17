@@ -15,6 +15,7 @@ from app.models.franchise import Franchise
 from app.models.playlist import Playlist, PlaylistImage
 from app.models.rotation_history import RotationHistory
 from app.models.rotation_profile import RotationProfile
+from app.models.rotation_rule import RotationRule
 from app.models.associations import set_creators, set_tags, set_characters, image_tags
 
-__all__ = ["Base", "Creator", "Set", "Image", "Setting", "Task", "AuditIssue", "Tag", "Character", "Franchise", "Playlist", "PlaylistImage", "RotationHistory", "RotationProfile", "set_creators", "set_tags", "set_characters", "image_tags"]
+__all__ = ["Base", "Creator", "Set", "Image", "Setting", "Task", "AuditIssue", "Tag", "Character", "Franchise", "Playlist", "PlaylistImage", "RotationHistory", "RotationProfile", "RotationRule", "set_creators", "set_tags", "set_characters", "image_tags"]

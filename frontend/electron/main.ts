@@ -1161,6 +1161,26 @@ async function getOrderedDisplays(): Promise<any[]> {
     }
 }
 
+function fetchActiveRotationRule(port: number): Promise<any> {
+    return new Promise((resolve) => {
+        const url = `http://127.0.0.1:${port}/api/rotation-rules/active`;
+        http.get(url, (res) => {
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+                try {
+                    const rule = JSON.parse(data);
+                    resolve(rule && rule.id ? rule : null);
+                } catch {
+                    resolve(null);
+                }
+            });
+        }).on('error', () => {
+            resolve(null);
+        });
+    });
+}
+
 async function fetchRotationSettings(port: number): Promise<boolean> {
     const displays = await getOrderedDisplays();
     return new Promise((resolve) => {
@@ -1187,26 +1207,39 @@ async function fetchRotationSettings(port: number): Promise<boolean> {
                             style: String(getVal('wallpaper_rotation_style', 'fill')) as any
                         };
 
-
-                        // 2. Load Monitor Overrides
-                        monitorConfigs.clear();
-                        
-                        displays.forEach((display) => {
-                            const index = display.index;
-                            const overrideVal = getVal(`monitor_${index}_override_enabled`, false);
-                            const overrideEnabled = overrideVal === true || String(overrideVal) === 'true';
+                        // Fetch active rotation rule overrides
+                        fetchActiveRotationRule(port).then((activeRule) => {
+                            if (activeRule) {
+                                console.log(`[Rotation Coordinator] Applying active scheduled rule override: "${activeRule.name}"`);
+                                globalRotationConfig.source = activeRule.source;
+                                if (activeRule.playlist_id) {
+                                    globalRotationConfig.playlistId = String(activeRule.playlist_id);
+                                }
+                                if (activeRule.style) {
+                                    globalRotationConfig.style = activeRule.style;
+                                }
+                            }
                             
-                            monitorConfigs.set(index, {
-                                enabled: overrideEnabled,
-                                mode: (overrideEnabled ? String(getVal(`monitor_${index}_wallpaper_rotation_mode`, globalRotationConfig.mode)) : globalRotationConfig.mode) as any,
-                                interval: overrideEnabled ? (parseInt(String(getVal(`monitor_${index}_wallpaper_rotation_interval`, String(globalRotationConfig.interval))), 10) || 15) : globalRotationConfig.interval,
-                                source: (overrideEnabled ? String(getVal(`monitor_${index}_wallpaper_rotation_source`, globalRotationConfig.source)) : globalRotationConfig.source) as any,
-                                playlistId: overrideEnabled ? String(getVal(`monitor_${index}_wallpaper_rotation_playlist_id`, globalRotationConfig.playlistId)) : globalRotationConfig.playlistId,
-                                favoriteProbability: overrideEnabled ? (parseFloat(String(getVal(`monitor_${index}_favorite_rotation_probability`, String(globalRotationConfig.favoriteProbability)))) || 0.4) : globalRotationConfig.favoriteProbability,
-                                style: (overrideEnabled ? String(getVal(`monitor_${index}_wallpaper_rotation_style`, globalRotationConfig.style)) : globalRotationConfig.style) as any
+                            // 2. Load Monitor Overrides
+                            monitorConfigs.clear();
+                            
+                            displays.forEach((display) => {
+                                const index = display.index;
+                                const overrideVal = getVal(`monitor_${index}_override_enabled`, false);
+                                const overrideEnabled = overrideVal === true || String(overrideVal) === 'true';
+                                
+                                monitorConfigs.set(index, {
+                                    enabled: overrideEnabled,
+                                    mode: (overrideEnabled ? String(getVal(`monitor_${index}_wallpaper_rotation_mode`, globalRotationConfig.mode)) : globalRotationConfig.mode) as any,
+                                    interval: overrideEnabled ? (parseInt(String(getVal(`monitor_${index}_wallpaper_rotation_interval`, String(globalRotationConfig.interval))), 10) || 15) : globalRotationConfig.interval,
+                                    source: (overrideEnabled ? String(getVal(`monitor_${index}_wallpaper_rotation_source`, globalRotationConfig.source)) : globalRotationConfig.source) as any,
+                                    playlistId: overrideEnabled ? String(getVal(`monitor_${index}_wallpaper_rotation_playlist_id`, globalRotationConfig.playlistId)) : globalRotationConfig.playlistId,
+                                    favoriteProbability: overrideEnabled ? (parseFloat(String(getVal(`monitor_${index}_favorite_rotation_probability`, String(globalRotationConfig.favoriteProbability)))) || 0.4) : globalRotationConfig.favoriteProbability,
+                                    style: (overrideEnabled ? String(getVal(`monitor_${index}_wallpaper_rotation_style`, globalRotationConfig.style)) : globalRotationConfig.style) as any
+                                });
                             });
+                            resolve(true);
                         });
-                        resolve(true);
                     } else {
                         resolve(false);
                     }
