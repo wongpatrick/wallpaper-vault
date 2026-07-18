@@ -3,12 +3,14 @@
  * Module: Sets Directory Page
  * Description: Lists all wallpaper sets with search, filtering, pagination, and bulk management capabilities.
  */
+import { useState } from 'react';
 import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Select, Box, Overlay, Button, SegmentedControl, Table, Image, Checkbox } from '@mantine/core';
 import { IconAlertCircle, IconSearch, IconFilter, IconCheck, IconList, IconLayoutGrid } from '@tabler/icons-react';
 import { useReadSetsApiSetsGet, useDeleteSetApiSetsSetIdDelete } from '../../api/generated/sets/sets';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { SetCard } from '../../components/sets/SetCard';
+import { CreateSetModal } from '../../components/sets/CreateSetModal';
 import { CREATOR_TYPES } from '../../types/enums';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getThumbnailUrl, FALLBACK_IMAGE } from '../../utils/fileUtils';
@@ -31,6 +33,7 @@ export default function Sets() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { search, localSearch, setLocalSearch } = useUrlSearch(SEARCH_DEBOUNCE_MS);
     const { page, setPage, totalPages: getTotalPages } = useUrlPagination(PAGE_SIZE);
+    const [createModalOpened, setCreateModalOpened] = useState(false);
 
     // View state
     const view = searchParams.get('view') || 'card';
@@ -158,14 +161,23 @@ export default function Sets() {
                     <Title order={1}>📚 Wallpaper Sets</Title>
                     <Text c="dimmed">Browse and manage your curated wallpaper collections.</Text>
                 </Stack>
-                <Button 
-                    variant={selectionMode ? "filled" : "light"} 
-                    color={selectionMode ? "blue" : "gray"}
-                    leftSection={selectionMode ? <IconCheck size={16} /> : null}
-                    onClick={() => selectionMode ? clearSelection() : setSelectionMode(true)}
-                >
-                    {selectionMode ? "Finish Selecting" : "Select Items"}
-                </Button>
+                <Group gap="sm">
+                    <Button
+                        variant="filled"
+                        color="blue"
+                        onClick={() => setCreateModalOpened(true)}
+                    >
+                        Create Set
+                    </Button>
+                    <Button 
+                        variant={selectionMode ? "filled" : "light"} 
+                        color={selectionMode ? "blue" : "gray"}
+                        leftSection={selectionMode ? <IconCheck size={16} /> : null}
+                        onClick={() => selectionMode ? clearSelection() : setSelectionMode(true)}
+                    >
+                        {selectionMode ? "Finish Selecting" : "Select Items"}
+                    </Button>
+                </Group>
             </Group>
 
             <Group mb="xl" align="flex-end" style={{ flexWrap: 'wrap', gap: 'var(--mantine-spacing-md)' }}>
@@ -346,6 +358,12 @@ export default function Sets() {
                 selectionMode={selectionMode}
                 refetch={refetch}
                 selectedSets={selectedSets}
+            />
+
+            <CreateSetModal 
+                opened={createModalOpened}
+                onClose={() => setCreateModalOpened(false)}
+                onSuccess={() => refetch()}
             />
         </Container>
     );

@@ -32,6 +32,7 @@ import { modals } from '@mantine/modals';
 import { SetCard } from '../../components/sets/SetCard';
 import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
 import { SetBulkOperations } from '../../components/sets/SetBulkOperations';
+import { CreateSetModal } from '../../components/sets/CreateSetModal';
 import { useState, useMemo } from 'react';
 import { formatBytes } from '../../utils/fileUtils';
 import type { Set as SetModel, CreatorWithSets } from '../../api/model';
@@ -90,6 +91,7 @@ export default function CreatorDetail() {
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [createModalOpened, setCreateModalOpened] = useState(false);
     const [editForm, setEditForm] = useState<{
         canonical_name: string;
         type: string;
@@ -470,14 +472,23 @@ export default function CreatorDetail() {
             {/* Artist's Sets */}
             <Group justify="space-between" align="center" mb="lg">
                 <Title order={2}>Collection by {creator.canonical_name}</Title>
-                <Button 
-                    variant={selectionMode ? "filled" : "light"} 
-                    color={selectionMode ? "blue" : "gray"}
-                    leftSection={selectionMode ? <IconCheck size={16} /> : null}
-                    onClick={() => selectionMode ? clearSelection() : setSelectionMode(true)}
-                >
-                    {selectionMode ? "Finish Selecting" : "Select Items"}
-                </Button>
+                <Group gap="sm">
+                    <Button
+                        variant="filled"
+                        color="blue"
+                        onClick={() => setCreateModalOpened(true)}
+                    >
+                        Create Set
+                    </Button>
+                    <Button 
+                        variant={selectionMode ? "filled" : "light"} 
+                        color={selectionMode ? "blue" : "gray"}
+                        leftSection={selectionMode ? <IconCheck size={16} /> : null}
+                        onClick={() => selectionMode ? clearSelection() : setSelectionMode(true)}
+                    >
+                        {selectionMode ? "Finish Selecting" : "Select Items"}
+                    </Button>
+                </Group>
             </Group>
             
             {creator.sets && creator.sets.length > 0 ? (
@@ -692,6 +703,16 @@ export default function CreatorDetail() {
                     </Group>
                 </Stack>
             </Modal>
+
+            <CreateSetModal 
+                opened={createModalOpened}
+                onClose={() => setCreateModalOpened(false)}
+                onSuccess={() => {
+                    queryClient.invalidateQueries({ queryKey: getReadSetsApiSetsGetQueryKey() });
+                    refetch();
+                }}
+                initialCreatorNames={creator ? [creator.canonical_name] : []}
+            />
         </Container>
     );
 }
