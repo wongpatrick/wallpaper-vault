@@ -3,7 +3,7 @@
  * Module: Create Set Modal
  * Description: A modal for creating a new wallpaper set.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Modal, TextInput, Textarea, TagsInput, Stack, Button, Group } from '@mantine/core';
 import { useCreateSetApiSetsPost } from '../../api/generated/sets/sets';
 import { useReadCreatorsApiCreatorsGet, useCreateCreatorApiCreatorsPost } from '../../api/generated/creators/creators';
@@ -18,32 +18,44 @@ interface CreateSetModalProps {
     opened: boolean;
     onClose: () => void;
     onSuccess: (newSet: Set) => void;
+    initialCreatorNames?: string[];
 }
 
-export function CreateSetModal({ opened, onClose, onSuccess }: CreateSetModalProps) {
+export function CreateSetModal({ opened, onClose, onSuccess, initialCreatorNames }: CreateSetModalProps) {
     const { data: creatorsData } = useReadCreatorsApiCreatorsGet({ limit: 1000 });
     const createSetMutation = useCreateSetApiSetsPost();
     const createCreatorMutation = useCreateCreatorApiCreatorsPost();
     
     const [title, setTitle] = useState('');
-    const [creatorNames, setCreatorNames] = useState<string[]>([]);
+    const [creatorNames, setCreatorNames] = useState<string[]>(initialCreatorNames || []);
     const [tags, setTags] = useState<string[]>([]);
     const [characters, setCharacters] = useState<string[]>([]);
     const [notes, setNotes] = useState('');
 
+    useEffect(() => {
+        if (opened) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setCreatorNames(initialCreatorNames || []);
+        }
+    }, [opened, initialCreatorNames]);
+
     const isFormDirty = useMemo(() => {
+        const initialNames = initialCreatorNames || [];
+        const namesChanged = creatorNames.length !== initialNames.length || 
+            !creatorNames.every(name => initialNames.includes(name));
+
         return (
             title.trim() !== '' ||
-            creatorNames.length > 0 ||
+            namesChanged ||
             tags.length > 0 ||
             characters.length > 0 ||
             notes.trim() !== ''
         );
-    }, [title, creatorNames, tags, characters, notes]);
+    }, [title, creatorNames, tags, characters, notes, initialCreatorNames]);
 
     const resetForm = () => {
         setTitle('');
-        setCreatorNames([]);
+        setCreatorNames(initialCreatorNames || []);
         setTags([]);
         setCharacters([]);
         setNotes('');
@@ -137,9 +149,11 @@ export function CreateSetModal({ opened, onClose, onSuccess }: CreateSetModalPro
             onClose();
         } catch (error) {
             console.error('Error creating set:', error);
+            const axiosError = error as { response?: { data?: { detail?: string } } };
+            const detailMessage = axiosError.response?.data?.detail || 'Failed to create the new set.';
             notifications.show({
                 title: 'Error',
-                message: 'Failed to create the new set.',
+                message: typeof detailMessage === 'string' ? detailMessage : 'Failed to create the new set.',
                 color: 'red'
             });
         }
