@@ -3,7 +3,7 @@
  * Electron main process script.
  * Manages the application window, tray, inter-process communication, and backend spawn.
  */
-import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage, screen, powerMonitor } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
@@ -403,26 +403,8 @@ function createTray() {
         if (tray) tray.destroy();
         tray = new Tray(trayIcon);
         
-        const contextMenu = Menu.buildFromTemplate([
-            { 
-                label: 'Show App', 
-                click: () => {
-                    mainWindow?.show();
-                    mainWindow?.focus();
-                } 
-            },
-            { type: 'separator' },
-            { 
-                label: 'Quit', 
-                click: () => {
-                    isQuitting = true;
-                    app.quit();
-                } 
-            }
-        ]);
-        
         tray.setToolTip('Wallpaper Vault');
-        tray.setContextMenu(contextMenu);
+        updateTrayMenu();
         
         tray.on('click', () => {
             if (mainWindow?.isVisible()) {
@@ -437,6 +419,73 @@ function createTray() {
     } catch (error) {
         console.error('FATAL: Tray creation crashed:', error);
     }
+}
+
+function updateTrayMenu() {
+    if (!tray) return;
+    const isPaused = globalRotationConfig.paused;
+    const contextMenu = Menu.buildFromTemplate([
+        { 
+            label: 'Show App', 
+            click: () => {
+                mainWindow?.show();
+                mainWindow?.focus();
+            } 
+        },
+        { type: 'separator' },
+        {
+            label: isPaused ? '▶️ Resume Rotation' : '⏸️ Pause Rotation',
+            click: () => {
+                togglePauseStateViaApi();
+            }
+        },
+        { type: 'separator' },
+        { 
+            label: 'Quit', 
+            click: () => {
+                isQuitting = true;
+                app.quit();
+            } 
+        }
+    ]);
+    tray.setContextMenu(contextMenu);
+}
+
+function togglePauseStateViaApi() {
+    const port = activeSsePort || DEFAULT_PORT;
+    const nextPaused = !globalRotationConfig.paused;
+    const data = JSON.stringify({ value: String(nextPaused) });
+    
+    logBothToCombined(`[Tray] Toggling pause state via API request to port ${port}...`);
+    
+    const req = http.request({
+        hostname: '127.0.0.1',
+        port: port,
+        path: `/api/settings/wallpaper_rotation_paused`,
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': data.length
+        }
+    }, (res) => {
+        res.on('data', () => {});
+        res.on('end', () => {
+            logBothToCombined(`[Tray] API response status: ${res.statusCode}. Toggled pause state.`);
+            // eslint-disable-next-line no-magic-numbers
+            if (res.statusCode === 200) {
+                fetchRotationSettings(port).then((ok) => {
+                    if (ok) setupNativeTimers(port);
+                });
+            }
+        });
+    });
+    
+    req.on('error', (err) => {
+        console.error('[Tray] API request failed to toggle pause state:', err);
+    });
+    
+    req.write(data);
+    req.end();
 }
 
 function createWindow() {
@@ -724,11 +773,17 @@ app.whenReady().then(() => {
 
     // Monitor configuration/metrics change listeners to refresh coordinates cache
     const notifyDisplaysChanged = () => {
+        if (globalRotationConfig.paused || isPowerStateSuspended) {
+            console.log('[Rotation Coordinator] Display change event deferred because rotation is paused or system is suspended.');
+            pendingDisplayChange = true;
+            return;
+        }
         cachedOrderedDisplays = null;
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('displays-changed');
         }
     };
+    
     screen.on('display-added', () => {
         console.log('[Rotation Coordinator] Monitor added, invalidating layout cache...');
         notifyDisplaysChanged();
@@ -740,6 +795,49 @@ app.whenReady().then(() => {
     screen.on('display-metrics-changed', () => {
         console.log('[Rotation Coordinator] Monitor metrics changed, invalidating layout cache...');
         notifyDisplaysChanged();
+    });
+
+    // Power monitor event handlers
+    powerMonitor.on('suspend', () => {
+        console.log('[Rotation Coordinator] System suspending. Pausing native rotation timers...');
+        isPowerStateSuspended = true;
+        setupNativeTimers(activeSsePort || DEFAULT_PORT); // clearing all timers
+    });
+    
+    powerMonitor.on('lock-screen', () => {
+        console.log('[Rotation Coordinator] System screen locked. Pausing native rotation timers...');
+        isPowerStateSuspended = true;
+        setupNativeTimers(activeSsePort || DEFAULT_PORT); // clearing all timers
+    });
+    
+    powerMonitor.on('resume', () => {
+        console.log('[Rotation Coordinator] System resumed. Checking state...');
+        isPowerStateSuspended = false;
+        if (pendingDisplayChange) {
+            console.log('[Rotation Coordinator] Pending display change found. Triggering displays changed notification.');
+            pendingDisplayChange = false;
+            notifyDisplaysChanged();
+        }
+        if (activeSsePort) {
+            fetchRotationSettings(activeSsePort).then((ok) => {
+                if (ok) setupNativeTimers(activeSsePort);
+            });
+        }
+    });
+    
+    powerMonitor.on('unlock-screen', () => {
+        console.log('[Rotation Coordinator] System unlocked. Checking state...');
+        isPowerStateSuspended = false;
+        if (pendingDisplayChange) {
+            console.log('[Rotation Coordinator] Pending display change found. Triggering displays changed notification.');
+            pendingDisplayChange = false;
+            notifyDisplaysChanged();
+        }
+        if (activeSsePort) {
+            fetchRotationSettings(activeSsePort).then((ok) => {
+                if (ok) setupNativeTimers(activeSsePort);
+            });
+        }
     });
 });
 
@@ -759,6 +857,8 @@ app.on('activate', () => {
 let activeSsePort: number | null = null;
 let activeSseRequest: http.ClientRequest | null = null;
 const nativeRotationTimers: Map<number, NodeJS.Timeout> = new Map();
+let isPowerStateSuspended = false;
+let pendingDisplayChange = false;
 
 interface MonitorRotationConfig {
     mode: 'displayfusion' | 'native';
@@ -776,7 +876,8 @@ let globalRotationConfig = {
     source: 'entire_library',
     playlistId: '',
     favoriteProbability: 0.4,
-    style: 'fill' as 'fill' | 'fit' | 'stretch' | 'tile' | 'center' | 'span'
+    style: 'fill' as 'fill' | 'fit' | 'stretch' | 'tile' | 'center' | 'span',
+    paused: false
 };
 
 const monitorConfigs: Map<number, MonitorRotationConfig> = new Map();
@@ -946,12 +1047,45 @@ class PowerShellDaemon {
                 '        }',
                 '    }',
                 '}',
+                'public class FullscreenHelper {',
+                '    [DllImport("user32.dll")]',
+                '    public static extern IntPtr GetForegroundWindow();',
+                '    [DllImport("user32.dll")]',
+                '    public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);',
+                '    [DllImport("user32.dll", CharSet = CharSet.Auto)]',
+                '    public static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder lpClassName, int nMaxCount);',
+                '    [DllImport("user32.dll")]',
+                '    public static extern IntPtr GetShellWindow();',
+                '    public static bool IsFullscreen() {',
+                '        IntPtr hwnd = GetForegroundWindow();',
+                '        if (hwnd == IntPtr.Zero) return false;',
+                '        IntPtr shellHwnd = GetShellWindow();',
+                '        if (hwnd == shellHwnd) return false;',
+                '        System.Text.StringBuilder className = new System.Text.StringBuilder(256);',
+                '        if (GetClassName(hwnd, className, className.Capacity) > 0) {',
+                '            string cName = className.ToString();',
+                '            if (cName == "Progman" || cName == "WorkerW" || cName == "Shell_TrayWnd" || cName == "Shell_SecondaryTrayWnd") {',
+                '                return false;',
+                '            }',
+                '        }',
+                '        RECT r;',
+                '        if (!GetWindowRect(hwnd, out r)) return false;',
+                '        foreach (var screen in System.Windows.Forms.Screen.AllScreens) {',
+                '            var bounds = screen.Bounds;',
+                '            if (Math.Abs(r.Left - bounds.Left) <= 2 && Math.Abs(r.Top - bounds.Top) <= 2 && Math.Abs(r.Right - bounds.Right) <= 2 && Math.Abs(r.Bottom - bounds.Bottom) <= 2) {',
+                '                return true;',
+                '            }',
+                '        }',
+                '        return false;',
+                '    }',
+                '}',
             ].join('\r\n');
 
             const base64Code = Buffer.from(csharpCode, 'utf-8').toString('base64');
 
             const bootstrapScript = [
                 'Add-Type -AssemblyName System.Windows.Forms',
+                'Add-Type -AssemblyName System.Drawing',
                 `$ParentPid = ${process.pid}`,
                 '$MyPid = $pid',
                 '$null = Start-Job -ScriptBlock {',
@@ -967,7 +1101,7 @@ class PowerShellDaemon {
                 '    }',
                 '} -ArgumentList $ParentPid, $MyPid',
                 `$code = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("${base64Code}"))`,
-                'try { Add-Type -TypeDefinition $code -ReferencedAssemblies "System.Windows.Forms" -ErrorAction Stop } catch { Write-Error "Add-Type failed: $_" }',
+                'try { Add-Type -TypeDefinition $code -ReferencedAssemblies "System.Windows.Forms","System.Drawing" -ErrorAction Stop } catch { Write-Error "Add-Type failed: $_" }',
                 'Write-Output ("_" + "_BOOTSTRAP_DONE_" + "_")',
                 ''
             ].join('\r\n');
@@ -1043,12 +1177,9 @@ function extractJsonArray(stdout: string): string {
 }
 
 async function getOrderedDisplays(): Promise<any[]> {
-    if (cachedOrderedDisplays) {
-        if (screen.getAllDisplays().length === cachedOrderedDisplays.length) {
-            return cachedOrderedDisplays;
-        }
-        console.warn('[Rotation Coordinator] Monitor count mismatch with cache (Cache:', cachedOrderedDisplays.length, ', Actual:', screen.getAllDisplays().length, '). Invalidating monitor cache.');
-        cachedOrderedDisplays = null;
+    const isPaused = globalRotationConfig.paused || isPowerStateSuspended;
+    if (isPaused && cachedOrderedDisplays) {
+        return cachedOrderedDisplays;
     }
 
     const displays = screen.getAllDisplays();
@@ -1058,6 +1189,21 @@ async function getOrderedDisplays(): Promise<any[]> {
         label: `Monitor ${i + 1} (${d.bounds.width}x${d.bounds.height})`,
         bounds: d.bounds
     }));
+
+    if (isPaused) {
+        console.log('[Rotation Coordinator] Mapping queries bypassed because rotation is paused/suspended. Returning fallback.');
+        const fb = makeFallback();
+        cachedOrderedDisplays = fb;
+        return fb;
+    }
+
+    if (cachedOrderedDisplays) {
+        if (screen.getAllDisplays().length === cachedOrderedDisplays.length) {
+            return cachedOrderedDisplays;
+        }
+        console.warn('[Rotation Coordinator] Monitor count mismatch with cache (Cache:', cachedOrderedDisplays.length, ', Actual:', screen.getAllDisplays().length, '). Invalidating monitor cache.');
+        cachedOrderedDisplays = null;
+    }
 
     try {
         const [winRaw, comRaw] = await Promise.all([
@@ -1204,7 +1350,8 @@ async function fetchRotationSettings(port: number): Promise<boolean> {
                             source: String(getVal('wallpaper_rotation_source', 'entire_library')) as any,
                             playlistId: String(getVal('wallpaper_rotation_playlist_id', '')),
                             favoriteProbability: parseFloat(String(getVal('favorite_rotation_probability', '0.4'))) || 0.4,
-                            style: String(getVal('wallpaper_rotation_style', 'fill')) as any
+                            style: String(getVal('wallpaper_rotation_style', 'fill')) as any,
+                            paused: String(getVal('wallpaper_rotation_paused', 'false')) === 'true'
                         };
 
                         // Fetch active rotation rule overrides
@@ -1238,6 +1385,7 @@ async function fetchRotationSettings(port: number): Promise<boolean> {
                                     style: (overrideEnabled ? String(getVal(`monitor_${index}_wallpaper_rotation_style`, globalRotationConfig.style)) : globalRotationConfig.style) as any
                                 });
                             });
+                            updateTrayMenu();
                             resolve(true);
                         });
                     } else {
@@ -1319,6 +1467,11 @@ async function setupNativeTimers(port: number) {
     nativeRotationTimers.forEach((timer) => clearInterval(timer));
     nativeRotationTimers.clear();
 
+    if (globalRotationConfig.paused || isPowerStateSuspended) {
+        console.log('[Rotation Coordinator] Native rotation timers bypassed (paused or system suspended).');
+        return;
+    }
+
     const displays = await getOrderedDisplays();
     let hasOverrides = false;
 
@@ -1349,6 +1502,16 @@ async function setupNativeTimers(port: number) {
 }
 
 async function triggerNativeRotation(port: number, monitorIndex: number) {
+    try {
+        const isFullscreenRaw = await psDaemon.run('[FullscreenHelper]::IsFullscreen()');
+        if (isFullscreenRaw.trim().toLowerCase() === 'true') {
+            console.log(`[Rotation Coordinator] Fullscreen/Game active. Deferring rotation for Monitor ${monitorIndex === -1 ? 'All' : monitorIndex + 1}.`);
+            return;
+        }
+    } catch (err) {
+        console.warn('[Rotation Coordinator] Fullscreen/Game check failed:', err);
+    }
+
     if (monitorIndex === -1) {
         // Trigger separately for each monitor to ensure specific aspect ratio matching
         const displays = await getOrderedDisplays();

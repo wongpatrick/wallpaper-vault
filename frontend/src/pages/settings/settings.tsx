@@ -174,6 +174,20 @@ export default function Settings() {
                     </SettingsSection>
 
                     <SettingsSection 
+                        title="Rotation Settings" 
+                        description="Control the automatic wallpaper rotation engine."
+                        isDirty={form.isDirty()}
+                    >
+                        <Stack gap="md">
+                            <Switch
+                                label="Pause Wallpaper Rotation"
+                                description="Temporarily suspend all scheduled wallpaper rotations."
+                                {...form.getInputProps(SETTING_KEYS.WALLPAPER_ROTATION_PAUSED, { type: 'checkbox' })}
+                            />
+                        </Stack>
+                    </SettingsSection>
+
+                    <SettingsSection 
                         title="System Integration" 
                         description="Control how the application interacts with your operating system."
                         isDirty={form.isDirty()}

@@ -13,6 +13,7 @@ import {
 import { IconAlertTriangle, IconCheck, IconTrash, IconFolder, IconPhoto } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
+import { useTasks } from '../../hooks/useTasks';
 import { 
     useReadCreatorsApiCreatorsGet
 } from '../../api/generated/creators/creators';
@@ -321,6 +322,8 @@ export function MetadataFormModal({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [opened]);
 
+    const { addTask } = useTasks();
+
     const handleImport = async () => {
         const selectedItems = queue.filter(item => item.selected);
         if (selectedItems.length === 0) {
@@ -374,6 +377,15 @@ export function MetadataFormModal({
                         delete_source: deleteSource
                     }
                 });
+
+                if (addTask && responseTaskId) {
+                    addTask({
+                        id: responseTaskId,
+                        status: 'accepted',
+                        progress: 0,
+                        total: groupItems.length
+                    });
+                }
 
                 notifications.show({
                     title: `Import Started: ${getFolderGroupName(groupKey)}`,

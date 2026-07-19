@@ -44,7 +44,9 @@ import {
     IconLink,
     IconDeviceFloppy,
     IconTrash,
-    IconClock
+    IconClock,
+    IconPlayerPause,
+    IconPlayerPlay
 } from '@tabler/icons-react';
 import { RotationRulesManager } from '../../components/RotationRulesManager';
 import { notifications } from '@mantine/notifications';
@@ -85,6 +87,7 @@ interface ConfigState {
     playlistId: string;
     style: 'fill' | 'fit' | 'stretch' | 'tile' | 'center' | 'span';
     overrideEnabled?: boolean;
+    paused?: boolean;
 }
 
 export default function RotationManagement() {
@@ -220,7 +223,8 @@ export default function RotationManagement() {
         favProb: 40,
         source: 'entire_library',
         playlistId: '',
-        style: 'fill'
+        style: 'fill',
+        paused: false
     });
 
     const [monitorConfigs, setMonitorConfigs] = useState<Record<string, ConfigState>>({});
@@ -238,6 +242,7 @@ export default function RotationManagement() {
             const gPlay = getVal('wallpaper_rotation_playlist_id', '');
             const gFav = Math.round(parseFloat(getVal('favorite_rotation_probability', '0.4')) * 100);
             const gStyle = getVal('wallpaper_rotation_style', 'fill') as ConfigState['style'];
+            const gPaused = getVal('wallpaper_rotation_paused', 'false') === 'true';
 
             setGlobalConfig({
                 mode: gMode,
@@ -245,7 +250,8 @@ export default function RotationManagement() {
                 source: gSrc,
                 playlistId: gPlay,
                 favProb: gFav,
-                style: gStyle
+                style: gStyle,
+                paused: gPaused
             });
 
             // 2. Sync monitor-specific overrides
@@ -475,6 +481,37 @@ export default function RotationManagement() {
         }
     };
 
+    const handleTogglePause = async () => {
+        const nextPaused = !globalConfig.paused;
+        setGlobalConfig(prev => ({ ...prev, paused: nextPaused }));
+        try {
+            await updateSetting.mutateAsync({
+                key: 'wallpaper_rotation_paused',
+                data: { value: String(nextPaused), description: 'Global wallpaper rotation paused status' }
+            });
+            notifications.show({
+                title: 'Success',
+                message: nextPaused ? 'Wallpaper rotation paused' : 'Wallpaper rotation resumed',
+                color: nextPaused ? 'orange' : 'green'
+            });
+            
+            // Trigger skip if resuming
+            if (!nextPaused) {
+                try {
+                    await skipMutation.mutateAsync({
+                        params: { target_monitor: 'all' }
+                    });
+                } catch {
+                    // ignore
+                }
+            }
+            refetchSettings();
+        } catch {
+            notifications.show({ title: 'Error', message: 'Failed to update pause state', color: 'red' });
+            setGlobalConfig(prev => ({ ...prev, paused: !nextPaused })); // revert
+        }
+    };
+
     // Save configurations
     const handleSaveSettings = async () => {
         setSaving(true);
@@ -486,6 +523,7 @@ export default function RotationManagement() {
                 updateSetting.mutateAsync({ key: 'favorite_rotation_probability', data: { value: String(globalConfig.favProb / 100), description: 'Global favorite rotation probability' } }),
                 updateSetting.mutateAsync({ key: 'wallpaper_rotation_interval', data: { value: String(globalConfig.interval), description: 'Global wallpaper rotation interval' } }),
                 updateSetting.mutateAsync({ key: 'wallpaper_rotation_style', data: { value: globalConfig.style, description: 'Global wallpaper rotation position style' } }),
+                updateSetting.mutateAsync({ key: 'wallpaper_rotation_paused', data: { value: String(globalConfig.paused), description: 'Global wallpaper rotation paused status' } }),
             ];
 
             monitors.forEach((m) => {
@@ -701,10 +739,27 @@ export default function RotationManagement() {
     return (
         <Container size="xl" py="md">
             <Stack gap="xl">
-                <Box>
-                    <Title order={1} mb={4}>🖥️ Desktop Rotation Manager</Title>
-                    <Text c="dimmed">Monitor active wallpapers, trigger skips, and customize rotation pools per screen.</Text>
-                </Box>
+                <Group justify="space-between" align="center" wrap="wrap">
+                    <Box>
+                        <Title order={1} mb={4}>🖥️ Desktop Rotation Manager</Title>
+                        <Text c="dimmed">Monitor active wallpapers, trigger skips, and customize rotation pools per screen.</Text>
+                    </Box>
+                    <Button
+                        color={globalConfig.paused ? "green" : "orange"}
+                        variant="light"
+                        onClick={handleTogglePause}
+                        leftSection={globalConfig.paused ? <IconPlayerPlay size="1.2rem" /> : <IconPlayerPause size="1.2rem" />}
+                        size="md"
+                        radius="md"
+                        style={{
+                            border: globalConfig.paused ? '1px solid var(--mantine-color-green-6)' : '1px solid var(--mantine-color-orange-6)',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        {globalConfig.paused ? "Resume Rotation" : "Pause Rotation"}
+                    </Button>
+                </Group>
 
                 <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xl">
                     {/* LEFT COLUMN: Active wallpaper display & History */}
