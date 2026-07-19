@@ -127,88 +127,134 @@ export function TaskProvider({ children }: TaskProviderProps) {
         }
     }, [invalidateAppQueries, showNotification]);
 
-    // Connect to the unified SSE stream
+    const addTask = useCallback((task: TaskInfo) => {
+        setTasks((prev) => ({
+            ...prev,
+            [task.id]: task,
+        }));
+    }, []);
+
+    // Connect to the unified SSE stream with auto-reconnect and resilience
     useEffect(() => {
-        const baseURL = localStorage.getItem('backend_url') || AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
-        const token = localStorage.getItem('api_key') || '';
-        const url = new URL(`${baseURL}/api/sets/events`);
-        if (token) {
-            url.searchParams.append('api_key', token);
-        }
-        const eventSource = new EventSource(url.toString());
+        let eventSource: EventSource | null = null;
+        let retryTimeout: NodeJS.Timeout | null = null;
+        let isUnmounted = false;
+        let retryDelay = 1000;
+        const MAX_RETRY_DELAY = 15000;
 
-        eventSource.onerror = () => {
-            console.error('SSE connection failed in TaskProvider. Closing EventSource to prevent retry loops.');
-            eventSource.close();
-        };
+        const connect = () => {
+            if (isUnmounted) return;
 
-        eventSource.onmessage = (event) => {
             try {
-                const incomingTasks: Record<string, Omit<TaskInfo, 'id'>> = JSON.parse(event.data);
-                const prev = tasksRef.current;
+                const rawBase = localStorage.getItem('backend_url') || AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
+                const baseOrigin = rawBase.startsWith('http') ? rawBase : window.location.origin;
+                const endpoint = rawBase.startsWith('http') ? `${rawBase}/api/sets/events` : `/api/sets/events`;
+                
+                const token = localStorage.getItem('api_key') || '';
+                const url = new URL(endpoint, baseOrigin);
+                if (token) {
+                    url.searchParams.append('api_key', token);
+                }
 
-                const updated = { ...prev };
-                const completedTasks: [string, Omit<TaskInfo, 'id'>][] = [];
-                const failedTasks: [string, Omit<TaskInfo, 'id'>][] = [];
+                eventSource = new EventSource(url.toString());
 
-                Object.entries(incomingTasks).forEach(([tid, tinfo]) => {
-                    const existingTask = prev[tid];
-                    const wasActive = !existingTask || (
-                        existingTask.status !== TaskStatus.COMPLETED && 
-                        existingTask.status !== TaskStatus.ERROR
-                    );
+                eventSource.onopen = () => {
+                    retryDelay = 1000;
+                };
 
-                    // Update task in local record
-                    updated[tid] = {
-                        ...tinfo,
-                        id: tid,
-                    } as TaskInfo;
-
-                    // Trigger notifications and cache invalidations only on transition to final state
-                    if (wasActive) {
-                        if (tinfo.status === TaskStatus.COMPLETED) {
-                            completedTasks.push([tid, tinfo]);
-                        } else if (tinfo.status === TaskStatus.ERROR) {
-                            failedTasks.push([tid, tinfo]);
-                        }
+                eventSource.onerror = () => {
+                    if (eventSource) {
+                        eventSource.close();
+                        eventSource = null;
                     }
-                });
+                    if (!isUnmounted) {
+                        console.warn(`SSE connection dropped in TaskProvider. Retrying in ${retryDelay}ms...`);
+                        retryTimeout = setTimeout(() => {
+                            retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY);
+                            connect();
+                        }, retryDelay);
+                    }
+                };
 
-                // Update tasks state
-                setTasks(updated);
+                eventSource.onmessage = (event) => {
+                    try {
+                        const incomingTasks: Record<string, Omit<TaskInfo, 'id'>> = JSON.parse(event.data);
+                        const prev = tasksRef.current;
 
-                // Safely trigger side-effects outside of state updates to avoid React setState-in-render warnings
-                completedTasks.forEach(([tid, tinfo]) => {
-                    handleTaskCompletion(tid, tinfo);
-                    // Schedule cleanup from local tasks state after 5 seconds to keep sidebar clear
-                    setTimeout(() => {
-                        setTasks((current) => {
-                            const next = { ...current };
-                            delete next[tid];
-                            return next;
+                        const updated = { ...prev };
+                        const completedTasks: [string, Omit<TaskInfo, 'id'>][] = [];
+                        const failedTasks: [string, Omit<TaskInfo, 'id'>][] = [];
+
+                        Object.entries(incomingTasks).forEach(([tid, tinfo]) => {
+                            const existingTask = prev[tid];
+                            const wasActive = !existingTask || (
+                                existingTask.status !== TaskStatus.COMPLETED && 
+                                existingTask.status !== TaskStatus.ERROR
+                            );
+
+                            // Update task in local record
+                            updated[tid] = {
+                                ...tinfo,
+                                id: tid,
+                            } as TaskInfo;
+
+                            // Trigger notifications and cache invalidations only on transition to final state
+                            if (wasActive) {
+                                if (tinfo.status === TaskStatus.COMPLETED) {
+                                    completedTasks.push([tid, tinfo]);
+                                } else if (tinfo.status === TaskStatus.ERROR) {
+                                    failedTasks.push([tid, tinfo]);
+                                }
+                            }
                         });
-                    }, CLEANUP_DELAY_MS);
-                });
 
-                failedTasks.forEach(([tid, tinfo]) => {
-                    handleTaskFailure(tid, tinfo);
-                    // Schedule cleanup from local tasks state after 5 seconds
-                    setTimeout(() => {
-                        setTasks((current) => {
-                            const next = { ...current };
-                            delete next[tid];
-                            return next;
+                        // Update tasks state
+                        setTasks(updated);
+
+                        // Safely trigger side-effects outside of state updates to avoid React setState-in-render warnings
+                        completedTasks.forEach(([tid, tinfo]) => {
+                            handleTaskCompletion(tid, tinfo);
+                            // Schedule cleanup from local tasks state after 5 seconds to keep sidebar clear
+                            setTimeout(() => {
+                                setTasks((current) => {
+                                    const next = { ...current };
+                                    delete next[tid];
+                                    return next;
+                                });
+                            }, CLEANUP_DELAY_MS);
                         });
-                    }, CLEANUP_DELAY_MS);
-                });
+
+                        failedTasks.forEach(([tid, tinfo]) => {
+                            handleTaskFailure(tid, tinfo);
+                            // Schedule cleanup from local tasks state after 5 seconds
+                            setTimeout(() => {
+                                setTasks((current) => {
+                                    const next = { ...current };
+                                    delete next[tid];
+                                    return next;
+                                });
+                            }, CLEANUP_DELAY_MS);
+                        });
+
+                    } catch (err) {
+                        console.error('Error parsing SSE task events:', err);
+                    }
+                };
 
             } catch (err) {
-                console.error('Error parsing SSE task events:', err);
+                console.error('Error initializing SSE connection:', err);
+                if (!isUnmounted) {
+                    retryTimeout = setTimeout(connect, retryDelay);
+                }
             }
         };
 
+        connect();
+
         return () => {
-            eventSource.close();
+            isUnmounted = true;
+            if (retryTimeout) clearTimeout(retryTimeout);
+            if (eventSource) eventSource.close();
         };
     }, [handleTaskCompletion, handleTaskFailure]);
 
@@ -242,7 +288,8 @@ export function TaskProvider({ children }: TaskProviderProps) {
         tasks,
         getTaskForSet,
         isTaskRunning,
-    }), [tasks, getTaskForSet, isTaskRunning]);
+        addTask,
+    }), [tasks, getTaskForSet, isTaskRunning, addTask]);
 
     return (
         <TaskContext.Provider value={contextValue}>

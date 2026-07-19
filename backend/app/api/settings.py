@@ -90,4 +90,8 @@ async def update_setting(
                 # Accept format if offline/timeout
                 pass
                 
-    return await crud_settings.update_setting(db, key=key, setting=setting)
+    updated_setting = await crud_settings.update_setting(db, key=key, setting=setting)
+    if key.startswith("wallpaper_rotation_") or key == "favorite_rotation_probability":
+        from app.core.rotation import rotation_broadcaster
+        await rotation_broadcaster.broadcast({"event": "ping"})
+    return updated_setting

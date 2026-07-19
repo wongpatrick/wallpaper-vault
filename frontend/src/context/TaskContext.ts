@@ -18,6 +18,7 @@ export interface TaskContextType {
     tasks: Record<string, TaskInfo>;
     getTaskForSet: (setId: number) => TaskInfo | undefined;
     isTaskRunning: boolean;
+    addTask: (task: TaskInfo) => void;
 }
 
 export const TaskContext = createContext<TaskContextType | undefined>(undefined);
