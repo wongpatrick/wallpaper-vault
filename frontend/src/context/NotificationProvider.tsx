@@ -26,7 +26,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   // Sync all notifications.show calls (including direct @mantine/notifications usage) into Notification Center history
   useEffect(() => {
     const originalShow = notifications.show;
-    notifications.show = (data: NotificationData & { status?: NotificationHistoryItem['status'] }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (notifications as any).show = (data: NotificationData & { status?: NotificationHistoryItem['status'] }) => {
       const id = data.id || Math.random().toString(BASE_36).substring(ID_START_INDEX, ID_END_INDEX);
       const res = originalShow({ ...data, id });
 
@@ -58,7 +59,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     };
 
     return () => {
-      notifications.show = originalShow;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (notifications as any).show = originalShow;
     };
   }, []);
 

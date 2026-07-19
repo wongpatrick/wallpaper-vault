@@ -137,7 +137,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
     // Connect to the unified SSE stream with auto-reconnect and resilience
     useEffect(() => {
         let eventSource: EventSource | null = null;
-        let retryTimeout: NodeJS.Timeout | null = null;
+        let retryTimeout: ReturnType<typeof setTimeout> | null = null;
         let isUnmounted = false;
         let retryDelay = 1000;
         const MAX_RETRY_DELAY = 15000;
