@@ -13,6 +13,9 @@ import { TaskStatus } from '../types/enums';
 import { TaskContext, type TaskInfo } from './TaskContext';
 
 const CLEANUP_DELAY_MS = 5000;
+const INITIAL_RETRY_DELAY_MS = 1000;
+const MAX_RETRY_DELAY_MS = 15000;
+const RETRY_BACKOFF_FACTOR = 2;
 
 interface TaskProviderProps {
     children: React.ReactNode;
@@ -139,8 +142,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
         let eventSource: EventSource | null = null;
         let retryTimeout: ReturnType<typeof setTimeout> | null = null;
         let isUnmounted = false;
-        let retryDelay = 1000;
-        const MAX_RETRY_DELAY = 15000;
+        let retryDelay = INITIAL_RETRY_DELAY_MS;
 
         const connect = () => {
             if (isUnmounted) return;
@@ -159,7 +161,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
                 eventSource = new EventSource(url.toString());
 
                 eventSource.onopen = () => {
-                    retryDelay = 1000;
+                    retryDelay = INITIAL_RETRY_DELAY_MS;
                 };
 
                 eventSource.onerror = () => {
@@ -170,7 +172,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
                     if (!isUnmounted) {
                         console.warn(`SSE connection dropped in TaskProvider. Retrying in ${retryDelay}ms...`);
                         retryTimeout = setTimeout(() => {
-                            retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY);
+                            retryDelay = Math.min(retryDelay * RETRY_BACKOFF_FACTOR, MAX_RETRY_DELAY_MS);
                             connect();
                         }, retryDelay);
                     }
