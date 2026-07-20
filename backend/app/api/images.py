@@ -24,6 +24,7 @@ import structlog
 import sys
 import uuid
 import shutil
+import anyio
 
 logger = structlog.get_logger(__name__)
 
@@ -507,7 +508,7 @@ async def validate_import_uploaded_files(
         return await import_service.validate_local_paths(db, local_paths)
     except Exception as e:
         logger.exception("Error during uploaded file validation")
-        shutil.rmtree(temp_dir, ignore_errors=True)
+        await anyio.to_thread.run_sync(shutil.rmtree, temp_dir, True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
