@@ -8,6 +8,7 @@ import shutil
 import os
 from pathlib import Path
 import structlog
+import anyio
 
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +32,43 @@ def _safe_log_val(val):
     elif isinstance(val, dict):
         return {_safe_log_val(k): _safe_log_val(v) for k, v in val.items()}
     return val
+
+
+def _retry_delete(path: Path, is_dir: bool = False, max_attempts: int = 5) -> tuple[bool, str | None]:
+    """Synchronous helper that retries file/directory deletion with permission resets and delay."""
+    import time
+    import stat
+    if is_dir:
+        for attempt in range(max_attempts):
+            try:
+                shutil.rmtree(path)
+                return True, None
+            except (PermissionError, OSError) as e:
+                if attempt < max_attempts - 1:
+                    time.sleep(0.2)
+                else:
+                    return False, str(e)
+    else:
+        for attempt in range(max_attempts):
+            try:
+                try:
+                    os.chmod(path, stat.S_IWRITE)
+                except Exception:
+                    pass
+                path.unlink()
+                return True, None
+            except PermissionError as e:
+                if attempt < max_attempts - 1:
+                    time.sleep(0.2)
+                else:
+                    return False, str(e)
+            except FileNotFoundError:
+                return True, None
+            except Exception as e:
+                return False, str(e)
+    return False, "Max attempts reached"
+
+
 def delete_dir_if_empty(dir_path: Path) -> bool:
     """Recursively deletes a directory if it is empty or contains only empty subdirectories and ignored files."""
     if not dir_path.exists() or not dir_path.is_dir():
@@ -428,50 +466,21 @@ async def execute_import_item(
         # Cleanup
         if delete_source_default:
             source_p = Path(item.source_path)
-            if source_p.is_dir(): 
-                import time
-                deleted_dir = False
-                for attempt in range(5):
-                    try:
-                        shutil.rmtree(source_p)
-                        deleted_dir = True
-                        break
-                    except (PermissionError, OSError):
-                        time.sleep(0.2)
-                if not deleted_dir:
-                    logger.error("Failed to delete batch source directory after retries due to lock", path=item.source_path)
-            else: 
-                import time
-                import stat
-                deleted = False
-                for attempt in range(5):
-                    try:
-                        try:
-                            os.chmod(source_p, stat.S_IWRITE)
-                        except Exception:
-                            pass
-                        source_p.unlink()
-                        deleted = True
-                        break
-                    except PermissionError:
-                        time.sleep(0.2)
-                    except FileNotFoundError:
-                        deleted = True
-                        break
-                    except Exception as cleanup_err:
-                        logger.error("Failed to delete batch source file", path=item.source_path, error=str(cleanup_err))
-                        break
-                if not deleted:
-                    logger.error("Failed to delete batch source file after retries due to lock", path=item.source_path)
+            is_dir = source_p.is_dir()
+            deleted, err = await anyio.to_thread.run_sync(_retry_delete, source_p, is_dir)
+            if not deleted:
+                if is_dir:
+                    logger.error("Failed to delete batch source directory after retries due to lock", path=item.source_path, error=err)
                 else:
-                    # Clean up empty parent directory if empty
-                    parent = source_p.parent
-                    try:
-                        if parent.exists() and parent.is_dir() and not list(parent.iterdir()):
-                            parent.rmdir()
-                            logger.info("Deleted empty source directory", path=str(parent))
-                    except Exception as dir_err:
-                        logger.error("Failed to delete empty source directory", path=str(parent), error=str(dir_err))
+                    logger.error("Failed to delete batch source file after retries due to lock", path=item.source_path, error=err)
+            elif not is_dir:
+                # Clean up empty parent directory if empty
+                parent = source_p.parent
+                try:
+                    if await anyio.to_thread.run_sync(delete_dir_if_empty, parent):
+                        logger.info("Deleted empty source directory", path=str(parent))
+                except Exception as dir_err:
+                    logger.error("Failed to delete empty source directory", path=str(parent), error=str(dir_err))
 
         item.status = "success"
     except Exception as e:
@@ -911,30 +920,11 @@ async def import_images_background_task(
                     db_images.append(db_img)
                     
             if delete_source:
-                import time
-                import stat
-                deleted = False
-                for attempt in range(5):
-                    try:
-                        try:
-                            os.chmod(p, stat.S_IWRITE)
-                        except Exception:
-                            pass
-                        p.unlink()
-                        deleted = True
-                        parent_dirs.add(p.parent)
-                        break
-                    except PermissionError:
-                        time.sleep(0.2)
-                    except FileNotFoundError:
-                        deleted = True
-                        parent_dirs.add(p.parent)
-                        break
-                    except Exception as cleanup_err:
-                        logger.error("Failed to delete source file", path=src_path, error=str(cleanup_err))
-                        break
-                if not deleted:
-                    logger.error("Failed to delete source file after retries due to lock", path=src_path)
+                deleted, err = await anyio.to_thread.run_sync(_retry_delete, p, False)
+                if deleted:
+                    parent_dirs.add(p.parent)
+                else:
+                    logger.error("Failed to delete source file after retries due to lock", path=src_path, error=err)
                     
             await tasks.update_task(db, task_id, progress=idx + 1, total=total_files)
 
@@ -945,7 +935,7 @@ async def import_images_background_task(
                 try:
                     d_path = Path(d_str)
                     if d_path.exists() and d_path.is_dir():
-                        if delete_dir_if_empty(d_path):
+                        if await anyio.to_thread.run_sync(delete_dir_if_empty, d_path):
                             logger.info("Deleted empty source directory", path=_safe_log_val(d_str))
                         else:
                             cleanup_warnings.append(d_path.name)
@@ -957,7 +947,7 @@ async def import_images_background_task(
                 item_path = Path(item["local_path"])
                 if item_path.exists() and item_path.is_dir():
                     try:
-                        if delete_dir_if_empty(item_path):
+                        if await anyio.to_thread.run_sync(delete_dir_if_empty, item_path):
                             logger.info("Deleted empty source item path", path=_safe_log_val(str(item_path)))
                         else:
                             folder_name = item_path.name
@@ -973,7 +963,7 @@ async def import_images_background_task(
             for parent in sorted_parents:
                 try:
                     if parent.exists() and parent.is_dir():
-                        if delete_dir_if_empty(parent):
+                        if await anyio.to_thread.run_sync(delete_dir_if_empty, parent):
                             logger.info("Deleted empty parent directory", path=_safe_log_val(str(parent)))
                             
                             # Recursively check and delete empty ancestor directories up the tree
@@ -985,7 +975,7 @@ async def import_images_background_task(
                                     break
                                 if ancestor == vault_root:
                                     break
-                                if delete_dir_if_empty(ancestor):
+                                if await anyio.to_thread.run_sync(delete_dir_if_empty, ancestor):
                                     logger.info("Deleted empty ancestor directory", path=_safe_log_val(str(ancestor)))
                                     ancestor = ancestor.parent
                                 else:

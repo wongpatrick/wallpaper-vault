@@ -24,6 +24,8 @@ from app.crud.settings import get_setting
 from app.core import tasks
 from app.db.session import SessionLocal
 from pathlib import Path
+import shutil
+import anyio
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -298,11 +300,10 @@ async def delete_set(db: AsyncSession, set_id: int) -> Optional[Set]:
         await db.flush()
         
         if local_path_str:
-            import shutil
             local_path = Path(local_path_str)
             if local_path.exists() and local_path.is_dir():
                 try:
-                    shutil.rmtree(local_path)
+                    await anyio.to_thread.run_sync(shutil.rmtree, local_path)
                 except PermissionError as e:
                     await db.rollback()
                     logger.warning("Failed to delete set folder due to PermissionError, rolling back", path=local_path_str)
@@ -505,12 +506,11 @@ async def bulk_delete_sets(db: AsyncSession, set_ids: list[int]) -> int:
         
     await db.flush()
     
-    import shutil
     for folder_str in folders_to_delete:
         folder_path = Path(folder_str)
         if folder_path.exists() and folder_path.is_dir():
             try:
-                shutil.rmtree(folder_path)
+                await anyio.to_thread.run_sync(shutil.rmtree, folder_path)
             except PermissionError as e:
                 await db.rollback()
                 logger.warning("Failed to delete set folder in bulk delete due to PermissionError, rolling back", path=folder_str)
