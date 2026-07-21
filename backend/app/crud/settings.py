@@ -53,7 +53,7 @@ async def update_setting(db: AsyncSession, key: str, setting: SettingUpdate) -> 
         db_setting = SettingModel(key=key, value=setting.value, description=setting.description)
         db.add(db_setting)
     
-    await db.commit()
+    await db.flush()
     await db.refresh(db_setting)
     return db_setting
 
@@ -73,6 +73,6 @@ async def create_setting(db: AsyncSession, setting: SettingCreate) -> SettingMod
         description=setting.description
     )
     db.add(db_setting)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_setting)
     return db_setting

@@ -162,7 +162,7 @@ async def create_image_db(db: AsyncSession, image_in: ImageCreate, set_id: int) 
     """
     db_image = Image(**image_in.model_dump(), set_id=set_id)
     db.add(db_image)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_image)
     return db_image
 
@@ -194,7 +194,7 @@ async def update_image(db: AsyncSession, image_id: int, image_in: ImageUpdate) -
         db_image.characters = await get_characters_by_names(db, image_in.characters)
     
     db.add(db_image)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_image)
     
     if db_image.set_id:
@@ -240,7 +240,7 @@ async def bulk_update_images(db: AsyncSession, bulk_in: ImageBulkUpdate) -> int:
                 setattr(db_img, field, update_fields[field])
         db.add(db_img)
         
-    await db.commit()
+    await db.flush()
     return len(db_images)
 
 async def delete_image_db(db: AsyncSession, image_id: int) -> Optional[Image]:
@@ -257,7 +257,7 @@ async def delete_image_db(db: AsyncSession, image_id: int) -> Optional[Image]:
     if db_image:
         set_id = db_image.set_id
         await db.delete(db_image)
-        await db.commit()
+        await db.flush()
         if set_id:
             from app.crud.set import recalculate_set_rollup_tags
             await recalculate_set_rollup_tags(db, set_id)

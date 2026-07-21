@@ -155,11 +155,11 @@ async def get_or_create_character(db: AsyncSession, name: str) -> Character:
         
     db.add(db_character)
     try:
-        await db.flush()
-        await _auto_migrate_tag(db, db_character)
-        await db.flush()
+        async with db.begin_nested():
+            await db.flush()
+            await _auto_migrate_tag(db, db_character)
+            await db.flush()
     except IntegrityError:
-        await db.rollback()
         # Fallback check
         check_name = base_name
         check_franchise = franchise_name if match else None
@@ -181,7 +181,7 @@ async def create_character(db: AsyncSession, character: CharacterCreate) -> Char
     db.add(db_character)
     await db.flush()
     await _auto_migrate_tag(db, db_character)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_character)
     return await get_character(db, db_character.id)
 
@@ -195,7 +195,7 @@ async def update_character(db: AsyncSession, character_id: int, character_in: Ch
         db_character.franchise_id = character_in.franchise_id
     
     await _auto_migrate_tag(db, db_character)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_character)
     return await get_character(db, character_id)
 
@@ -204,7 +204,7 @@ async def delete_character(db: AsyncSession, character_id: int) -> bool:
     if not db_character:
         return False
     await db.delete(db_character)
-    await db.commit()
+    await db.flush()
     return True
 
 async def bulk_delete_characters(db: AsyncSession, ids: list[int]) -> int:
@@ -223,7 +223,7 @@ async def bulk_delete_characters(db: AsyncSession, ids: list[int]) -> int:
     result = await db.execute(
         delete(Character).where(Character.id.in_(ids))
     )
-    await db.commit()
+    await db.flush()
     return result.rowcount
 
 
@@ -278,7 +278,7 @@ async def merge_characters(db: AsyncSession, source_ids: list[int], target_id: i
         await db.flush()
         await db.delete(source)
 
-    await db.commit()
+    await db.flush()
 
     # Re-query with computed counts so the response is accurate
     from app.models.associations import image_characters

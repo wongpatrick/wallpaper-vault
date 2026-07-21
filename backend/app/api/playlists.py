@@ -34,7 +34,9 @@ async def create_playlist_endpoint(
     existing = await crud_playlist.get_playlist_by_name(db, playlist_in.name)
     if existing:
         raise HTTPException(status_code=400, detail="A playlist with this name already exists")
-    return await crud_playlist.create_playlist(db, playlist_in)
+    res = await crud_playlist.create_playlist(db, playlist_in)
+    await db.commit()
+    return res
 
 @router.get("/{playlist_id}", response_model=PlaylistDetail)
 async def read_playlist(
@@ -89,6 +91,7 @@ async def update_playlist_endpoint(
     db_playlist = await crud_playlist.update_playlist(db, playlist_id, playlist_in)
     if db_playlist is None:
         raise HTTPException(status_code=404, detail="Playlist not found")
+    await db.commit()
     return db_playlist
 
 @router.delete("/{playlist_id}", response_model=Playlist)
@@ -100,6 +103,7 @@ async def delete_playlist_endpoint(
     db_playlist = await crud_playlist.delete_playlist(db, playlist_id)
     if db_playlist is None:
         raise HTTPException(status_code=404, detail="Playlist not found")
+    await db.commit()
     return db_playlist
 
 @router.post("/{playlist_id}/images", response_model=dict)
@@ -116,6 +120,7 @@ async def add_images(
         raise HTTPException(status_code=400, detail="Cannot manually add images to a smart playlist")
         
     added_count = await crud_playlist.add_images_to_playlist(db, playlist_id, payload.image_ids)
+    await db.commit()
     return {
         "message": f"Successfully added {added_count} images to playlist",
         "added_count": added_count
@@ -135,6 +140,7 @@ async def remove_images(
         raise HTTPException(status_code=400, detail="Cannot manually remove images from a smart playlist")
         
     removed_count = await crud_playlist.remove_images_from_playlist(db, playlist_id, payload.image_ids)
+    await db.commit()
     return {
         "message": f"Successfully removed {removed_count} images from playlist",
         "removed_count": removed_count
@@ -154,6 +160,7 @@ async def reorder_images(
         raise HTTPException(status_code=400, detail="Cannot manually reorder a smart playlist")
         
     await crud_playlist.reorder_playlist_images(db, playlist_id, payload.image_ids)
+    await db.commit()
     return {"message": "Successfully reordered playlist images"}
 
 @router.get("/{playlist_id}/random", response_model=ImageSchema)

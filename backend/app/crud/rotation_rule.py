@@ -52,7 +52,7 @@ async def create_rotation_rule(db: AsyncSession, rule: RotationRuleCreate) -> Ro
         style=rule.style
     )
     db.add(db_rule)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_rule)
     return db_rule
 
@@ -68,7 +68,7 @@ async def update_rotation_rule(
     for field, value in update_data.items():
         setattr(db_rule, field, value)
         
-    await db.commit()
+    await db.flush()
     await db.refresh(db_rule)
     return db_rule
 
@@ -78,5 +78,5 @@ async def delete_rotation_rule(db: AsyncSession, rule_id: int) -> bool:
     if not db_rule:
         return False
     await db.delete(db_rule)
-    await db.commit()
+    await db.flush()
     return True

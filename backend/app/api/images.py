@@ -74,6 +74,7 @@ async def bulk_update_images(
     This endpoint takes a list of image IDs and a data payload, applying the changes to all specified images in a single transaction. List-like fields (e.g. tags) can be appended or overwritten based on the operation_mode.
     """
     count = await crud_image.bulk_update_images(db=db, bulk_in=bulk_in)
+    await db.commit()
     logger.info("Bulk updated images", count=count, mode=bulk_in.operation_mode)
     return count
 
@@ -356,6 +357,7 @@ async def update_image(
     db_image = await crud_image.update_image(db, image_id=image_id, image_in=image_in)
     if db_image is None:
         raise HTTPException(status_code=404, detail="Image not found")
+    await db.commit()
     logger.info("Updated image", image_id=image_id)
     return map_image_to_schema(db_image)
 

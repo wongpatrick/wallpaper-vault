@@ -72,30 +72,41 @@ async def create_image(db: AsyncSession, image_in: ImageCreate, set_id: int) -> 
                         
     # Pass the processed dictionary back into the schema to create in CRUD
     processed_image_in = ImageCreate(**image_data)
-    return await crud_image.create_image_db(db, processed_image_in, set_id)
+    db_image = await crud_image.create_image_db(db, processed_image_in, set_id)
+    await db.commit()
+    return db_image
 
 async def delete_image(db: AsyncSession, image_id: int) -> Optional[Image]:
     """Deletes an image from the database and removes its file from disk if no other references exist."""
     db_image = await crud_image.get_image(db, image_id)
     if db_image:
-        if db_image.local_path:
+        local_path = db_image.local_path
+        # 1. Flush deletion from DB first
+        deleted_image = await crud_image.delete_image_db(db, image_id)
+
+        # 2. Unlink file if no other image records share local_path
+        if local_path:
             other_refs_query = select(Image.id).where(
-                Image.local_path == db_image.local_path,
+                Image.local_path == local_path,
                 Image.id != image_id
             ).limit(1)
             other_refs_result = await db.execute(other_refs_query)
             has_other_refs = other_refs_result.first() is not None
 
             if not has_other_refs:
-                p = anyio.Path(db_image.local_path)
+                p = anyio.Path(local_path)
                 if await p.exists():
                     try:
                         await p.unlink()
                     except Exception as e:
-                        logger.error("Failed to delete image file", path=db_image.local_path, error=str(e))
+                        await db.rollback()
+                        logger.error("Failed to delete image file, rolling back DB transaction", path=local_path, error=str(e))
+                        raise e
                         
             delete_image_thumbnails(image_id)
-        return await crud_image.delete_image_db(db, image_id)
+        
+        await db.commit()
+        return deleted_image
     return None
 
 async def resolve_duplicates(db: AsyncSession, keep_id: int, remove_ids: List[int]) -> dict:
@@ -142,6 +153,7 @@ async def resolve_duplicates(db: AsyncSession, keep_id: int, remove_ids: List[in
                 await crud_image.delete_image_db(db, rid)
                 removed_count += 1
     
+    await db.commit()
     return removed_count, space_saved
 
 async def bulk_move_images(db: AsyncSession, move_in: ImageBulkMove) -> int:

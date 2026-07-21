@@ -33,6 +33,7 @@ async def create_set(
 
     try:
         db_set = await set_service.create_set(db=db, set_in=set_in)
+        await db.commit()
         logger.info("Created set", set_id=db_set.id, title=db_set.title)
         return db_set
     except IntegrityError as e:
@@ -178,6 +179,7 @@ async def bulk_delete_sets(
 ) -> int:
     try:
         count = await crud_set.bulk_delete_sets(db=db, set_ids=set_ids)
+        await db.commit()
         logger.info("Bulk deleted sets", count=count)
         return count
     except PermissionError:
@@ -238,6 +240,7 @@ async def delete_set(
         db_set = await crud_set.delete_set(db, set_id=set_id)
         if db_set is None:
             raise HTTPException(status_code=404, detail="Set not found")
+        await db.commit()
         logger.info("Deleted set", set_id=set_id)
         return db_set
     except PermissionError:

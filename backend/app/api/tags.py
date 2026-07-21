@@ -71,6 +71,7 @@ async def update_tag(
         tag = await crud_tag.update_tag(db, tag_id, tag_in.name)
         if not tag:
             raise HTTPException(status_code=404, detail="Tag not found.")
+        await db.commit()
         return tag
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -84,6 +85,7 @@ async def delete_tag(
     success = await crud_tag.delete_tag(db, tag_id)
     if not success:
         raise HTTPException(status_code=404, detail="Tag not found.")
+    await db.commit()
     return None
 
 @router.post("/bulk-delete", status_code=status.HTTP_204_NO_CONTENT)
@@ -93,6 +95,7 @@ async def bulk_delete_tags(
 ):
     """Bulk delete multiple tags."""
     await crud_tag.bulk_delete_tags(db, request.ids)
+    await db.commit()
     return None
 
 
@@ -113,4 +116,5 @@ async def merge_tags(
     if not db_tag:
         raise HTTPException(status_code=404, detail="Target tag not found")
         
+    await db.commit()
     return db_tag

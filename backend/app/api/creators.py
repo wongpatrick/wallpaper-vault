@@ -22,7 +22,9 @@ async def create_creator(
     Validates that the canonical name is unique to prevent duplicates.
     """
     try:
-        return await crud_creator.create_creator(db=db, creator=creator)
+        res = await crud_creator.create_creator(db=db, creator=creator)
+        await db.commit()
+        return res
     except IntegrityError as e:
         await db.rollback()
         error_msg = str(e.orig)
@@ -77,6 +79,7 @@ async def update_creator(
         db_creator = await crud_creator.update_creator(db, creator_id=creator_id, creator_in=creator_in)
         if db_creator is None:
             raise HTTPException(status_code=404, detail="Creator not found")
+        await db.commit()
         return db_creator
     except IntegrityError as e:
         await db.rollback()
@@ -103,6 +106,7 @@ async def delete_creator(
     db_creator = await crud_creator.delete_creator(db, creator_id=creator_id)
     if db_creator is None:
         raise HTTPException(status_code=404, detail="Creator not found")
+    await db.commit()
     return db_creator
 
 @router.post("/merge", response_model=Creator)
@@ -125,4 +129,5 @@ async def merge_creators(
     )
     if db_creator is None:
         raise HTTPException(status_code=404, detail="Target artist not found")
+    await db.commit()
     return db_creator
