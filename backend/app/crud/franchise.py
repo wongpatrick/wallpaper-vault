@@ -59,9 +59,9 @@ async def get_or_create_franchise(db: AsyncSession, name: str) -> Franchise:
     db_franchise = Franchise(name=name)
     db.add(db_franchise)
     try:
-        await db.flush()
+        async with db.begin_nested():
+            await db.flush()
     except Exception:
-        await db.rollback()
         existing = await get_franchise_by_name(db, name)
         if existing:
             return existing
@@ -72,7 +72,7 @@ async def create_franchise(db: AsyncSession, franchise: FranchiseCreate) -> Fran
     await _check_tag_collision(db, franchise.name)
     db_franchise = Franchise(name=franchise.name)
     db.add(db_franchise)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_franchise)
     return db_franchise
 
@@ -83,7 +83,7 @@ async def update_franchise(db: AsyncSession, franchise_id: int, franchise_in: Fr
     if franchise_in.name is not None:
         await _check_tag_collision(db, franchise_in.name)
         db_franchise.name = franchise_in.name
-    await db.commit()
+    await db.flush()
     await db.refresh(db_franchise)
     return db_franchise
 
@@ -92,7 +92,7 @@ async def delete_franchise(db: AsyncSession, franchise_id: int) -> bool:
     if not db_franchise:
         return False
     await db.delete(db_franchise)
-    await db.commit()
+    await db.flush()
     return True
 
 async def bulk_delete_franchises(db: AsyncSession, ids: list[int]) -> int:
@@ -113,7 +113,7 @@ async def bulk_delete_franchises(db: AsyncSession, ids: list[int]) -> int:
     result = await db.execute(
         delete(Franchise).where(Franchise.id.in_(ids))
     )
-    await db.commit()
+    await db.flush()
     return result.rowcount
 
 
@@ -152,7 +152,7 @@ async def merge_franchises(db: AsyncSession, source_ids: list[int], target_id: i
         await db.flush()
         await db.delete(source)
 
-    await db.commit()
+    await db.flush()
 
     # Re-query with computed counts so the response is accurate
     from app.models.associations import image_characters

@@ -133,9 +133,9 @@ async def get_or_create_tag(db: AsyncSession, name: str) -> Tag:
     new_tag = Tag(name=normalized_name)
     db.add(new_tag)
     try:
-        await db.flush()
+        async with db.begin_nested():
+            await db.flush()
     except IntegrityError:
-        await db.rollback()
         # In case of race condition, try fetching again
         result = await db.execute(stmt)
         existing_tag = result.scalars().first()
@@ -225,7 +225,7 @@ async def update_tag(db: AsyncSession, tag_id: int, name: str) -> Optional[Tag]:
         raise ValueError(f"Cannot update tag to '{normalized_name}': A tag with this name already exists.")
 
     db_tag.name = normalized_name
-    await db.commit()
+    await db.flush()
     await db.refresh(db_tag)
     return db_tag
 
@@ -235,7 +235,7 @@ async def delete_tag(db: AsyncSession, tag_id: int) -> bool:
     if not db_tag:
         return False
     await db.delete(db_tag)
-    await db.commit()
+    await db.flush()
     return True
 
 async def bulk_delete_tags(db: AsyncSession, ids: list[int]) -> int:
@@ -264,7 +264,7 @@ async def bulk_delete_tags(db: AsyncSession, ids: list[int]) -> int:
     result = await db.execute(
         delete(Tag).where(Tag.id.in_(ids))
     )
-    await db.commit()
+    await db.flush()
     db.expire_all()
     
     # 5. Recalculate rollup tags for affected sets
@@ -322,7 +322,7 @@ async def merge_tags(db: AsyncSession, source_ids: list[int], target_id: int) ->
         await db.flush()
         await db.delete(source)
 
-    await db.commit()
+    await db.flush()
     await db.refresh(target)
     return await get_tag(db, target_id)
 

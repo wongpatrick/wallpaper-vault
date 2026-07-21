@@ -217,7 +217,9 @@ async def create_set(db: AsyncSession, set_in: SetCreate) -> Set:
             raise FileSystemError(f"Failed to create physical directory '{new_path}': {str(e)}")
 
     db_set = await crud_set.create_set(db, set_in)
-    return db_set
+    await db.commit()
+    await db.refresh(db_set)
+    return await crud_set.get_set(db, db_set.id)
 
 async def update_set(db: AsyncSession, set_id: int, set_in: SetUpdate) -> Set:
     db_set = await crud_set.get_set(db, set_id)

@@ -167,7 +167,7 @@ async def create_playlist(db: AsyncSession, playlist_in: PlaylistCreate) -> Play
         rules=playlist_in.rules.model_dump(exclude_unset=True) if playlist_in.rules else None
     )
     db.add(db_playlist)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_playlist)
     if db_playlist.is_smart:
         db_playlist.image_count = await get_smart_playlist_count(db, db_playlist)
@@ -196,7 +196,7 @@ async def update_playlist(
             setattr(db_playlist, field, update_data[field])
         
     db.add(db_playlist)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_playlist)
     if db_playlist.is_smart:
         db_playlist.image_count = await get_smart_playlist_count(db, db_playlist)
@@ -209,7 +209,7 @@ async def delete_playlist(db: AsyncSession, playlist_id: int) -> Optional[Playli
         return None
         
     await db.delete(db_playlist)
-    await db.commit()
+    await db.flush()
     return db_playlist
 
 async def add_images_to_playlist(
@@ -253,7 +253,7 @@ async def add_images_to_playlist(
             new_added += 1
             
     if new_added > 0:
-        await db.commit()
+        await db.flush()
         
     return new_added
 
@@ -277,7 +277,7 @@ async def remove_images_from_playlist(
         )
     )
     result = await db.execute(stmt)
-    await db.commit()
+    await db.flush()
     return result.rowcount
 
 async def reorder_playlist_images(
@@ -302,4 +302,4 @@ async def reorder_playlist_images(
             .values(sort_order=index)
         )
         await db.execute(stmt)
-    await db.commit()
+    await db.flush()

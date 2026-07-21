@@ -85,6 +85,7 @@ async def create_rule(
 ) -> schema.RotationRule:
     """Create a new rotation rule and trigger coordinator sync."""
     db_rule = await crud.create_rotation_rule(db, rule)
+    await db.commit()
     await rotation_broadcaster.broadcast({"event": "ping"})
     logger.info("Created rotation rule", id=db_rule.id, name=db_rule.name)
     return db_rule
@@ -99,6 +100,7 @@ async def update_rule(
     db_rule = await crud.update_rotation_rule(db, id, rule_update)
     if not db_rule:
         raise HTTPException(status_code=404, detail="Rotation rule not found")
+    await db.commit()
     await rotation_broadcaster.broadcast({"event": "ping"})
     logger.info("Updated rotation rule", id=id, name=db_rule.name)
     return db_rule
@@ -109,5 +111,6 @@ async def delete_rule(id: int, db: AsyncSession = Depends(get_db)) -> None:
     success = await crud.delete_rotation_rule(db, id)
     if not success:
         raise HTTPException(status_code=404, detail="Rotation rule not found")
+    await db.commit()
     await rotation_broadcaster.broadcast({"event": "ping"})
     logger.info("Deleted rotation rule", id=id)

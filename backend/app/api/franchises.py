@@ -33,7 +33,9 @@ async def create_franchise(
             detail="Franchise already exists."
         )
     try:
-        return await crud_franchise.create_franchise(db, franchise)
+        res = await crud_franchise.create_franchise(db, franchise)
+        await db.commit()
+        return res
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -48,6 +50,7 @@ async def update_franchise(
         db_franchise = await crud_franchise.update_franchise(db, franchise_id, franchise_in)
         if not db_franchise:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Franchise not found")
+        await db.commit()
         return db_franchise
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -61,6 +64,7 @@ async def delete_franchise(
     success = await crud_franchise.delete_franchise(db, franchise_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Franchise not found")
+    await db.commit()
 
 @router.post("/bulk-delete", status_code=status.HTTP_204_NO_CONTENT)
 async def bulk_delete_franchises(
@@ -69,6 +73,7 @@ async def bulk_delete_franchises(
 ):
     """Bulk delete multiple franchises."""
     await crud_franchise.bulk_delete_franchises(db, request.ids)
+    await db.commit()
     return None
 
 
@@ -89,4 +94,5 @@ async def merge_franchises(
     if not db_franchise:
         raise HTTPException(status_code=404, detail="Target franchise not found")
         
+    await db.commit()
     return db_franchise

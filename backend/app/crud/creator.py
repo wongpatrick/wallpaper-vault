@@ -194,7 +194,7 @@ async def create_creator(db: AsyncSession, creator: CreatorCreate) -> Creator:
     """
     db_creator = Creator(**creator.model_dump(mode="json"))
     db.add(db_creator)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_creator)
     return db_creator
 
@@ -224,7 +224,7 @@ async def update_creator(db: AsyncSession, creator_id: int, creator_in: CreatorU
         await rename_set_folder_if_needed(db, s, raise_errors=True)
     
     db.add(db_creator)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_creator)
     return await get_creator(db, creator_id)
 
@@ -243,7 +243,7 @@ async def delete_creator(db: AsyncSession, creator_id: int) -> Optional[Creator]
     db_creator = await db.get(Creator, creator_id)
     if db_creator:
         await db.delete(db_creator)
-        await db.commit()
+        await db.flush()
     return db_creator
 
 async def merge_creators(db: AsyncSession, source_ids: list[int], target_id: int) -> Optional[Creator]:
@@ -284,7 +284,7 @@ async def merge_creators(db: AsyncSession, source_ids: list[int], target_id: int
         # Delete the source creator (SQLAlchemy handles many-to-many cleanup)
         await db.delete(source)
     
-    await db.commit()
+    await db.flush()
     await db.refresh(target)
     
     return target

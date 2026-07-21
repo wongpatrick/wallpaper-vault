@@ -36,7 +36,9 @@ async def create_character(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Character already exists under this franchise."
         )
-    return await crud_character.create_character(db, character)
+    result = await crud_character.create_character(db, character)
+    await db.commit()
+    return result
 
 @router.patch("/{character_id}", response_model=Character)
 async def update_character(
@@ -48,6 +50,7 @@ async def update_character(
     db_character = await crud_character.update_character(db, character_id, character_in)
     if not db_character:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Character not found")
+    await db.commit()
     return db_character
 
 @router.delete("/{character_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -59,6 +62,7 @@ async def delete_character(
     success = await crud_character.delete_character(db, character_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Character not found")
+    await db.commit()
 
 @router.post("/bulk-delete", status_code=status.HTTP_204_NO_CONTENT)
 async def bulk_delete_characters(
@@ -67,6 +71,7 @@ async def bulk_delete_characters(
 ):
     """Bulk delete multiple characters."""
     await crud_character.bulk_delete_characters(db, request.ids)
+    await db.commit()
     return None
 
 
@@ -87,4 +92,5 @@ async def merge_characters(
     if not db_character:
         raise HTTPException(status_code=404, detail="Target character not found")
         
+    await db.commit()
     return db_character

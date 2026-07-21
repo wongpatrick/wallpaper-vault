@@ -36,6 +36,28 @@ async def test_set_auto_generate_folder(client: AsyncClient, temp_vault: Path):
     assert expected_path.exists()
 
 @pytest.mark.asyncio
+async def test_create_set_persists_and_retrievable(client: AsyncClient, temp_vault: Path):
+    """Test that creating a set persists the record in the DB and is retrievable."""
+    await client.put("/api/settings/base_library_path", json={"value": str(temp_vault)})
+    
+    resp = await client.post("/api/sets/", json={
+        "title": "Annie - Test"
+    })
+    assert resp.status_code == 200
+    created_id = resp.json()["id"]
+    
+    # Retrieve set by ID in a subsequent request
+    get_resp = await client.get(f"/api/sets/{created_id}")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["title"] == "Annie - Test"
+    
+    # Verify set appears in main list query
+    list_resp = await client.get("/api/sets/")
+    assert list_resp.status_code == 200
+    titles = [s["title"] for s in list_resp.json()["items"]]
+    assert "Annie - Test" in titles
+
+@pytest.mark.asyncio
 async def test_set_auto_rename_folder(client: AsyncClient, temp_vault: Path):
     """Test that updating a set's title renames its physical folder."""
     await client.put("/api/settings/base_library_path", json={"value": str(temp_vault)})

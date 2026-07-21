@@ -93,7 +93,7 @@ async def recalculate_set_rollup_tags(db: AsyncSession, set_id: int) -> None:
         db_set.tags = []
         
     db.add(db_set)
-    await db.commit()
+    await db.flush()
 
 
 async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Optional[str] = None, creator_type: Optional[str] = None, sort_by: Optional[str] = "id", sort_dir: Optional[str] = "desc", tag: Optional[str] = None, character: Optional[list[str]] = None, franchise: Optional[list[str]] = None) -> tuple[list[Set], int]:
@@ -206,7 +206,7 @@ async def create_set(db: AsyncSession, set_in: SetCreate) -> Set:
         db_set.images = new_images
 
     db.add(db_set)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_set)
     query = (
         select(Set)
@@ -313,7 +313,7 @@ async def delete_set(db: AsyncSession, set_id: int) -> Optional[Set]:
                     logger.error("Failed to delete set folder, rolling back", path=local_path_str, error=str(e))
                     raise e
                     
-        await db.commit()
+        await db.flush()
         
         # Invalidate thumbnail cache for deleted images
         from app.services.image_service import delete_image_thumbnails
@@ -364,7 +364,7 @@ async def update_set(db: AsyncSession, set_id: int, set_in: SetUpdate) -> Option
     # Note: Automatic Folder Renaming Logic was moved to services/set_service.py
     
     db.add(db_set)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_set)
     
     # Re-fetch with relationships
@@ -473,7 +473,7 @@ async def bulk_update_sets(db: AsyncSession, bulk_in: SetBulkUpdate) -> int:
         
         db.add(db_set)
 
-    await db.commit()
+    await db.flush()
     return len(db_sets)
 
 
@@ -520,7 +520,7 @@ async def bulk_delete_sets(db: AsyncSession, set_ids: list[int]) -> int:
                 logger.error("Failed to delete set folder in bulk delete, rolling back", path=folder_str, error=str(e))
                 raise e
                 
-    await db.commit()
+    await db.flush()
     
     # Invalidate thumbnail cache for all deleted images
     from app.services.image_service import delete_image_thumbnails
@@ -636,7 +636,7 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task
                 except Exception as err:
                     logger.error("Failed to delete empty batch source directory", path=item.source_path, error=str(err))
 
-    await db.commit()
+    await db.flush()
     if task_id:
         await tasks.update_task(db, task_id, progress=progress_state["processed"], total=total_images)
     
@@ -658,6 +658,7 @@ async def run_batch_import_background(batch_in: BatchImportRequest, task_id: str
         try:
             await tasks.update_task(db, task_id, status=TaskStatus.PROCESSING)
             response = await batch_import_sets(db, batch_in, task_id=task_id)
+            await db.commit()
             
             warning_msg = None
             warnings = getattr(response, 'cleanup_warnings', [])
@@ -669,4 +670,5 @@ async def run_batch_import_background(batch_in: BatchImportRequest, task_id: str
         except Exception as e:
             import traceback
             traceback.print_exc()
+            await db.rollback()
             await tasks.update_task(db, task_id, status=TaskStatus.ERROR, error_message=str(e))
