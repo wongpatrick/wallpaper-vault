@@ -4,12 +4,9 @@ Handles folder parsing, validation, and batch execution of media imports.
 """
 from typing import Any
 import re
-import shutil
 import os
 from pathlib import Path
 import structlog
-import anyio
-
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.set import BatchImportRequest, BatchImportItem
@@ -21,103 +18,43 @@ from app.models.set import Set
 from app.core.crop import collect_image_paths, process_image, load_image, compute_focal_point
 from app.core.utils import sanitize_filename
 
+# Re-export extracted file system utilities for backward compatibility
+from app.services.file_service import (
+    safe_log_val as _safe_log_val,
+    safe_log_val,
+    retry_delete_sync as _retry_delete,
+    retry_delete_sync,
+    retry_delete,
+    delete_dir_if_empty,
+    delete_dir_if_empty_async,
+    cleanup_source_directories
+)
+
+# Import AI tagging service utilities
+from app.services.ai_tagging_service import (
+    get_ai_tagging_config,
+    tag_image_file,
+    apply_set_tag_rollups
+)
+
+__all__ = [
+    "safe_log_val",
+    "_safe_log_val",
+    "retry_delete_sync",
+    "_retry_delete",
+    "retry_delete",
+    "delete_dir_if_empty",
+    "delete_dir_if_empty_async",
+    "cleanup_source_directories",
+    "gather_candidates",
+    "compile_parsing_regex",
+    "parse_and_validate_candidates",
+    "execute_import_item",
+    "validate_local_paths",
+    "import_images_background_task",
+]
+
 logger = structlog.get_logger(__name__)
-
-def _safe_log_val(val):
-    """Recursively convert strings to ASCII backslash-replaced representation to prevent UnicodeEncodeError in console."""
-    if isinstance(val, str):
-        return val.encode('ascii', 'backslashreplace').decode('ascii')
-    elif isinstance(val, list):
-        return [_safe_log_val(x) for x in val]
-    elif isinstance(val, dict):
-        return {_safe_log_val(k): _safe_log_val(v) for k, v in val.items()}
-    return val
-
-
-def _retry_delete(path: Path, is_dir: bool = False, max_attempts: int = 5) -> tuple[bool, str | None]:
-    """Synchronous helper that retries file/directory deletion with permission resets and delay."""
-    import time
-    import stat
-    if is_dir:
-        for attempt in range(max_attempts):
-            try:
-                shutil.rmtree(path)
-                return True, None
-            except (PermissionError, OSError) as e:
-                if attempt < max_attempts - 1:
-                    time.sleep(0.2)
-                else:
-                    return False, str(e)
-    else:
-        for attempt in range(max_attempts):
-            try:
-                try:
-                    os.chmod(path, stat.S_IWRITE)
-                except Exception:
-                    pass
-                path.unlink()
-                return True, None
-            except PermissionError as e:
-                if attempt < max_attempts - 1:
-                    time.sleep(0.2)
-                else:
-                    return False, str(e)
-            except FileNotFoundError:
-                return True, None
-            except Exception as e:
-                return False, str(e)
-    return False, "Max attempts reached"
-
-
-def delete_dir_if_empty(dir_path: Path) -> bool:
-    """Recursively deletes a directory if it is empty or contains only empty subdirectories and ignored files."""
-    if not dir_path.exists() or not dir_path.is_dir():
-        return False
-    
-    ignored_names = {".ds_store", "thumbs.db", "desktop.ini"}
-    import time
-    import stat
-    max_attempts = 5
-    
-    try:
-        # Bottom-up traversal of children
-        for child in list(dir_path.iterdir()):
-            if child.is_dir():
-                delete_dir_if_empty(child)
-            elif child.is_file() and child.name.lower() in ignored_names:
-                for attempt in range(max_attempts):
-                    try:
-                        try:
-                            os.chmod(child, stat.S_IWRITE)
-                        except Exception:
-                            pass
-                        child.unlink()
-                        break
-                    except (PermissionError, OSError) as e:
-                        if attempt < max_attempts - 1:
-                            time.sleep(0.2)
-                        else:
-                            logger.warning("Failed to delete ignored file inside directory", path=str(child), error=str(e))
-                    
-        # Now check if it's empty
-        if not list(dir_path.iterdir()):
-            for attempt in range(max_attempts):
-                try:
-                    try:
-                        os.chmod(dir_path, stat.S_IWRITE)
-                    except Exception:
-                        pass
-                    dir_path.rmdir()
-                    return True
-                except (PermissionError, OSError) as e:
-                    if attempt < max_attempts - 1:
-                        time.sleep(0.2)
-                    else:
-                        logger.warning("Failed to remove empty directory after retries", path=str(dir_path), error=str(e))
-                        break
-    except Exception as e:
-        logger.error("Error occurred in delete_dir_if_empty", path=str(dir_path), error=str(e))
-    return False
 
 
 async def gather_candidates(db: AsyncSession, batch_in: BatchImportRequest) -> list[dict]:
@@ -146,16 +83,15 @@ async def gather_candidates(db: AsyncSession, batch_in: BatchImportRequest) -> l
         })
     return candidates
 
+
 def compile_parsing_regex(template: str) -> re.Pattern | None:
     """Helper to compile user-provided templates into regex."""
     if not template:
         return None
     try:
-        # If user provides a raw regex with named groups, use it directly
         if "(?P<creator" in template or "(?P<set" in template:
             return re.compile(template)
         
-        # Support multiple [Creator] or [Set] tags by indexing them
         pattern = re.escape(template)
         for tag, group_prefix in [("\\[Creator\\]", "creator"), ("\\[Set\\]", "set")]:
             count = 0
@@ -166,6 +102,7 @@ def compile_parsing_regex(template: str) -> re.Pattern | None:
     except Exception as e:
         logger.error("Error compiling template", error=str(e), exc_info=True)
         return None
+
 
 async def parse_and_validate_candidates(
     db: AsyncSession, 
@@ -232,6 +169,7 @@ async def parse_and_validate_candidates(
         results.append(item_result)
     return results
 
+
 async def execute_import_item(
     db: AsyncSession,
     item: BatchImportItem,
@@ -252,40 +190,15 @@ async def execute_import_item(
         return item
         
     try:
-        # Load AI auto-tagging settings
-        auto_tag_setting = await get_setting(db, "ai_auto_tag_enabled")
-        auto_tag_enabled = auto_tag_setting.value.lower() in ("true", "1", "yes") if auto_tag_setting and auto_tag_setting.value else False
-
-        model_source_setting = await get_setting(db, "ai_model_source")
-        model_source = model_source_setting.value if model_source_setting and model_source_setting.value else "predefined"
-
-        model_type_setting = await get_setting(db, "ai_model_type")
-        model_type = model_type_setting.value if model_type_setting and model_type_setting.value else "wd14_onnx"
-
-        custom_repo_setting = await get_setting(db, "ai_model_custom_repo")
-        custom_repo = custom_repo_setting.value if custom_repo_setting and custom_repo_setting.value else None
-
-        custom_path_setting = await get_setting(db, "ai_model_custom_path")
-        custom_path = custom_path_setting.value if custom_path_setting and custom_path_setting.value else None
-
-        confidence_setting = await get_setting(db, "ai_confidence_threshold")
-        try:
-            confidence_threshold = float(confidence_setting.value) if confidence_setting and confidence_setting.value else 0.35
-        except (ValueError, TypeError):
-            confidence_threshold = 0.35
-
-        rollup_threshold_setting = await get_setting(db, "ai_rollup_threshold")
-        try:
-            rollup_threshold = float(rollup_threshold_setting.value) if rollup_threshold_setting and rollup_threshold_setting.value else 0.3
-        except (ValueError, TypeError):
-            rollup_threshold = 0.3
+        # Load AI auto-tagging config
+        ai_config = await get_ai_tagging_config(db)
 
         logger.info("Executing import item with AI auto-tagging config", 
                     set_title=_safe_log_val(item.set_title), 
-                    auto_tag_enabled=auto_tag_enabled, 
-                    model_type=_safe_log_val(model_type), 
-                    confidence_threshold=confidence_threshold, 
-                    rollup_threshold=rollup_threshold)
+                    auto_tag_enabled=ai_config["enabled"], 
+                    model_type=_safe_log_val(ai_config["model_type"]), 
+                    confidence_threshold=ai_config["confidence_threshold"], 
+                    rollup_threshold=ai_config["rollup_threshold"])
 
         # 1. Handle Multiple Creators
         raw_names = re.split(r'\s+&\s+', item.creator_name)
@@ -325,16 +238,6 @@ async def execute_import_item(
         image_paths = collect_image_paths(item.source_path, recursive=True)
         db_images = []
         all_detected_characters = set()
-        
-        tagger = None
-        if auto_tag_enabled:
-            from app.services.ai_tagging import get_tagger
-            tagger = get_tagger(
-                model_source=model_source,
-                model_type=model_type,
-                custom_repo=custom_repo,
-                custom_path=custom_path
-            )
 
         processed_in_item = 0
         try:
@@ -365,40 +268,12 @@ async def execute_import_item(
                         
                         fx, fy = compute_focal_point(img_data)
                         
-                        # Auto tagging if enabled
-                        image_tags_list = []
-                        image_characters_list = []
-                        if auto_tag_enabled and tagger:
-                            try:
-                                import asyncio
-                                logger.info("Running AI auto-tagging on image", path=_safe_log_val(final_p_str), model=_safe_log_val(model_type), confidence_threshold=confidence_threshold)
-                                general_tags, character_tags = await asyncio.to_thread(
-                                    tagger.tag_image, 
-                                    final_p_str, 
-                                    threshold=confidence_threshold
-                                )
-                                # Record detected characters for Set association
-                                if character_tags:
-                                    for char_name in character_tags:
-                                        all_detected_characters.add(char_name)
+                        # Auto tagging via AI service
+                        image_tags_list, image_characters_list = await tag_image_file(
+                            db, ai_config, final_p_str, all_detected_characters
+                        )
 
-                                logger.info("AI tagging completed for image", path=_safe_log_val(final_p_str), general_tags=_safe_log_val(general_tags), character_tags=_safe_log_val(character_tags), total_suggested=(len(general_tags) + len(character_tags)))
-                                
-                                # Resolve general tags as Image tags (prevents namespace conflicts with characters table)
-                                if general_tags:
-                                    from app.crud.tag import get_tags_by_names
-                                    image_tags_list = await get_tags_by_names(db, general_tags)
-                                    logger.info("Associated tags to image record", path=_safe_log_val(final_p_str), count=len(image_tags_list), tags=[_safe_log_val(t.name) for t in image_tags_list])
-                                
-                                if character_tags:
-                                    from app.crud.character import get_characters_by_names
-                                    image_characters_list = await get_characters_by_names(db, character_tags)
-                                    logger.info("Associated characters to image record", path=_safe_log_val(final_p_str), count=len(image_characters_list), characters=[_safe_log_val(c.name) for c in image_characters_list])
-                            except Exception as tag_err:
-                                logger.error("Failed to run AI tagging", path=_safe_log_val(final_p_str), error=_safe_log_val(str(tag_err)))
-
-                        # Create image model and assign tags in the constructor
-                        # This avoids triggering lazy loading (MissingGreenlet) on transient objects.
+                        # Create image model and assign tags
                         db_images.append(Image(
                             filename=final_p.name,
                             local_path=str(final_p.resolve()),
@@ -433,33 +308,10 @@ async def execute_import_item(
         db_set.creators = db_creators
         db_set.images = db_images
         
-        # Resolve and associate character tags to the Set
-        if all_detected_characters:
-            from app.crud.character import get_characters_by_names
-            logger.info("Resolving AI character tags for Set", set_title=_safe_log_val(item.set_title), characters=_safe_log_val(list(all_detected_characters)))
-            db_characters = await get_characters_by_names(db, list(all_detected_characters))
-            db_set.characters = list(db_characters)
-        
-        # 30% dynamic rollup threshold to add frequent tags to the Set
-        if db_images:
-            tag_counts = {}
-            tag_objects = {}
-            for img in db_images:
-                for t in img.tags:
-                    tag_counts[t.name] = tag_counts.get(t.name, 0) + 1
-                    tag_objects[t.name] = t
-            
-            logger.info("Computing Set rollup tags", set_title=_safe_log_val(item.set_title), total_images=len(db_images), tag_frequencies=_safe_log_val({name: f"{count}/{len(db_images)}" for name, count in tag_counts.items()}))
-
-            rollup_tags = []
-            num_images = len(db_images)
-            for tag_name, count in tag_counts.items():
-                freq = float(count) / num_images
-                if freq >= rollup_threshold:
-                    logger.info("Promoting tag to Set level", set_title=_safe_log_val(item.set_title), tag_name=_safe_log_val(tag_name), frequency=f"{freq:.2%}", required=f"{rollup_threshold:.2%}")
-                    rollup_tags.append(tag_objects[tag_name])
-            
-            db_set.tags = rollup_tags
+        # Apply AI character associations and tag rollups
+        await apply_set_tag_rollups(
+            db, db_set, db_images, all_detected_characters, ai_config["rollup_threshold"]
+        )
 
         db.add(db_set)
         
@@ -467,7 +319,7 @@ async def execute_import_item(
         if delete_source_default:
             source_p = Path(item.source_path)
             is_dir = source_p.is_dir()
-            deleted, err = await anyio.to_thread.run_sync(_retry_delete, source_p, is_dir)
+            deleted, err = await retry_delete(source_p, is_dir)
             if not deleted:
                 if is_dir:
                     logger.error("Failed to delete batch source directory after retries due to lock", path=item.source_path, error=err)
@@ -477,7 +329,7 @@ async def execute_import_item(
                 # Clean up empty parent directory if empty
                 parent = source_p.parent
                 try:
-                    if await anyio.to_thread.run_sync(delete_dir_if_empty, parent):
+                    if await delete_dir_if_empty_async(parent):
                         logger.info("Deleted empty source directory", path=str(parent))
                 except Exception as dir_err:
                     logger.error("Failed to delete empty source directory", path=str(parent), error=str(dir_err))
@@ -513,7 +365,6 @@ async def validate_local_paths(db: AsyncSession, local_paths: list[str]) -> Any:
     from app.core.crop import process_image
     import tempfile
     
-    # Load settings for aspect ratios
     h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
     v_ratio_setting = await get_setting(db, "vertical_target_ratio")
     h_label_raw = h_ratio_setting.value if h_ratio_setting else "16/9"
@@ -533,7 +384,6 @@ async def validate_local_paths(db: AsyncSession, local_paths: list[str]) -> Any:
     h_label = h_label_raw.replace("/", "x")
     v_label = v_label_raw.replace("/", "x")
     
-    # Recursively collect all image files if any path is a directory
     all_file_paths = []
     for p_str in local_paths:
         p = Path(p_str)
@@ -558,7 +408,6 @@ async def validate_local_paths(db: AsyncSession, local_paths: list[str]) -> Any:
             continue
             
         try:
-            # Saliency crop to temp file first to get the correct phash matching database cropped images
             phash = None
             with tempfile.NamedTemporaryFile(suffix=p.suffix, delete=False) as tmp:
                 tmp_path = Path(tmp.name)
@@ -575,8 +424,10 @@ async def validate_local_paths(db: AsyncSession, local_paths: list[str]) -> Any:
                 )
                 if ok:
                     final_tmp_path = Path(final_tmp_str)
-                    phash = calculate_phash(final_tmp_path)
-                    final_tmp_path.unlink(missing_ok=True)
+                    try:
+                        phash = calculate_phash(final_tmp_path)
+                    finally:
+                        final_tmp_path.unlink(missing_ok=True)
                 else:
                     phash = calculate_phash(p)
             finally:
@@ -592,7 +443,6 @@ async def validate_local_paths(db: AsyncSession, local_paths: list[str]) -> Any:
                 ))
                 continue
                 
-            # Check DB for duplicate
             stmt = (
                 select(ImageModel)
                 .where(ImageModel.phash == phash)
@@ -694,38 +544,7 @@ async def import_images_background_task(
         v_label = v_label_raw.replace("/", "x")
 
         # Load AI auto-tagging configuration
-        auto_tag_setting = await get_setting(db, "ai_auto_tag_enabled")
-        auto_tag_enabled = auto_tag_setting.value.lower() in ("true", "1", "yes") if auto_tag_setting and auto_tag_setting.value else False
-        model_source_setting = await get_setting(db, "ai_model_source")
-        model_source = model_source_setting.value if model_source_setting and model_source_setting.value else "predefined"
-        model_type_setting = await get_setting(db, "ai_model_type")
-        model_type = model_type_setting.value if model_type_setting and model_type_setting.value else "wd14_onnx"
-        custom_repo_setting = await get_setting(db, "ai_model_custom_repo")
-        custom_repo = custom_repo_setting.value if custom_repo_setting and custom_repo_setting.value else None
-        custom_path_setting = await get_setting(db, "ai_model_custom_path")
-        custom_path = custom_path_setting.value if custom_path_setting and custom_path_setting.value else None
-
-        confidence_setting = await get_setting(db, "ai_confidence_threshold")
-        try:
-            confidence_threshold = float(confidence_setting.value) if confidence_setting and confidence_setting.value else 0.35
-        except (ValueError, TypeError):
-            confidence_threshold = 0.35
-
-        rollup_threshold_setting = await get_setting(db, "ai_rollup_threshold")
-        try:
-            rollup_threshold = float(rollup_threshold_setting.value) if rollup_threshold_setting and rollup_threshold_setting.value else 0.3
-        except (ValueError, TypeError):
-            rollup_threshold = 0.3
-
-        tagger = None
-        if auto_tag_enabled:
-            from app.services.ai_tagging import get_tagger
-            tagger = get_tagger(
-                model_source=model_source,
-                model_type=model_type,
-                custom_repo=custom_repo,
-                custom_path=custom_path
-            )
+        ai_config = await get_ai_tagging_config(db)
 
         # 1. Resolve Creator(s)
         db_creators = []
@@ -878,21 +697,12 @@ async def import_images_background_task(
                     if item_tags:
                         image_tags_set.update(item_tags)
                         
-                    if auto_tag_enabled and tagger:
-                        try:
-                            import asyncio
-                            general_tags, character_tags = await asyncio.to_thread(
-                                tagger.tag_image, 
-                                final_p_str, 
-                                threshold=confidence_threshold
-                            )
-                            if character_tags:
-                                for char_name in character_tags:
-                                    all_detected_characters.add(char_name)
-                            if general_tags:
-                                image_tags_set.update(general_tags)
-                        except Exception as tag_err:
-                            logger.error("Failed to run AI tagging", path=final_p_str, error=str(tag_err))
+                    # Auto tagging via AI service
+                    ai_tags, ai_chars = await tag_image_file(
+                        db, ai_config, final_p_str, all_detected_characters
+                    )
+                    if ai_tags:
+                        image_tags_set.update(t.name for t in ai_tags)
                             
                     image_tag_objects = await get_tags_by_names(db, list(image_tags_set)) if image_tags_set else []
 
@@ -920,7 +730,7 @@ async def import_images_background_task(
                     db_images.append(db_img)
                     
             if delete_source:
-                deleted, err = await anyio.to_thread.run_sync(_retry_delete, p, False)
+                deleted, err = await retry_delete(p, False)
                 if deleted:
                     parent_dirs.add(p.parent)
                 else:
@@ -931,86 +741,15 @@ async def import_images_background_task(
         cleanup_warnings = []
         if delete_source:
             dropped_dirs = set(item["dir_root"] for item in all_import_files if item.get("is_dir_child") and item.get("dir_root"))
-            for d_str in dropped_dirs:
-                try:
-                    d_path = Path(d_str)
-                    if d_path.exists() and d_path.is_dir():
-                        if await anyio.to_thread.run_sync(delete_dir_if_empty, d_path):
-                            logger.info("Deleted empty source directory", path=_safe_log_val(d_str))
-                        else:
-                            cleanup_warnings.append(d_path.name)
-                            logger.info("Source directory not empty, leaving on disk", path=_safe_log_val(d_str))
-                except Exception as dir_err:
-                    logger.error("Failed to delete empty source directory", path=_safe_log_val(d_str), error=str(dir_err))
+            items_paths = [item["local_path"] for item in items if item.get("local_path")]
+            cleanup_warnings = await cleanup_source_directories(
+                dropped_dirs, items_paths, parent_dirs, vault_root
+            )
 
-            for item in items:
-                item_path = Path(item["local_path"])
-                if item_path.exists() and item_path.is_dir():
-                    try:
-                        if await anyio.to_thread.run_sync(delete_dir_if_empty, item_path):
-                            logger.info("Deleted empty source item path", path=_safe_log_val(str(item_path)))
-                        else:
-                            folder_name = item_path.name
-                            if folder_name not in cleanup_warnings:
-                                cleanup_warnings.append(folder_name)
-                                logger.info("Source item path not empty, leaving on disk", path=_safe_log_val(str(item_path)))
-                    except Exception as err:
-                        logger.error("Failed to clean up source item path", path=_safe_log_val(str(item_path)), error=str(err))
-
-            # Also check parent_dirs collected during per-file deletion
-            # Sort parent directories by depth (deepest first) to clean bottom-up
-            sorted_parents = sorted(list(parent_dirs), key=lambda x: len(x.parts), reverse=True)
-            for parent in sorted_parents:
-                try:
-                    if parent.exists() and parent.is_dir():
-                        if await anyio.to_thread.run_sync(delete_dir_if_empty, parent):
-                            logger.info("Deleted empty parent directory", path=_safe_log_val(str(parent)))
-                            
-                            # Recursively check and delete empty ancestor directories up the tree
-                            ancestor = parent.parent
-                            while ancestor and ancestor != ancestor.parent:
-                                if not ancestor.exists() or not ancestor.is_dir():
-                                    break
-                                if len(ancestor.parts) <= 1:
-                                    break
-                                if ancestor == vault_root:
-                                    break
-                                if await anyio.to_thread.run_sync(delete_dir_if_empty, ancestor):
-                                    logger.info("Deleted empty ancestor directory", path=_safe_log_val(str(ancestor)))
-                                    ancestor = ancestor.parent
-                                else:
-                                    break
-                        else:
-                            logger.info("Parent directory not empty, leaving on disk", path=_safe_log_val(str(parent)))
-                except Exception as dir_err:
-                    logger.error("Failed to delete empty parent directory", path=str(parent), error=str(dir_err))
-
-        if all_detected_characters:
-            from app.crud.character import get_characters_by_names
-            db_characters = await get_characters_by_names(db, list(all_detected_characters))
-            
-            existing_chars = set(c.id for c in db_set.characters)
-            for char in db_characters:
-                if char.id not in existing_chars:
-                    db_set.characters.append(char)
-
-        if db_images:
-            tag_counts = {}
-            tag_objects = {}
-            for img in db_images:
-                for t in img.tags:
-                    tag_counts[t.name] = tag_counts.get(t.name, 0) + 1
-                    tag_objects[t.name] = t
-
-            rollup_tags = list(db_set.tags)
-            existing_set_tags = set(t.name for t in rollup_tags)
-            num_images = len(db_images)
-            for tag_name, count in tag_counts.items():
-                freq = float(count) / num_images
-                if freq >= rollup_threshold and tag_name not in existing_set_tags:
-                    rollup_tags.append(tag_objects[tag_name])
-            
-            db_set.tags = rollup_tags
+        # Apply AI character associations and tag rollups
+        await apply_set_tag_rollups(
+            db, db_set, db_images, all_detected_characters, ai_config["rollup_threshold"]
+        )
 
         db.add(db_set)
         await db.commit()
@@ -1030,4 +769,3 @@ async def import_images_background_task(
     finally:
         if created_session:
             await db.close()
-
