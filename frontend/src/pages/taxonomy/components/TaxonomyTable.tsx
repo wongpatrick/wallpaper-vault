@@ -2,7 +2,7 @@
  * @file Generic reusable table component for taxonomy pages.
  */
 /* eslint-disable no-magic-numbers */
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
     Table, Checkbox, Group, Text, TextInput, Button, Pagination, Stack
 } from '@mantine/core';

@@ -9,9 +9,9 @@ import { modals } from '@mantine/modals';
 export interface UseTaxonomyCRUDProps<T extends { id: number; name: string }> {
     items: T[] | undefined;
     sortedItems: T[];
-    deleteEntity: (id: number) => Promise<void>;
-    mergeEntities: (sourceIds: number[], targetId: number) => Promise<void>;
-    bulkDeleteEntities: (ids: number[]) => Promise<void>;
+    deleteEntity: (id: number) => Promise<unknown>;
+    mergeEntities: (sourceIds: number[], targetId: number) => Promise<unknown>;
+    bulkDeleteEntities: (ids: number[]) => Promise<unknown>;
     deleteTitle?: string;
     deleteMessage?: string;
 }

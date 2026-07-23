@@ -24,9 +24,6 @@ export function SetImageGallery({
     selectedImageIds,
     toggleImageSelect,
     onImageClick,
-    onEditImage,
-    onCropImage,
-    onMoveImage,
 }: SetImageGalleryProps) {
     if (!images || images.length === 0) {
         return null;
@@ -39,12 +36,9 @@ export function SetImageGallery({
                     <ImageGridItem 
                         image={image} 
                         selectionMode={selectionMode}
-                        isSelected={selectedImageIds.has(image.id)}
-                        onSelectToggle={() => toggleImageSelect(image.id)}
+                        selected={selectedImageIds.has(image.id)}
+                        onToggleSelect={() => toggleImageSelect(image.id)}
                         onClick={() => onImageClick(index)}
-                        onEdit={() => onEditImage(image)}
-                        onCrop={() => onCropImage(image)}
-                        onMove={() => onMoveImage(image)}
                     />
                 </div>
             ))}

@@ -10,8 +10,13 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { Set as SetModel } from '../../../api/model';
 
+export type SetWithDetails = SetModel & {
+    is_locked?: boolean;
+    franchises?: Array<{ id: number; name: string }>;
+};
+
 interface SetHeaderProps {
-    set: SetModel;
+    set: SetWithDetails;
     selectionMode: boolean;
     setSelectionMode: (mode: boolean) => void;
     selectedImageIds: Set<number>;
@@ -199,7 +204,7 @@ export function SetHeader({
 
             {/* Tags & Characters */}
             <Group gap="xs" wrap="wrap">
-                {set.franchises?.map(f => (
+                {set.franchises?.map((f: { id: number; name: string }) => (
                     <Badge key={f.id} color="teal" variant="light" size="sm">
                         Franchise: {f.name}
                     </Badge>

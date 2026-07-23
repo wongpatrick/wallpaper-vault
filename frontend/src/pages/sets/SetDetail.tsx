@@ -355,9 +355,12 @@ export default function SetDetail() {
             {selectedImageIndex !== null && set.images && (
                 <ImageLightbox 
                     images={set.images}
-                    initialIndex={selectedImageIndex}
+                    selectedIndex={selectedImageIndex}
                     onClose={() => setSelectedImageIndex(null)}
-                    onUpdate={refetch}
+                    onSelectIndex={(idx) => setSelectedImageIndex(idx)}
+                    onEdit={(img) => setEditingImage(img)}
+                    onCrop={(img) => setCroppingImage(img)}
+                    onUpdated={refetch}
                 />
             )}
 
@@ -367,7 +370,7 @@ export default function SetDetail() {
                     image={editingImage}
                     opened={!!editingImage}
                     onClose={() => setEditingImage(null)}
-                    onSuccess={() => {
+                    onUpdated={() => {
                         setEditingImage(null);
                         refetch();
                     }}
@@ -380,7 +383,7 @@ export default function SetDetail() {
                     image={croppingImage}
                     opened={!!croppingImage}
                     onClose={() => setCroppingImage(null)}
-                    onSuccess={() => {
+                    onCropSuccess={() => {
                         setCroppingImage(null);
                         refetch();
                     }}
@@ -389,7 +392,7 @@ export default function SetDetail() {
 
             {/* Move Image Modal */}
             <ImageMoveModal 
-                imageIds={movingSingleImage ? [movingSingleImage.id] : Array.from(selectedImageIds)}
+                selectedImageIds={movingSingleImage ? [movingSingleImage.id] : Array.from(selectedImageIds)}
                 opened={activeModal === 'move' || !!movingSingleImage}
                 onClose={() => {
                     setActiveModal(null);
@@ -404,7 +407,7 @@ export default function SetDetail() {
                 onClose={() => setActiveModal(null)}
                 selectedCount={selectedImageIds.size}
                 onConfirm={handleBulkEditConfirm}
-                isPending={bulkUpdateMutation.isPending}
+                loading={bulkUpdateMutation.isPending}
             />
 
             {/* Add to Playlist Modal */}
@@ -420,12 +423,14 @@ export default function SetDetail() {
 
             {/* Floating Selection Bar */}
             <FloatingSelectionBar 
+                mounted={selectionMode}
                 selectedCount={selectedImageIds.size}
-                onClearSelection={clearSelection}
-                onBulkEdit={() => setActiveModal('bulkEdit')}
-                onMove={() => setActiveModal('move')}
-                onAddToPlaylist={() => setActiveModal('addToPlaylist')}
-            />
+                onClear={clearSelection}
+            >
+                <Button variant="light" size="xs" onClick={() => setActiveModal('bulkEdit')}>Bulk Edit</Button>
+                <Button variant="light" size="xs" onClick={() => setActiveModal('move')}>Move</Button>
+                <Button variant="light" size="xs" onClick={() => setActiveModal('addToPlaylist')}>Add to Playlist</Button>
+            </FloatingSelectionBar>
 
             {/* Edit Set Modal */}
             <Modal 
