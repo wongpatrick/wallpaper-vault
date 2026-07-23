@@ -7,15 +7,10 @@ import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useSelection } from '../../hooks/useSelection';
 import { 
-    Title, Text, Container, Group, Badge, Loader, 
-    Center, Alert, Stack, ActionIcon, Menu, Button, Modal,
-    TextInput, Textarea, Box, Switch, TagsInput
+    Container, Loader, Center, Alert, Button, Modal,
+    TextInput, Textarea, Stack, Group, Switch, TagsInput
 } from '@mantine/core';
-import { 
-    IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
-    IconExternalLink, IconFolder, IconTag, IconLock, IconLockOpen, IconRefresh, IconCheck,
-    IconSettings, IconPhotoEdit, IconArrowRight, IconSparkles, IconPlaylist
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconArrowLeft, IconLock, IconLockOpen } from '@tabler/icons-react';
 import { 
     useReadSetApiSetsSetIdGet, 
     useDeleteSetApiSetsSetIdDelete,
@@ -28,7 +23,6 @@ import { useBulkUpdateImagesApiImagesBulkUpdatePost } from '../../api/generated/
 import { useReadCreatorsApiCreatorsGet, useCreateCreatorApiCreatorsPost } from '../../api/generated/creators/creators';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
-import { ImageGridItem } from '../../components/images/ImageGridItem';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { ImageBulkEditModal } from '../../components/images/ImageBulkEditModal';
@@ -41,13 +35,17 @@ import { AddToPlaylistModal } from '../../components/playlists/AddToPlaylistModa
 import { useTasks } from '../../hooks/useTasks';
 import type { Image as ImageModel, BulkOperationMode, SetUpdate, Set as SetModel } from '../../api/model';
 
+import { SetHeader } from './components/SetHeader';
+import { SetImageGallery } from './components/SetImageGallery';
+
+type ActiveModalState = 'editSet' | 'bulkEdit' | 'move' | 'addToPlaylist' | null;
+
 export default function SetDetail() {
     const { setId } = useParams<{ setId: string }>();
     const navigate = useNavigate();
     const location = useLocation();
 
-    
-    // 1. All hooks at the top
+    // Queries & Mutations
     const { data: set, isLoading, error, refetch } = useReadSetApiSetsSetIdGet(Number(setId));
     const { data: creatorsData } = useReadCreatorsApiCreatorsGet({ limit: 1000 });
     const deleteMutation = useDeleteSetApiSetsSetIdDelete();
@@ -58,10 +56,11 @@ export default function SetDetail() {
     const createCreatorMutation = useCreateCreatorApiCreatorsPost();
 
     const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [activeModal, setActiveModal] = useState<ActiveModalState>(null);
     const [enablePathEdit, setEnablePathEdit] = useState(false);
     const [editingImage, setEditingImage] = useState<ImageModel | null>(null);
     const [croppingImage, setCroppingImage] = useState<ImageModel | null>(null);
+    const [movingSingleImage, setMovingSingleImage] = useState<ImageModel | null>(null);
 
     const { getTaskForSet, tasks } = useTasks();
     const activeTask = getTaskForSet(Number(setId));
@@ -74,10 +73,7 @@ export default function SetDetail() {
 
     // Selection State
     const { selectionMode, setSelectionMode, selectedIds: selectedImageIds, toggle: toggleImageSelect, selectAll, clear: clearSelection } = useSelection();
-    const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
-    const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
-    const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
-    
+
     const [editForm, setEditForm] = useState({
         title: '',
         notes: '',
@@ -91,7 +87,7 @@ export default function SetDetail() {
     const [prevSet, setPrevSet] = useState<SetModel | null>(null);
     if (set && set !== prevSet) {
         setPrevSet(set);
-        if (!isEditModalOpen) {
+        if (activeModal !== 'editSet') {
             setEditForm({
                 title: set.title || '',
                 notes: set.notes || '',
@@ -104,47 +100,8 @@ export default function SetDetail() {
         }
     }
 
-    const isEditFormDirty = useMemo(() => {
-        if (!set) return false;
-        const originalCreators = set.creators?.map(c => c.canonical_name) || [];
-        const originalTags = Array.from(new Set(set.tags || []));
-        const originalCharacters = Array.from(new Set(set.characters || []));
-        
-        const arraysEqual = (a: string[], b: string[]) => {
-            if (a.length !== b.length) return false;
-            const sortedA = [...a].sort();
-            const sortedB = [...b].sort();
-            return sortedA.every((val, idx) => val === sortedB[idx]);
-        };
-
-        return (
-            editForm.title !== (set.title || '') ||
-            editForm.notes !== (set.notes || '') ||
-            editForm.source_url !== (set.source_url || '') ||
-            editForm.local_path !== (set.local_path || '') ||
-            !arraysEqual(editForm.creator_names, originalCreators) ||
-            !arraysEqual(editForm.tags, originalTags) ||
-            !arraysEqual(editForm.characters, originalCharacters)
-        );
-    }, [editForm, set]);
-
-    const resetEditForm = () => {
-        if (set) {
-            setEditForm({
-                title: set.title || '',
-                notes: set.notes || '',
-                source_url: set.source_url || '',
-                local_path: set.local_path || '',
-                creator_names: set.creators?.map(c => c.canonical_name) || [],
-                tags: Array.from(new Set(set.tags || [])),
-                characters: Array.from(new Set(set.characters || []))
-            });
-        }
-    };
-
     const taskStatus = activeTask?.status;
 
-    // Trigger metadata sync and refetch when the auto-tagging task finishes successfully
     useEffect(() => {
         if (taskStatus === 'completed') {
             refetch().then((result) => {
@@ -168,7 +125,6 @@ export default function SetDetail() {
         return Array.from(uniqueNames).sort((a, b) => a.localeCompare(b));
     }, [creatorsData]);
 
-    // 2. Early returns
     if (isLoading) {
         return <Center h={400}><Loader size="xl" /></Center>;
     }
@@ -197,7 +153,6 @@ export default function SetDetail() {
         );
     }
 
-    // 3. Handlers
     const handleUpdate = async () => {
         try {
             const { local_path, creator_names, ...otherFields } = editForm;
@@ -238,7 +193,7 @@ export default function SetDetail() {
                 data: updateData
             });
             notifications.show({ title: 'Success', message: 'Set metadata updated', color: 'green' });
-            setIsEditModalOpen(false);
+            setActiveModal(null);
             setEnablePathEdit(false);
             refetch();
         } catch {
@@ -251,9 +206,9 @@ export default function SetDetail() {
             title: 'Delete Set',
             centered: true,
             children: (
-                <Text size="sm">
+                <Alert color="red" title="Warning">
                     Are you sure you want to delete the set <b>"{set?.title}"</b> ({set?.images?.length || 0} images)? This will permanently remove all images in this set from your computer. This action cannot be undone.
-                </Text>
+                </Alert>
             ),
             labels: { confirm: 'Delete permanently', cancel: 'Cancel' },
             confirmProps: { color: 'red' },
@@ -323,8 +278,6 @@ export default function SetDetail() {
         }
     };
 
-
-
     const handleSelectAll = () => {
         if (!set?.images) return;
         selectAll(set.images.map(img => img.id));
@@ -344,7 +297,7 @@ export default function SetDetail() {
                 message: `Successfully updated ${selectedImageIds.size} images.`,
                 color: 'green',
             });
-            setIsBulkEditOpen(false);
+            setActiveModal(null);
             clearSelection();
             refetch();
         } catch (err) {
@@ -359,429 +312,105 @@ export default function SetDetail() {
 
     const handleMoveSuccess = () => {
         clearSelection();
+        setMovingSingleImage(null);
+        setActiveModal(null);
         refetch();
     };
 
-
-
     return (
         <Container fluid px="xl" pb={selectionMode ? 100 : "xl"} pos="relative">
-            {/* Header Navigation */}
-            <Group justify="space-between" mb="lg">
-                <Button 
-                    variant="subtle" 
-                    leftSection={<IconArrowLeft size={16} />} 
-                    onClick={() => {
-                        if (location.state?.from) {
-                            navigate(-1);
-                        } else {
-                            navigate('/sets');
-                        }
-                    }} 
-                    color="gray"
-                >
-                    Back to {location.state?.fromLabel || "Library"}
-                </Button>
-
-                <Group gap="xs">
-                    {selectionMode && (
-                        <Button 
-                            variant="subtle" 
-                            size="sm" 
-                            onClick={handleSelectAll}
-                            disabled={selectedImageIds.size === (set.images?.length || 0)}
-                        >
-                            Select All
-                        </Button>
-                    )}
-                    <Button 
-                        variant={selectionMode ? "filled" : "light"} 
-                        color={selectionMode ? "blue" : "gray"}
-                        leftSection={selectionMode ? <IconCheck size={16} /> : null}
-                        onClick={() => selectionMode ? clearSelection() : setSelectionMode(true)}
-                    >
-                        {selectionMode ? "Finish Selecting" : "Select Items"}
-                    </Button>
-                </Group>
-            </Group>
-
-            {/* Hero Section */}
-            <Stack gap="md" mb="xl">
-                {/* Title & Actions Row */}
-                <Group justify="space-between" align="center">
-                    <Title order={1}>{set.title || 'Untitled Set'}</Title>
-                    <Group>
-                        <Button 
-                            leftSection={<IconRefresh size={18} />} 
-                            variant="light"
-                            color="blue"
-                            onClick={handleResync}
-                            loading={resyncMutation.isPending}
-                            disabled={autoTagMutation.isPending || isLocalTaggingActive}
-                        >
-                            Resync Folder
-                        </Button>
-                        <Button 
-                            leftSection={<IconFolder size={18} />} 
-                            variant="light"
-                            onClick={handleOpenFolder}
-                        >
-                            Open Folder
-                        </Button>
-                        <Button 
-                            leftSection={<IconSettings size={18} />} 
-                            variant="outline"
-                            onClick={() => setIsEditModalOpen(true)}
-                            disabled={autoTagMutation.isPending || isLocalTaggingActive}
-                        >
-                            Edit Set Details
-                        </Button>
-                        <Menu shadow="md" width={200} position="bottom-end">
-                            <Menu.Target>
-                                <ActionIcon variant="outline" size="lg" radius="md">
-                                    <IconDotsVertical size={18} />
-                                </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                <Menu.Label>Management</Menu.Label>
-                                <Menu.Item 
-                                    leftSection={<IconSparkles size={14} />} 
-                                    onClick={handleAutoTag}
-                                    disabled={autoTagMutation.isPending || isAnyTaggingActive}
-                                >
-                                    Run AI Auto-Tagging
-                                </Menu.Item>
-                                {set.source_url && (
-                                    <Menu.Item 
-                                        component="a" 
-                                        href={set.source_url} 
-                                        target="_blank" 
-                                        leftSection={<IconExternalLink size={14} />}
-                                    >
-                                        Source URL
-                                    </Menu.Item>
-                                )}
-                                 <Menu.Item 
-                                    leftSection={<IconTrash size={14} />} 
-                                    color="red" 
-                                    onClick={handleDelete}
-                                    disabled={autoTagMutation.isPending || isLocalTaggingActive}
-                                >
-                                    Delete Set
-                                </Menu.Item>
-                            </Menu.Dropdown>
-                        </Menu>
-                    </Group>
-                </Group>
-
-                {/* Subtitle Details */}
-                <Group gap="xs">
-                    {set.creators && set.creators.length > 0 ? (
-                        set.creators.map(c => (
-                            <Badge 
-                                key={c.id} 
-                                size="lg" 
-                                variant="light" 
-                                color="indigo" 
-                                style={{ cursor: 'pointer', textTransform: 'none' }}
-                                onClick={() => navigate(`/creators/${c.id}`, {
-                                    state: {
-                                        from: location.pathname,
-                                        fromLabel: 'Sets'
-                                    }
-                                })}
-                            >
-                                {c.canonical_name}
-                            </Badge>
-                        ))
-                    ) : (
-                        <Text size="lg" c="dimmed">Unknown Creator</Text>
-                    )}
-                    <Text c="dimmed" size="lg">•</Text>
-                    <Badge size="lg" variant="dot">{set.images?.length || 0} Images</Badge>
-                    <Badge size="lg" variant="outline" color="gray">{set.date_added}</Badge>
-                </Group>
-
-                {/* Notes */}
-                {set.notes && (
-                    <Text fs="italic" c="dimmed" style={{ maxWidth: 800 }}>"{set.notes}"</Text>
-                )}
-                
-                {/* Metadata Badges */}
-                {((set.tags && set.tags.length > 0) || 
-                  (set.characters && set.characters.length > 0)) && (
-                    <Group gap="xs" mt="xs">
-                        {set.tags && set.tags.map(tag => (
-                            <Badge 
-                                key={tag} 
-                                variant="light" 
-                                color="gray" 
-                                leftSection={<IconTag size={12} />}
-                                style={{ cursor: 'pointer', textTransform: 'none' }}
-                                onClick={() => navigate(`/images?tag=${encodeURIComponent(tag)}`)}
-                            >
-                                {tag}
-                            </Badge>
-                        ))}
-                        {set.characters && set.characters.map(char => {
-                            const hasFranchise = char.includes(' (');
-                            const rawName = hasFranchise ? char.split(' (')[0] : char;
-                            const franchiseName = hasFranchise ? char.split(' (')[1].slice(0, -1) : null;
-                            
-                            if (franchiseName) {
-                                return (
-                                    <Group key={char} gap={0} style={{ display: 'inline-flex', verticalAlign: 'middle', borderRadius: '4px', overflow: 'hidden' }}>
-                                        <Badge 
-                                            variant="light" 
-                                            color="blue"
-                                            style={{ cursor: 'pointer', textTransform: 'none', borderTopRightRadius: 0, borderBottomRightRadius: 0, paddingRight: 6 }}
-                                            onClick={() => navigate(`/images?character=${encodeURIComponent(rawName)}`)}
-                                        >
-                                            {rawName}
-                                        </Badge>
-                                        <Badge 
-                                            variant="light" 
-                                            color="orange"
-                                            style={{ cursor: 'pointer', textTransform: 'none', borderTopLeftRadius: 0, borderBottomLeftRadius: 0, paddingLeft: 6 }}
-                                            onClick={() => navigate(`/images?franchise=${encodeURIComponent(franchiseName)}`)}
-                                        >
-                                            {franchiseName}
-                                        </Badge>
-                                    </Group>
-                                );
-                            }
-
-                            return (
-                                <Badge 
-                                    key={char} 
-                                    variant="light" 
-                                    color="blue"
-                                    style={{ cursor: 'pointer', textTransform: 'none' }}
-                                    onClick={() => navigate(`/images?character=${encodeURIComponent(rawName)}`)}
-                                >
-                                    {char}
-                                </Badge>
-                            );
-                        })}
-                    </Group>
-                )}
-            </Stack>
-
-            {/* Image Gallery (Masonry Layout) */}
-            <Box style={{ 
-                columnCount: 4, 
-                columnGap: '16px',
-            }} className="masonry-grid">
-                {set.images?.map((img, index) => (
-                    <ImageGridItem 
-                        key={img.id} 
-                        image={img} 
-                        onClick={() => setSelectedImageIndex(index)}
-                        selectionMode={selectionMode}
-                        selected={selectedImageIds.has(img.id)}
-                        onToggleSelect={() => toggleImageSelect(img.id)}
-                    />
-                ))}
-            </Box>
-
-            {/* Floating Bulk Action Bar */}
-            <FloatingSelectionBar
-                mounted={selectionMode && selectedImageIds.size > 0}
-                selectedCount={selectedImageIds.size}
-                onClear={clearSelection}
-                itemLabel="images"
-                minWidth={300}
-            >
-                <Button
-                    size="xs"
-                    variant="light"
-                    color="violet"
-                    leftSection={<IconPlaylist size={14} />}
-                    radius="xl"
-                    onClick={() => setIsAddToPlaylistOpen(true)}
-                    disabled={autoTagMutation.isPending || isLocalTaggingActive}
-                >
-                    Add to Playlist
-                </Button>
-                <Button
-                    size="xs"
-                    variant="light"
-                    leftSection={<IconArrowRight size={14} />}
-                    radius="xl"
-                    onClick={() => setIsMoveModalOpen(true)}
-                    disabled={autoTagMutation.isPending || isLocalTaggingActive}
-                >
-                    Move to Set
-                </Button>
-                <Button
-                    size="xs"
-                    variant="filled"
-                    leftSection={<IconPhotoEdit size={14} />}
-                    radius="xl"
-                    onClick={() => setIsBulkEditOpen(true)}
-                    disabled={autoTagMutation.isPending || isLocalTaggingActive}
-                >
-                    Bulk Edit
-                </Button>
-            </FloatingSelectionBar>
-
-            {/* ImageLightbox Modal */}
-            <ImageLightbox 
-                images={set.images || []}
-                selectedIndex={selectedImageIndex}
-                onClose={() => setSelectedImageIndex(null)}
-                onSelectIndex={setSelectedImageIndex}
-                onEdit={(img) => setEditingImage(img)}
-                onDelete={() => refetch()}
-                onUpdated={() => refetch()}
-                disableActions={autoTagMutation.isPending || isLocalTaggingActive}
-                onCrop={(img) => setCroppingImage(img)}
+            <SetHeader 
+                set={set}
+                selectionMode={selectionMode}
+                setSelectionMode={setSelectionMode}
+                selectedImageIds={selectedImageIds}
+                clearSelection={clearSelection}
+                handleSelectAll={handleSelectAll}
+                handleResync={handleResync}
+                handleOpenFolder={handleOpenFolder}
+                onOpenEditModal={() => setActiveModal('editSet')}
+                handleAutoTag={handleAutoTag}
+                handleDelete={handleDelete}
+                resyncPending={resyncMutation.isPending}
+                autoTagPending={autoTagMutation.isPending}
+                isLocalTaggingActive={isLocalTaggingActive}
+                isAnyTaggingActive={isAnyTaggingActive}
             />
 
-            {/* Set Edit Modal */}
-            <Modal 
-                opened={isEditModalOpen} 
-                onClose={() => {
-                    if (isEditFormDirty) {
-                        modals.openConfirmModal({
-                            title: 'Unsaved Changes',
-                            centered: true,
-                            children: (
-                                <Text size="sm">
-                                    You have unsaved changes. Do you want to discard them?
-                                </Text>
-                            ),
-                            labels: { confirm: 'Discard Changes', cancel: 'Keep Editing' },
-                            confirmProps: { color: 'red' },
-                            onConfirm: () => {
-                                setIsEditModalOpen(false);
-                                setEnablePathEdit(false);
-                                resetEditForm();
-                            }
-                        });
-                    } else {
-                        setIsEditModalOpen(false);
-                        setEnablePathEdit(false);
-                    }
-                }} 
-                title="Edit Set Metadata"
-                size="lg"
-                radius="md"
-            >
-                <Stack gap="md">
-                    <TextInput 
-                        label="Set Title" 
-                        value={editForm.title} 
-                        onChange={(e) => setEditForm({ ...editForm, title: e.currentTarget.value })}
-                    />
-                    <TagsInput
-                        label="Artists / Creators"
-                        placeholder="Type to create new or select existing"
-                        data={creatorOptions}
-                        value={editForm.creator_names}
-                        onChange={(names) => setEditForm({ ...editForm, creator_names: names })}
-                        clearable
-                    />
-                    <TagAutocompleteInput 
-                        label="Tags"
-                        placeholder="Add tags..."
-                        value={editForm.tags}
-                        onChange={(tags) => setEditForm({ ...editForm, tags })}
-                    />
-                    <CharacterTagsInput 
-                        label="Characters"
-                        placeholder="Add characters..."
-                        value={editForm.characters}
-                        onChange={(characters) => setEditForm({ ...editForm, characters })}
-                    />
-                    <TextInput 
-                        label="Source URL" 
-                        value={editForm.source_url} 
-                        onChange={(e) => setEditForm({ ...editForm, source_url: e.currentTarget.value })}
-                    />
-                    <Textarea 
-                        label="Notes"
-                        placeholder="Personal notes about this set..."
-                        value={editForm.notes}
-                        onChange={(e) => setEditForm({ ...editForm, notes: e.currentTarget.value })}
-                        minRows={3}
-                    />
-
-                    <Box mt="md" p="md" style={{ border: '1px red dashed', borderRadius: '8px' }}>
-                        <Group justify="space-between" mb="xs">
-                            <Text size="sm" fw={700} c="red">Danger Zone: Folder Path</Text>
-                            <Switch 
-                                checked={enablePathEdit} 
-                                onChange={(e) => setEnablePathEdit(e.currentTarget.checked)}
-                                color="red"
-                                size="sm"
-                                label="Enable manual path correction"
-                            />
-                        </Group>
-                        <Text size="xs" c="dimmed" mb="sm">
-                            Only edit this if the database mapping is incorrect (e.g. you moved the folder manually). 
-                            The backend automatically renames folders to match Title/Artist updates.
-                        </Text>
-                        <TextInput 
-                            placeholder="C:\Paths\To\Your\Set"
-                            value={editForm.local_path}
-                            onChange={(e) => setEditForm({ ...editForm, local_path: e.currentTarget.value })}
-                            disabled={!enablePathEdit}
-                            leftSection={enablePathEdit ? <IconLockOpen size={14} /> : <IconLock size={14} />}
-                        />
-                    </Box>
-
-                    <Button 
-                        fullWidth 
-                        onClick={handleUpdate} 
-                        mt="md"
-                        loading={updateMutation.isPending || createCreatorMutation.isPending}
-                    >
-                        Save Changes
-                    </Button>
-                </Stack>
-            </Modal>
-
-            {/* Image Edit Modal */}
-            <ImageEditModal 
-                image={editingImage}
-                opened={!!editingImage}
-                onClose={() => setEditingImage(null)}
-                onUpdated={() => refetch()}
+            <SetImageGallery 
+                images={set.images}
+                selectionMode={selectionMode}
+                selectedImageIds={selectedImageIds}
+                toggleImageSelect={toggleImageSelect}
+                onImageClick={(index) => setSelectedImageIndex(index)}
+                onEditImage={(img) => setEditingImage(img)}
+                onCropImage={(img) => setCroppingImage(img)}
+                onMoveImage={(img) => {
+                    setMovingSingleImage(img);
+                    setActiveModal('move');
+                }}
             />
 
-            {/* Image Bulk Edit Modal */}
-            <ImageBulkEditModal 
-                opened={isBulkEditOpen}
-                onClose={() => setIsBulkEditOpen(false)}
-                onConfirm={handleBulkEditConfirm}
-                loading={bulkUpdateMutation.isPending}
-                selectedCount={selectedImageIds.size}
-            />
-
-            {/* Image Move Modal */}
-            <ImageMoveModal 
-                opened={isMoveModalOpen}
-                onClose={() => setIsMoveModalOpen(false)}
-                selectedImageIds={Array.from(selectedImageIds)}
-                onSuccess={handleMoveSuccess}
-            />
-
-            {/* Image Crop Modal */}
-            {croppingImage && (
-                <ImageCropModal 
-                    key={croppingImage.id}
-                    image={croppingImage}
-                    opened={!!croppingImage}
-                    onClose={() => setCroppingImage(null)}
-                    onCropSuccess={() => refetch()}
+            {/* Lightbox for full size preview */}
+            {selectedImageIndex !== null && set.images && (
+                <ImageLightbox 
+                    images={set.images}
+                    initialIndex={selectedImageIndex}
+                    onClose={() => setSelectedImageIndex(null)}
+                    onUpdate={refetch}
                 />
             )}
 
+            {/* Edit Image Modal */}
+            {editingImage && (
+                <ImageEditModal 
+                    image={editingImage}
+                    opened={!!editingImage}
+                    onClose={() => setEditingImage(null)}
+                    onSuccess={() => {
+                        setEditingImage(null);
+                        refetch();
+                    }}
+                />
+            )}
+
+            {/* Crop Image Modal */}
+            {croppingImage && (
+                <ImageCropModal 
+                    image={croppingImage}
+                    opened={!!croppingImage}
+                    onClose={() => setCroppingImage(null)}
+                    onSuccess={() => {
+                        setCroppingImage(null);
+                        refetch();
+                    }}
+                />
+            )}
+
+            {/* Move Image Modal */}
+            <ImageMoveModal 
+                imageIds={movingSingleImage ? [movingSingleImage.id] : Array.from(selectedImageIds)}
+                opened={activeModal === 'move' || !!movingSingleImage}
+                onClose={() => {
+                    setActiveModal(null);
+                    setMovingSingleImage(null);
+                }}
+                onSuccess={handleMoveSuccess}
+            />
+
+            {/* Bulk Edit Modal */}
+            <ImageBulkEditModal 
+                opened={activeModal === 'bulkEdit'}
+                onClose={() => setActiveModal(null)}
+                selectedCount={selectedImageIds.size}
+                onConfirm={handleBulkEditConfirm}
+                isPending={bulkUpdateMutation.isPending}
+            />
+
             {/* Add to Playlist Modal */}
             <AddToPlaylistModal 
-                opened={isAddToPlaylistOpen}
-                onClose={() => setIsAddToPlaylistOpen(false)}
+                opened={activeModal === 'addToPlaylist'}
+                onClose={() => setActiveModal(null)}
                 imageIds={Array.from(selectedImageIds)}
                 onSuccess={() => {
                     clearSelection();
@@ -789,21 +418,93 @@ export default function SetDetail() {
                 }}
             />
 
-            <style dangerouslySetInnerHTML={{ __html: `
-                @media (max-width: 1200px) { .masonry-grid { column-count: 3 !important; } }
-                @media (max-width: 900px) { .masonry-grid { column-count: 2 !important; } }
-                @media (max-width: 600px) { .masonry-grid { column-count: 1 !important; } }
+            {/* Floating Selection Bar */}
+            <FloatingSelectionBar 
+                selectedCount={selectedImageIds.size}
+                onClearSelection={clearSelection}
+                onBulkEdit={() => setActiveModal('bulkEdit')}
+                onMove={() => setActiveModal('move')}
+                onAddToPlaylist={() => setActiveModal('addToPlaylist')}
+            />
 
-                .image-card:hover .image-overlay {
-                    opacity: 1 !important;
-                }
-                .image-card img {
-                    transition: transform 0.3s ease;
-                }
-                .image-card:hover img {
-                    transform: scale(1.05);
-                }
-            `}} />
+            {/* Edit Set Modal */}
+            <Modal 
+                opened={activeModal === 'editSet'} 
+                onClose={() => setActiveModal(null)} 
+                title="Edit Set Details"
+                size="lg"
+            >
+                <Stack gap="md">
+                    <TextInput 
+                        label="Set Title" 
+                        value={editForm.title} 
+                        onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                        required
+                    />
+                    
+                    <TagsInput 
+                        label="Creators / Authors"
+                        placeholder="Type creator name and press Enter"
+                        data={creatorOptions}
+                        value={editForm.creator_names}
+                        onChange={(val) => setEditForm({ ...editForm, creator_names: val })}
+                        description="Add one or more creators who produced this wallpaper set."
+                    />
+
+                    <TextInput 
+                        label="Source URL" 
+                        placeholder="https://..."
+                        value={editForm.source_url} 
+                        onChange={(e) => setEditForm({ ...editForm, source_url: e.target.value })}
+                    />
+
+                    <Textarea 
+                        label="Notes" 
+                        placeholder="Additional notes about this set..."
+                        value={editForm.notes} 
+                        onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                        rows={3}
+                    />
+
+                    <CharacterTagsInput 
+                        value={editForm.characters}
+                        onChange={(val) => setEditForm({ ...editForm, characters: val })}
+                    />
+
+                    <TagAutocompleteInput 
+                        label="Tags"
+                        value={editForm.tags}
+                        onChange={(val) => setEditForm({ ...editForm, tags: val })}
+                    />
+
+                    <Switch 
+                        label="Enable local folder path editing" 
+                        checked={enablePathEdit} 
+                        onChange={(e) => setEnablePathEdit(e.currentTarget.checked)} 
+                        thumbIcon={
+                            enablePathEdit ? (
+                                <IconLockOpen size="0.8rem" color="var(--mantine-color-blue-6)" />
+                            ) : (
+                                <IconLock size="0.8rem" color="var(--mantine-color-gray-6)" />
+                            )
+                        }
+                    />
+
+                    {enablePathEdit && (
+                        <TextInput 
+                            label="Local Path" 
+                            value={editForm.local_path} 
+                            onChange={(e) => setEditForm({ ...editForm, local_path: e.target.value })}
+                            description="Warning: Changing local path without moving the actual folder on disk might cause missing files."
+                        />
+                    )}
+
+                    <Group justify="flex-end" mt="md">
+                        <Button variant="outline" onClick={() => setActiveModal(null)}>Cancel</Button>
+                        <Button onClick={handleUpdate} loading={updateMutation.isPending}>Save Changes</Button>
+                    </Group>
+                </Stack>
+            </Modal>
         </Container>
     );
 }
