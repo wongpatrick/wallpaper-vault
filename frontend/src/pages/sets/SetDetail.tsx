@@ -1,5 +1,5 @@
 /**
- * @file
+ * @file SetDetail page component for displaying and managing set images and metadata.
  * Module: Set Detail Page
  * Description: Displays detailed information and a gallery view for a specific wallpaper set, supporting selection, bulk editing, and syncing.
  */
