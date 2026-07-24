@@ -93,8 +93,10 @@ export function useTaxonomyCRUD<T extends { id: number; name: string }>({
         });
     };
 
-    const isAllSelected = sortedItems.length > 0 && selectedIds.size === sortedItems.length;
-    const isIndeterminate = selectedIds.size > 0 && selectedIds.size < sortedItems.length;
+    const isAllSelected = sortedItems.length > 0 && sortedItems.every(item => selectedIds.has(item.id));
+    const selectedCountInCurrentView = sortedItems.filter(item => selectedIds.has(item.id)).length;
+    const isIndeterminate = selectedCountInCurrentView > 0 && !isAllSelected;
+
 
     return {
         selectedIds,

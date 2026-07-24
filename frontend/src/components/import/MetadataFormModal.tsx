@@ -325,8 +325,8 @@ export function MetadataFormModal({
                                     <Table.Tr>
                                         <Table.Th style={{ width: 40 }}>
                                             <Checkbox
-                                                checked={validation.queue.length > 0 && validation.queue.every(i => i.selected || !i.is_valid)}
-                                                indeterminate={validation.queue.some(i => i.selected) && !validation.queue.every(i => i.selected)}
+                                                checked={validation.queue.some(i => i.is_valid) && validation.queue.filter(i => i.is_valid).every(i => i.selected)}
+                                                indeterminate={validation.queue.some(i => i.selected) && !validation.queue.filter(i => i.is_valid).every(i => i.selected)}
                                                 onChange={(evt) => {
                                                     const val = evt.currentTarget.checked;
                                                     validation.setQueue(prev => prev.map(item => ({

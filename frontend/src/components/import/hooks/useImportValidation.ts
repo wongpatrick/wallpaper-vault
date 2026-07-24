@@ -1,7 +1,7 @@
 /**
  * @file Import validation and scanning custom hook.
  */
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { notifications } from '@mantine/notifications';
 import { 
     useValidateImportPathsApiImagesImportValidatePost, 
@@ -81,15 +81,19 @@ export function useImportValidation({
         });
     };
 
+    const queueRef = useRef<QueueItem[]>(queue);
+    queueRef.current = queue;
+
     useEffect(() => {
-        return () => {
-            queue.forEach(item => {
+        if (!opened) {
+            queueRef.current.forEach(item => {
                 if (item.objectUrl) {
                     URL.revokeObjectURL(item.objectUrl);
                 }
             });
-        };
-    }, [queue]);
+        }
+    }, [opened]);
+
 
     useEffect(() => {
         if (!opened) return;
