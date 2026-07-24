@@ -13,9 +13,6 @@ interface SetImageGalleryProps {
     selectedImageIds: Set<number>;
     toggleImageSelect: (id: number) => void;
     onImageClick: (index: number) => void;
-    onEditImage: (image: ImageModel) => void;
-    onCropImage: (image: ImageModel) => void;
-    onMoveImage: (image: ImageModel) => void;
 }
 
 export function SetImageGallery({

@@ -343,12 +343,6 @@ export default function SetDetail() {
                 selectedImageIds={selectedImageIds}
                 toggleImageSelect={toggleImageSelect}
                 onImageClick={(index) => setSelectedImageIndex(index)}
-                onEditImage={(img) => setEditingImage(img)}
-                onCropImage={(img) => setCroppingImage(img)}
-                onMoveImage={(img) => {
-                    setMovingSingleImage(img);
-                    setActiveModal('move');
-                }}
             />
 
             {/* Lightbox for full size preview */}
