@@ -19,6 +19,10 @@ from app.crud import set as crud_set
 from app.crud.creator import get_creator_by_name, create_creator
 from app.schemas.creator import CreatorCreate
 
+from app.core.log_utils import safe_log_val as _safe_log_val
+from app.core.ai_config import load_ai_tagging_config
+from app.core.aspect_ratio import get_aspect_ratio_labels
+
 logger = structlog.get_logger(__name__)
 
 def sanitize_folder_name(name: str) -> str:
@@ -151,10 +155,7 @@ async def create_set(db: AsyncSession, set_in: SetCreate) -> Set:
     from app.services.audit_service import calculate_phash, calculate_dominant_color
     
     # ... process image sizes ...
-    h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
-    v_ratio_setting = await get_setting(db, "vertical_target_ratio")
-    h_label = h_ratio_setting.value.replace("/", "x") if h_ratio_setting and h_ratio_setting.value else "16x9"
-    v_label = v_ratio_setting.value.replace("/", "x") if v_ratio_setting and v_ratio_setting.value else "9x16"
+    h_label, v_label = await get_aspect_ratio_labels(db)
     
     if set_in.images:
         for image_in in set_in.images:
@@ -340,7 +341,6 @@ async def merge_sets(db: AsyncSession, source_ids: list[int], target_id: int) ->
 
 async def import_set(db: AsyncSession, set_in: SetImport) -> Set:
     from app.services.import_service import load_image
-    from app.crud.settings import get_setting
     from app.services.audit_service import calculate_phash
     from app.core.enums import ImageRating
 
@@ -376,10 +376,7 @@ async def import_set(db: AsyncSession, set_in: SetImport) -> Set:
                 db_set.creators.append(c)
 
     if set_in.images:
-        h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
-        v_ratio_setting = await get_setting(db, "vertical_target_ratio")
-        h_label = h_ratio_setting.value.replace("/", "x") if h_ratio_setting and h_ratio_setting.value else "16x9"
-        v_label = v_ratio_setting.value.replace("/", "x") if v_ratio_setting and v_ratio_setting.value else "9x16"
+        h_label, v_label = await get_aspect_ratio_labels(db)
         
         new_images = []
         for image_in in set_in.images:
@@ -434,7 +431,7 @@ async def bulk_update_sets(db: AsyncSession, bulk_in: SetBulkUpdate) -> int:
     )
     db_sets = result.scalars().all()
     for db_set in db_sets:
-        await rename_set_folder_if_needed(db_set)
+        await rename_set_folder_if_needed(db, db_set)
         db.add(db_set)
     await db.commit()
     return count
@@ -476,7 +473,6 @@ def check_and_clear_stale_thumbnails(images: list[dict], thumbs_dir: Path) -> No
 async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     from app.services.audit_service import calculate_phash, calculate_dominant_color
     from app.services.import_service import load_image
-    from app.crud.settings import get_setting
     from app.core.enums import ImageRating
     import anyio
     
@@ -538,10 +534,7 @@ async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
         untracked_paths = [p for p in untracked_paths if p not in globally_tracked]
 
     default_rating = ImageRating.QUESTIONABLE
-    h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
-    v_ratio_setting = await get_setting(db, "vertical_target_ratio")
-    h_label = h_ratio_setting.value.replace("/", "x") if h_ratio_setting and h_ratio_setting.value else "16x9"
-    v_label = v_ratio_setting.value.replace("/", "x") if v_ratio_setting and v_ratio_setting.value else "9x16"
+    h_label, v_label = await get_aspect_ratio_labels(db)
 
     for path_str in untracked_paths:
         p = anyio.Path(path_str)
@@ -583,15 +576,7 @@ async def resync_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     return await crud_set.get_set(db, set_id)
 
 
-def _safe_log_val(val):
-    """Recursively convert strings to ASCII backslash-replaced representation to prevent UnicodeEncodeError in console."""
-    if isinstance(val, str):
-        return val.encode('ascii', 'backslashreplace').decode('ascii')
-    elif isinstance(val, list):
-        return [_safe_log_val(x) for x in val]
-    elif isinstance(val, dict):
-        return {_safe_log_val(k): _safe_log_val(v) for k, v in val.items()}
-    return val
+
 
 
 async def auto_tag_set(db: AsyncSession, set_id: int, task_id: Optional[str] = None) -> Optional[Set]:
@@ -604,7 +589,6 @@ async def auto_tag_set(db: AsyncSession, set_id: int, task_id: Optional[str] = N
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
     from app.models.image import Image as ImageModel
-    from app.crud.settings import get_setting
     from app.services.ai_tagging import get_tagger
     from app.core import tasks
     from app.core.enums import TaskStatus
@@ -629,29 +613,13 @@ async def auto_tag_set(db: AsyncSession, set_id: int, task_id: Optional[str] = N
 
     try:
         # 2. Load settings (ignoring global enabled switch since manually triggered)
-        model_source_setting = await get_setting(db, "ai_model_source")
-        model_source = model_source_setting.value if model_source_setting and model_source_setting.value else "predefined"
-
-        model_type_setting = await get_setting(db, "ai_model_type")
-        model_type = model_type_setting.value if model_type_setting and model_type_setting.value else "wd14_onnx"
-
-        custom_repo_setting = await get_setting(db, "ai_model_custom_repo")
-        custom_repo = custom_repo_setting.value if custom_repo_setting and custom_repo_setting.value else None
-
-        custom_path_setting = await get_setting(db, "ai_model_custom_path")
-        custom_path = custom_path_setting.value if custom_path_setting and custom_path_setting.value else None
-
-        confidence_setting = await get_setting(db, "ai_confidence_threshold")
-        try:
-            confidence_threshold = float(confidence_setting.value) if confidence_setting and confidence_setting.value else 0.35
-        except (ValueError, TypeError):
-            confidence_threshold = 0.35
-
-        rollup_threshold_setting = await get_setting(db, "ai_rollup_threshold")
-        try:
-            rollup_threshold = float(rollup_threshold_setting.value) if rollup_threshold_setting and rollup_threshold_setting.value else 0.3
-        except (ValueError, TypeError):
-            rollup_threshold = 0.3
+        ai_cfg = await load_ai_tagging_config(db, init_tagger=False)
+        model_source = ai_cfg.model_source
+        model_type = ai_cfg.model_type
+        custom_repo = ai_cfg.custom_repo
+        custom_path = ai_cfg.custom_path
+        confidence_threshold = ai_cfg.confidence_threshold
+        rollup_threshold = ai_cfg.rollup_threshold
 
         logger.info("Executing manual Set auto-tagging", 
                     set_id=set_id,

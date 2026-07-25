@@ -18,10 +18,9 @@ from app.models.set import Set
 from app.core.crop import collect_image_paths, process_image, load_image, compute_focal_point
 from app.core.utils import sanitize_filename
 
-# Re-export extracted file system utilities for backward compatibility
+from app.core.aspect_ratio import get_aspect_ratio_labels, parse_ratio
+from app.core.log_utils import safe_log_val, safe_log_val as _safe_log_val
 from app.services.file_service import (
-    safe_log_val as _safe_log_val,
-    safe_log_val,
     retry_delete_sync as _retry_delete,
     retry_delete_sync,
     retry_delete,
@@ -365,24 +364,9 @@ async def validate_local_paths(db: AsyncSession, local_paths: list[str]) -> Any:
     from app.core.crop import process_image
     import tempfile
     
-    h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
-    v_ratio_setting = await get_setting(db, "vertical_target_ratio")
-    h_label_raw = h_ratio_setting.value if h_ratio_setting else "16/9"
-    v_label_raw = v_ratio_setting.value if v_ratio_setting else "9/16"
-
-    def parse_ratio(r_str: str, default: float) -> float:
-        try:
-            if "/" in r_str:
-                num, den = r_str.split("/")
-                return float(num) / float(den)
-            return float(r_str)
-        except (ValueError, TypeError):
-            return default
-
-    h_ratio = parse_ratio(h_label_raw, 16.0/9.0)
-    v_ratio = parse_ratio(v_label_raw, 9.0/16.0)
-    h_label = h_label_raw.replace("/", "x")
-    v_label = v_label_raw.replace("/", "x")
+    h_label, v_label = await get_aspect_ratio_labels(db)
+    h_ratio = parse_ratio(h_label, 16.0 / 9.0)
+    v_ratio = parse_ratio(v_label, 9.0 / 16.0)
     
     all_file_paths = []
     for p_str in local_paths:
@@ -524,24 +508,9 @@ async def import_images_background_task(
         vault_root = Path(vault_setting.value)
 
         # Get aspect ratios
-        h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
-        v_ratio_setting = await get_setting(db, "vertical_target_ratio")
-        h_label_raw = h_ratio_setting.value if h_ratio_setting else "16/9"
-        v_label_raw = v_ratio_setting.value if v_ratio_setting else "9/16"
-
-        def parse_ratio(r_str: str, default: float) -> float:
-            try:
-                if "/" in r_str:
-                    num, den = r_str.split("/")
-                    return float(num) / float(den)
-                return float(r_str)
-            except (ValueError, TypeError):
-                return default
-
-        h_ratio = parse_ratio(h_label_raw, 16.0/9.0)
-        v_ratio = parse_ratio(v_label_raw, 9.0/16.0)
-        h_label = h_label_raw.replace("/", "x")
-        v_label = v_label_raw.replace("/", "x")
+        h_label, v_label = await get_aspect_ratio_labels(db)
+        h_ratio = parse_ratio(h_label, 16.0 / 9.0)
+        v_ratio = parse_ratio(v_label, 9.0 / 16.0)
 
         # Load AI auto-tagging configuration
         ai_config = await get_ai_tagging_config(db)
