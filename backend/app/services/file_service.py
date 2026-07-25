@@ -9,18 +9,10 @@ import stat
 import anyio
 import structlog
 
+from app.core.log_utils import safe_log_val
+
 logger = structlog.get_logger(__name__)
 
-
-def safe_log_val(val):
-    """Recursively convert strings to ASCII backslash-replaced representation to prevent UnicodeEncodeError in console."""
-    if isinstance(val, str):
-        return val.encode('ascii', 'backslashreplace').decode('ascii')
-    elif isinstance(val, list):
-        return [safe_log_val(x) for x in val]
-    elif isinstance(val, dict):
-        return {safe_log_val(k): safe_log_val(v) for k, v in val.items()}
-    return val
 
 
 def retry_delete_sync(path: Path, is_dir: bool = False, max_attempts: int = 5) -> tuple[bool, str | None]:

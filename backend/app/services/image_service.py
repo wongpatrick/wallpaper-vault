@@ -17,7 +17,8 @@ from app.crud import image as crud_image
 from app.core.exceptions import ResourceNotFoundError, DuplicateResourceError
 from app.services.audit_service import calculate_phash, calculate_dominant_color
 from app.core.crop import load_image
-from app.crud.settings import get_setting
+from app.core.constants import THUMBNAIL_SIZES
+from app.core.aspect_ratio import get_aspect_ratio_labels, parse_ratio
 
 logger = structlog.get_logger(__name__)
 
@@ -25,7 +26,7 @@ logger = structlog.get_logger(__name__)
 def delete_image_thumbnails(image_id: int) -> None:
     """Deletes all cached thumbnail sizes for the given image ID."""
     thumbs_dir = Path(__file__).resolve().parent.parent.parent.parent / "db" / "thumbs"
-    for size in ["sm", "md", "lg"]:
+    for size in THUMBNAIL_SIZES:
         thumb_file = thumbs_dir / f"{image_id}_{size}.jpg"
         if thumb_file.exists():
             try:
@@ -55,10 +56,7 @@ async def create_image(db: AsyncSession, image_in: ImageCreate, set_id: int) -> 
                 image_data["dominant_color"] = await anyio.to_thread.run_sync(calculate_dominant_color, p_lib)
                 
             if image_data.get("width") is None or image_data.get("height") is None:
-                h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
-                v_ratio_setting = await get_setting(db, "vertical_target_ratio")
-                h_label = h_ratio_setting.value.replace("/", "x") if h_ratio_setting and h_ratio_setting.value else "16x9"
-                v_label = v_ratio_setting.value.replace("/", "x") if v_ratio_setting and v_ratio_setting.value else "9x16"
+                h_label, v_label = await get_aspect_ratio_labels(db)
                 
                 img_cv = await anyio.to_thread.run_sync(load_image, image_data["local_path"])
                 if img_cv is not None:
@@ -226,7 +224,6 @@ async def crop_image(
     import anyio
     from app.core.crop import compute_saliency_map, best_crop_coords, compute_focal_point, save_image
     from app.services.audit_service import calculate_phash, calculate_dominant_color
-    from app.crud.settings import get_setting
     from app.crud.image import get_image as crud_get_image
     
     # 1. Fetch original image record
@@ -260,12 +257,7 @@ async def crop_image(
         crop_h = max(1, min(crop_req.height, H - crop_y))
     else:
         # Automatic saliency cropping based on target aspect ratio
-        aspect_ratio_str = crop_req.aspect_ratio or "16:9"
-        try:
-            parts = aspect_ratio_str.split(":")
-            ar = float(parts[0]) / float(parts[1])
-        except Exception:
-            ar = 16.0 / 9.0
+        ar = parse_ratio(crop_req.aspect_ratio or "16/9", 16.0 / 9.0)
             
         # Determine internal saliency processing dimensions (matching crop.py)
         downscale_max = 1200
@@ -324,10 +316,7 @@ async def crop_image(
     cropped_img = img_data[crop_y:crop_y+crop_h, crop_x:crop_x+crop_w]
     
     # Get aspect ratio labels
-    h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
-    v_ratio_setting = await get_setting(db, "vertical_target_ratio")
-    h_label = h_ratio_setting.value.replace("/", "x") if h_ratio_setting and h_ratio_setting.value else "16x9"
-    v_label = v_ratio_setting.value.replace("/", "x") if v_ratio_setting and v_ratio_setting.value else "9x16"
+    h_label, v_label = await get_aspect_ratio_labels(db)
     
     # Calculate aspect ratio label for cropped image
     if crop_req.aspect_ratio:
@@ -363,14 +352,7 @@ async def crop_image(
         await db.refresh(db_image)
         
         # Invalidate thumbnail cache for this image
-        thumbs_dir = Path(__file__).resolve().parent.parent.parent.parent / "db" / "thumbs"
-        for size in ["sm", "md", "lg"]:
-            thumb_file = thumbs_dir / f"{image_id}_{size}.jpg"
-            if thumb_file.exists():
-                try:
-                    thumb_file.unlink()
-                except Exception as e:
-                    logger.warning("Failed to delete stale thumbnail", path=str(thumb_file), error=str(e))
+        delete_image_thumbnails(image_id)
                     
         # Refresh relationships
         final_image = await crud_get_image(db, image_id)

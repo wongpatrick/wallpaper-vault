@@ -20,6 +20,7 @@ from app.schemas.set import (
     SetBulkUpdate
 )
 from app.core.enums import BulkOperationMode, TaskStatus
+from app.core.aspect_ratio import get_aspect_ratio_labels, parse_ratio
 from app.crud.settings import get_setting
 from app.core import tasks
 from app.db.session import SessionLocal
@@ -568,26 +569,10 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task
     vault_root = Path(vault_setting.value)
     
     # Get target ratios from settings
-    h_ratio_setting = await get_setting(db, "horizontal_target_ratio")
-    v_ratio_setting = await get_setting(db, "vertical_target_ratio")
-    
-    h_label_raw = h_ratio_setting.value if h_ratio_setting else "16/9"
-    v_label_raw = v_ratio_setting.value if v_ratio_setting else "9/16"
-    
-    def parse_ratio(r_str: str, default: float) -> float:
-        try:
-            if "/" in r_str:
-                num, den = r_str.split("/")
-                return float(num) / float(den)
-            return float(r_str)
-        except (ValueError, TypeError):
-            return default
+    h_label, v_label = await get_aspect_ratio_labels(db)
+    h_ratio = parse_ratio(h_label, 16.0 / 9.0)
+    v_ratio = parse_ratio(v_label, 9.0 / 16.0)
 
-    h_ratio = parse_ratio(h_label_raw, 16.0/9.0)
-    v_ratio = parse_ratio(v_label_raw, 9.0/16.0)
-    
-    h_label = h_label_raw.replace("/", "x")
-    v_label = v_label_raw.replace("/", "x")
     
     # Pre-scan for Total Images across valid folders
     from app.core.crop import collect_image_paths
