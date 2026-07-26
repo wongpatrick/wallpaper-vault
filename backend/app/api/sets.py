@@ -178,8 +178,7 @@ async def bulk_delete_sets(
         db: AsyncSession = Depends(get_db)
 ) -> int:
     try:
-        count = await crud_set.bulk_delete_sets(db=db, set_ids=set_ids)
-        await db.commit()
+        count = await set_service.bulk_delete_sets(db=db, set_ids=set_ids)
         logger.info("Bulk deleted sets", count=count)
         return count
     except PermissionError:
@@ -237,10 +236,9 @@ async def delete_set(
         db: AsyncSession = Depends(get_db)
 ) -> Set:
     try:
-        db_set = await crud_set.delete_set(db, set_id=set_id)
+        db_set = await set_service.delete_set(db, set_id=set_id)
         if db_set is None:
             raise HTTPException(status_code=404, detail="Set not found")
-        await db.commit()
         logger.info("Deleted set", set_id=set_id)
         return db_set
     except PermissionError:

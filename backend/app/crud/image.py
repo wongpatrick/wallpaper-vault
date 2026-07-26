@@ -9,7 +9,6 @@ from app.models.image import Image
 from app.models.set import Set
 from app.models.creator import Creator
 from app.schemas.image import ImageUpdate, ImageCreate, ImageBulkUpdate
-from app.core.enums import BulkOperationMode
 from collections import defaultdict
 import structlog
 
@@ -207,10 +206,7 @@ async def update_image(db: AsyncSession, image_id: int, image_in: ImageUpdate) -
     return await get_image(db, image_id)
 
 async def bulk_update_images(db: AsyncSession, bulk_in: ImageBulkUpdate) -> int:
-    """Performs a bulk update on multiple image records.
-
-    Handles tag modifications according to the specified BulkOperationMode
-    (APPEND, REMOVE, REPLACE) while ignoring immutable fields like filename or phash.
+    """Performs a bulk update on multiple image records in the database.
 
     Args:
         db: Database session.
@@ -233,18 +229,12 @@ async def bulk_update_images(db: AsyncSession, bulk_in: ImageBulkUpdate) -> int:
     
     for db_img in db_images:
         for field in update_fields:
-            if bulk_in.operation_mode == BulkOperationMode.APPEND and field == "notes":
-                current_notes = db_img.notes or ""
-                new_notes = update_fields[field] or ""
-                db_img.notes = f"{current_notes}\n{new_notes}".strip() if current_notes else new_notes
-            elif bulk_in.operation_mode == BulkOperationMode.REMOVE and field == "notes":
-                db_img.notes = None
-            else:
-                setattr(db_img, field, update_fields[field])
+            setattr(db_img, field, update_fields[field])
         db.add(db_img)
         
     await db.flush()
     return len(db_images)
+
 
 async def delete_image_db(db: AsyncSession, image_id: int) -> Optional[Image]:
     """Deletes an image from the database.
