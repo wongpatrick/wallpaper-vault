@@ -785,3 +785,99 @@ async def run_auto_tag_set_background(set_id: int, task_id: str) -> None:
             logger.error("Background auto-tagging set task failed", set_id=set_id, task_id=task_id, error=str(e))
 
 
+async def delete_set(db: AsyncSession, set_id: int) -> Optional[Set]:
+    """Deletes a set record and its associated physical folder and thumbnail caches.
+    
+    Performs physical folder deletion within a transaction attempt, rolling back
+    the DB session if physical cleanup fails due to PermissionError or I/O errors.
+    """
+    import shutil
+    from app.services.image_service import delete_image_thumbnails
+
+    db_set = await crud_set.get_set(db, set_id)
+    if not db_set:
+        return None
+
+    image_ids = [img.id for img in db_set.images]
+    local_path_str = db_set.local_path
+
+    # Delete DB record in CRUD session
+    deleted_set = await crud_set.delete_set(db, set_id)
+
+    # Perform physical folder cleanup
+    if local_path_str:
+        local_path = Path(local_path_str)
+        if local_path.exists() and local_path.is_dir():
+            try:
+                await anyio.to_thread.run_sync(shutil.rmtree, local_path)
+            except PermissionError as e:
+                await db.rollback()
+                logger.warning("Failed to delete set folder due to PermissionError, rolling back", path=local_path_str)
+                raise e
+            except Exception as e:
+                await db.rollback()
+                logger.error("Failed to delete set folder, rolling back", path=local_path_str, error=str(e))
+                raise e
+
+    # Invalidate thumbnail cache for deleted images
+    for img_id in image_ids:
+        delete_image_thumbnails(img_id)
+
+    await db.commit()
+    return deleted_set
+
+
+async def bulk_delete_sets(db: AsyncSession, set_ids: list[int]) -> int:
+    """Bulk deletes sets and their physical folders and thumbnail caches.
+
+    Performs physical folder deletion within a transaction attempt, rolling back
+    the DB session if physical cleanup fails.
+    """
+    import shutil
+    from app.services.image_service import delete_image_thumbnails
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(Set).options(selectinload(Set.images)).where(Set.id.in_(set_ids))
+    )
+    db_sets = result.scalars().all()
+
+    if not db_sets:
+        return 0
+
+    all_image_ids = []
+    folders_to_delete = []
+
+    for db_set in db_sets:
+        all_image_ids.extend([img.id for img in db_set.images])
+        if db_set.local_path:
+            folders_to_delete.append(db_set.local_path)
+
+    # Delete DB records in session
+    count = await crud_set.bulk_delete_sets(db, set_ids)
+
+    # Perform physical folder cleanup
+    for folder_str in folders_to_delete:
+        folder_path = Path(folder_str)
+        if folder_path.exists() and folder_path.is_dir():
+            try:
+                await anyio.to_thread.run_sync(shutil.rmtree, folder_path)
+            except PermissionError as e:
+                await db.rollback()
+                logger.warning("Failed to delete set folder in bulk delete due to PermissionError, rolling back", path=folder_str)
+                raise e
+            except Exception as e:
+                await db.rollback()
+                logger.error("Failed to delete set folder in bulk delete, rolling back", path=folder_str, error=str(e))
+                raise e
+
+    # Invalidate thumbnail cache for all deleted images
+    for img_id in all_image_ids:
+        delete_image_thumbnails(img_id)
+
+    await db.commit()
+    return count
+
+
+

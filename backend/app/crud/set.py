@@ -25,8 +25,6 @@ from app.crud.settings import get_setting
 from app.core import tasks
 from app.db.session import SessionLocal
 from pathlib import Path
-import shutil
-import anyio
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -284,7 +282,7 @@ async def get_set_by_title_and_creators(
 
 
 async def delete_set(db: AsyncSession, set_id: int) -> Optional[Set]:
-    """Deletes a set record from the database.
+    """Deletes a set record from the database session.
 
     Args:
         db: Database session.
@@ -295,32 +293,8 @@ async def delete_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     """
     db_set = await get_set(db, set_id)
     if db_set:
-        image_ids = [img.id for img in db_set.images]
-        local_path_str = db_set.local_path
         await db.delete(db_set)
         await db.flush()
-        
-        if local_path_str:
-            local_path = Path(local_path_str)
-            if local_path.exists() and local_path.is_dir():
-                try:
-                    await anyio.to_thread.run_sync(shutil.rmtree, local_path)
-                except PermissionError as e:
-                    await db.rollback()
-                    logger.warning("Failed to delete set folder due to PermissionError, rolling back", path=local_path_str)
-                    raise e
-                except Exception as e:
-                    await db.rollback()
-                    logger.error("Failed to delete set folder, rolling back", path=local_path_str, error=str(e))
-                    raise e
-                    
-        await db.flush()
-        
-        # Invalidate thumbnail cache for deleted images
-        from app.services.image_service import delete_image_thumbnails
-        for img_id in image_ids:
-            delete_image_thumbnails(img_id)
-            
     return db_set
 
 
@@ -482,7 +456,7 @@ async def bulk_update_sets(db: AsyncSession, bulk_in: SetBulkUpdate) -> int:
 
 
 async def bulk_delete_sets(db: AsyncSession, set_ids: list[int]) -> int:
-    """Deletes multiple sets from the database.
+    """Deletes multiple set records from the database session.
 
     Args:
         db: Database session.
@@ -495,39 +469,14 @@ async def bulk_delete_sets(db: AsyncSession, set_ids: list[int]) -> int:
         select(Set).options(selectinload(Set.images)).where(Set.id.in_(set_ids))
     )
     db_sets = result.scalars().all()
-    
-    all_image_ids = []
-    folders_to_delete = []
-    
+
+    if not db_sets:
+        return 0
+
     for db_set in db_sets:
-        all_image_ids.extend([img.id for img in db_set.images])
-        if db_set.local_path:
-            folders_to_delete.append(db_set.local_path)
         await db.delete(db_set)
-        
+
     await db.flush()
-    
-    for folder_str in folders_to_delete:
-        folder_path = Path(folder_str)
-        if folder_path.exists() and folder_path.is_dir():
-            try:
-                await anyio.to_thread.run_sync(shutil.rmtree, folder_path)
-            except PermissionError as e:
-                await db.rollback()
-                logger.warning("Failed to delete set folder in bulk delete due to PermissionError, rolling back", path=folder_str)
-                raise e
-            except Exception as e:
-                await db.rollback()
-                logger.error("Failed to delete set folder in bulk delete, rolling back", path=folder_str, error=str(e))
-                raise e
-                
-    await db.flush()
-    
-    # Invalidate thumbnail cache for all deleted images
-    from app.services.image_service import delete_image_thumbnails
-    for img_id in all_image_ids:
-        delete_image_thumbnails(img_id)
-                    
     return len(db_sets)
 
 

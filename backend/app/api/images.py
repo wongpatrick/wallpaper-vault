@@ -73,10 +73,10 @@ async def bulk_update_images(
     
     This endpoint takes a list of image IDs and a data payload, applying the changes to all specified images in a single transaction. List-like fields (e.g. tags) can be appended or overwritten based on the operation_mode.
     """
-    count = await crud_image.bulk_update_images(db=db, bulk_in=bulk_in)
-    await db.commit()
+    count = await image_service.bulk_update_images(db=db, bulk_in=bulk_in)
     logger.info("Bulk updated images", count=count, mode=bulk_in.operation_mode)
     return count
+
 
 @router.post("/bulk-move", response_model=int)
 async def bulk_move_images(
