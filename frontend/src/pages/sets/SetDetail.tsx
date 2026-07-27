@@ -236,6 +236,14 @@ export default function SetDetail() {
             notifications.show({ title: 'Error', message: 'No local path recorded.', color: 'red' });
             return;
         }
+        if (!window.electron?.openPath) {
+            notifications.show({
+                title: 'Browser Mode',
+                message: 'Opening local folders is only supported in the desktop application.',
+                color: 'yellow'
+            });
+            return;
+        }
         try {
             const result = await window.electron.openPath(set.local_path);
             if (result && result.error) {

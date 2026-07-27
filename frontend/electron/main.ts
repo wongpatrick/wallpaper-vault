@@ -503,7 +503,7 @@ function createWindow() {
         icon: path.join(publicDir, 'vault-icon.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
-            sandbox: true
+            sandbox: false
         },
     })
 
@@ -604,7 +604,11 @@ function createWindow() {
         
         const normalizedPath = path.normalize(filePath);
         try {
-            if (fs.existsSync(normalizedPath) && fs.statSync(normalizedPath).isDirectory()) {
+            if (!fs.existsSync(normalizedPath)) {
+                return { success: false, error: `Directory or file does not exist: ${normalizedPath}` };
+            }
+
+            if (fs.statSync(normalizedPath).isDirectory()) {
                 const error = await shell.openPath(normalizedPath);
                 if (error) return { success: false, error };
             } else {
