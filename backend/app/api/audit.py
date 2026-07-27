@@ -3,6 +3,7 @@ API endpoints for running and managing library audits and issue resolutions.
 """
 
 import os
+import re
 from typing import Any
 from typing import Optional
 from pathlib import Path
@@ -339,8 +340,8 @@ async def resolve_audit_issues(
                         # 1. Parse folder name (e.g. "Creator - Title")
                         folder_name = dir_path.name
                         creator_name, set_title = "Unknown", folder_name
-                        if " - " in folder_name:
-                            parts = folder_name.split(" - ", 1)
+                        parts = re.split(r'\s*[\-\u2010-\u2015\uff0d–—]\s*', folder_name, maxsplit=1)
+                        if len(parts) > 1:
                             creator_name, set_title = parts[0].strip(), parts[1].strip()
 
                         # 2. Get/Create Creator

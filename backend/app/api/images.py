@@ -498,7 +498,12 @@ async def validate_import_uploaded_files(
     
     local_paths = []
     for file in files:
-        temp_file_path = temp_dir / file.filename
+        raw_name = (file.filename or "").replace('\\', '/').rstrip('/')
+        safe_filename = Path(raw_name).name
+        if not safe_filename:
+            safe_filename = "upload"
+        unique_name = f"{uuid.uuid4().hex[:8]}_{safe_filename}"
+        temp_file_path = temp_dir / unique_name
         try:
             with open(temp_file_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)

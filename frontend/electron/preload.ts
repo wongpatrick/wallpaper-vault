@@ -8,9 +8,14 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 let mockImportPath: string | null = null;
 
+const ALLOWED_ON_CHANNELS = ['window-maximized-change', 'backend-status-change', 'displays-changed'];
+
 contextBridge.exposeInMainWorld('electron', {
-    send: (channel: string, data: unknown) => ipcRenderer.send(channel, data),
     on: (channel: string, func: (...args: unknown[]) => void) => {
+        if (!ALLOWED_ON_CHANNELS.includes(channel)) {
+            console.warn(`[Preload] Subscription to channel '${channel}' denied by security whitelist.`);
+            return () => {};
+        }
         const subscription = (_event: unknown, ...args: unknown[]) => func(...args);
         ipcRenderer.on(channel, subscription);
         return () => {

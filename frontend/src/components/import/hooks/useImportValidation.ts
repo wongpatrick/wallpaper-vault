@@ -190,11 +190,11 @@ export function useImportValidation({
                         const folderName = parts[parts.length - 1] || '';
 
                         if (isFolder) {
-                            const nameParts = folderName.split(' - ');
+                            const nameParts = folderName.split(/\s*[-–—\u2010-\u2015\uff0d]\s*/);
                             if (nameParts.length > 1) {
                                 const artistPart = nameParts[0].trim();
                                 const titlePart = nameParts.slice(1).join(' - ').trim();
-                                const artistNames = artistPart.split('&').map(a => a.trim()).filter(Boolean);
+                                const artistNames = artistPart.split(/[&＆,/+]/).map(a => a.trim()).filter(Boolean);
                                 initialMetadata[topPath] = {
                                     creatorNames: artistNames,
                                     setIdOrTitle: preselectedSetId || `new:${titlePart}`,
@@ -218,10 +218,21 @@ export function useImportValidation({
                         }
                     }
                 } else {
+                    let uploadCreatorNames: string[] = [];
+                    let uploadSetTitle = suggestedFolder || '';
+                    if (suggestedFolder) {
+                        const parts = suggestedFolder.split(/[/\\\\]/);
+                        const topFolder = parts[0] || suggestedFolder;
+                        const nameParts = topFolder.split(/\s*[-–—\u2010-\u2015\uff0d]\s*/);
+                        if (nameParts.length > 1) {
+                            uploadCreatorNames = nameParts[0].trim().split(/[&＆,/+]/).map(a => a.trim()).filter(Boolean);
+                            uploadSetTitle = nameParts.slice(1).join(' - ').trim();
+                        }
+                    }
                     initialMetadata['upload'] = {
-                        creatorNames: [],
-                        setIdOrTitle: preselectedSetId || (suggestedFolder ? `new:${suggestedFolder}` : ''),
-                        searchQuery: preselectedSetId ? '' : (suggestedFolder || '')
+                        creatorNames: uploadCreatorNames,
+                        setIdOrTitle: preselectedSetId || (uploadSetTitle ? `new:${uploadSetTitle}` : ''),
+                        searchQuery: preselectedSetId ? '' : (uploadSetTitle || '')
                     };
                 }
                 setGroupsMetadata(initialMetadata);
