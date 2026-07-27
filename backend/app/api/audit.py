@@ -340,7 +340,7 @@ async def resolve_audit_issues(
                         # 1. Parse folder name (e.g. "Creator - Title")
                         folder_name = dir_path.name
                         creator_name, set_title = "Unknown", folder_name
-                        parts = re.split(r'\s*[\-\u2010-\u2015\uff0d–—]\s*', folder_name, maxsplit=1)
+                        parts = re.split(r'\s*[-\u2010-\u2015\uff0d]\s*', folder_name, maxsplit=1)
                         if len(parts) > 1:
                             creator_name, set_title = parts[0].strip(), parts[1].strip()
 

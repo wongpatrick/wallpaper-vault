@@ -92,7 +92,7 @@ def compile_parsing_regex(template: str) -> re.Pattern | None:
             return re.compile(template)
         
         pattern = re.escape(template)
-        pattern = re.sub(r'\\ \-\\ ', r'\\s*[\-\\u2010-\\u2015\\uff0d–—]\\s*', pattern)
+        pattern = re.sub(r'\\ \\-\\ ', r'\\s*[-\\u2010-\\u2015\\uff0d–—]\\s*', pattern)
         for tag, group_prefix in [("\\[Creator\\]", "creator"), ("\\[Set\\]", "set")]:
             count = 0
             while tag in pattern:
@@ -137,7 +137,7 @@ async def parse_and_validate_candidates(
 
             # Fallback dash-split if custom regex did not match or was not provided
             if not creator or not title:
-                parts = re.split(r'\s*[\-\u2010-\u2015\uff0d–—]\s*', name, maxsplit=1)
+                parts = re.split(r'\s*[-\u2010-\u2015\uff0d]\s*', name, maxsplit=1)
                 if len(parts) > 1:
                     creator = creator or parts[0].strip()
                     title = title or parts[1].strip()
