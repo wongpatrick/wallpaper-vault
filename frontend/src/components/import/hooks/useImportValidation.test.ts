@@ -1,3 +1,8 @@
+/**
+ * @file
+ * Unit tests for import validation folder parsing logic.
+ * Verifies Unicode hyphen/dash handling and multi-artist delimiter extraction.
+ */
 import { describe, it, expect } from 'vitest';
 
 describe('Folder Name Parsing Rules', () => {
