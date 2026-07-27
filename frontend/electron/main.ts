@@ -603,12 +603,22 @@ function createWindow() {
         if (!filePath) return { success: false, error: 'No path provided' };
         
         const normalizedPath = path.normalize(filePath);
-        const error = await shell.openPath(normalizedPath);
-        if (error) {
-            console.error('Failed to open path:', error);
-            return { success: false, error };
+        try {
+            if (!fs.existsSync(normalizedPath)) {
+                return { success: false, error: `Directory or file does not exist: ${normalizedPath}` };
+            }
+
+            if (fs.statSync(normalizedPath).isDirectory()) {
+                const error = await shell.openPath(normalizedPath);
+                if (error) return { success: false, error };
+            } else {
+                shell.showItemInFolder(normalizedPath);
+            }
+            return { success: true };
+        } catch (err) {
+            console.error('Failed to open/show path:', err);
+            return { success: false, error: String(err) };
         }
-        return { success: true };
     })
 
     ipcMain.handle('get-login-item-settings', () => {

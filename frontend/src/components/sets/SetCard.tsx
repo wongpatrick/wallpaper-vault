@@ -77,6 +77,15 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
             return;
         }
 
+        if (!window.electron?.openPath) {
+            notifications.show({
+                title: 'Browser Mode',
+                message: 'Opening local folders is only supported in the desktop application.',
+                color: 'yellow'
+            });
+            return;
+        }
+
         try {
             const result = await window.electron.openPath(set.local_path);
             if (result && result.error) {

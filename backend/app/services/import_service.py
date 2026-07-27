@@ -92,6 +92,7 @@ def compile_parsing_regex(template: str) -> re.Pattern | None:
             return re.compile(template)
         
         pattern = re.escape(template)
+        pattern = re.sub(r'\\ \\-\\ ', r'\\s*[-\\u2010-\\u2015\\uff0d–—]\\s*', pattern)
         for tag, group_prefix in [("\\[Creator\\]", "creator"), ("\\[Set\\]", "set")]:
             count = 0
             while tag in pattern:
@@ -133,10 +134,16 @@ async def parse_and_validate_candidates(
                         title = title or " ".join([p.strip() for p in s_parts])
                     elif "set" in m.groupdict():
                         title = title or m.group("set")
-                else:
+
+            # Fallback dash-split if custom regex did not match or was not provided
+            if not creator or not title:
+                parts = re.split(r'\s*[-\u2010-\u2015\uff0d]\s*', name, maxsplit=1)
+                if len(parts) > 1:
+                    creator = creator or parts[0].strip()
+                    title = title or parts[1].strip()
+                    is_valid = True
+                elif not regex:
                     is_valid = False
-            else:
-                is_valid = False
 
         item_result = BatchImportItem(
             source_path=path,
@@ -147,7 +154,7 @@ async def parse_and_validate_candidates(
         )
         
         if is_valid and creator and title:
-            raw_names = re.split(r'\s+&\s+', item_result.creator_name)
+            raw_names = re.split(r'\s*[\&＆,/+]\s*', item_result.creator_name)
             creator_names = [n.strip() for n in raw_names if n.strip()]
             
             creator_ids = []
@@ -200,7 +207,7 @@ async def execute_import_item(
                     rollup_threshold=ai_config["rollup_threshold"])
 
         # 1. Handle Multiple Creators
-        raw_names = re.split(r'\s+&\s+', item.creator_name)
+        raw_names = re.split(r'\s*[\&＆,/+]\s*', item.creator_name)
         creator_names = [n.strip() for n in raw_names if n.strip()]
         if not creator_names:
             creator_names = [item.creator_name.strip()] if item.creator_name.strip() else ["Unknown"]
@@ -518,7 +525,7 @@ async def import_images_background_task(
         # 1. Resolve Creator(s)
         db_creators = []
         if creator_name:
-            raw_names = re.split(r'\s+&\s+', creator_name)
+            raw_names = re.split(r'\s*[\&＆,/+]\s*', creator_name)
             creator_names = [n.strip() for n in raw_names if n.strip()]
             for name in creator_names:
                 c = await get_creator_by_name(db, name)

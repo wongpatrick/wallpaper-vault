@@ -40,7 +40,8 @@ export function FolderParser() {
             } else {
                 const regexPattern = pattern
                     .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-                    .replace(/\\\[Creator\\\]/g, '(?<creator>.+)')
+                    .replace(/\\ -\\ /g, '\\s*[-—–\\u2010-\\u2015\\uff0d]\\s*')
+                    .replace(/\\\[Creator\\\]/g, '(?<creator>.+?)')
                     .replace(/\\\[Set\\\]/g, '(?<set>.+)');
                 regex = new RegExp(`^${regexPattern}$`);
             }
@@ -58,6 +59,19 @@ export function FolderParser() {
             }
         } catch (e) {
             console.error("Regex error:", e);
+        }
+
+        // Fallback simple dash split if regex pattern didn't match
+        const parts = folder.name.split(/\s*[-–—\u2010-\u2015\uff0d]\s*/);
+        if (parts.length > 1) {
+            return {
+                original: folder.name,
+                path: folder.path,
+                creator: parts[0].trim() || 'Unknown',
+                set: parts.slice(1).join(' - ').trim() || 'Unknown',
+                isValid: true,
+                files: folder.files
+            };
         }
 
         return {
