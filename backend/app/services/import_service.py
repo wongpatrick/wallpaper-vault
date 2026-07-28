@@ -271,6 +271,7 @@ async def execute_import_item(
                         
                         from app.core.enums import ImageRating
                         from app.services.audit_service import calculate_phash, calculate_dominant_color
+                        from app.core.color_utils import get_color_bucket
                         
                         fx, fy = compute_focal_point(img_data)
                         
@@ -279,6 +280,7 @@ async def execute_import_item(
                             db, ai_config, final_p_str, all_detected_characters
                         )
 
+                        dom_color = calculate_dominant_color(final_p)
                         # Create image model and assign tags
                         db_images.append(Image(
                             filename=final_p.name,
@@ -288,7 +290,8 @@ async def execute_import_item(
                             aspect_ratio=float(w)/float(h) if h!=0 else 0,
                             aspect_ratio_label=ratio_label,
                             phash=calculate_phash(final_p),
-                            dominant_color=calculate_dominant_color(final_p),
+                            dominant_color=dom_color,
+                            dominant_color_bucket=get_color_bucket(dom_color),
                             rating=ImageRating.QUESTIONABLE,
                             focal_point_x=fx,
                             focal_point_y=fy,
@@ -688,6 +691,8 @@ async def import_images_background_task(
                     elif rating_str.lower() == "explicit":
                         rating_val = ImageRating.EXPLICIT
 
+                    from app.core.color_utils import get_color_bucket
+                    dom_color_single = calculate_dominant_color(final_p)
                     db_img = ImageModel(
                         filename=final_p.name,
                         local_path=str(final_p.resolve()),
@@ -696,7 +701,8 @@ async def import_images_background_task(
                         aspect_ratio=float(w)/float(h) if h!=0 else 0,
                         aspect_ratio_label=ratio_label,
                         phash=calculate_phash(final_p),
-                        dominant_color=calculate_dominant_color(final_p),
+                        dominant_color=dom_color_single,
+                        dominant_color_bucket=get_color_bucket(dom_color_single),
                         rating=rating_val,
                         focal_point_x=fx,
                         focal_point_y=fy,

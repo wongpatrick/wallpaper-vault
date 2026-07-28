@@ -30,6 +30,7 @@ class Image(Base):
     notes:      Mapped[Optional[str]] = mapped_column()
     rating:     Mapped[Optional[str]] = mapped_column(server_default=text(f"'{ImageRating.SAFE}'"))
     dominant_color: Mapped[Optional[str]] = mapped_column()
+    dominant_color_bucket: Mapped[Optional[str]] = mapped_column(index=True)
     focal_point_x: Mapped[Optional[int]] = mapped_column(server_default=text("50"))
     focal_point_y: Mapped[Optional[int]] = mapped_column(server_default=text("50"))
     is_favorite: Mapped[bool] = mapped_column(server_default=text("0"), default=False)

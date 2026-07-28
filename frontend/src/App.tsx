@@ -20,7 +20,7 @@ import RotationManagement from './pages/rotation/rotation'
 import { createTheme, MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import { ModalsProvider } from '@mantine/modals'
-import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NotificationProvider } from './context/NotificationProvider'
 import { TaskProvider } from './context/TaskProvider'
 import BackendStatusGuard from './components/ui/BackendStatusGuard'
@@ -77,13 +77,6 @@ const queryClient = new QueryClient({
       staleTime: 5000, // Keep data fresh for 5 seconds to prevent duplicate fetches on remount/StrictMode
     },
   },
-  mutationCache: new MutationCache({
-    onSuccess: () => {
-      // Globally invalidate all queries on any successful mutation to ensure
-      // the UI is always perfectly in sync with the backend. Active queries will automatically refetch.
-      queryClient.invalidateQueries();
-    },
-  }),
 });
 
 const router = createHashRouter([

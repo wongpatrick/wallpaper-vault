@@ -26,6 +26,51 @@ def hex_to_hsl(hex_color: str) -> tuple[float, float, float]:
     return hue * 360.0, sat * 100.0, light * 100.0
 
 
+def get_color_bucket(hex_color: Optional[str]) -> Optional[str]:
+    """Categorizes a hex color code into a predefined coarse color bucket name."""
+    if not hex_color:
+        return None
+    hue, sat, light = hex_to_hsl(hex_color)
+
+    if light > WHITE_LIGHTNESS_THRESHOLD:
+        return "white"
+    if light < BLACK_LIGHTNESS_THRESHOLD:
+        return "black"
+    if sat <= GREY_SATURATION_THRESHOLD:
+        return "grey"
+
+    # Hue classification (0-360)
+    if hue < 15.0 or hue >= 345.0:  # noqa: PLR2004
+        return "red"
+    if hue < 45.0:  # noqa: PLR2004
+        return "orange"
+    if hue < 75.0:  # noqa: PLR2004
+        return "yellow"
+    if hue < 150.0:  # noqa: PLR2004
+        return "green"
+    if hue < 195.0:  # noqa: PLR2004
+        return "teal"
+    if hue < 255.0:  # noqa: PLR2004
+        return "blue"
+    if hue < 300.0:  # noqa: PLR2004
+        return "purple"
+    return "pink"
+
+
+def resolve_target_color_bucket(target_color: str) -> Optional[str]:
+    """Resolves a target search string (hex swatch or name) to a dominant_color_bucket value."""
+    if not target_color:
+        return None
+    target = target_color.strip()
+    if target.startswith('#') or (len(target) == 6 and all(c in '0123456789abcdefABCDEF' for c in target)):  # noqa: PLR2004
+        return get_color_bucket(target)
+    target_lower = target.lower()
+    valid_buckets = {'red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink', 'white', 'grey', 'black'}
+    if target_lower in valid_buckets:
+        return target_lower
+    return None
+
+
 def matches_color(dominant_color: Optional[str], target_color: str, hue_tolerance: int = 30) -> bool:
     """Checks whether a dominant color matches a target color (hex swatch or named color bucket)."""
     if not dominant_color:
@@ -63,3 +108,4 @@ def matches_color(dominant_color: Optional[str], target_color: str, hue_toleranc
     diff = abs(hue - target_h)
     diff = min(diff, 360.0 - diff)
     return diff <= hue_tolerance
+

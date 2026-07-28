@@ -13,7 +13,7 @@ from collections import defaultdict
 import structlog
 
 from app.core.constants import PRESET_SWATCHES
-from app.core.color_utils import matches_color as _matches_color
+from app.core.color_utils import matches_color as _matches_color, resolve_target_color_bucket
 
 logger = structlog.get_logger(__name__)
 
@@ -385,7 +385,11 @@ async def get_images(
         )
         
     if color:
-        query = query.filter(Image.dominant_color.is_not(None))
+        target_bucket = resolve_target_color_bucket(color)
+        if target_bucket:
+            query = query.filter(Image.dominant_color_bucket == target_bucket)
+        else:
+            query = query.filter(Image.dominant_color.is_not(None))
 
     # Pagination with relationship loading and sorting
     if sort_by == "file_size":
@@ -411,26 +415,14 @@ async def get_images(
         selectinload(Image.set).selectinload(Set.creators)
     ).order_by(order_expr, Image.id.desc())
     
-    if not color:
-        # Total count
-        count_query = select(func.count()).select_from(query.distinct().subquery())
-        count_result = await db.execute(count_query)
-        total = count_result.scalar_one()
+    # Total count
+    count_query = select(func.count()).select_from(query.distinct().subquery())
+    count_result = await db.execute(count_query)
+    total = count_result.scalar_one()
 
-        items_query = items_query.offset(skip).limit(limit)
-        result = await db.execute(items_query)
-        items = list(result.scalars().all())
-    else:
-        result = await db.execute(items_query)
-        all_items = list(result.scalars().all())
-        
-        filtered_items = []
-        for img in all_items:
-            if _matches_color(img.dominant_color, color, hue_tolerance=color_tolerance):
-                filtered_items.append(img)
-                
-        total = len(filtered_items)
-        items = filtered_items[skip:skip+limit]
+    items_query = items_query.offset(skip).limit(limit)
+    result = await db.execute(items_query)
+    items = list(result.scalars().all())
 
     return items, total
 
