@@ -7,7 +7,10 @@ import { describe, it, expect } from 'vitest';
 
 describe('Folder Name Parsing Rules', () => {
     const parseFolderName = (folderName: string) => {
-        const nameParts = folderName.split(/\s*[-–—\u2010-\u2015\uff0d]\s*/);
+        let nameParts = folderName.split(/\s+[-–—\u2010-\u2015\uff0d]\s+|\s*[–—\u2010-\u2015\uff0d]\s*/);
+        if (nameParts.length <= 1) {
+            nameParts = folderName.split(/\s*[-–—\u2010-\u2015\uff0d]\s*/);
+        }
         if (nameParts.length > 1) {
             const artistPart = nameParts[0].trim();
             const titlePart = nameParts.slice(1).join(' - ').trim();
@@ -21,6 +24,12 @@ describe('Folder Name Parsing Rules', () => {
         const result = parseFolderName('柒柒要乖哦 - 雨天邂逅');
         expect(result.creatorNames).toEqual(['柒柒要乖哦']);
         expect(result.setTitle).toBe('雨天邂逅');
+    });
+
+    it('parses folder names with hyphenated creator names like X-LEVEL', () => {
+        const result = parseFolderName('X-LEVEL & Yeha (예하) - The Nun');
+        expect(result.creatorNames).toEqual(['X-LEVEL', 'Yeha (예하)']);
+        expect(result.setTitle).toBe('The Nun');
     });
 
     it('parses folder names with en-dash and em-dash', () => {
