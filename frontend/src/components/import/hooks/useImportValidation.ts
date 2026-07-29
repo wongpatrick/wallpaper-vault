@@ -190,7 +190,10 @@ export function useImportValidation({
                         const folderName = parts[parts.length - 1] || '';
 
                         if (isFolder) {
-                            const nameParts = folderName.split(/\s*[-–—\u2010-\u2015\uff0d]\s*/);
+                            let nameParts = folderName.split(/\s+[-–—\u2010-\u2015\uff0d]\s+|\s*[–—\u2010-\u2015\uff0d]\s*/);
+                            if (nameParts.length <= 1) {
+                                nameParts = folderName.split(/\s*[-–—\u2010-\u2015\uff0d]\s*/);
+                            }
                             if (nameParts.length > 1) {
                                 const artistPart = nameParts[0].trim();
                                 const titlePart = nameParts.slice(1).join(' - ').trim();
@@ -223,7 +226,10 @@ export function useImportValidation({
                     if (suggestedFolder) {
                         const parts = suggestedFolder.split(/[/\\\\]/);
                         const topFolder = parts[0] || suggestedFolder;
-                        const nameParts = topFolder.split(/\s*[-–—\u2010-\u2015\uff0d]\s*/);
+                        let nameParts = topFolder.split(/\s+[-–—\u2010-\u2015\uff0d]\s+|\s*[–—\u2010-\u2015\uff0d]\s*/);
+                        if (nameParts.length <= 1) {
+                            nameParts = topFolder.split(/\s*[-–—\u2010-\u2015\uff0d]\s*/);
+                        }
                         if (nameParts.length > 1) {
                             uploadCreatorNames = nameParts[0].trim().split(/[&＆,/+]/).map(a => a.trim()).filter(Boolean);
                             uploadSetTitle = nameParts.slice(1).join(' - ').trim();

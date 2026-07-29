@@ -68,3 +68,28 @@ async def test_batch_import_background_task(mock_run, client: AsyncClient, mock_
         
         assert "task_id" in data
         assert data["status"] == "accepted"
+
+
+@pytest.mark.asyncio
+async def test_batch_import_hyphenated_creator(client: AsyncClient, tmp_path: Path):
+    """Test that folder names with hyphenated creators like X-LEVEL are parsed correctly."""
+    folder = tmp_path / "X-LEVEL & Yeha (예하) - The Nun"
+    folder.mkdir()
+
+    payload = {
+        "items": [{"source_path": str(folder)}],
+        "parsing_template": "[Creator] - [Set]",
+        "delete_source_default": False,
+        "dry_run": True
+    }
+
+    resp = await client.post("/api/sets/batch-import", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+
+    assert len(data["items"]) == 1
+    item = data["items"][0]
+
+    assert item["creator_name"] == "X-LEVEL & Yeha (예하)"
+    assert item["set_title"] == "The Nun"
+
