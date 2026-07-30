@@ -3,34 +3,40 @@
  */
 /* eslint-disable no-magic-numbers */
 import { useState, useEffect } from 'react';
+import type { MonitorInfo } from '../../../types/electron';
 
-export interface MonitorInfo {
-    index: number;
-    winNum?: number;
-    id: number;
-    label: string;
-    bounds: { width: number; height: number; x: number; y: number; };
-}
+export type { MonitorInfo };
 
 export function useMonitors() {
     const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
 
     useEffect(() => {
+        let isMounted = true;
+
         const fetchMonitors = () => {
             if (window.electron?.getMonitors) {
                 window.electron.getMonitors().then((res) => {
-                    setMonitors(res);
+                    if (isMounted) {
+                        setMonitors(res);
+                    }
                 });
             }
         };
         fetchMonitors();
 
-        if (window.electron?.on) {
-            const unsubscribe = window.electron.on('displays-changed', () => {
+        let unsubscribe: (() => void) | undefined;
+        if (window.electron?.onDisplaysChanged) {
+            unsubscribe = window.electron.onDisplaysChanged(() => {
                 fetchMonitors();
             });
-            return unsubscribe;
         }
+
+        return () => {
+            isMounted = false;
+            if (unsubscribe) {
+                unsubscribe();
+            }
+        };
     }, []);
 
     return { monitors };

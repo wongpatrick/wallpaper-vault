@@ -8,18 +8,26 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 let mockImportPath: string | null = null;
 
-const ALLOWED_ON_CHANNELS = ['window-maximized-change', 'backend-status-change', 'displays-changed'];
-
 contextBridge.exposeInMainWorld('electron', {
-    on: (channel: string, func: (...args: unknown[]) => void) => {
-        if (!ALLOWED_ON_CHANNELS.includes(channel)) {
-            console.warn(`[Preload] Subscription to channel '${channel}' denied by security whitelist.`);
-            return () => {};
-        }
-        const subscription = (_event: unknown, ...args: unknown[]) => func(...args);
-        ipcRenderer.on(channel, subscription);
+    onWindowMaximizedChange: (callback: (isMaximized: boolean) => void) => {
+        const subscription = (_event: unknown, isMaximized: boolean) => callback(isMaximized);
+        ipcRenderer.on('window-maximized-change', subscription);
         return () => {
-            ipcRenderer.removeListener(channel, subscription);
+            ipcRenderer.removeListener('window-maximized-change', subscription);
+        };
+    },
+    onBackendStatusChange: (callback: (status: unknown) => void) => {
+        const subscription = (_event: unknown, status: unknown) => callback(status);
+        ipcRenderer.on('backend-status-change', subscription);
+        return () => {
+            ipcRenderer.removeListener('backend-status-change', subscription);
+        };
+    },
+    onDisplaysChanged: (callback: () => void) => {
+        const subscription = () => callback();
+        ipcRenderer.on('displays-changed', subscription);
+        return () => {
+            ipcRenderer.removeListener('displays-changed', subscription);
         };
     },
     openDirectory: () => ipcRenderer.invoke('open-directory'),

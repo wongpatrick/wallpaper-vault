@@ -11,8 +11,18 @@ export interface BackendStatusInfo {
     errorDetails?: string;
 }
 
+export interface MonitorInfo {
+    index: number;
+    winNum?: number;
+    id: number;
+    label: string;
+    bounds: { width: number; height: number; x: number; y: number; };
+}
+
 export interface ElectronAPI {
-    on: (channel: string, func: (...args: unknown[]) => void) => () => void;
+    onWindowMaximizedChange: (callback: (isMaximized: boolean) => void) => () => void;
+    onBackendStatusChange: (callback: (status: BackendStatusInfo) => void) => () => void;
+    onDisplaysChanged: (callback: () => void) => () => void;
     openDirectory: () => Promise<string | null>;
     openPath: (path: string) => Promise<{ success: boolean; error?: string }>;
     getLoginSettings: () => Promise<boolean>;
@@ -31,12 +41,7 @@ export interface ElectronAPI {
     setBackendPort: (port: number) => Promise<boolean>;
     openBackendLogs: () => Promise<boolean>;
     openLogsDirectory: () => Promise<boolean>;
-    getMonitors: () => Promise<Array<{
-        index: number;
-        id: number;
-        label: string;
-        bounds: { width: number; height: number; x: number; y: number; };
-    }>>;
+    getMonitors: () => Promise<MonitorInfo[]>;
     getSystemWallpapers: () => Promise<Array<{ comIndex: number; wallpaper: string }>>;
 }
 
