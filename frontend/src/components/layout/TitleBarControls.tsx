@@ -19,7 +19,7 @@ export default function TitleBarControls() {
         window.electron.isMaximized().then(setIsMaximized);
 
         // Listen for changes from main process and store the unsubscribe function
-        const unsubscribe = window.electron.on('window-maximized-change', (maximized: unknown) => {
+        const unsubscribe = window.electron.onWindowMaximizedChange((maximized: boolean) => {
             setIsMaximized(!!maximized);
         });
 

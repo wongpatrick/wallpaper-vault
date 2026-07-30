@@ -126,10 +126,9 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
         initStatus();
 
         // Listen for updates from Main process
-        const unsubscribe = window.electron.on('backend-status-change', (data) => {
-            const status = data as BackendStatusInfo;
+        const unsubscribe = window.electron.onBackendStatusChange((status) => {
             setStatusInfo(status);
-            if (isRetrying && status.status === 'running') {
+            if (status.status === 'running') {
                 setIsRetrying(false);
             }
         });
@@ -137,7 +136,7 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
         return () => {
             unsubscribe();
         };
-    }, [isElectron, isRetrying]);
+    }, [isElectron]);
 
     const handleRetry = async () => {
         if (!isElectron) {
