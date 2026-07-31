@@ -61,7 +61,13 @@ We use **Ruff** for fast and strict linting.
 uv run ruff check .
 ```
 
+### ⚙️ Configuration & Environment Variables
+Configure the application via `.env` in the `backend/` directory:
+- **`CORS_ORIGINS`**: Allowed origins for CORS middleware (default: `["*"]`). Accepts comma-separated strings (e.g. `http://localhost:3000,http://app.local`), JSON lists (`'["http://app.local"]'`), or wildcard `*`.
+- **`API_KEY`**: Secret token for securing API endpoints via `X-API-Key` header or `api_key` query parameter. If left empty, API authentication is disabled (a warning will be logged at startup).
+
 ---
+
 
 ## 📊 Database Schema
 Core entities include:
