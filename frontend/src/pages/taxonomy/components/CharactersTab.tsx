@@ -5,10 +5,11 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Table, Text, Badge, Group, ActionIcon, Tooltip, Checkbox, Modal, Stack, TextInput, Autocomplete, Button, Select
+    Table, Text, Badge, Group, ActionIcon, Tooltip, Checkbox, Modal, Stack, TextInput, Autocomplete, Button, Select, Alert
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { IconEdit, IconTrash } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
+import { IconEdit, IconTrash, IconAlertCircle } from '@tabler/icons-react';
 import {
     useReadCharacters, useCreateCharacter, useUpdateCharacter, useDeleteCharacter, useMergeCharacters, useBulkDeleteCharacters,
     useReadFranchises, useCreateFranchise
@@ -34,6 +35,7 @@ export function CharactersTab() {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [name, setName] = useState('');
     const [franchiseQuery, setFranchiseQuery] = useState('');
+    const [error, setError] = useState<string | null>(null);
 
     const { search, setSearch, sortBy, setSortBy, page, setPage, totalPages, totalItems, result: sortedCharacters } = useTaxonomyFilterSort(characters);
 
@@ -71,6 +73,7 @@ export function CharactersTab() {
                 onConfirm: () => {
                     setName('');
                     setFranchiseQuery('');
+                    setError(null);
                     setEditingId(null);
                     setModalOpen(false);
                 }
@@ -78,6 +81,7 @@ export function CharactersTab() {
         } else {
             setName('');
             setFranchiseQuery('');
+            setError(null);
             setEditingId(null);
             setModalOpen(false);
         }
@@ -87,6 +91,7 @@ export function CharactersTab() {
         setEditingId(null);
         setName('');
         setFranchiseQuery('');
+        setError(null);
         setModalOpen(true);
     };
 
@@ -94,37 +99,47 @@ export function CharactersTab() {
         setEditingId(char.id);
         setName(char.name);
         setFranchiseQuery(char.franchise ? char.franchise.name : '');
+        setError(null);
         setModalOpen(true);
     };
 
     const handleSave = async () => {
         if (!name.trim()) return;
-        
-        let finalFranchiseId: number | undefined = undefined;
-        if (franchiseQuery.trim()) {
-            const existing = franchises?.find(f => f.name.toLowerCase() === franchiseQuery.trim().toLowerCase());
-            if (existing) {
-                finalFranchiseId = existing.id;
-            } else {
-                const newF = await createFranchiseMutation.mutateAsync({ name: franchiseQuery.trim() });
-                finalFranchiseId = newF.id;
+        setError(null);
+
+        try {
+            let finalFranchiseId: number | undefined = undefined;
+            if (franchiseQuery.trim()) {
+                const existing = franchises?.find(f => f.name.toLowerCase() === franchiseQuery.trim().toLowerCase());
+                if (existing) {
+                    finalFranchiseId = existing.id;
+                } else {
+                    const newF = await createFranchiseMutation.mutateAsync({ name: franchiseQuery.trim() });
+                    finalFranchiseId = newF.id;
+                }
             }
-        }
 
-        const payload = { 
-            name: name.trim(), 
-            franchise_id: finalFranchiseId
-        };
+            const payload = { 
+                name: name.trim(), 
+                franchise_id: finalFranchiseId
+            };
 
-        if (editingId) {
-            await updateMutation.mutateAsync({ id: editingId, data: payload });
-        } else {
-            await createMutation.mutateAsync(payload);
+            if (editingId) {
+                await updateMutation.mutateAsync({ id: editingId, data: payload });
+                notifications.show({ title: 'Success', message: 'Character updated successfully', color: 'green' });
+            } else {
+                await createMutation.mutateAsync(payload);
+                notifications.show({ title: 'Success', message: 'Character created successfully', color: 'green' });
+            }
+
+            setName('');
+            setFranchiseQuery('');
+            setError(null);
+            setEditingId(null);
+            setModalOpen(false);
+        } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+            setError(e?.response?.data?.detail || e?.message || 'Failed to save character.');
         }
-        setName('');
-        setFranchiseQuery('');
-        setEditingId(null);
-        setModalOpen(false);
     };
 
     if (isLoading) return <Text>Loading...</Text>;
@@ -222,6 +237,11 @@ export function CharactersTab() {
 
             <Modal opened={modalOpen} onClose={handleClose} title={editingId ? 'Edit Character' : 'Add Character'}>
                 <Stack>
+                    {error && (
+                        <Alert icon={<IconAlertCircle size={16} />} color="red" title="Error">
+                            {error}
+                        </Alert>
+                    )}
                     <TextInput label="Name" value={name} onChange={(e) => setName(e.currentTarget.value)} required />
                     <Autocomplete
                         label="Franchise"

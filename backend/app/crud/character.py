@@ -186,7 +186,7 @@ async def get_or_create_character(db: AsyncSession, name: str) -> Character:
 
 async def create_character(db: AsyncSession, character: CharacterCreate) -> Character:
     db_character = Character(
-        name=character.name.strip().title(),
+        name=character.name.strip(),
         franchise_id=character.franchise_id
     )
     db.add(db_character)

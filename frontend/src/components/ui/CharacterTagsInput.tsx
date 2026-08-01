@@ -9,7 +9,7 @@ export type CharacterTagsInputProps = Omit<TagsInputProps, 'data'>;
 export function CharacterTagsInput(props: CharacterTagsInputProps) {
     // Fetch all characters. In a real large app, this might need a dedicated search endpoint.
     // eslint-disable-next-line no-magic-numbers
-    const { data: characters } = useReadCharacters(0, 500);
+    const { data: characters } = useReadCharacters(0, 10000);
 
 
     const data = useMemo(() => {

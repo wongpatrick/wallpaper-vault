@@ -29,10 +29,7 @@ async def create_franchise(
     # Ensure name is unique
     existing = await crud_franchise.get_franchise_by_name(db, franchise.name)
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Franchise already exists."
-        )
+        return existing
     try:
         res = await crud_franchise.create_franchise(db, franchise)
         await db.commit()

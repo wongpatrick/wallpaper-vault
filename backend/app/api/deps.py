@@ -44,15 +44,15 @@ class PaginationParams:
 
 def pagination_params(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(100, ge=1, le=500, description="Maximum number of records to return (max 500)")
+    limit: int = Query(100, ge=1, le=10000, description="Maximum number of records to return (max 10000)")
 ) -> PaginationParams:
-    """Dependency for standard pagination with default limit=100, max limit=500."""
+    """Dependency for standard pagination with default limit=100, max limit=10000."""
     return PaginationParams(skip=skip, limit=limit)
 
 def pagination_params_50(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(50, ge=1, le=500, description="Maximum number of records to return (max 500)")
+    limit: int = Query(50, ge=1, le=10000, description="Maximum number of records to return (max 10000)")
 ) -> PaginationParams:
-    """Dependency for pagination with default limit=50, max limit=500."""
+    """Dependency for pagination with default limit=50, max limit=10000."""
     return PaginationParams(skip=skip, limit=limit)
 
