@@ -81,7 +81,8 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
             const checkBrowserHealth = async () => {
                 let isHealthy = false;
                 try {
-                    const res = await fetch(`${targetUrl}/`);
+                    const cleanUrl = targetUrl.replace(/\/+$/, '');
+                    const res = await fetch(`${cleanUrl}/`);
                     // Accept 200 or 401 (401 means the server is online but requires authentication)
                     // eslint-disable-next-line no-magic-numbers
                     if (res.status === 200 || res.status === 401) {

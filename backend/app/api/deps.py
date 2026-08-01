@@ -1,9 +1,11 @@
 """
 Dependencies for the API endpoints, including security and authentication.
 """
+from dataclasses import dataclass
+import secrets
 from fastapi import Header, Query, HTTPException, status
 from app.core.config import settings
-import secrets
+
 
 async def verify_api_key(
     x_api_key: str | None = Header(None, alias="X-API-Key"),
@@ -26,9 +28,31 @@ async def verify_api_key(
             detail="Unauthorized: Missing API Key"
         )
 
-    # Use constant-time comparison to prevent timing attacks
+# Use constant-time comparison to prevent timing attacks
     if not secrets.compare_digest(provided_key, settings.API_KEY):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unauthorized: Invalid API Key"
         )
+
+
+@dataclass
+class PaginationParams:
+
+    skip: int
+    limit: int
+
+def pagination_params(
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records to return (max 500)")
+) -> PaginationParams:
+    """Dependency for standard pagination with default limit=100, max limit=500."""
+    return PaginationParams(skip=skip, limit=limit)
+
+def pagination_params_50(
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=500, description="Maximum number of records to return (max 500)")
+) -> PaginationParams:
+    """Dependency for pagination with default limit=50, max limit=500."""
+    return PaginationParams(skip=skip, limit=limit)
+

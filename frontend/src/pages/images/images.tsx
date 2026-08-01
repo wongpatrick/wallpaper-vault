@@ -8,6 +8,7 @@ import { IconAlertCircle, IconSearch, IconX, IconGridDots, IconPalette, IconChec
 import { useReadImagesApiImagesGet } from '../../api/generated/images/images';
 import { ImageGridItem } from '../../components/images/ImageGridItem';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
+
 import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { ImageCropModal } from '../../components/images/ImageCropModal';
 import { SortControl } from '../../components/ui/SortControl';
@@ -16,6 +17,7 @@ import { FranchiseAutocompleteInput } from '../../components/ui/FranchiseAutocom
 import { ColorExplorer } from './ColorExplorer';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useIntersection, useViewportSize } from '@mantine/hooks';
+
 import { useSearchParams } from 'react-router-dom';
 import { useUrlSearch } from '../../hooks/useUrlSearch';
 import { useUrlPagination } from '../../hooks/useUrlPagination';
@@ -87,6 +89,7 @@ export default function Images() {
     });
 
     // Lightbox state
+
     const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
 
     // Edit Modal state
@@ -423,6 +426,7 @@ export default function Images() {
                     )}
                 </div>
             </Box>
+
 
             {/* View Image */}
             <ImageLightbox

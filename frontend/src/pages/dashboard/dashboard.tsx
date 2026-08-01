@@ -75,11 +75,11 @@ export default function Dashboard() {
     const characterCloud = useMemo(() => {
         if (!characters) return [];
         return characters
-            .filter((c) => (c.set_count ?? 0) > 0)
+            .filter((c) => (c.set_count ?? 0) > 0 || (c.image_count ?? 0) > 0)
             .map((c) => ({
                 tag: c.name,
                 type: 'character',
-                count: c.set_count ?? 0,
+                count: (c.set_count ?? 0) + (c.image_count ?? 0),
             }))
             .sort((a, b) => b.count - a.count);
     }, [characters]);
@@ -88,11 +88,11 @@ export default function Dashboard() {
     const franchiseCloud = useMemo(() => {
         if (!franchises) return [];
         return franchises
-            .filter((f) => (f.set_count ?? 0) > 0)
+            .filter((f) => (f.set_count ?? 0) > 0 || (f.image_count ?? 0) > 0)
             .map((f) => ({
                 tag: f.name,
                 type: 'franchise',
-                count: f.set_count ?? 0,
+                count: (f.set_count ?? 0) + (f.image_count ?? 0),
             }))
             .sort((a, b) => b.count - a.count);
     }, [franchises]);

@@ -9,7 +9,8 @@ export type FranchiseAutocompleteInputProps = Omit<SelectProps, 'data'>;
 export function FranchiseAutocompleteInput(props: FranchiseAutocompleteInputProps) {
     // Fetch all franchises. In a real large app, this might need a dedicated search endpoint.
     // eslint-disable-next-line no-magic-numbers
-    const { data: franchises } = useReadFranchises(0, 1000);
+    const { data: franchises } = useReadFranchises(0, 500);
+
 
     const data = useMemo(() => {
         if (!franchises) return [];

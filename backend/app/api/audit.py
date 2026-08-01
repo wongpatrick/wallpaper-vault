@@ -13,7 +13,9 @@ from sqlalchemy import select, func, update, delete
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
+from app.api.deps import PaginationParams, pagination_params_50
 from app.schemas.tools import AuditIssuePage, AuditStartRequest, AuditFixAction
+
 from app.models.audit import AuditIssue
 from app.models.image import Image
 from app.models.set import Set
@@ -88,8 +90,7 @@ async def get_current_audit(db: AsyncSession = Depends(get_db)) -> dict[str, Any
 
 @router.get("/results", response_model=AuditIssuePage)
 async def get_audit_results(
-    skip: int = 0,
-    limit: int = 50,
+    pagination: PaginationParams = Depends(pagination_params_50),
     issue_type: Optional[str] = None,
     status: str = AuditIssueStatus.PENDING,
     db: AsyncSession = Depends(get_db),
@@ -107,14 +108,15 @@ async def get_audit_results(
     # Get items
     query = (
         query.options(selectinload(AuditIssue.set).selectinload(Set.creators))
-        .offset(skip)
-        .limit(limit)
+        .offset(pagination.skip)
+        .limit(pagination.limit)
     )
 
     res = await db.execute(query.order_by(AuditIssue.created_at.desc()))
     items = res.scalars().all()
 
-    return AuditIssuePage(items=items, total=total, skip=skip, limit=limit)
+    return AuditIssuePage(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
+
 
 
 @router.post("/resolve")

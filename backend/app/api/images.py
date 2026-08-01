@@ -7,7 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, 
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
+from app.api.deps import PaginationParams, pagination_params
 from app.crud import image as crud_image
+
 from app.services import image_service, import_service
 from app.schemas.image import (
     Image, ImageUpdate, ImageCreate, ImageBulkUpdate, ImageBulkMove,
@@ -95,8 +97,7 @@ async def bulk_move_images(
 
 @router.get("/", response_model=ImagePage)
 async def read_images(
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams = Depends(pagination_params),
     search: Optional[str] = None,
     rating: Optional[str] = None,
     tag: Optional[str] = Query(None, description="Filter by a single tag (matches image or set tags)"),
@@ -110,11 +111,11 @@ async def read_images(
 ) -> ImagePage:
     """Retrieve images with pagination, search, character, franchise and color filters."""
     images, total = await crud_image.get_images(
-        db, skip=skip, limit=limit, search=search, rating=rating, tag=tag, color=color, color_tolerance=color_tolerance,
+        db, skip=pagination.skip, limit=pagination.limit, search=search, rating=rating, tag=tag, color=color, color_tolerance=color_tolerance,
         character=character, franchise=franchise, sort_by=sort_by, sort_dir=sort_dir
     )
     items = [map_image_to_context_schema(img) for img in images]
-    return ImagePage(items=items, total=total, skip=skip, limit=limit)
+    return ImagePage(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 @router.get("/color-stats", response_model=List[dict[str, Any]])
 async def read_color_stats(

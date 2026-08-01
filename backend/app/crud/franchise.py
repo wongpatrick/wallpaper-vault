@@ -22,17 +22,30 @@ async def get_franchise(db: AsyncSession, franchise_id: int) -> Optional[Franchi
 async def get_franchises(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[dict]:
     from app.models.character import Character
     from app.models.associations import set_characters, image_characters
+
+    set_count_sub = (
+        select(func.count(set_characters.c.set_id.distinct()))
+        .select_from(set_characters)
+        .join(Character, Character.id == set_characters.c.character_id)
+        .where(Character.franchise_id == Franchise.id)
+        .scalar_subquery()
+        .label("set_count")
+    )
+    image_count_sub = (
+        select(func.count(image_characters.c.image_id.distinct()))
+        .select_from(image_characters)
+        .join(Character, Character.id == image_characters.c.character_id)
+        .where(Character.franchise_id == Franchise.id)
+        .scalar_subquery()
+        .label("image_count")
+    )
     stmt = (
         select(
             Franchise, 
-            func.count(set_characters.c.set_id.distinct()).label("set_count"),
-            func.count(image_characters.c.image_id.distinct()).label("image_count")
+            set_count_sub,
+            image_count_sub
         )
-        .outerjoin(Character, Franchise.id == Character.franchise_id)
-        .outerjoin(set_characters, Character.id == set_characters.c.character_id)
-        .outerjoin(image_characters, Character.id == image_characters.c.character_id)
-        .group_by(Franchise.id)
-        .order_by(func.count(set_characters.c.set_id.distinct()).desc(), Franchise.name.asc())
+        .order_by((set_count_sub + image_count_sub).desc(), Franchise.name.asc())
         .offset(skip).limit(limit)
     )
     result = await db.execute(stmt)
@@ -40,10 +53,11 @@ async def get_franchises(db: AsyncSession, skip: int = 0, limit: int = 100) -> L
         {
             "id": row.Franchise.id, 
             "name": row.Franchise.name,
-            "set_count": row.set_count,
-            "image_count": row.image_count
+            "set_count": row.set_count or 0,
+            "image_count": row.image_count or 0
         } for row in result.all()
     ]
+
 
 async def get_franchise_by_name(db: AsyncSession, name: str) -> Optional[Franchise]:
     result = await db.execute(select(Franchise).where(func.lower(Franchise.name) == name.lower()))

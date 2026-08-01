@@ -20,8 +20,9 @@ import { TaxonomyTable, SortableHeader } from './TaxonomyTable';
 
 export function CharactersTab() {
     const navigate = useNavigate();
-    const { data: characters, isLoading } = useReadCharacters(0, 1000);
-    const { data: franchises } = useReadFranchises(0, 1000);
+    const { data: characters, isLoading } = useReadCharacters(0, 500);
+    const { data: franchises } = useReadFranchises(0, 500);
+
     const createMutation = useCreateCharacter();
     const updateMutation = useUpdateCharacter();
     const deleteMutation = useDeleteCharacter();
