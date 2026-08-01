@@ -29,7 +29,7 @@ async def create_character(
     # Ensure character name is unique within its franchise
     existing = await crud_character.get_character_by_name_and_franchise_id(
         db, 
-        character.name.strip().title(), 
+        character.name.strip(), 
         character.franchise_id
     )
     if existing:
