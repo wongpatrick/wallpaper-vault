@@ -59,6 +59,9 @@ app.add_middleware(
 app.include_router(api_router, prefix="/api", dependencies=[Depends(verify_api_key)])
 
 @app.get("/", tags=["Health"])
+@app.get("/health", tags=["Health"])
+@app.get("/api/health", tags=["Health"])
 async def root() -> dict[str, str]:
     # Basic Healthcheck endpoint 
     return {"status": "ok", "message": "Wallpaper Vault API is running"}
+

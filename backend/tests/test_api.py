@@ -94,3 +94,33 @@ async def test_creator_socials_crud(client: AsyncClient):
         "socials": [{"platform": "Twitter", "url": "not-a-valid-url"}]
     })
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_pagination_limits(client: AsyncClient):
+    """
+    Test upper bound (le=500) and lower bound (ge=1) validation on paginated endpoints.
+    """
+    endpoints = [
+        "/api/images/",
+        "/api/sets/",
+        "/api/creators/",
+        "/api/characters/",
+        "/api/franchises/",
+        "/api/tags/management",
+        "/api/audit/results",
+    ]
+
+    for endpoint in endpoints:
+        # Exceeding upper bound (limit > 500) -> 422
+        res = await client.get(f"{endpoint}?limit=999999")
+        assert res.status_code == 422, f"Expected 422 for limit=999999 on {endpoint}, got {res.status_code}"
+
+        # Below lower bound (limit < 1) -> 422
+        res = await client.get(f"{endpoint}?limit=0")
+        assert res.status_code == 422, f"Expected 422 for limit=0 on {endpoint}, got {res.status_code}"
+
+        # Valid upper bound (limit=500) -> 200
+        res = await client.get(f"{endpoint}?limit=500")
+        assert res.status_code == 200, f"Expected 200 for limit=500 on {endpoint}, got {res.status_code}"
+

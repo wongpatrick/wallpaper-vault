@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from app.db.session import get_db
+from app.api.deps import PaginationParams, pagination_params
 from app.crud import character as crud_character
 from app.schemas.character import Character, CharacterCreate, CharacterUpdate, CharacterMerge
 from app.schemas.bulk import BulkDeleteRequest
@@ -11,13 +12,13 @@ router = APIRouter()
 
 @router.get("/", response_model=List[Character])
 async def read_characters(
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db)
 ):
     """Retrieve all characters."""
-    characters = await crud_character.get_characters(db, skip=skip, limit=limit)
+    characters = await crud_character.get_characters(db, skip=pagination.skip, limit=pagination.limit)
     return characters
+
 
 @router.post("/", response_model=Character)
 async def create_character(

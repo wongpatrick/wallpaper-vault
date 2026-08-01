@@ -1,8 +1,10 @@
 /**
  * @file API client methods and React Query hooks for managing characters and franchises.
  */
+/* eslint-disable no-magic-numbers */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customInstance } from './axios-instance';
+
 
 // --- Models ---
 export interface Tag {
@@ -52,7 +54,7 @@ export interface CharacterUpdate {
 
 // --- Characters API ---
 
-export const readCharacters = (skip = 0, limit = 100, signal?: AbortSignal) => {
+export const readCharacters = (skip = 0, limit = 500, signal?: AbortSignal) => {
   return customInstance<Character[]>({ url: `/api/characters/`, method: 'GET', params: { skip, limit }, signal });
 };
 
@@ -75,7 +77,7 @@ export const mergeCharacters = (source_ids: number[], target_id: number) => {
 
 // --- Franchises API ---
 
-export const readFranchises = (skip = 0, limit = 100, signal?: AbortSignal) => {
+export const readFranchises = (skip = 0, limit = 500, signal?: AbortSignal) => {
   return customInstance<Franchise[]>({ url: `/api/franchises/`, method: 'GET', params: { skip, limit }, signal });
 };
 
@@ -98,7 +100,7 @@ export const mergeFranchises = (source_ids: number[], target_id: number) => {
 
 // --- Hooks ---
 
-export const useReadCharacters = (skip = 0, limit = 100) => {
+export const useReadCharacters = (skip = 0, limit = 500) => {
   return useQuery({
     queryKey: ['characters', skip, limit],
     queryFn: ({ signal }) => readCharacters(skip, limit, signal),
@@ -151,7 +153,7 @@ export const useMergeCharacters = () => {
   });
 };
 
-export const useReadFranchises = (skip = 0, limit = 100) => {
+export const useReadFranchises = (skip = 0, limit = 500) => {
   return useQuery({
     queryKey: ['franchises', skip, limit],
     queryFn: ({ signal }) => readFranchises(skip, limit, signal),
@@ -199,7 +201,7 @@ export const useMergeFranchises = () => {
 
 // --- Tags API ---
 
-export const readTagsManagement = (skip = 0, limit = 100, signal?: AbortSignal) => {
+export const readTagsManagement = (skip = 0, limit = 500, signal?: AbortSignal) => {
   return customInstance<Tag[]>({ url: `/api/tags/management`, method: 'GET', params: { skip, limit }, signal });
 };
 
@@ -215,12 +217,13 @@ export const mergeTags = (source_ids: number[], target_id: number) => {
   return customInstance<Tag>({ url: `/api/tags/merge`, method: 'POST', data: { source_ids, target_id } });
 };
 
-export const useReadTagsManagement = (skip = 0, limit = 100) => {
+export const useReadTagsManagement = (skip = 0, limit = 500) => {
   return useQuery({
     queryKey: ['tags', skip, limit],
     queryFn: ({ signal }) => readTagsManagement(skip, limit, signal),
   });
 };
+
 
 export const useUpdateTag = () => {
   const queryClient = useQueryClient();

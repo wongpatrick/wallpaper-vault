@@ -6,8 +6,10 @@ from fastapi.responses import StreamingResponse
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
+from app.api.deps import PaginationParams, pagination_params
 
 from app.crud import set as crud_set
+
 from app.services import set_service
 from app.schemas.set import Set, SetCreate, SetImport, BatchImportRequest, BatchImportResponse, SetUpdate, SetPage, SetBulkUpdate, SetMerge, AutoTagResponse
 from app.core import tasks
@@ -111,8 +113,7 @@ async def batch_import_sets(
 
 @router.get("/", response_model=SetPage)
 async def read_sets(
-        skip: int = 0,
-        limit: int = 100,
+        pagination: PaginationParams = Depends(pagination_params),
         search: Optional[str] = None,
         creator_type: Optional[str] = None,
         tag: Optional[str] = Query(None, description="Filter by tag"),
@@ -124,10 +125,11 @@ async def read_sets(
 ) -> SetPage:
     """Retrieve a paginated list of sets with optional filtering and sorting."""
     sets, total = await crud_set.get_sets(
-        db, skip=skip, limit=limit, search=search, creator_type=creator_type,
+        db, skip=pagination.skip, limit=pagination.limit, search=search, creator_type=creator_type,
         sort_by=sort_by, sort_dir=sort_dir, tag=tag, character=character, franchise=franchise
     )
-    return SetPage(items=sets, total=total, skip=skip, limit=limit)
+    return SetPage(items=sets, total=total, skip=pagination.skip, limit=pagination.limit)
+
 
 @router.get("/{set_id}", response_model=Set)
 async def read_set(

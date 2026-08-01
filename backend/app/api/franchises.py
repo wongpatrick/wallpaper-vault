@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from app.db.session import get_db
+from app.api.deps import PaginationParams, pagination_params
 from app.crud import franchise as crud_franchise
 from app.schemas.franchise import Franchise, FranchiseCreate, FranchiseUpdate, FranchiseMerge
 from app.schemas.bulk import BulkDeleteRequest
@@ -11,13 +12,13 @@ router = APIRouter()
 
 @router.get("/", response_model=List[Franchise])
 async def read_franchises(
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db)
 ):
     """Retrieve all franchises."""
-    franchises = await crud_franchise.get_franchises(db, skip=skip, limit=limit)
+    franchises = await crud_franchise.get_franchises(db, skip=pagination.skip, limit=pagination.limit)
     return franchises
+
 
 @router.post("/", response_model=Franchise)
 async def create_franchise(

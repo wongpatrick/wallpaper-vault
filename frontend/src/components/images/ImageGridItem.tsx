@@ -3,6 +3,7 @@
  * Module: Image Grid Item
  * Description: Component for displaying a single image within a grid, featuring selection mode, rating badges, and overlay information.
  */
+import { memo } from 'react';
 import { Card, Image, Box, Text, Stack, Badge, Group, Checkbox } from '@mantine/core';
 import { IconAlertTriangle, IconExclamationCircle } from '@tabler/icons-react';
 import { getThumbnailUrl } from '../../utils/fileUtils';
@@ -22,7 +23,7 @@ const SCROLL_DEBOUNCE_MS = 500;
 const OPACITY_UNSELECTED = 0.7;
 const OPACITY_FULL = 1;
 
-export function ImageGridItem({ image, onClick, selectionMode, selected, onToggleSelect }: ImageGridItemProps) {
+export const ImageGridItem = memo(function ImageGridItem({ image, onClick, selectionMode, selected, onToggleSelect }: ImageGridItemProps) {
     const rating = image.rating || ImageRating.SAFE;
     const dominantColor = image.dominant_color;
     
@@ -154,4 +155,5 @@ export function ImageGridItem({ image, onClick, selectionMode, selected, onToggl
             </Box>
         </Card>
     );
-}
+});
+

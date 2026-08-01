@@ -19,7 +19,8 @@ import { TaxonomyTable, SortableHeader } from './TaxonomyTable';
 
 export function TagsTab() {
     const navigate = useNavigate();
-    const { data: tags, isLoading } = useReadTagsManagement(0, 1000);
+    const { data: tags, isLoading } = useReadTagsManagement(0, 500);
+
     const updateMutation = useUpdateTag();
     const deleteMutation = useDeleteTag();
     const mergeMutation = useMergeTags();

@@ -19,7 +19,8 @@ import { TaxonomyTable, SortableHeader } from './TaxonomyTable';
 
 export function FranchisesTab() {
     const navigate = useNavigate();
-    const { data: franchises, isLoading } = useReadFranchises(0, 1000);
+    const { data: franchises, isLoading } = useReadFranchises(0, 500);
+
     const createMutation = useCreateFranchise();
     const updateMutation = useUpdateFranchise();
     const deleteMutation = useDeleteFranchise();

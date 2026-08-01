@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
+from app.api.deps import PaginationParams, pagination_params
 from app.crud import tag as crud_tag
 from app.schemas.tag import Tag, TagUpdate, TagMerge
 from app.schemas.bulk import BulkDeleteRequest
@@ -22,7 +23,7 @@ class TagCount(BaseModel):
 
 @router.get("/cloud", response_model=List[TagCount])
 async def read_tag_cloud(
-    limit: int = Query(50, description="Maximum number of tags to return, sorted by frequency"),
+    limit: int = Query(50, ge=1, le=500, description="Maximum number of tags to return, sorted by frequency"),
     db: AsyncSession = Depends(get_db)
 ) -> List[TagCount]:
     """
@@ -39,7 +40,7 @@ async def read_tag_cloud(
 @router.get("/", response_model=List[str])
 async def search_tags(
     q: Optional[str] = Query(None, description="Prefix or keyword to search for in tags"),
-    limit: int = Query(50, description="Maximum number of tags to return"),
+    limit: int = Query(50, ge=1, le=500, description="Maximum number of tags to return"),
     db: AsyncSession = Depends(get_db)
 ) -> List[str]:
     """
@@ -52,13 +53,13 @@ async def search_tags(
 
 @router.get("/management", response_model=List[Tag])
 async def read_tags_management(
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db)
 ) -> List[Tag]:
     """Retrieve full tag objects for management UI."""
-    tags = await crud_tag.get_tags(db, skip=skip, limit=limit)
+    tags = await crud_tag.get_tags(db, skip=pagination.skip, limit=pagination.limit)
     return tags
+
 
 @router.patch("/{tag_id}", response_model=Tag)
 async def update_tag(

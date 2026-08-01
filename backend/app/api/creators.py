@@ -5,7 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
+from app.api.deps import PaginationParams, pagination_params
 from app.crud import creator as crud_creator
+
 from app.schemas.creator import Creator, CreatorCreate, CreatorWithSets, CreatorMerge, CreatorPage
 from sqlalchemy.exc import IntegrityError
 
@@ -43,8 +45,7 @@ async def create_creator(
 
 @router.get("/", response_model=CreatorPage)
 async def read_creators(
-        skip: int = 0,
-        limit: int = 100,
+        pagination: PaginationParams = Depends(pagination_params),
         search: Optional[str] = None,
         creator_type: Optional[str] = None,
         sort_by: Optional[str] = Query("name", description="Sort field (name, set_count, total_image_count)"),
@@ -56,8 +57,9 @@ async def read_creators(
     
     Supports text search against canonical names and filtering by creator type (e.g., photographer, illustrator).
     """
-    creators, total = await crud_creator.get_creators(db, skip=skip, limit=limit, search=search, creator_type=creator_type, sort_by=sort_by, sort_dir=sort_dir)
-    return CreatorPage(items=creators, total=total, skip=skip, limit=limit)
+    creators, total = await crud_creator.get_creators(db, skip=pagination.skip, limit=pagination.limit, search=search, creator_type=creator_type, sort_by=sort_by, sort_dir=sort_dir)
+    return CreatorPage(items=creators, total=total, skip=pagination.skip, limit=pagination.limit)
+
 
 @router.get("/{creator_id}", response_model=CreatorWithSets)
 async def read_creator(

@@ -163,15 +163,25 @@ async def get_tags_by_names(db: AsyncSession, names: List[str]) -> List[Tag]:
 async def get_tags(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[dict]:
     """Retrieve all tags with set and image counts."""
     from app.models.associations import set_tags, image_tags
+
+    set_count_sub = (
+        select(func.count(set_tags.c.set_id))
+        .where(set_tags.c.tag_id == Tag.id)
+        .scalar_subquery()
+        .label("set_count")
+    )
+    image_count_sub = (
+        select(func.count(image_tags.c.image_id))
+        .where(image_tags.c.tag_id == Tag.id)
+        .scalar_subquery()
+        .label("image_count")
+    )
     stmt = (
         select(
             Tag,
-            func.count(set_tags.c.set_id.distinct()).label("set_count"),
-            func.count(image_tags.c.image_id.distinct()).label("image_count")
+            set_count_sub,
+            image_count_sub
         )
-        .outerjoin(set_tags, Tag.id == set_tags.c.tag_id)
-        .outerjoin(image_tags, Tag.id == image_tags.c.tag_id)
-        .group_by(Tag.id)
         .order_by(Tag.name.asc())
         .offset(skip)
         .limit(limit)
@@ -181,10 +191,11 @@ async def get_tags(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[di
         {
             "id": row.Tag.id, 
             "name": row.Tag.name, 
-            "set_count": row.set_count,
-            "image_count": row.image_count
+            "set_count": row.set_count or 0,
+            "image_count": row.image_count or 0
         } for row in result.all()
     ]
+
 
 async def get_tag(db: AsyncSession, tag_id: int) -> Optional[Tag]:
     """Retrieve a tag by ID."""

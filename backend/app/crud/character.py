@@ -46,17 +46,27 @@ async def get_character(db: AsyncSession, character_id: int) -> Optional[Charact
 
 async def get_characters(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[dict]:
     from app.models.associations import set_characters, image_characters
+
+    set_count_sub = (
+        select(func.count(set_characters.c.set_id))
+        .where(set_characters.c.character_id == Character.id)
+        .scalar_subquery()
+        .label("set_count")
+    )
+    image_count_sub = (
+        select(func.count(image_characters.c.image_id))
+        .where(image_characters.c.character_id == Character.id)
+        .scalar_subquery()
+        .label("image_count")
+    )
     stmt = (
         select(
             Character,
-            func.count(set_characters.c.set_id.distinct()).label("set_count"),
-            func.count(image_characters.c.image_id.distinct()).label("image_count")
+            set_count_sub,
+            image_count_sub
         )
         .options(selectinload(Character.franchise))
-        .outerjoin(set_characters, Character.id == set_characters.c.character_id)
-        .outerjoin(image_characters, Character.id == image_characters.c.character_id)
-        .group_by(Character.id)
-        .order_by(func.count(set_characters.c.set_id.distinct()).desc(), Character.name.asc())
+        .order_by((set_count_sub + image_count_sub).desc(), Character.name.asc())
         .offset(skip).limit(limit)
     )
     result = await db.execute(stmt)
@@ -67,10 +77,11 @@ async def get_characters(db: AsyncSession, skip: int = 0, limit: int = 100) -> L
             "name": row.Character.name, 
             "franchise_id": row.Character.franchise_id,
             "franchise": row.Character.franchise,
-            "set_count": row.set_count,
-            "image_count": row.image_count
+            "set_count": row.set_count or 0,
+            "image_count": row.image_count or 0
         } for row in result.all()
     ]
+
 
 async def get_character_by_name(db: AsyncSession, name: str) -> Optional[Character]:
     result = await db.execute(

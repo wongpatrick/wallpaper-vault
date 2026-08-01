@@ -9,7 +9,8 @@ export type CharacterAutocompleteInputProps = Omit<SelectProps, 'data'>;
 export function CharacterAutocompleteInput(props: CharacterAutocompleteInputProps) {
     // Fetch all characters. In a real large app, this might need a dedicated search endpoint.
     // eslint-disable-next-line no-magic-numbers
-    const { data: characters } = useReadCharacters(0, 1000);
+    const { data: characters } = useReadCharacters(0, 500);
+
 
     const data = useMemo(() => {
         if (!characters) return [];
