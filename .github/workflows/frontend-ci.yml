@@ -33,9 +33,14 @@ jobs:
       - name: Sync Backend Dependencies
         run: uv sync
         working-directory: ./backend
+
+      - name: Generate OpenAPI Spec
+        run: uv run python -c "import json; from app.main import app; openapi = app.openapi(); open('openapi.json', 'w', encoding='utf-8').write(json.dumps(openapi, indent=2))"
+        working-directory: ./backend
           
       - name: Install Dependencies
         run: npm ci
+
         
 #      - name: Install Playwright System Dependencies
 #        run: npx playwright install-deps
