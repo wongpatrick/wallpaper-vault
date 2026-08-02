@@ -7,15 +7,16 @@ import { useReadFranchises } from '../../api/taxonomy';
 export type FranchiseAutocompleteInputProps = Omit<SelectProps, 'data'>;
 
 export function FranchiseAutocompleteInput(props: FranchiseAutocompleteInputProps) {
-    // Fetch all franchises. In a real large app, this might need a dedicated search endpoint.
-    // eslint-disable-next-line no-magic-numbers
-    const { data: franchises } = useReadFranchises(0, 500);
+    // Fetch franchises for autocomplete.
+    const { data: franchiseData } = useReadFranchises({ skip: 0, limit: 500 });
 
+    const franchises = franchiseData?.items;
 
     const data = useMemo(() => {
         if (!franchises) return [];
         return Array.from(new Set(franchises.map(f => f.name)));
     }, [franchises]);
+
 
     return (
         <Select

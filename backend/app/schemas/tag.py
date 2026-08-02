@@ -20,3 +20,8 @@ class Tag(TagBase):
 class TagMerge(BaseModel):
     source_ids: list[int] = Field(..., description="List of tag IDs to merge and delete.")
     target_id: int = Field(..., description="The ID of the tag to merge into.")
+
+class TagPage(BaseModel):
+    items: list[Tag] = Field(..., description="List of tags on the current page.")
+    total: int = Field(..., description="Total number of tags matching the query.")
+

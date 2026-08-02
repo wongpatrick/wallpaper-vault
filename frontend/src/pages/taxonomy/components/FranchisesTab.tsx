@@ -19,7 +19,15 @@ import { TaxonomyTable, SortableHeader } from './TaxonomyTable';
 
 export function FranchisesTab() {
     const navigate = useNavigate();
-    const { data: franchises, isLoading } = useReadFranchises(0, 500);
+    const filterSort = useTaxonomyFilterSort(25);
+    const { search, setSearch, sortBy, setSortBy, page, setPage, getTotalPages, queryParams } = filterSort;
+
+    const { data: franchisesData, isLoading } = useReadFranchises(queryParams);
+    const franchises = useMemo(() => franchisesData?.items || [], [franchisesData?.items]);
+    const totalItems = franchisesData?.total || 0;
+    const totalPages = getTotalPages(totalItems);
+
+
 
     const createMutation = useCreateFranchise();
     const updateMutation = useUpdateFranchise();
@@ -31,17 +39,16 @@ export function FranchisesTab() {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [name, setName] = useState('');
 
-    const { search, setSearch, sortBy, setSortBy, page, setPage, totalPages, totalItems, result: sortedFranchises } = useTaxonomyFilterSort(franchises);
-
     const crud = useTaxonomyCRUD({
         items: franchises,
-        sortedItems: sortedFranchises,
+        sortedItems: franchises,
         deleteEntity: (id) => deleteMutation.mutateAsync(id),
         mergeEntities: (sourceIds, targetId) => mergeMutation.mutateAsync({ source_ids: sourceIds, target_id: targetId }),
         bulkDeleteEntities: (ids) => bulkDeleteMutation.mutateAsync(ids),
         deleteTitle: 'Delete Franchise',
         deleteMessage: 'Are you sure you want to delete this franchise? Associated characters will lose their franchise link.'
     });
+
 
     const isFormDirty = useMemo(() => {
         if (editingId) {
@@ -117,7 +124,7 @@ export function FranchisesTab() {
                 isAllSelected={crud.isAllSelected}
                 isIndeterminate={crud.isIndeterminate}
                 onSelectAll={crud.handleSelectAll}
-                showingCount={sortedFranchises.length}
+                showingCount={franchises.length}
                 totalCount={totalItems}
                 entityNamePlural="franchises"
                 page={page}
@@ -132,7 +139,7 @@ export function FranchisesTab() {
                     </>
                 }
             >
-                {sortedFranchises.map(franchise => (
+                {franchises.map(franchise => (
                     <Table.Tr key={franchise.id}>
                         <Table.Td>
                             <Checkbox 
@@ -170,11 +177,12 @@ export function FranchisesTab() {
                         </Table.Td>
                     </Table.Tr>
                 ))}
-                {!sortedFranchises.length && (
+                {!franchises.length && (
                     <Table.Tr>
                         <Table.Td colSpan={5} ta="center">No franchises found.</Table.Td>
                     </Table.Tr>
                 )}
+
             </TaxonomyTable>
 
             <Modal opened={modalOpen} onClose={handleClose} title={editingId ? 'Edit Franchise' : 'Add Franchise'}>

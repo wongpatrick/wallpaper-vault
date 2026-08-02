@@ -7,16 +7,18 @@ import { useReadCharacters } from '../../api/taxonomy';
 export type CharacterTagsInputProps = Omit<TagsInputProps, 'data'>;
 
 export function CharacterTagsInput(props: CharacterTagsInputProps) {
-    // Fetch all characters. In a real large app, this might need a dedicated search endpoint.
-    // eslint-disable-next-line no-magic-numbers
-    const { data: characters } = useReadCharacters(0, 10000);
+    // Fetch characters for tags input (max 500 allowed by backend pagination limit).
+    const { data: charData } = useReadCharacters({ skip: 0, limit: 500 });
 
+
+    const characters = charData?.items;
 
     const data = useMemo(() => {
         if (!characters) return [];
         const mapped = characters.map(c => c.franchise ? `${c.name} (${c.franchise.name})` : c.name);
         return Array.from(new Set(mapped));
     }, [characters]);
+
 
     return (
         <TagsInput
