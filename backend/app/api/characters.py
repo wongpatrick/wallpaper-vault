@@ -1,23 +1,34 @@
 """API endpoints for characters."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
 from app.db.session import get_db
 from app.api.deps import PaginationParams, pagination_params
 from app.crud import character as crud_character
-from app.schemas.character import Character, CharacterCreate, CharacterUpdate, CharacterMerge
+from app.schemas.character import Character, CharacterCreate, CharacterUpdate, CharacterMerge, CharacterPage
 from app.schemas.bulk import BulkDeleteRequest
 
 router = APIRouter()
 
-@router.get("/", response_model=List[Character])
+@router.get("/", response_model=CharacterPage)
 async def read_characters(
+    search: Optional[str] = Query(None, description="Search term for character or franchise name"),
+    sort_by: Optional[str] = Query(None, description="Field to sort by (name, set_count, image_count, franchise)"),
+    sort_dir: Optional[str] = Query(None, description="Sort direction (asc, desc)"),
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db)
 ):
-    """Retrieve all characters."""
-    characters = await crud_character.get_characters(db, skip=pagination.skip, limit=pagination.limit)
+    """Retrieve paginated characters matching optional search query."""
+    characters = await crud_character.get_characters(
+        db, 
+        search=search, 
+        sort_by=sort_by, 
+        sort_dir=sort_dir, 
+        skip=pagination.skip, 
+        limit=pagination.limit
+    )
     return characters
+
 
 
 @router.post("/", response_model=Character)

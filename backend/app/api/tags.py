@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.api.deps import PaginationParams, pagination_params
 from app.crud import tag as crud_tag
-from app.schemas.tag import Tag, TagUpdate, TagMerge
+from app.schemas.tag import Tag, TagUpdate, TagMerge, TagPage
+
 from app.schemas.bulk import BulkDeleteRequest
 
 router = APIRouter()
@@ -51,14 +52,25 @@ async def search_tags(
     tags = await crud_tag.get_unique_tags(db, search=q, limit=limit)
     return tags
 
-@router.get("/management", response_model=List[Tag])
+@router.get("/management", response_model=TagPage)
 async def read_tags_management(
+    search: Optional[str] = Query(None, description="Search term for tag name"),
+    sort_by: Optional[str] = Query(None, description="Field to sort by (name, set_count, image_count)"),
+    sort_dir: Optional[str] = Query(None, description="Sort direction (asc, desc)"),
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db)
-) -> List[Tag]:
-    """Retrieve full tag objects for management UI."""
-    tags = await crud_tag.get_tags(db, skip=pagination.skip, limit=pagination.limit)
+) -> TagPage:
+    """Retrieve full tag objects for management UI with pagination."""
+    tags = await crud_tag.get_tags(
+        db, 
+        search=search, 
+        sort_by=sort_by, 
+        sort_dir=sort_dir, 
+        skip=pagination.skip, 
+        limit=pagination.limit
+    )
     return tags
+
 
 
 @router.patch("/{tag_id}", response_model=Tag)

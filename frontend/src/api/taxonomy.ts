@@ -1,8 +1,10 @@
 /**
- * @file API client methods and React Query hooks for managing characters and franchises.
+ * @file API client methods and React Query hooks for taxonomy management.
  */
-/* eslint-disable no-magic-numbers */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+
+
+
 import { customInstance } from './axios-instance';
 
 
@@ -52,10 +54,33 @@ export interface CharacterUpdate {
   franchise_id?: number;
 }
 
+export interface CharacterPage {
+  items: Character[];
+  total: number;
+}
+
+export interface FranchisePage {
+  items: Franchise[];
+  total: number;
+}
+
+export interface TagPage {
+  items: Tag[];
+  total: number;
+}
+
+export interface TaxonomyQueryParams {
+  search?: string;
+  sort_by?: string;
+  sort_dir?: string;
+  skip?: number;
+  limit?: number;
+}
+
 // --- Characters API ---
 
-export const readCharacters = (skip = 0, limit = 10000, signal?: AbortSignal) => {
-  return customInstance<Character[]>({ url: `/api/characters/`, method: 'GET', params: { skip, limit }, signal });
+export const readCharacters = (params: TaxonomyQueryParams = {}, signal?: AbortSignal) => {
+  return customInstance<CharacterPage>({ url: `/api/characters/`, method: 'GET', params, signal });
 };
 
 export const createCharacter = (data: CharacterCreate) => {
@@ -77,8 +102,8 @@ export const mergeCharacters = (source_ids: number[], target_id: number) => {
 
 // --- Franchises API ---
 
-export const readFranchises = (skip = 0, limit = 10000, signal?: AbortSignal) => {
-  return customInstance<Franchise[]>({ url: `/api/franchises/`, method: 'GET', params: { skip, limit }, signal });
+export const readFranchises = (params: TaxonomyQueryParams = {}, signal?: AbortSignal) => {
+  return customInstance<FranchisePage>({ url: `/api/franchises/`, method: 'GET', params, signal });
 };
 
 export const createFranchise = (data: FranchiseCreate) => {
@@ -100,12 +125,15 @@ export const mergeFranchises = (source_ids: number[], target_id: number) => {
 
 // --- Hooks ---
 
-export const useReadCharacters = (skip = 0, limit = 10000) => {
+export const useReadCharacters = (params: TaxonomyQueryParams = {}) => {
   return useQuery({
-    queryKey: ['characters', skip, limit],
-    queryFn: ({ signal }) => readCharacters(skip, limit, signal),
+    queryKey: ['characters', params],
+    queryFn: ({ signal }) => readCharacters(params, signal),
+    placeholderData: keepPreviousData,
   });
 };
+
+
 
 export const useCreateCharacter = () => {
   const queryClient = useQueryClient();
@@ -153,10 +181,11 @@ export const useMergeCharacters = () => {
   });
 };
 
-export const useReadFranchises = (skip = 0, limit = 10000) => {
+export const useReadFranchises = (params: TaxonomyQueryParams = {}) => {
   return useQuery({
-    queryKey: ['franchises', skip, limit],
-    queryFn: ({ signal }) => readFranchises(skip, limit, signal),
+    queryKey: ['franchises', params],
+    queryFn: ({ signal }) => readFranchises(params, signal),
+    placeholderData: keepPreviousData,
   });
 };
 
@@ -201,8 +230,8 @@ export const useMergeFranchises = () => {
 
 // --- Tags API ---
 
-export const readTagsManagement = (skip = 0, limit = 10000, signal?: AbortSignal) => {
-  return customInstance<Tag[]>({ url: `/api/tags/management`, method: 'GET', params: { skip, limit }, signal });
+export const readTagsManagement = (params: TaxonomyQueryParams = {}, signal?: AbortSignal) => {
+  return customInstance<TagPage>({ url: `/api/tags/management`, method: 'GET', params, signal });
 };
 
 export const updateTag = (id: number, data: TagUpdate) => {
@@ -217,12 +246,15 @@ export const mergeTags = (source_ids: number[], target_id: number) => {
   return customInstance<Tag>({ url: `/api/tags/merge`, method: 'POST', data: { source_ids, target_id } });
 };
 
-export const useReadTagsManagement = (skip = 0, limit = 10000) => {
+export const useReadTagsManagement = (params: TaxonomyQueryParams = {}) => {
   return useQuery({
-    queryKey: ['tags', skip, limit],
-    queryFn: ({ signal }) => readTagsManagement(skip, limit, signal),
+    queryKey: ['tags', params],
+    queryFn: ({ signal }) => readTagsManagement(params, signal),
+    placeholderData: keepPreviousData,
   });
 };
+
+
 
 
 export const useUpdateTag = () => {

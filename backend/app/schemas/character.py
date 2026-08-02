@@ -25,3 +25,8 @@ class Character(CharacterBase):
 class CharacterMerge(BaseModel):
     source_ids: list[int] = Field(..., description="List of character IDs to merge and delete.")
     target_id: int = Field(..., description="The ID of the character to merge into.")
+
+class CharacterPage(BaseModel):
+    items: list[Character] = Field(..., description="List of characters on the current page.")
+    total: int = Field(..., description="Total number of characters matching the query.")
+

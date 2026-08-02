@@ -73,8 +73,8 @@ export default function Dashboard() {
 
     // 7. Transform characters data into TagCloudItem shape
     const characterCloud = useMemo(() => {
-        if (!characters) return [];
-        return characters
+        if (!characters?.items) return [];
+        return characters.items
             .filter((c) => (c.set_count ?? 0) > 0 || (c.image_count ?? 0) > 0)
             .map((c) => ({
                 tag: c.name,
@@ -86,8 +86,8 @@ export default function Dashboard() {
 
     // 8. Transform franchises data into TagCloudItem shape
     const franchiseCloud = useMemo(() => {
-        if (!franchises) return [];
-        return franchises
+        if (!franchises?.items) return [];
+        return franchises.items
             .filter((f) => (f.set_count ?? 0) > 0 || (f.image_count ?? 0) > 0)
             .map((f) => ({
                 tag: f.name,
@@ -96,6 +96,7 @@ export default function Dashboard() {
             }))
             .sort((a, b) => b.count - a.count);
     }, [franchises]);
+
 
     if (statsLoading) {
         return (

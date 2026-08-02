@@ -21,8 +21,18 @@ import { TaxonomyTable, SortableHeader } from './TaxonomyTable';
 
 export function CharactersTab() {
     const navigate = useNavigate();
-    const { data: characters, isLoading } = useReadCharacters(0, 500);
-    const { data: franchises } = useReadFranchises(0, 500);
+    const filterSort = useTaxonomyFilterSort(25);
+    const { search, setSearch, sortBy, setSortBy, page, setPage, getTotalPages, queryParams } = filterSort;
+
+    const { data: charactersData, isLoading } = useReadCharacters(queryParams);
+    const { data: franchisesData } = useReadFranchises({ limit: 500 });
+
+    const characters = useMemo(() => charactersData?.items || [], [charactersData?.items]);
+    const franchises = useMemo(() => franchisesData?.items || [], [franchisesData?.items]);
+    const totalItems = charactersData?.total || 0;
+    const totalPages = getTotalPages(totalItems);
+
+
 
     const createMutation = useCreateCharacter();
     const updateMutation = useUpdateCharacter();
@@ -37,17 +47,16 @@ export function CharactersTab() {
     const [franchiseQuery, setFranchiseQuery] = useState('');
     const [error, setError] = useState<string | null>(null);
 
-    const { search, setSearch, sortBy, setSortBy, page, setPage, totalPages, totalItems, result: sortedCharacters } = useTaxonomyFilterSort(characters);
-
     const crud = useTaxonomyCRUD({
         items: characters,
-        sortedItems: sortedCharacters,
+        sortedItems: characters,
         deleteEntity: (id) => deleteMutation.mutateAsync(id),
         mergeEntities: (sourceIds, targetId) => mergeMutation.mutateAsync({ source_ids: sourceIds, target_id: targetId }),
         bulkDeleteEntities: (ids) => bulkDeleteMutation.mutateAsync(ids),
         deleteTitle: 'Delete Character',
         deleteMessage: 'Are you sure you want to delete this character? It will be removed from all associated sets.'
     });
+
 
     const franchiseOptions = useMemo(() => Array.from(new Set(franchises?.map(f => f.name) || [])), [franchises]);
 
@@ -160,7 +169,7 @@ export function CharactersTab() {
                 isAllSelected={crud.isAllSelected}
                 isIndeterminate={crud.isIndeterminate}
                 onSelectAll={crud.handleSelectAll}
-                showingCount={sortedCharacters.length}
+                showingCount={characters.length}
                 totalCount={totalItems}
                 entityNamePlural="characters"
                 page={page}
@@ -176,7 +185,7 @@ export function CharactersTab() {
                     </>
                 }
             >
-                {sortedCharacters.map(char => (
+                {characters.map(char => (
                     <Table.Tr key={char.id}>
                         <Table.Td>
                             <Checkbox 
@@ -228,11 +237,12 @@ export function CharactersTab() {
                         </Table.Td>
                     </Table.Tr>
                 ))}
-                {!sortedCharacters.length && (
+                {!characters.length && (
                     <Table.Tr>
                         <Table.Td colSpan={6} ta="center">No characters found.</Table.Td>
                     </Table.Tr>
                 )}
+
             </TaxonomyTable>
 
             <Modal opened={modalOpen} onClose={handleClose} title={editingId ? 'Edit Character' : 'Add Character'}>

@@ -1,7 +1,7 @@
 """CRUD operations for franchises."""
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete, update
-from typing import Optional, List
+from typing import Optional
 from app.models.franchise import Franchise
 from app.schemas.franchise import FranchiseCreate, FranchiseUpdate
 from app.models.tag import Tag
@@ -19,7 +19,14 @@ async def get_franchise(db: AsyncSession, franchise_id: int) -> Optional[Franchi
     result = await db.execute(select(Franchise).where(Franchise.id == franchise_id))
     return result.scalars().first()
 
-async def get_franchises(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[dict]:
+async def get_franchises(
+    db: AsyncSession,
+    search: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    sort_dir: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 25
+) -> dict:
     from app.models.character import Character
     from app.models.associations import set_characters, image_characters
 
@@ -39,17 +46,42 @@ async def get_franchises(db: AsyncSession, skip: int = 0, limit: int = 100) -> L
         .scalar_subquery()
         .label("image_count")
     )
-    stmt = (
-        select(
-            Franchise, 
-            set_count_sub,
-            image_count_sub
-        )
-        .order_by((set_count_sub + image_count_sub).desc(), Franchise.name.asc())
-        .offset(skip).limit(limit)
+
+    count_stmt = select(func.count(Franchise.id))
+    stmt = select(
+        Franchise, 
+        set_count_sub,
+        image_count_sub
     )
+
+    if search and search.strip():
+        s = f"%{search.strip()}%"
+        count_stmt = count_stmt.where(Franchise.name.ilike(s))
+        stmt = stmt.where(Franchise.name.ilike(s))
+
+    total = (await db.execute(count_stmt)).scalar() or 0
+
+    order_cols = []
+    if sort_by == 'name':
+        col = Franchise.name
+        order_cols.append(col.desc() if sort_dir == 'desc' else col.asc())
+    elif sort_by == 'set_count':
+        col = set_count_sub
+        order_cols.append(col.desc() if sort_dir == 'desc' else col.asc())
+    elif sort_by == 'image_count':
+        col = image_count_sub
+        order_cols.append(col.desc() if sort_dir == 'desc' else col.asc())
+    else:
+        if sort_dir == 'asc':
+            order_cols.append((set_count_sub + image_count_sub).asc())
+        else:
+            order_cols.append((set_count_sub + image_count_sub).desc())
+
+    order_cols.append(Franchise.name.asc())
+    stmt = stmt.order_by(*order_cols).offset(skip).limit(limit)
+
     result = await db.execute(stmt)
-    return [
+    items = [
         {
             "id": row.Franchise.id, 
             "name": row.Franchise.name,
@@ -57,6 +89,8 @@ async def get_franchises(db: AsyncSession, skip: int = 0, limit: int = 100) -> L
             "image_count": row.image_count or 0
         } for row in result.all()
     ]
+    return {"items": items, "total": total}
+
 
 
 async def get_franchise_by_name(db: AsyncSession, name: str) -> Optional[Franchise]:

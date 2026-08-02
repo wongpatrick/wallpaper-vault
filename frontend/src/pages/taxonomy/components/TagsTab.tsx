@@ -19,7 +19,15 @@ import { TaxonomyTable, SortableHeader } from './TaxonomyTable';
 
 export function TagsTab() {
     const navigate = useNavigate();
-    const { data: tags, isLoading } = useReadTagsManagement(0, 500);
+    const filterSort = useTaxonomyFilterSort(25);
+    const { search, setSearch, sortBy, setSortBy, page, setPage, getTotalPages, queryParams } = filterSort;
+
+    const { data: tagsData, isLoading } = useReadTagsManagement(queryParams);
+    const tags = useMemo(() => tagsData?.items || [], [tagsData?.items]);
+    const totalItems = tagsData?.total || 0;
+    const totalPages = getTotalPages(totalItems);
+
+
 
     const updateMutation = useUpdateTag();
     const deleteMutation = useDeleteTag();
@@ -31,17 +39,16 @@ export function TagsTab() {
     const [name, setName] = useState('');
     const [error, setError] = useState<string | null>(null);
 
-    const { search, setSearch, sortBy, setSortBy, page, setPage, totalPages, totalItems, result: sortedTags } = useTaxonomyFilterSort(tags);
-
     const crud = useTaxonomyCRUD({
         items: tags,
-        sortedItems: sortedTags,
+        sortedItems: tags,
         deleteEntity: (id) => deleteMutation.mutateAsync(id),
         mergeEntities: (sourceIds, targetId) => mergeMutation.mutateAsync({ source_ids: sourceIds, target_id: targetId }),
         bulkDeleteEntities: (ids) => bulkDeleteMutation.mutateAsync(ids),
         deleteTitle: 'Delete Tag',
         deleteMessage: 'Are you sure you want to delete this tag? It will be removed from all sets.'
     });
+
 
     const isFormDirty = useMemo(() => {
         if (editingId) {
@@ -117,7 +124,7 @@ export function TagsTab() {
                 isAllSelected={crud.isAllSelected}
                 isIndeterminate={crud.isIndeterminate}
                 onSelectAll={crud.handleSelectAll}
-                showingCount={sortedTags.length}
+                showingCount={tags.length}
                 totalCount={totalItems}
                 entityNamePlural="tags"
                 page={page}
@@ -132,7 +139,7 @@ export function TagsTab() {
                     </>
                 }
             >
-                {sortedTags.map(tag => (
+                {tags.map(tag => (
                     <Table.Tr key={tag.id}>
                         <Table.Td>
                             <Checkbox 
@@ -170,11 +177,12 @@ export function TagsTab() {
                         </Table.Td>
                     </Table.Tr>
                 ))}
-                {!sortedTags.length && (
+                {!tags.length && (
                     <Table.Tr>
                         <Table.Td colSpan={5} ta="center">No tags found.</Table.Td>
                     </Table.Tr>
                 )}
+
             </TaxonomyTable>
 
             <Modal opened={modalOpen} onClose={handleClose} title="Edit Tag">

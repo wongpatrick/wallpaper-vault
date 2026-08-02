@@ -21,3 +21,8 @@ class Franchise(FranchiseBase):
 class FranchiseMerge(BaseModel):
     source_ids: list[int] = Field(..., description="List of franchise IDs to merge and delete.")
     target_id: int = Field(..., description="The ID of the franchise to merge into.")
+
+class FranchisePage(BaseModel):
+    items: list[Franchise] = Field(..., description="List of franchises on the current page.")
+    total: int = Field(..., description="Total number of franchises matching the query.")
+

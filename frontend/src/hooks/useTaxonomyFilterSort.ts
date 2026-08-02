@@ -1,51 +1,49 @@
 /**
- * @file Filter and sort hook for taxonomy management.
+ * @file Server-side filter and sort hook for taxonomy management.
  */
 /* eslint-disable no-magic-numbers */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import type { TaxonomyQueryParams } from '../api/taxonomy';
 
-export function useTaxonomyFilterSort<T extends { name: string; set_count?: number; image_count?: number; franchise?: { name: string } | null }>(data: T[] | undefined) {
-    const [search, setSearch] = useState('');
+const DEBOUNCE_MS = 300;
+
+export function useTaxonomyFilterSort(defaultPageSize: number = 25) {
+    const [searchInput, setSearchInput] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [sortBy, setSortBy] = useState<string | null>('set_count_desc');
     const [page, setPage] = useState(1);
-    const pageSize = 15;
 
-    const filteredAndSorted = useMemo(() => {
-        if (!data) return [];
-        let filtered = data;
-        
-        if (search.trim()) {
-            const s = search.toLowerCase();
-            filtered = filtered.filter(item => item.name.toLowerCase().includes(s));
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchInput);
+            setPage(1);
+        }, DEBOUNCE_MS);
+        return () => clearTimeout(timer);
+    }, [searchInput]);
+
+    const { sort_by, sort_dir } = useMemo(() => {
+        if (!sortBy) return { sort_by: undefined, sort_dir: undefined };
+        if (sortBy.endsWith('_asc')) {
+            return { sort_by: sortBy.slice(0, -4), sort_dir: 'asc' };
         }
+        if (sortBy.endsWith('_desc')) {
+            return { sort_by: sortBy.slice(0, -5), sort_dir: 'desc' };
+        }
+        return { sort_by: sortBy, sort_dir: undefined };
+    }, [sortBy]);
 
-        return [...filtered].sort((a, b) => {
-            if (sortBy === 'name_asc') return a.name.localeCompare(b.name);
-            if (sortBy === 'name_desc') return b.name.localeCompare(a.name);
-            if (sortBy === 'set_count_desc') return (b.set_count || 0) - (a.set_count || 0);
-            if (sortBy === 'set_count_asc') return (a.set_count || 0) - (b.set_count || 0);
-            if (sortBy === 'image_count_desc') return (b.image_count || 0) - (a.image_count || 0);
-            if (sortBy === 'image_count_asc') return (a.image_count || 0) - (b.image_count || 0);
-            if (sortBy === 'franchise_asc') {
-                const fa = a.franchise?.name || '';
-                const fb = b.franchise?.name || '';
-                return fa.localeCompare(fb);
-            }
-            if (sortBy === 'franchise_desc') {
-                const fa = a.franchise?.name || '';
-                const fb = b.franchise?.name || '';
-                return fb.localeCompare(fa);
-            }
-            return 0;
-        });
-    }, [data, search, sortBy]);
+    const queryParams: TaxonomyQueryParams = useMemo(() => ({
+        search: debouncedSearch.trim() || undefined,
+        sort_by,
+        sort_dir,
+        skip: (page - 1) * defaultPageSize,
+        limit: defaultPageSize,
+    }), [debouncedSearch, sort_by, sort_dir, page, defaultPageSize]);
 
-    const totalPages = Math.ceil(filteredAndSorted.length / pageSize);
-    const paginatedResult = filteredAndSorted.slice((page - 1) * pageSize, page * pageSize);
+    const getTotalPages = (totalItems: number) => Math.max(1, Math.ceil(totalItems / defaultPageSize));
 
     const handleSearchChange = (val: string) => {
-        setSearch(val);
-        setPage(1);
+        setSearchInput(val);
     };
 
     const handleSortChange = (val: string | null) => {
@@ -54,14 +52,16 @@ export function useTaxonomyFilterSort<T extends { name: string; set_count?: numb
     };
 
     return { 
-        search, 
+        search: searchInput, 
         setSearch: handleSearchChange, 
         sortBy, 
         setSortBy: handleSortChange, 
         page, 
         setPage, 
-        totalPages,
-        totalItems: filteredAndSorted.length,
-        result: paginatedResult 
+        getTotalPages,
+        queryParams
     };
 }
+
+
+

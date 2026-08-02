@@ -1,23 +1,34 @@
 """API endpoints for franchises."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
 from app.db.session import get_db
 from app.api.deps import PaginationParams, pagination_params
 from app.crud import franchise as crud_franchise
-from app.schemas.franchise import Franchise, FranchiseCreate, FranchiseUpdate, FranchiseMerge
+from app.schemas.franchise import Franchise, FranchiseCreate, FranchiseUpdate, FranchiseMerge, FranchisePage
 from app.schemas.bulk import BulkDeleteRequest
 
 router = APIRouter()
 
-@router.get("/", response_model=List[Franchise])
+@router.get("/", response_model=FranchisePage)
 async def read_franchises(
+    search: Optional[str] = Query(None, description="Search term for franchise name"),
+    sort_by: Optional[str] = Query(None, description="Field to sort by (name, set_count, image_count)"),
+    sort_dir: Optional[str] = Query(None, description="Sort direction (asc, desc)"),
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db)
 ):
-    """Retrieve all franchises."""
-    franchises = await crud_franchise.get_franchises(db, skip=pagination.skip, limit=pagination.limit)
+    """Retrieve paginated franchises matching optional search query."""
+    franchises = await crud_franchise.get_franchises(
+        db, 
+        search=search, 
+        sort_by=sort_by, 
+        sort_dir=sort_dir, 
+        skip=pagination.skip, 
+        limit=pagination.limit
+    )
     return franchises
+
 
 
 @router.post("/", response_model=Franchise)

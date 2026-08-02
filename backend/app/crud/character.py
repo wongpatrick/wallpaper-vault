@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
-from typing import Optional, List, Sequence
+from typing import Optional, Sequence
 from app.models.character import Character
 from app.schemas.character import CharacterCreate, CharacterUpdate
 from app.models.tag import Tag
@@ -44,8 +44,17 @@ async def get_character(db: AsyncSession, character_id: int) -> Optional[Charact
     )
     return result.scalars().first()
 
-async def get_characters(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[dict]:
+async def get_characters(
+    db: AsyncSession,
+    search: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    sort_dir: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 25
+) -> dict:
     from app.models.associations import set_characters, image_characters
+    from app.models.franchise import Franchise
+    from sqlalchemy import or_
 
     set_count_sub = (
         select(func.count(set_characters.c.set_id))
@@ -59,19 +68,52 @@ async def get_characters(db: AsyncSession, skip: int = 0, limit: int = 100) -> L
         .scalar_subquery()
         .label("image_count")
     )
-    stmt = (
-        select(
-            Character,
-            set_count_sub,
-            image_count_sub
+
+    count_stmt = select(func.count(Character.id))
+    stmt = select(
+        Character,
+        set_count_sub,
+        image_count_sub
+    ).options(selectinload(Character.franchise))
+
+    if search and search.strip():
+        s = f"%{search.strip()}%"
+        filter_cond = or_(
+            Character.name.ilike(s),
+            Franchise.name.ilike(s)
         )
-        .options(selectinload(Character.franchise))
-        .order_by((set_count_sub + image_count_sub).desc(), Character.name.asc())
-        .offset(skip).limit(limit)
-    )
+        count_stmt = count_stmt.outerjoin(Franchise, Character.franchise_id == Franchise.id).where(filter_cond)
+        stmt = stmt.outerjoin(Franchise, Character.franchise_id == Franchise.id).where(filter_cond)
+
+    total = (await db.execute(count_stmt)).scalar() or 0
+
+    order_cols = []
+    if sort_by == 'name':
+        col = Character.name
+        order_cols.append(col.desc() if sort_dir == 'desc' else col.asc())
+    elif sort_by == 'set_count':
+        col = set_count_sub
+        order_cols.append(col.desc() if sort_dir == 'desc' else col.asc())
+    elif sort_by == 'image_count':
+        col = image_count_sub
+        order_cols.append(col.desc() if sort_dir == 'desc' else col.asc())
+    elif sort_by == 'franchise':
+        if not (search and search.strip()):
+            stmt = stmt.outerjoin(Franchise, Character.franchise_id == Franchise.id)
+        col = Franchise.name
+        order_cols.append(col.desc() if sort_dir == 'desc' else col.asc())
+    else:
+        if sort_dir == 'asc':
+            order_cols.append((set_count_sub + image_count_sub).asc())
+        else:
+            order_cols.append((set_count_sub + image_count_sub).desc())
+
+    order_cols.append(Character.name.asc())
+    stmt = stmt.order_by(*order_cols).offset(skip).limit(limit)
+
     result = await db.execute(stmt)
     
-    return [
+    items = [
         {
             "id": row.Character.id, 
             "name": row.Character.name, 
@@ -81,6 +123,8 @@ async def get_characters(db: AsyncSession, skip: int = 0, limit: int = 100) -> L
             "image_count": row.image_count or 0
         } for row in result.all()
     ]
+    return {"items": items, "total": total}
+
 
 
 async def get_character_by_name(db: AsyncSession, name: str) -> Optional[Character]:

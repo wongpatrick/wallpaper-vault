@@ -43,7 +43,7 @@ async def test_bulk_delete_characters(client: AsyncClient, db_session: AsyncSess
     # Verify characters are deleted via API
     get_chars_resp = await client.get("/api/characters/")
     assert get_chars_resp.status_code == 200
-    all_char_ids = [c["id"] for c in get_chars_resp.json()]
+    all_char_ids = [c["id"] for c in get_chars_resp.json()["items"]]
     assert char1_id not in all_char_ids
     assert char2_id not in all_char_ids
     
@@ -81,14 +81,14 @@ async def test_bulk_delete_franchises(client: AsyncClient, db_session: AsyncSess
     # Verify franchises are deleted via API
     get_frans_resp = await client.get("/api/franchises/")
     assert get_frans_resp.status_code == 200
-    all_fran_ids = [f["id"] for f in get_frans_resp.json()]
+    all_fran_ids = [f["id"] for f in get_frans_resp.json()["items"]]
     assert f1_id not in all_fran_ids
     assert f2_id not in all_fran_ids
     
     # Verify characters no longer have franchises associated via API
     get_chars_resp = await client.get("/api/characters/")
     assert get_chars_resp.status_code == 200
-    chars_map = {c["id"]: c for c in get_chars_resp.json()}
+    chars_map = {c["id"]: c for c in get_chars_resp.json()["items"]}
     assert chars_map[char1_id]["franchise_id"] is None
     assert chars_map[char2_id]["franchise_id"] is None
 
@@ -133,9 +133,10 @@ async def test_bulk_delete_tags(client: AsyncClient, db_session: AsyncSession):
     # Verify tags are deleted via API
     get_tags_resp = await client.get("/api/tags/management")
     assert get_tags_resp.status_code == 200
-    all_tag_ids = [t["id"] for t in get_tags_resp.json()]
+    all_tag_ids = [t["id"] for t in get_tags_resp.json()["items"]]
     assert t1_id not in all_tag_ids
     assert t2_id not in all_tag_ids
+
     
     # Verify set rollup tags are recalculated and empty via API
     get_set_resp = await client.get(f"/api/sets/{s_id}")

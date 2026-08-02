@@ -160,7 +160,14 @@ async def get_tags_by_names(db: AsyncSession, names: List[str]) -> List[Tag]:
                 logger.info("Skipping tag creation/association due to character/franchise name collision", name=name, error=str(e))
     return tags
 
-async def get_tags(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[dict]:
+async def get_tags(
+    db: AsyncSession,
+    search: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    sort_dir: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 25
+) -> dict:
     """Retrieve all tags with set and image counts."""
     from app.models.associations import set_tags, image_tags
 
@@ -176,18 +183,44 @@ async def get_tags(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[di
         .scalar_subquery()
         .label("image_count")
     )
-    stmt = (
-        select(
-            Tag,
-            set_count_sub,
-            image_count_sub
-        )
-        .order_by(Tag.name.asc())
-        .offset(skip)
-        .limit(limit)
+
+    count_stmt = select(func.count(Tag.id))
+    stmt = select(
+        Tag,
+        set_count_sub,
+        image_count_sub
     )
+
+    if search and search.strip():
+        s = f"%{search.strip()}%"
+        count_stmt = count_stmt.where(Tag.name.ilike(s))
+        stmt = stmt.where(Tag.name.ilike(s))
+
+    total = (await db.execute(count_stmt)).scalar() or 0
+
+    order_cols = []
+    if sort_by == 'name':
+        col = Tag.name
+        order_cols.append(col.desc() if sort_dir == 'desc' else col.asc())
+    elif sort_by == 'set_count':
+        col = set_count_sub
+        order_cols.append(col.desc() if sort_dir == 'desc' else col.asc())
+    elif sort_by == 'image_count':
+        col = image_count_sub
+        order_cols.append(col.desc() if sort_dir == 'desc' else col.asc())
+    else:
+        if sort_dir == 'asc':
+            order_cols.append((set_count_sub + image_count_sub).asc())
+        elif sort_dir == 'desc':
+            order_cols.append((set_count_sub + image_count_sub).desc())
+        else:
+            order_cols.append((set_count_sub + image_count_sub).desc())
+
+    order_cols.append(Tag.name.asc())
+    stmt = stmt.order_by(*order_cols).offset(skip).limit(limit)
+
     result = await db.execute(stmt)
-    return [
+    items = [
         {
             "id": row.Tag.id, 
             "name": row.Tag.name, 
@@ -195,6 +228,8 @@ async def get_tags(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[di
             "image_count": row.image_count or 0
         } for row in result.all()
     ]
+    return {"items": items, "total": total}
+
 
 
 async def get_tag(db: AsyncSession, tag_id: int) -> Optional[Tag]:
