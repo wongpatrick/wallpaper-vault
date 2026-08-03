@@ -133,7 +133,11 @@ async def get_image(db: AsyncSession, image_id: int) -> Optional[Image]:
     """
     result = await db.execute(
         select(Image)
-        .options(selectinload(Image.tags), selectinload(Image.characters))
+        .options(
+            selectinload(Image.tags),
+            selectinload(Image.characters),
+            selectinload(Image.set).selectinload(Set.creators)
+        )
         .filter(Image.id == image_id)
     )
     return result.scalar_one_or_none()

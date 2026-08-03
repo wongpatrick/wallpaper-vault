@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.db.session import get_db
 from app.models.rotation_history import RotationHistory
-from app.schemas.image import ImageDetail
-from app.api.images import map_image_to_schema
+from app.schemas.image import ImageDetail, ImageWithContext
+from app.api.images import map_image_to_schema, map_image_to_context_schema
 from app.core.rotation import rotation_broadcaster
 from typing import List, AsyncGenerator
 import structlog
@@ -17,8 +17,8 @@ logger = structlog.get_logger(__name__)
 router = APIRouter()
 MAX_HISTORY_DISPLAY_COUNT = 5
 
-@router.get("/current", response_model=ImageDetail)
-async def read_current_wallpaper(db: AsyncSession = Depends(get_db)) -> ImageDetail:
+@router.get("/current", response_model=ImageWithContext)
+async def read_current_wallpaper(db: AsyncSession = Depends(get_db)) -> ImageWithContext:
     """Fetch the currently active wallpaper (the last served random image)."""
     result = await db.execute(
         select(RotationHistory)
@@ -34,7 +34,7 @@ async def read_current_wallpaper(db: AsyncSession = Depends(get_db)) -> ImageDet
     if img is None:
         raise HTTPException(status_code=404, detail="Active wallpaper image record not found")
         
-    return map_image_to_schema(img)
+    return map_image_to_context_schema(img)
 
 @router.get("/history", response_model=List[ImageDetail])
 async def read_wallpaper_history(db: AsyncSession = Depends(get_db)) -> List[ImageDetail]:
@@ -62,8 +62,8 @@ async def read_wallpaper_history(db: AsyncSession = Depends(get_db)) -> List[Ima
             
     return images
 
-@router.get("/current-monitors", response_model=dict[str, ImageDetail])
-async def read_current_monitors_wallpapers(db: AsyncSession = Depends(get_db)) -> dict[str, ImageDetail]:
+@router.get("/current-monitors", response_model=dict[str, ImageWithContext])
+async def read_current_monitors_wallpapers(db: AsyncSession = Depends(get_db)) -> dict[str, ImageWithContext]:
     """Fetch the currently active wallpapers for all monitors and global."""
     from app.models.settings import Setting
     from app.crud.image import get_image
@@ -87,7 +87,7 @@ async def read_current_monitors_wallpapers(db: AsyncSession = Depends(get_db)) -
         img = await get_image(db, image_id)
         if img:
             key = "global" if setting.key == "wallpaper_active_image_id" else setting.key.split("_")[1]
-            response[key] = map_image_to_schema(img)
+            response[key] = map_image_to_context_schema(img)
             
     # Also fetch the overall last rotated image as fallback for "global" if not set
     if "global" not in response:
@@ -100,7 +100,7 @@ async def read_current_monitors_wallpapers(db: AsyncSession = Depends(get_db)) -
         if last_entry:
             img = await get_image(db, last_entry.image_id)
             if img:
-                response["global"] = map_image_to_schema(img)
+                response["global"] = map_image_to_context_schema(img)
                 
     return response
 

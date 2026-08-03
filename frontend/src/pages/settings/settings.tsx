@@ -184,6 +184,11 @@ export default function Settings() {
                                 description="Temporarily suspend all scheduled wallpaper rotations."
                                 {...form.getInputProps(SETTING_KEYS.WALLPAPER_ROTATION_PAUSED, { type: 'checkbox' })}
                             />
+                            <Switch
+                                label="Desktop Notifications on Wallpaper Change"
+                                description="Show native OS notification banners whenever the wallpaper rotates or skips."
+                                {...form.getInputProps(SETTING_KEYS.WALLPAPER_ROTATION_NOTIFICATIONS_ENABLED, { type: 'checkbox' })}
+                            />
                         </Stack>
                     </SettingsSection>
 

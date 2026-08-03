@@ -59,10 +59,13 @@ def map_image_to_schema(img: "ImageModel") -> ImageDetail:
 def map_image_to_context_schema(img: "ImageModel") -> ImageWithContext:
     """Helper to map image with set/creator context."""
     base = map_image_to_schema(img)
+    has_set = "set" in img.__dict__ and img.set is not None
+    set_title = img.set.title if has_set else ""
+    creator_names = [c.canonical_name for c in img.set.creators] if (has_set and "creators" in img.set.__dict__ and img.set.creators) else []
     return ImageWithContext(
         **base.model_dump(),
-        set_title=img.set.title,
-        creator_names=[c.canonical_name for c in img.set.creators]
+        set_title=set_title,
+        creator_names=creator_names
     )
 
 @router.post("/bulk-update", response_model=int)

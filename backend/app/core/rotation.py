@@ -59,13 +59,14 @@ async def log_rotation(db: AsyncSession, image_id: int, aspect_ratio: Optional[s
     
     # Import locally to avoid circular dependencies
     from app.crud.image import get_image
-    from app.api.images import map_image_to_schema
+    from app.api.images import map_image_to_context_schema
     
     db_image = await get_image(db, image_id)
     if db_image:
-        schema_img = map_image_to_schema(db_image)
+        schema_img = map_image_to_context_schema(db_image)
         await rotation_broadcaster.broadcast({
             "event": "rotation",
             "image": schema_img.model_dump(),
             "target_monitor": target_monitor
         })
+

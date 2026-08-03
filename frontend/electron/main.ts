@@ -3,7 +3,7 @@
  * Electron main process script.
  * Manages the application window, tray, inter-process communication, and backend spawn.
  */
-import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage, screen, powerMonitor } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage, screen, powerMonitor, Notification } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
@@ -27,6 +27,8 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 let backendProcess: ChildProcess | null = null;
+const activeMonitorWallpapers: Map<string, { title: string; author: string }> = new Map();
+let rotationNotificationsEnabled = true;
 
 interface BackendStatusInfo {
     status: 'starting' | 'running' | 'stopped' | 'port-collision' | 'error';
@@ -424,15 +426,47 @@ function createTray() {
 function updateTrayMenu() {
     if (!tray) return;
     const isPaused = globalRotationConfig.paused;
+
+    const headerItems: Electron.MenuItemConstructorOptions[] = [];
+
+    const numericKeys = Array.from(activeMonitorWallpapers.keys())
+        .filter((k) => !isNaN(parseInt(k, 10)))
+        .sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+
+    if (numericKeys.length > 0) {
+        numericKeys.forEach((key) => {
+            const index = parseInt(key, 10);
+            const info = activeMonitorWallpapers.get(key);
+            if (info) {
+                headerItems.push({
+                    label: `M${index + 1}: ${info.title} by ${info.author}`,
+                    enabled: false
+                });
+            }
+        });
+    } else if (activeMonitorWallpapers.has('global')) {
+        const info = activeMonitorWallpapers.get('global')!;
+        headerItems.push({
+            label: `M1: ${info.title} by ${info.author}`,
+            enabled: false
+        });
+    } else {
+        headerItems.push({
+            label: 'M1: Unknown Wallpaper',
+            enabled: false
+        });
+    }
+
     const contextMenu = Menu.buildFromTemplate([
-        { 
-            label: 'Show App', 
-            click: () => {
-                mainWindow?.show();
-                mainWindow?.focus();
-            } 
-        },
+        ...headerItems,
         { type: 'separator' },
+        {
+            label: '⏭️ Next Wallpaper',
+            click: () => {
+                const port = activeSsePort || DEFAULT_PORT;
+                triggerSkipViaApi(port);
+            }
+        },
         {
             label: isPaused ? '▶️ Resume Rotation' : '⏸️ Pause Rotation',
             click: () => {
@@ -440,6 +474,13 @@ function updateTrayMenu() {
             }
         },
         { type: 'separator' },
+        { 
+            label: 'Show App', 
+            click: () => {
+                mainWindow?.show();
+                mainWindow?.focus();
+            } 
+        },
         { 
             label: 'Quit', 
             click: () => {
@@ -449,6 +490,95 @@ function updateTrayMenu() {
         }
     ]);
     tray.setContextMenu(contextMenu);
+}
+
+function triggerSkipViaApi(port: number) {
+    logBothToCombined(`[Tray] Skipping wallpaper via API request to port ${port}...`);
+    const req = http.request({
+        hostname: '127.0.0.1',
+        port: port,
+        path: `/api/rotation-history/skip`,
+        method: 'POST'
+    }, (res) => {
+        res.resume();
+    });
+    req.on('error', (err) => {
+        console.error('[Tray] API request failed to trigger skip:', err);
+    });
+    req.end();
+}
+
+function fetchCurrentWallpaperInfo(port: number) {
+    const url = `http://127.0.0.1:${port}/api/rotation-history/current-monitors`;
+    http.get(url, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+            try {
+                if (res.statusCode === HTTP_STATUS_OK) {
+                    const monitorsObj = JSON.parse(data);
+                    activeMonitorWallpapers.clear();
+
+                    if (monitorsObj && typeof monitorsObj === 'object') {
+                        Object.keys(monitorsObj).forEach((key) => {
+                            const img = monitorsObj[key];
+                            if (img) {
+                                const title = img.set_title || img.filename || 'Unknown Title';
+                                const creators = img.creator_names || [];
+                                const author = Array.isArray(creators) && creators.length > 0 ? creators.join(', ') : 'Unknown Author';
+                                activeMonitorWallpapers.set(key, { title, author });
+                            }
+                        });
+                    }
+                    updateTrayMenu();
+                }
+            } catch {
+                // ignore parsing error
+            }
+        });
+    }).on('error', () => {});
+}
+
+function showWallpaperNotification() {
+    try {
+        if (!Notification.isSupported()) return;
+
+        const lines: string[] = [];
+        const numericKeys = Array.from(activeMonitorWallpapers.keys())
+            .filter((k) => !isNaN(parseInt(k, 10)))
+            .sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+
+        if (numericKeys.length > 0) {
+            numericKeys.forEach((key) => {
+                const index = parseInt(key, 10);
+                const info = activeMonitorWallpapers.get(key);
+                if (info) {
+                    lines.push(`M${index + 1}: ${info.title} by ${info.author}`);
+                }
+            });
+        } else if (activeMonitorWallpapers.has('global')) {
+            const info = activeMonitorWallpapers.get('global')!;
+            lines.push(`M1: ${info.title} by ${info.author}`);
+        }
+
+        const body = lines.join(' | ');
+
+        const notification = new Notification({
+            title: 'Wallpaper Changed',
+            body: body || 'Updated desktop background',
+            silent: false
+        });
+        notification.on('click', () => {
+            if (mainWindow) {
+                if (mainWindow.isMinimized()) mainWindow.restore();
+                mainWindow.show();
+                mainWindow.focus();
+            }
+        });
+        notification.show();
+    } catch (err) {
+        console.error('[Rotation Coordinator] Failed to display desktop notification:', err);
+    }
 }
 
 function togglePauseStateViaApi() {
@@ -1363,6 +1493,8 @@ async function fetchRotationSettings(port: number): Promise<boolean> {
                             style: String(getVal('wallpaper_rotation_style', 'fill')) as any,
                             paused: String(getVal('wallpaper_rotation_paused', 'false')) === 'true'
                         };
+                        rotationNotificationsEnabled = String(getVal('wallpaper_rotation_notifications_enabled', 'true')) !== 'false';
+                        fetchCurrentWallpaperInfo(port);
 
                         // Fetch active rotation rule overrides
                         fetchActiveRotationRule(port).then((activeRule) => {
@@ -1618,8 +1750,33 @@ function executeDisplayFusionSkip() {
 }
 
 function handleRotationEvent(port: number, image: any, targetMonitor: string) {
-    console.log(`[Rotation Coordinator] Rotation event for image ID ${image.id} on target monitor: ${targetMonitor}`);
+    console.log(`[Rotation Coordinator] Rotation event for image ID ${image?.id} on target monitor: ${targetMonitor}`);
     
+    if (image) {
+        const title = image.set_title || image.filename || 'Wallpaper';
+        const creators = image.creator_names || [];
+        const author = Array.isArray(creators) && creators.length > 0 ? creators.join(', ') : 'Unknown Creator';
+        
+        if (targetMonitor === 'all') {
+            activeMonitorWallpapers.set('global', { title, author });
+            if (activeMonitorWallpapers.size > 1) {
+                Array.from(activeMonitorWallpapers.keys()).forEach((k) => {
+                    if (k !== 'global') {
+                        activeMonitorWallpapers.set(k, { title, author });
+                    }
+                });
+            }
+        } else {
+            activeMonitorWallpapers.set(targetMonitor, { title, author });
+        }
+
+        updateTrayMenu();
+        
+        if (rotationNotificationsEnabled) {
+            showWallpaperNotification();
+        }
+    }
+
     if (targetMonitor === 'all') {
         if (globalRotationConfig.mode === 'native') {
             applyNativeWallpaper(port, image, -1);
