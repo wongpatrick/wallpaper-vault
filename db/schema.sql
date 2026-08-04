@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS sets (
     local_path TEXT,
     phash      TEXT,
     notes      TEXT,
-    date_added TEXT NOT NULL DEFAULT (date('now'))
+    created_at TEXT NOT NULL DEFAULT (date('now'))
 );
 
 CREATE TABLE IF NOT EXISTS set_creators (
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS images (
     dominant_color     TEXT,
     is_favorite        INTEGER NOT NULL DEFAULT 0,
     is_blacklisted     INTEGER NOT NULL DEFAULT 0,
-    date_added         TEXT    NOT NULL DEFAULT (date('now'))
+    created_at         TEXT    NOT NULL DEFAULT (date('now'))
 );
 
 CREATE TABLE IF NOT EXISTS playlists (
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS playlists (
     description  TEXT,
     is_smart     INTEGER NOT NULL DEFAULT 0,
     rules        TEXT, -- Stores the JSON filter rules for smart playlists
-    date_created TEXT    NOT NULL DEFAULT (date('now'))
+    created_at   TEXT    NOT NULL DEFAULT (date('now'))
 );
 
 CREATE TABLE IF NOT EXISTS playlist_images (
@@ -170,6 +170,10 @@ CREATE INDEX IF NOT EXISTS idx_image_tags_image_id             ON image_tags(ima
 CREATE INDEX IF NOT EXISTS idx_image_tags_tag_id               ON image_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_image_characters_image_id       ON image_characters(image_id);
 CREATE INDEX IF NOT EXISTS idx_image_characters_character_id   ON image_characters(character_id);
+CREATE INDEX IF NOT EXISTS idx_playlist_images_image_id        ON playlist_images(image_id);
+CREATE INDEX IF NOT EXISTS idx_images_is_favorite              ON images(is_favorite);
+CREATE INDEX IF NOT EXISTS idx_images_rating                   ON images(rating);
+CREATE INDEX IF NOT EXISTS idx_rotation_rules_enabled          ON rotation_rules(enabled);
 
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_auto_tag_enabled', 'false', 'Enable AI auto tagging on import');
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_model_source', 'predefined', 'Source of the AI model: predefined, huggingface, or local');

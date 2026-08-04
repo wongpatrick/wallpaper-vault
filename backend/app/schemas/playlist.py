@@ -3,7 +3,7 @@ Pydantic schemas for Playlist entities.
 Defines models for creating, updating, viewing, and reordering playlists.
 """
 from typing import Optional, List, Literal
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 from app.schemas.image import Image
 
 class SmartPlaylistRules(BaseModel):
@@ -14,7 +14,7 @@ class SmartPlaylistRules(BaseModel):
     min_width: Optional[int] = Field(None, description="Minimum image width.")
     min_height: Optional[int] = Field(None, description="Minimum image height.")
     creator_id: Optional[int] = Field(None, description="Filter by creator ID.")
-    sort_by: Optional[Literal["date_added", "filename", "resolution", "file_size", "rating"]] = Field("date_added", description="Field to sort by: date_added, filename, resolution, file_size, rating.")
+    sort_by: Optional[Literal["created_at", "date_added", "filename", "resolution", "file_size", "rating"]] = Field("created_at", description="Field to sort by: created_at, date_added, filename, resolution, file_size, rating.")
     sort_dir: Optional[Literal["asc", "desc"]] = Field("desc", description="Sort direction: asc or desc.")
 
 class PlaylistBase(BaseModel):
@@ -37,7 +37,12 @@ class PlaylistImageDetail(BaseModel):
 
 class Playlist(PlaylistBase):
     id: int = Field(..., description="Unique database identifier for the playlist.")
-    date_created: str = Field(..., description="Timestamp when the playlist was created.")
+    created_at: str = Field(..., description="Timestamp when the playlist was created.")
+
+    @computed_field
+    def date_created(self) -> str:
+        return self.created_at
+
     image_count: int = Field(0, description="Number of images in the playlist.")
 
     model_config = ConfigDict(from_attributes=True)

@@ -16,7 +16,7 @@ class RotationRule(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(nullable=False)
     priority: Mapped[int] = mapped_column(server_default=text("0"), default=0)
-    enabled: Mapped[int] = mapped_column(server_default=text("1"), default=1)
+    enabled: Mapped[int] = mapped_column(server_default=text("1"), default=1, index=True)
     
     # Conditions
     start_date: Mapped[Optional[str]] = mapped_column(nullable=True)   # MM-DD

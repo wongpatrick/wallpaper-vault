@@ -148,7 +148,7 @@ async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Op
         subq = select(func.count(Image.id)).where(Image.set_id == Set.id).scalar_subquery()
         order_col = subq
     else:
-        order_col = Set.date_added
+        order_col = Set.created_at
         
     if sort_dir == "asc":
         order_expr = order_col.asc()

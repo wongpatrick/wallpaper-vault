@@ -28,14 +28,14 @@ class Image(Base):
     aspect_ratio_label: Mapped[Optional[str]] = mapped_column()
     sort_order: Mapped[Optional[int]] = mapped_column()
     notes:      Mapped[Optional[str]] = mapped_column()
-    rating:     Mapped[Optional[str]] = mapped_column(server_default=text(f"'{ImageRating.SAFE}'"))
+    rating:     Mapped[Optional[str]] = mapped_column(server_default=text(f"'{ImageRating.SAFE}'"), index=True)
     dominant_color: Mapped[Optional[str]] = mapped_column()
     dominant_color_bucket: Mapped[Optional[str]] = mapped_column(index=True)
     focal_point_x: Mapped[Optional[int]] = mapped_column(server_default=text("50"))
     focal_point_y: Mapped[Optional[int]] = mapped_column(server_default=text("50"))
-    is_favorite: Mapped[bool] = mapped_column(server_default=text("0"), default=False)
+    is_favorite: Mapped[bool] = mapped_column(server_default=text("0"), default=False, index=True)
     is_blacklisted: Mapped[bool] = mapped_column(server_default=text("0"), default=False)
-    date_added: Mapped[str] = mapped_column(server_default=text("(date('now'))"))
+    created_at: Mapped[str] = mapped_column(server_default=text("(date('now'))"))
 
     set: Mapped["Set"] = relationship(back_populates="images")
     tags: Mapped[list["Tag"]] = relationship(

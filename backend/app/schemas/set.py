@@ -3,7 +3,7 @@ Pydantic schemas for set entities.
 Defines models for creating, updating, importing, and bulk managing sets.
 """
 from typing import Optional
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, computed_field
 from app.core.enums import BulkOperationMode
 
 from app.schemas.creator import Creator  # noqa: E402
@@ -89,7 +89,11 @@ class SetUpdate(SetBase):
 
 class Set(SetBase):
     id: int = Field(..., description="Unique database identifier for the set.")
-    date_added: str = Field(..., description="Timestamp when the set was added to the vault.")
+    created_at: str = Field(..., description="Timestamp when the set was added to the vault.")
+
+    @computed_field
+    def date_added(self) -> str:
+        return self.created_at
 
     creators: list[Creator] = Field([], description="List of creators associated with this set.")
     images: list[Image] = Field([], description="List of images contained in this set.")

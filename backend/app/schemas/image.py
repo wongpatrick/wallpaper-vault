@@ -3,7 +3,7 @@ Pydantic schemas for image entities.
 Defines models for creating, updating, bulk operations, and deduplication of images.
 """
 from typing import Optional, List
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, computed_field
 
 class ImageBase(BaseModel):
     filename: str = Field(..., description="The original filename of the image.")
@@ -48,7 +48,11 @@ class ImageUpdate(BaseModel):
 class Image(ImageBase):
     id: int = Field(..., description="Unique database identifier for the image.")
     set_id: int = Field(..., description="ID of the set this image belongs to.")
-    date_added: str = Field(..., description="Timestamp when the image was added to the database.")
+    created_at: str = Field(..., description="Timestamp when the image was added to the database.")
+
+    @computed_field
+    def date_added(self) -> str:
+        return self.created_at
 
     model_config = ConfigDict(from_attributes=True)
 
