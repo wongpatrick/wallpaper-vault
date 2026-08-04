@@ -48,8 +48,13 @@ def run_startup_migrations(connection):
         if old_col in columns and new_col not in columns:
             connection.execute(text(f"ALTER TABLE {table_name} RENAME COLUMN {old_col} TO {new_col}"))
 
-    # Explicit indices
-    connection.execute(text("CREATE INDEX IF NOT EXISTS idx_playlist_images_image_id ON playlist_images(image_id)"))
-    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_images_is_favorite ON images(is_favorite)"))
-    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_images_rating ON images(rating)"))
-    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_rotation_rules_enabled ON rotation_rules(enabled)"))
+    # Explicit indices (only if table exists)
+    for table_name, index_sql in [
+        ("playlist_images", "CREATE INDEX IF NOT EXISTS idx_playlist_images_image_id ON playlist_images(image_id)"),
+        ("images", "CREATE INDEX IF NOT EXISTS ix_images_is_favorite ON images(is_favorite)"),
+        ("images", "CREATE INDEX IF NOT EXISTS ix_images_rating ON images(rating)"),
+        ("rotation_rules", "CREATE INDEX IF NOT EXISTS ix_rotation_rules_enabled ON rotation_rules(enabled)"),
+    ]:
+        res = connection.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
+        if res:
+            connection.execute(text(index_sql))
