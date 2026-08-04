@@ -71,7 +71,7 @@ async def read_playlist(
         description=db_playlist.description,
         is_smart=db_playlist.is_smart,
         rules=db_playlist.rules,
-        date_created=str(db_playlist.date_created),
+        created_at=str(db_playlist.created_at),
         image_count=db_playlist.image_count,
         images=images_list
     )

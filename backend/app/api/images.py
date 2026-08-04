@@ -51,7 +51,7 @@ def map_image_to_schema(img: "ImageModel") -> ImageDetail:
         dominant_color=img.dominant_color,
         is_favorite=getattr(img, "is_favorite", False),
         is_blacklisted=getattr(img, "is_blacklisted", False),
-        date_added=str(img.date_added),
+        created_at=str(img.created_at),
         tags=[t.name for t in img.tags] if "tags" in img.__dict__ and img.tags else [],
         characters=[f"{c.name} ({c.franchise.name})" if c.franchise else c.name for c in img.characters] if "characters" in img.__dict__ and img.characters else []
     )
@@ -108,7 +108,7 @@ async def read_images(
     color_tolerance: int = Query(30, description="Tolerance for hue matching in degrees (0-180)"),
     character: Optional[list[str]] = Query(None, description="Filter by character names"),
     franchise: Optional[list[str]] = Query(None, description="Filter by franchise names"),
-    sort_by: Optional[str] = Query("date_added", description="Sort field (date_added, file_size, resolution, rating, aspect_ratio, random)"),
+    sort_by: Optional[str] = Query("created_at", description="Sort field (created_at, date_added, file_size, resolution, rating, aspect_ratio, random)"),
     sort_dir: Optional[str] = Query("desc", description="Direction to sort"),
     db: AsyncSession = Depends(get_db)
 ) -> ImagePage:

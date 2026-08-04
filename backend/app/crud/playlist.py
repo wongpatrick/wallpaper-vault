@@ -71,7 +71,7 @@ def build_smart_playlist_query(rules: dict):
     from app.models.image import Image
     query = _build_smart_playlist_base_query(rules)
 
-    sort_by = rules.get("sort_by", "date_added")
+    sort_by = rules.get("sort_by", "created_at")
     sort_dir = rules.get("sort_dir", "desc")
 
     if sort_by == "filename":
@@ -83,7 +83,7 @@ def build_smart_playlist_query(rules: dict):
     elif sort_by == "rating":
         order_col = Image.rating
     else:
-        order_col = Image.date_added
+        order_col = Image.created_at
 
     if sort_dir == "asc":
         query = query.order_by(order_col.asc(), Image.id.asc())

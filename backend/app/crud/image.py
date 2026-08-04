@@ -332,7 +332,7 @@ async def get_images(
     color_tolerance: int = 30,
     character: Optional[list[str]] = None,
     franchise: Optional[list[str]] = None,
-    sort_by: Optional[str] = "date_added",
+    sort_by: Optional[str] = "created_at",
     sort_dir: Optional[str] = "desc"
 ) -> tuple[List[Image], int]:
     """Retrieves a paginated list of images, optionally filtered by search terms, rating, character, franchise or tag.
@@ -407,7 +407,7 @@ async def get_images(
     elif sort_by == "random":
         order_col = func.random()
     else:
-        order_col = Image.date_added
+        order_col = Image.created_at
         
     if sort_dir == "asc" and sort_by != "random":
         order_expr = order_col.asc()

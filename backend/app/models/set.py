@@ -22,7 +22,7 @@ class Set(Base):
     local_path: Mapped[Optional[str]] = mapped_column()
     phash:      Mapped[Optional[str]] = mapped_column()
     notes:      Mapped[Optional[str]] = mapped_column()
-    date_added: Mapped[Optional[str]] = mapped_column(server_default=text("(date('now'))"))
+    created_at: Mapped[Optional[str]] = mapped_column(server_default=text("(date('now'))"))
 
     creators: Mapped[list["Creator"]] = relationship(
         secondary=set_creators,

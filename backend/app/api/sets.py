@@ -119,7 +119,7 @@ async def read_sets(
         tag: Optional[str] = Query(None, description="Filter by tag"),
         character: Optional[list[str]] = Query(None, description="Filter by character names"),
         franchise: Optional[list[str]] = Query(None, description="Filter by franchise names"),
-        sort_by: Optional[str] = Query("date_added", description="Sort field (date_added, title, image_count)"),
+        sort_by: Optional[str] = Query("created_at", description="Sort field (created_at, date_added, title, image_count)"),
         sort_dir: Optional[str] = Query("desc", description="Sort direction (asc, desc)"),
         db: AsyncSession = Depends(get_db)
 ) -> SetPage:

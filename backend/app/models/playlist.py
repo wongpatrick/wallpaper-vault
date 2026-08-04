@@ -13,7 +13,7 @@ class PlaylistImage(Base):
     __tablename__ = "playlist_images"
 
     playlist_id: Mapped[int] = mapped_column(ForeignKey("playlists.id", ondelete="CASCADE"), primary_key=True)
-    image_id: Mapped[int] = mapped_column(ForeignKey("images.id", ondelete="CASCADE"), primary_key=True)
+    image_id: Mapped[int] = mapped_column(ForeignKey("images.id", ondelete="CASCADE"), primary_key=True, index=True)
     sort_order: Mapped[int] = mapped_column(server_default=text("0"), default=0)
 
     # Relationships
@@ -29,7 +29,7 @@ class Playlist(Base):
     description: Mapped[Optional[str]] = mapped_column()
     is_smart: Mapped[bool] = mapped_column(server_default=text("0"), default=False)
     rules: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    date_created: Mapped[str] = mapped_column(server_default=text("(date('now'))"))
+    created_at: Mapped[str] = mapped_column(server_default=text("(date('now'))"))
 
     # Relationship to association table
     playlist_images: Mapped[list["PlaylistImage"]] = relationship(

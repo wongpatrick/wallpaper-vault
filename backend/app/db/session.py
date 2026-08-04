@@ -34,3 +34,27 @@ SessionLocal = async_sessionmaker(
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with SessionLocal() as session:
         yield session
+
+def run_startup_migrations(connection):
+    from sqlalchemy import text
+    # Column renames
+    for table_name, old_col, new_col in [
+        ("images", "date_added", "created_at"),
+        ("sets", "date_added", "created_at"),
+        ("playlists", "date_created", "created_at"),
+    ]:
+        res = connection.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
+        columns = [row[1] for row in res]
+        if old_col in columns and new_col not in columns:
+            connection.execute(text(f"ALTER TABLE {table_name} RENAME COLUMN {old_col} TO {new_col}"))
+
+    # Explicit indices (only if table exists)
+    for table_name, index_sql in [
+        ("playlist_images", "CREATE INDEX IF NOT EXISTS idx_playlist_images_image_id ON playlist_images(image_id)"),
+        ("images", "CREATE INDEX IF NOT EXISTS ix_images_is_favorite ON images(is_favorite)"),
+        ("images", "CREATE INDEX IF NOT EXISTS ix_images_rating ON images(rating)"),
+        ("rotation_rules", "CREATE INDEX IF NOT EXISTS ix_rotation_rules_enabled ON rotation_rules(enabled)"),
+    ]:
+        res = connection.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
+        if res:
+            connection.execute(text(index_sql))

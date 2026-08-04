@@ -24,11 +24,12 @@ async def lifespan(app: FastAPI):
             "Ensure this instance is protected if deployed on a network or NAS setup."
         )
 
-    # Ensure all tables are created in the database
-    from app.db.session import engine
+    # Ensure all tables and migrations are updated in the database
+    from app.db.session import engine, run_startup_migrations
     from app.models.base import Base
     import app.models  # noqa: F401
     async with engine.begin() as conn:
+        await conn.run_sync(run_startup_migrations)
         await conn.run_sync(Base.metadata.create_all)
 
     await cleanup_zombie_tasks()
