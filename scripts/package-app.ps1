@@ -25,13 +25,11 @@ New-Item -ItemType Directory -Force -Path $cleanDbDir | Out-Null
 $cleanDbPath = Resolve-Path "$cleanDbDir"
 $dbFile = "$cleanDbPath/wallpapers.db"
 
-# Temporarily override DATABASE_URL env var so init_db initializes the clean file
-$env:DATABASE_URL = "sqlite+aiosqlite:///$($dbFile.Replace('\', '/'))"
+# Generate clean template database using --db-path parameter
 Push-Location "$PSScriptRoot/../backend"
 try {
-    uv run python scripts/init_db.py
+    uv run python scripts/init_db.py --db-path "$dbFile"
 } finally {
-    $env:DATABASE_URL = $null
     Pop-Location
 }
 
