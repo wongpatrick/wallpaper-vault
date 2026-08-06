@@ -1,0 +1,253 @@
+# YAML-driven Import Parser Rules
+# Evaluated top-to-bottom (first match wins).
+
+rules:
+  - name: bangni_no
+    pattern: '^Bangni邦尼\s+(NO\.\d+\s+.+?)\['
+    creator: "Bangni邦尼"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: xiuren
+    pattern: '^(XIUREN No\.\d+)\s+(.+?)\s+XIUREN-'
+    creator_template: "{2}"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: youmi
+    pattern: '^(YouMi Vol\.\d+)\s+(.+?)\s+-\s+YouMi-'
+    creator_template: "{2}"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: mtcos
+    pattern: '^(?:\[MTCos\]\s+)?喵糖映画\s+(Vol\.\d+)\s+(\S+)\s+(.+?)\s+-\s+MTCos-'
+    creator_template: "{2}"
+    title_template: "喵糖映画 {1} {3}"
+    auto_insert: true
+
+  - name: djawa_no
+    pattern: '^(NO\.\d+)\s+[–-]\s+(.+?)\s+[–-]\s+(.+?)\s+-\s+DJAWA_'
+    creator_template: "{2}"
+    title_template: "{1} – {3}"
+    auto_insert: true
+
+  - name: saint_slug
+    pattern: '^SAINT-Photolife-(.+?)-\s+-\s+SAINT-'
+    custom_handler: parse_saint_slug
+    auto_insert: true
+
+  - name: coser_space
+    pattern: '^Coser\s+(\S+)\s+(Vol\.\d+)\s+-\s+Coser-'
+    creator_template: "{1}"
+    title_template: "{2}"
+    auto_insert: true
+
+  - name: a_yixuan
+    pattern: '^A\.Yixuan儀玄\s+-\s+(\w+)\s+\('
+    creator: "A.Yixuan儀玄"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: c_maoin
+    pattern: '^C\.Maoin\s+(.+?)\s+-\s+\w+\s+\('
+    creator: "C.Maoin"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: luna_bracket
+    pattern: '^(?:\[.+?\]\s+)?LUNA\s+(.+?)\s+-\s+LUNA_'
+    creator: "LUNA"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: kpop_lesserafim_slug
+    pattern: '^kpop\s+-\s+\d{6}-(.+?)-documents-'
+    custom_handler: parse_kpop_lesserafim_slug
+    auto_insert: true
+
+  - name: kpop_lesserafim_concert
+    pattern: '^le sserafim\s+(.+?)\s+-\s+\w+\d'
+    flags: ["IGNORECASE"]
+    creator: "LE SSERAFIM"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: zzyuri_gr
+    pattern: '^Zzyuri_(GR\d+)\s+-\s+Zzyuri_'
+    creator: "Zzyuri"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: rui_idol
+    pattern: '^Rui\s+(IDOL\s+\w+)\s+photo_'
+    creator: "Rui"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: izayoi_rui
+    pattern: '^(izayoiruiweibo\d+)\s+-\s+IMG_'
+    creator_template: "{1}"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: elyee_no_dash
+    pattern: '^ElyEE子\s+-\s+(.+?)\s+\d+_'
+    creator: "Ely"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: djawa_ver
+    pattern: '^(.+?)\s+-\s+DJAWA_'
+    creator: "DJAWA"
+    title_template: "{1}"
+    auto_insert: false
+
+  - name: jp_idol
+    pattern: '^(?:\[JP\]\s+)?(.+?)\s+-\s+(.+?)\s+\S+-\S*MissKON'
+    creator_template: "{1}"
+    title_template: "{2}"
+    auto_insert: false
+
+  - name: elyee_no
+    pattern: '^ElyEE子\s+(NO\.\d+\s+.+?)\s+-\s+\d+\.'
+    creator: "Ely"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: rui_any
+    pattern: '^Rui\s+(.+?)\s+photo_'
+    creator: "Rui"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: sinder
+    pattern: '^Sinder_(.+?)_V\d+'
+    custom_handler: parse_sinder
+    auto_insert: false
+
+  - name: enako_japanese
+    pattern: '^えなこ「(.+?)」'
+    creator: "えなこ"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: kitaro
+    pattern: '^【(.+?)】(.+?)\s+-\s+\S+'
+    creator_template: "{1}"
+    title_template: "{2}"
+    auto_insert: true
+
+  - name: jiuqi_miao
+    pattern: '^九柒喵\s+(.+?)\s+-\s+\d+'
+    creator: "九柒喵"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: aqua_no_prefix
+    pattern: '^(\d+)\s+-\s+Aqua\s+(.+?)\s+\(\d+\s+Pics?\)'
+    creator: "Aqua"
+    title_template: "{1} - Aqua {2}"
+    auto_insert: true
+
+  - name: shimo_single
+    pattern: '^霜月shimo\s+(.+?)\s+-\s+[a-z]\d+\.'
+    creator: "霜月shimo"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: xing_zhi
+    pattern: '^\(Cosplay\)\s+星之迟迟\s+(.+?)\s+-\s+\d+'
+    creator: "星之迟迟"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: ely_creator_dash_title
+    pattern: '^(?:Ely|ElyEE子|Ely_eee)\s+-\s+(.+?)\s+-\s+.+'
+    custom_handler: parse_creator_dash_title_ely
+    auto_insert: true
+
+  - name: elyee_rar
+    pattern: '^ElyEE子\s+\d+\s+-\s+(.+?)\.rar\s+-\s+\d+\.'
+    creator: "Ely"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: metadata_bracket_walking_zly
+    pattern: '^走路摇zly\s+-\s+(.+?)\s+\[\d+P'
+    creator: "走路摇zly"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: g44
+    pattern: '^G44不会受伤\s+-\s+(.+?)\s+\[\d+P'
+    creator: "G44不会受伤"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: bambi_creator_dash_title
+    pattern: '^Bambi \(밤비\)\s+-\s+(.+?)\s+-\s+.+'
+    custom_handler: parse_creator_dash_title_bambi
+    auto_insert: true
+
+  - name: shimo_double
+    pattern: '^霜月shimo\s+-\s+(.+?)\s+-\s+(.+?)\s+-\s+\d+\.'
+    creator: "霜月shimo"
+    title_template: "{1} - {2}"
+    auto_insert: true
+
+  - name: hash_creator
+    pattern: '^\s*#(.+?)\s+(NO\.\d+\s+.+?)\s+\[\d+P'
+    creator_template: "{1}"
+    title_template: "{2}"
+    auto_insert: true
+
+  - name: coser_at
+    pattern: '^(?:Coser|Cosplay)@'
+    custom_handler: parse_coser_at
+    auto_insert: true
+
+  - name: aqua
+    pattern: '^Aqua\s+-\s+(\d+\s+-\s+.+?)\s+\(\d+\s+Pics?\)'
+    creator: "Aqua"
+    title_template: "{1}"
+    auto_insert: true
+
+  - name: studio_bracket
+    pattern: '^\[(.+?)\]\s+(.+?)\s+-\s+(.+?)\s+-\s+.+'
+    custom_handler: parse_studio_bracket
+    auto_insert: true
+
+  - name: saint_photolife
+    pattern: '^(SAINT Photolife)\s+-\s+(.+?)\s+-\s+(.+?)\s+-\s+.+'
+    creator_template: "{2}"
+    title_template: "{1} - {3}"
+    auto_insert: true
+
+  - name: djawa_photo
+    pattern: '^(DJAWA Photo)\s+-\s+(.+?)\s+-\s+(.+?)(?:\s+-\s+|\s+DJAWA-).+'
+    creator_template: "{2}"
+    title_template: "{1} - {3}"
+    auto_insert: true
+
+  - name: djawa_bracket
+    pattern: '^\[DJAWA\]\s+(.+?)\s+-\s+\d+_.*'
+    custom_handler: parse_djawa_bracket
+    auto_insert: false
+
+  - name: cosplay_bracket
+    pattern: '^\[cosplay\]\s+\[(.+?)\]\s+(.+?)\s+-\s+\d+'
+    creator_template: "{1}"
+    title_template: "{2}"
+    auto_insert: false
+
+  - name: generic_metadata_bracket
+    pattern: '^(.+?)\s+-\s+(.+?)\s+\[\d+P'
+    creator_template: "{1}"
+    title_template: "{2}"
+    auto_insert: false
+
+  - name: generic_creator_dash_title
+    pattern: '^(.+?)\s+-\s+(.+?)\s+-\s+.+'
+    custom_handler: parse_creator_dash_title
+    auto_insert: false
