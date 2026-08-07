@@ -169,36 +169,67 @@ async def merge_franchises(db: AsyncSession, source_ids: list[int], target_id: i
     """Merges multiple source franchises into a single target franchise.
 
     Re-associates all characters from the source franchises to the target franchise,
-    and deletes the source franchises.
+    consolidating duplicate character names, and deletes the source franchises.
     """
-    from sqlalchemy import update
     from app.models.character import Character
     from app.models.associations import set_characters
+    from app.crud.character import merge_characters
 
     target = await db.execute(
         select(Franchise).where(Franchise.id == target_id)
     )
     target = target.scalars().first()
-    if not target:
-        return None
+    source_ids = [sid for sid in source_ids if sid != target_id]
+    if not source_ids:
+        return {
+            "id": target.id,
+            "name": target.name,
+            "set_count": 0,
+            "image_count": 0,
+        }
 
+    all_ids = set(source_ids) | {target_id}
+
+    # Fetch all characters belonging to source and target franchises
+    stmt_chars = select(Character).where(Character.franchise_id.in_(all_ids))
+    chars_res = await db.execute(stmt_chars)
+    all_chars = chars_res.scalars().all()
+
+    # Group characters by lower(name)
+    chars_by_name: dict[str, list[Character]] = {}
+    for c in all_chars:
+        chars_by_name.setdefault(c.name.lower(), []).append(c)
+
+    # For each character name group, consolidate duplicates
+    for name_lower, group in chars_by_name.items():
+        # Find if a character already exists under target_id
+        target_char = next((c for c in group if c.franchise_id == target_id), None)
+        if target_char:
+            source_chars = [c for c in group if c.id != target_char.id]
+        else:
+            target_char = group[0]
+            source_chars = group[1:]
+            target_char.franchise_id = target_id
+
+        if source_chars:
+            await merge_characters(db, [c.id for c in source_chars], target_char.id)
+
+    # Reassign any remaining non-colliding characters in source franchises to target_id
+    await db.execute(
+        update(Character)
+        .where(Character.franchise_id.in_(source_ids))
+        .values(franchise_id=target_id)
+    )
+    await db.flush()
+
+    # Delete source franchises
     for sid in source_ids:
         source = await db.execute(
             select(Franchise).where(Franchise.id == sid)
         )
         source = source.scalars().first()
-        if not source:
-            continue
-
-        # Direct SQL UPDATE to reassign characters — bypasses ORM relationship
-        # issues and avoids conflict with ON DELETE SET NULL
-        await db.execute(
-            update(Character)
-            .where(Character.franchise_id == sid)
-            .values(franchise_id=target_id)
-        )
-        await db.flush()
-        await db.delete(source)
+        if source:
+            await db.delete(source)
 
     await db.flush()
 
