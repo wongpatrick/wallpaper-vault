@@ -162,6 +162,8 @@ CREATE INDEX IF NOT EXISTS idx_images_set_id               ON images(set_id);
 CREATE INDEX IF NOT EXISTS idx_images_phash                ON images(phash);
 CREATE INDEX IF NOT EXISTS idx_images_aspect_ratio_label   ON images(aspect_ratio_label);
 CREATE INDEX IF NOT EXISTS idx_characters_franchise_id         ON characters(franchise_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_character_franchise ON characters(lower(name), franchise_id) WHERE franchise_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_character_no_franchise ON characters(lower(name)) WHERE franchise_id IS NULL;
 CREATE INDEX IF NOT EXISTS idx_character_aliases_character_id  ON character_aliases(character_id);
 CREATE INDEX IF NOT EXISTS idx_character_aliases_alias         ON character_aliases(alias);
 CREATE INDEX IF NOT EXISTS idx_set_characters_set_id           ON set_characters(set_id);

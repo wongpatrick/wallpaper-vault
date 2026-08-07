@@ -229,7 +229,6 @@ async def test_merge_franchises_api(client: AsyncClient):
     assert merged_franchise["name"] == "Marvel"
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Bug: duplicate character names under target franchise are not merged")
 async def test_merge_franchises_duplicate_characters(db_session: AsyncSession):
     # 1. Create target franchise Marvel
     f_target_in = FranchiseCreate(name="Marvel")
@@ -270,6 +269,83 @@ async def test_merge_franchises_duplicate_characters(db_session: AsyncSession):
     
     # Check if they got merged or if both exist
     assert len(chars) == 1, f"Expected 1 Iron Man character under Marvel, but found {len(chars)}"
+    
+    # Check that the set now points to the single remaining Iron Man character
+    s_updated = (await db_session.execute(
+        select(Set).options(selectinload(Set.characters)).where(Set.id == s.id)
+    )).scalars().first()
+    assert chars[0] in s_updated.characters
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_character_single_franchise_fallback(db_session: AsyncSession):
+    # 1. Create "Reze (Chainsaw Man)"
+    c_tagged = await get_or_create_character(db_session, "Reze (Chainsaw Man)")
+    await db_session.commit()
+    assert c_tagged.franchise is not None
+    assert c_tagged.franchise.name == "Chainsaw Man"
+
+    # 2. Call get_or_create_character with "Reze" (no franchise specified)
+    c_untagged = await get_or_create_character(db_session, "Reze")
+    await db_session.commit()
+
+    # 3. Verify it resolved to existing "Reze (Chainsaw Man)" because it was the ONLY "Reze"
+    assert c_untagged.id == c_tagged.id
+    assert c_untagged.franchise_id == c_tagged.franchise_id
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_character_multiple_franchise_fallback(db_session: AsyncSession):
+    # 1. Create "Reze (Chainsaw Man)" and "Reze (Fire Punch)"
+    c1 = await get_or_create_character(db_session, "Reze (Chainsaw Man)")
+    c2 = await get_or_create_character(db_session, "Reze (Fire Punch)")
+    await db_session.commit()
+    assert c1.id != c2.id
+
+    # 2. Call get_or_create_character with "Reze" (no franchise specified)
+    c_untagged = await get_or_create_character(db_session, "Reze")
+    await db_session.commit()
+
+    # 3. Because multiple "Reze" characters exist in different franchises, it falls back to creating/retrieving franchise-less "Reze"
+    assert c_untagged.id != c1.id
+    assert c_untagged.id != c2.id
+    assert c_untagged.franchise_id is None
+
+
+@pytest.mark.asyncio
+async def test_character_unique_constraints(db_session: AsyncSession):
+    from sqlalchemy.exc import IntegrityError
+    from app.models.character import Character
+
+    # Create franchise
+    f_in = FranchiseCreate(name="Marvel Constraint Test")
+    f = await create_franchise(db_session, f_in)
+    await db_session.commit()
+
+    # 1. Create character "Spider-Man Constraint Test" under Marvel Constraint Test
+    c1 = Character(name="Spider-Man Constraint Test", franchise_id=f.id)
+    db_session.add(c1)
+    await db_session.commit()
+
+    # 2. Duplicate character under same franchise should raise IntegrityError
+    c2 = Character(name="spider-man constraint test", franchise_id=f.id)
+    db_session.add(c2)
+    with pytest.raises(IntegrityError):
+        await db_session.commit()
+    await db_session.rollback()
+
+    # 3. Create franchise-less character "Goku Constraint Test"
+    g1 = Character(name="Goku Constraint Test", franchise_id=None)
+    db_session.add(g1)
+    await db_session.commit()
+
+    # 4. Duplicate franchise-less character should raise IntegrityError
+    g2 = Character(name="goku constraint test", franchise_id=None)
+    db_session.add(g2)
+    with pytest.raises(IntegrityError):
+        await db_session.commit()
+    await db_session.rollback()
+
 
 
 
