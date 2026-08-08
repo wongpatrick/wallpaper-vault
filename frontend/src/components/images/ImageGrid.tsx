@@ -23,6 +23,7 @@ export interface ImageGridProps {
     selectedImageIds: Set<number>;
     onToggleSelect: (id: number) => void;
     onImageClick: (originalIdx: number) => void;
+    onSetWallpaper?: (image: ImageModel) => void;
 }
 
 export const ImageGrid: React.FC<ImageGridProps> = ({
@@ -39,6 +40,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
     selectedImageIds,
     onToggleSelect,
     onImageClick,
+    onSetWallpaper,
 }) => {
     return (
         <Box style={{ position: 'relative', minHeight: '60vh' }}>
@@ -64,6 +66,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
                                                     selectionMode={selectionMode}
                                                     selected={selectedImageIds.has(image.id)}
                                                     onToggleSelect={() => onToggleSelect(image.id)}
+                                                    onSetWallpaper={onSetWallpaper}
                                                 />
                                             ))}
                                         </Stack>

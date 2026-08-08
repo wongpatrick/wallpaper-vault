@@ -28,6 +28,7 @@ let tray: Tray | null = null;
 let isQuitting = false;
 let backendProcess: ChildProcess | null = null;
 const activeMonitorWallpapers: Map<string, { title: string; author: string }> = new Map();
+const recentlyAppliedManualWallpapers: Map<string, number> = new Map();
 let rotationNotificationsEnabled = true;
 
 interface BackendStatusInfo {
@@ -871,6 +872,78 @@ function createWindow() {
 
     ipcMain.handle('get-system-wallpapers', async () => {
         return await getSystemWallpapers();
+    });
+
+    ipcMain.handle('set-wallpaper', async (_event, { imageId, monitorIndex, style }) => {
+        const port = getBackendPort();
+        const parsedMonitorIndex = typeof monitorIndex === 'number' ? monitorIndex : parseInt(String(monitorIndex), 10);
+        const effectiveStyle = style || 'fill';
+        
+        const tempDir = app.getPath('temp');
+        const filename = `wallpaper-vault-active-monitor-${parsedMonitorIndex === -1 ? 'all' : parsedMonitorIndex}-id-${imageId}.jpg`;
+        const tempPath = path.join(tempDir, filename);
+        const fileUrl = `http://127.0.0.1:${port}/api/images/file/${imageId}`;
+
+        return new Promise((resolve) => {
+            const fileStream = fs.createWriteStream(tempPath);
+            http.get(fileUrl, (res) => {
+                if (res.statusCode !== HTTP_STATUS_OK) {
+                    fileStream.close();
+                    console.error(`[Main IPC] Failed to fetch image ${imageId}, status code: ${res.statusCode}`);
+                    resolve({ success: false, error: `Failed to download image file (HTTP ${res.statusCode})` });
+                    return;
+                }
+                res.pipe(fileStream);
+                fileStream.on('finish', async () => {
+                    fileStream.close();
+                    try {
+                        const targetMonitorStr = parsedMonitorIndex === -1 ? 'all' : String(parsedMonitorIndex);
+                        recentlyAppliedManualWallpapers.set(targetMonitorStr, imageId);
+
+                        await setWallpaperNatively(tempPath, parsedMonitorIndex, effectiveStyle);
+                        
+                        // Notify backend to persist in settings and broadcast SSE
+                        const postData = JSON.stringify({
+                            image_id: imageId,
+                            target_monitor: targetMonitorStr,
+                            style: effectiveStyle
+                        });
+
+                        const req = http.request({
+                            hostname: '127.0.0.1',
+                            port: port,
+                            path: '/api/rotation-history/set-wallpaper',
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Content-Length': Buffer.byteLength(postData)
+                            }
+                        }, (apiRes) => {
+                            apiRes.resume();
+                            fetchCurrentWallpaperInfo(port);
+                            resolve({ success: true });
+                        });
+
+                        req.on('error', (err) => {
+                            console.error('[Main IPC] Failed to inform backend of wallpaper update:', err);
+                            fetchCurrentWallpaperInfo(port);
+                            resolve({ success: true });
+                        });
+
+                        req.write(postData);
+                        req.end();
+                    } catch (nativeErr: unknown) {
+                        const errMsg = nativeErr instanceof Error ? nativeErr.message : 'Native wallpaper execution failed';
+                        console.error('[Main IPC] setWallpaperNatively failed:', nativeErr);
+                        resolve({ success: false, error: errMsg });
+                    }
+                });
+            }).on('error', (err) => {
+                console.error('[Main IPC] File download error:', err);
+                fileStream.close();
+                resolve({ success: false, error: err.message });
+            });
+        });
     });
 
     if (process.env.VITE_DEV_SERVER_URL) {
@@ -1777,6 +1850,13 @@ function handleRotationEvent(port: number, image: any, targetMonitor: string) {
         }
     }
 
+    // Skip redundant native application if this exact wallpaper was just manually applied by the user
+    if (image && recentlyAppliedManualWallpapers.get(targetMonitor) === image.id) {
+        console.log(`[Rotation Coordinator] Bypassing duplicate native apply for image ID ${image.id} on ${targetMonitor} (manually applied).`);
+        recentlyAppliedManualWallpapers.delete(targetMonitor);
+        return;
+    }
+
     if (targetMonitor === 'all') {
         if (globalRotationConfig.mode === 'native') {
             applyNativeWallpaper(port, image, -1);
@@ -1839,7 +1919,7 @@ function getStyleInt(style: string): number {
     }
 }
 
-function setWallpaperNatively(imagePath: string, monitorIndex: number, style: string) {
+function setWallpaperNatively(imagePath: string, monitorIndex: number, style: string): Promise<void> {
     const absolutePath = path.resolve(imagePath);
     const styleInt = getStyleInt(style);
 
@@ -1848,12 +1928,13 @@ function setWallpaperNatively(imagePath: string, monitorIndex: number, style: st
     const cmd = `[WallpaperHelper]::SetMonitorWallpaper(${monitorIndex}, [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("${base64Path}")), ${styleInt})`;
 
     console.log(`[Rotation Coordinator] Calling PowerShell daemon to set wallpaper for Monitor ${monitorIndex === -1 ? 'Global' : monitorIndex + 1} with Style ${style}...`);
-    psDaemon.run(cmd)
+    return psDaemon.run(cmd)
         .then(() => {
             console.log('[Rotation Coordinator] Natively set wallpaper succeeded.');
         })
         .catch((err) => {
             console.error('[Rotation Coordinator] PowerShell wallpaper update failed:', err);
+            throw err;
         });
 }
 
