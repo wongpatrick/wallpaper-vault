@@ -92,7 +92,7 @@ from app.core.enums import BulkOperationMode  # noqa: E402
 class ImageBulkUpdate(BaseModel):
     image_ids: list[int] = Field(..., description="List of image IDs to apply the bulk update to.")
     update_data: ImageUpdate = Field(..., description="The data to apply to all selected images.")
-    operation_mode: BulkOperationMode = Field(BulkOperationMode.APPEND, description="How to apply list-like fields (e.g., notes). APPEND or OVERWRITE.")
+    operation_mode: BulkOperationMode = Field(BulkOperationMode.APPEND, description="How to apply list-like fields (e.g., tags, characters, notes). APPEND, REPLACE, or REMOVE.")
 
 class ImagePage(BaseModel):
     items: List[ImageWithContext] = Field(..., description="Paginated list of images.")

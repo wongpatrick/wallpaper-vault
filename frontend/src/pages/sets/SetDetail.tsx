@@ -34,7 +34,7 @@ import { CharacterTagsInput } from '../../components/ui/CharacterTagsInput';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
 import { AddToPlaylistModal } from '../../components/playlists/AddToPlaylistModal';
 import { useTasks } from '../../hooks/useTasks';
-import type { Image as ImageModel, BulkOperationMode, SetUpdate, Set as SetModel } from '../../api/model';
+import type { Image as ImageModel, BulkOperationMode, SetUpdate, Set as SetModel, ImageUpdate } from '../../api/model';
 
 import { SetHeader } from './components/SetHeader';
 import { SetImageGallery } from './components/SetImageGallery';
@@ -293,7 +293,7 @@ export default function SetDetail() {
         selectAll(set.images.map(img => img.id));
     };
 
-    const handleBulkEditConfirm = async (data: Partial<{ rating: string; notes: string }>, mode: BulkOperationMode) => {
+    const handleBulkEditConfirm = async (data: Partial<ImageUpdate>, mode: BulkOperationMode) => {
         try {
             await bulkUpdateMutation.mutateAsync({
                 data: {
