@@ -8,6 +8,7 @@ from sqlalchemy.future import select
 from app.db.session import get_db
 from app.models.rotation_history import RotationHistory
 from app.schemas.image import ImageDetail, ImageWithContext
+from app.schemas.rotation_history import SetWallpaperRequest, SetWallpaperResponse
 from app.api.images import map_image_to_schema, map_image_to_context_schema
 from app.core.rotation import rotation_broadcaster
 from typing import List, AsyncGenerator
@@ -103,6 +104,47 @@ async def read_current_monitors_wallpapers(db: AsyncSession = Depends(get_db)) -
                 response["global"] = map_image_to_context_schema(img)
                 
     return response
+
+@router.post("/set-wallpaper", response_model=SetWallpaperResponse)
+async def set_active_wallpaper(
+    request: SetWallpaperRequest,
+    db: AsyncSession = Depends(get_db)
+) -> SetWallpaperResponse:
+    """
+    Manually apply a wallpaper image as the active wallpaper for a specific monitor or globally.
+    """
+    from app.crud.image import get_image
+    img = await get_image(db, request.image_id)
+    if not img:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    target_monitor = request.target_monitor or "all"
+    style = request.style or "fill"
+
+    from app.core.rotation import log_rotation
+    await log_rotation(db, image_id=request.image_id, aspect_ratio=img.aspect_ratio_label, target_monitor=target_monitor)
+
+    # Persist the style in settings
+    from app.models.settings import Setting
+    style_key = f"monitor_{target_monitor}_wallpaper_rotation_style" if target_monitor != "all" else "wallpaper_rotation_style"
+    stmt = select(Setting).where(Setting.key == style_key)
+    res = await db.execute(stmt)
+    setting = res.scalar_one_or_none()
+    if setting:
+        setting.value = style
+    else:
+        setting = Setting(key=style_key, value=style, description=f"Wallpaper fit style for {style_key}")
+        db.add(setting)
+    await db.commit()
+
+    logger.info("Manually set active wallpaper", image_id=request.image_id, target_monitor=target_monitor, style=style)
+
+    return SetWallpaperResponse(
+        status="success",
+        image_id=request.image_id,
+        target_monitor=target_monitor,
+        style=style
+    )
 
 @router.post("/skip")
 async def trigger_skip(target_monitor: str = "all") -> dict[str, str]:

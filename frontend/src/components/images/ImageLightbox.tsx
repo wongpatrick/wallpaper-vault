@@ -10,6 +10,7 @@ import type { Image as ImageModel } from '../../api/model';
 import { useDeleteImageApiImagesImageIdDelete, useReadImageApiImagesImageIdGet, useUpdateImageApiImagesImageIdPatch } from '../../api/generated/images/images';
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
 import { CharacterTagsInput } from '../ui/CharacterTagsInput';
+import { SetAsWallpaperModal } from './SetAsWallpaperModal';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -52,6 +53,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
         const saved = localStorage.getItem('lightbox_sidebar_open');
         return saved !== null ? saved === 'true' : true;
     });
+    const [wallpaperModalOpen, setWallpaperModalOpen] = useState(false);
 
     const toggleSidebar = () => {
         setSidebarOpen(prev => {
@@ -204,6 +206,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
     };
 
     return (
+        <>
         <Modal
             opened={selectedIndex !== null}
             onClose={onClose}
@@ -306,6 +309,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                                 color="blue" 
                                 size="lg"
                                 disabled={disableActions}
+                                onClick={() => setWallpaperModalOpen(true)}
                             >
                                 <IconWallpaper size={20} />
                             </ActionIcon>
@@ -464,5 +468,13 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                 </Box>
             </Box>
         </Modal>
+        {currentImage && (
+            <SetAsWallpaperModal
+                opened={wallpaperModalOpen}
+                onClose={() => setWallpaperModalOpen(false)}
+                image={currentImage}
+            />
+        )}
+        </>
     );
 }

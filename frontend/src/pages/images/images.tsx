@@ -9,6 +9,7 @@ import { useReadImagesApiImagesGet } from '../../api/generated/images/images';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { ImageCropModal } from '../../components/images/ImageCropModal';
+import { SetAsWallpaperModal } from '../../components/images/SetAsWallpaperModal';
 import { GalleryFilterBar } from '../../components/images/GalleryFilterBar';
 import { ImageGrid } from '../../components/images/ImageGrid';
 import { ColorExplorer } from './ColorExplorer';
@@ -92,6 +93,7 @@ export default function Images() {
     // Selection state
     const { selectionMode, setSelectionMode, selectedIds: selectedImageIds, toggle: toggleImageSelect, clear: clearSelection } = useSelection();
     const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
+    const [wallpaperImage, setWallpaperImage] = useState<ImageModel | null>(null);
 
     // Fetch data
     const { data: pageData, isLoading, isFetching, error, refetch } = useReadImagesApiImagesGet({
@@ -239,6 +241,7 @@ export default function Images() {
                 selectedImageIds={selectedImageIds}
                 onToggleSelect={handleToggleSelect}
                 onImageClick={handleImageClick}
+                onSetWallpaper={(img) => setWallpaperImage(img)}
             />
 
             <ImageLightbox
@@ -251,6 +254,12 @@ export default function Images() {
                 onDelete={handleCollectionReset}
                 onUpdated={handleCollectionReset}
                 onCrop={(img) => setCroppingImage(img)}
+            />
+
+            <SetAsWallpaperModal
+                opened={wallpaperImage !== null}
+                onClose={() => setWallpaperImage(null)}
+                image={wallpaperImage}
             />
 
             <ImageEditModal

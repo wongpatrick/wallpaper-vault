@@ -4,8 +4,8 @@
  * Description: Component for displaying a single image within a grid, featuring selection mode, rating badges, and overlay information.
  */
 import { memo } from 'react';
-import { Card, Image, Box, Text, Stack, Badge, Group, Checkbox } from '@mantine/core';
-import { IconAlertTriangle, IconExclamationCircle } from '@tabler/icons-react';
+import { Card, Image, Box, Text, Stack, Badge, Group, Checkbox, ActionIcon, Tooltip } from '@mantine/core';
+import { IconAlertTriangle, IconExclamationCircle, IconWallpaper } from '@tabler/icons-react';
 import { getThumbnailUrl } from '../../utils/fileUtils';
 import type { Image as ImageModel } from '../../api/model';
 import { useLongPress } from '../../hooks/useLongPress';
@@ -17,13 +17,14 @@ interface ImageGridItemProps {
     selectionMode?: boolean;
     selected?: boolean;
     onToggleSelect?: () => void;
+    onSetWallpaper?: (image: ImageModel) => void;
 }
 
 const SCROLL_DEBOUNCE_MS = 500;
 const OPACITY_UNSELECTED = 0.7;
 const OPACITY_FULL = 1;
 
-export const ImageGridItem = memo(function ImageGridItem({ image, onClick, selectionMode, selected, onToggleSelect }: ImageGridItemProps) {
+export const ImageGridItem = memo(function ImageGridItem({ image, onClick, selectionMode, selected, onToggleSelect, onSetWallpaper }: ImageGridItemProps) {
     const rating = image.rating || ImageRating.SAFE;
     const dominantColor = image.dominant_color;
     
@@ -146,12 +147,30 @@ export const ImageGridItem = memo(function ImageGridItem({ image, onClick, selec
                     pointerEvents: 'none'
                 }}
             >
-                <Stack gap={2}>
-                    <Text size="xs" fw={700} truncate="end">{image.filename}</Text>
-                    <Group gap={8}>
-                        <Text size="xs" opacity={0.8}>{image.width} × {image.height}</Text>
-                    </Group>
-                </Stack>
+                <Group justify="space-between" align="flex-end" wrap="nowrap">
+                    <Stack gap={2} style={{ minWidth: 0 }}>
+                        <Text size="xs" fw={700} truncate="end">{image.filename}</Text>
+                        <Group gap={8}>
+                            <Text size="xs" opacity={0.8}>{image.width} × {image.height}</Text>
+                        </Group>
+                    </Stack>
+                    {onSetWallpaper && !selectionMode && (
+                        <Tooltip label="Set as Wallpaper" position="left" withArrow>
+                            <ActionIcon
+                                size="sm"
+                                variant="filled"
+                                color="blue"
+                                style={{ pointerEvents: 'auto' }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSetWallpaper(image);
+                                }}
+                            >
+                                <IconWallpaper size={14} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                </Group>
             </Box>
         </Card>
     );

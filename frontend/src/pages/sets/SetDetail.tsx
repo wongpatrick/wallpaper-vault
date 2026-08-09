@@ -29,6 +29,7 @@ import { ImageBulkEditModal } from '../../components/images/ImageBulkEditModal';
 import { ImageMoveModal } from '../../components/images/ImageMoveModal';
 import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
 import { ImageCropModal } from '../../components/images/ImageCropModal';
+import { SetAsWallpaperModal } from '../../components/images/SetAsWallpaperModal';
 import { CharacterTagsInput } from '../../components/ui/CharacterTagsInput';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
 import { AddToPlaylistModal } from '../../components/playlists/AddToPlaylistModal';
@@ -61,6 +62,7 @@ export default function SetDetail() {
     const [editingImage, setEditingImage] = useState<ImageModel | null>(null);
     const [croppingImage, setCroppingImage] = useState<ImageModel | null>(null);
     const [movingSingleImage, setMovingSingleImage] = useState<ImageModel | null>(null);
+    const [wallpaperImage, setWallpaperImage] = useState<ImageModel | null>(null);
 
     const { getTaskForSet, tasks } = useTasks();
     const activeTask = getTaskForSet(Number(setId));
@@ -351,6 +353,7 @@ export default function SetDetail() {
                 selectedImageIds={selectedImageIds}
                 toggleImageSelect={toggleImageSelect}
                 onImageClick={(index) => setSelectedImageIndex(index)}
+                onSetWallpaper={(img) => setWallpaperImage(img)}
             />
 
             {/* Lightbox for full size preview */}
@@ -365,6 +368,12 @@ export default function SetDetail() {
                     onUpdated={refetch}
                 />
             )}
+
+            <SetAsWallpaperModal
+                opened={wallpaperImage !== null}
+                onClose={() => setWallpaperImage(null)}
+                image={wallpaperImage}
+            />
 
             {/* Edit Image Modal */}
             {editingImage && (

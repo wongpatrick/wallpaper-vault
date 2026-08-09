@@ -43,6 +43,7 @@ export interface ElectronAPI {
     openLogsDirectory: () => Promise<boolean>;
     getMonitors: () => Promise<MonitorInfo[]>;
     getSystemWallpapers: () => Promise<Array<{ comIndex: number; wallpaper: string }>>;
+    setWallpaper: (imageId: number, monitorIndex: number, style: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 declare global {

@@ -49,5 +49,6 @@ contextBridge.exposeInMainWorld('electron', {
     openLogsDirectory: () => ipcRenderer.invoke('open-logs-directory'),
     getMonitors: () => ipcRenderer.invoke('get-monitors'),
     getSystemWallpapers: () => ipcRenderer.invoke('get-system-wallpapers'),
+    setWallpaper: (imageId: number, monitorIndex: number, style: string) => ipcRenderer.invoke('set-wallpaper', { imageId, monitorIndex, style }),
     platform: process.platform,
 })

@@ -22,6 +22,15 @@ Object.defineProperty(window, 'matchMedia', {
     })),
 });
 
+// Stub ResizeObserver for Mantine components
+class ResizeObserverMock {
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+}
+window.ResizeObserver = ResizeObserverMock;
+globalThis.ResizeObserver = ResizeObserverMock;
+
 // Automatically clean up DOM containers after each test
 afterEach(() => {
     cleanup();

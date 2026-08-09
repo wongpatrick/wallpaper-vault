@@ -13,6 +13,7 @@ interface SetImageGalleryProps {
     selectedImageIds: Set<number>;
     toggleImageSelect: (id: number) => void;
     onImageClick: (index: number) => void;
+    onSetWallpaper?: (image: ImageModel) => void;
 }
 
 export function SetImageGallery({
@@ -21,6 +22,7 @@ export function SetImageGallery({
     selectedImageIds,
     toggleImageSelect,
     onImageClick,
+    onSetWallpaper,
 }: SetImageGalleryProps) {
     if (!images || images.length === 0) {
         return null;
@@ -36,6 +38,7 @@ export function SetImageGallery({
                         selected={selectedImageIds.has(image.id)}
                         onToggleSelect={() => toggleImageSelect(image.id)}
                         onClick={() => onImageClick(index)}
+                        onSetWallpaper={onSetWallpaper}
                     />
                 </div>
             ))}
