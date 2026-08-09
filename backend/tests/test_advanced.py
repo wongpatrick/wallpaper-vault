@@ -23,21 +23,104 @@ async def test_bulk_update_and_move_images(client: AsyncClient):
     resp2 = await client.post(f"/api/images/set/{set1_id}", json={"filename": "img2.jpg", "local_path": "/tmp/s1/img2.jpg", "width": 100, "height": 100})
     img2_id = resp2.json()["id"]
 
-    # 1. Bulk Update: append tags
+    # 1. Bulk Update: append notes and tags & characters
     bulk_update_payload = {
         "image_ids": [img1_id, img2_id],
-        "update_data": {"notes": "bulk_note"},
+        "update_data": {
+            "notes": "bulk_note",
+            "tags": ["Scenery", "Nature"],
+            "characters": ["Rem (Re:Zero)"],
+            "rating": "safe"
+        },
         "operation_mode": "append"
     }
     resp = await client.post("/api/images/bulk-update", json=bulk_update_payload)
     assert resp.status_code == 200
     assert resp.json() == 2
 
-    # Verify tags appended
+    # Verify tags and characters appended, rating set
     img1_fetched = (await client.get(f"/api/images/{img1_id}")).json()
     assert "bulk_note" in img1_fetched["notes"]
+    assert "Scenery" in img1_fetched["tags"]
+    assert "Nature" in img1_fetched["tags"]
+    assert any("Rem" in c for c in img1_fetched["characters"])
+    assert img1_fetched["rating"] == "safe"
 
-    # 2. Bulk Move: Move both images to Set 2
+    img2_fetched = (await client.get(f"/api/images/{img2_id}")).json()
+    assert "Scenery" in img2_fetched["tags"]
+    assert "Nature" in img2_fetched["tags"]
+
+    # Verify set rollup tags recalculated
+    set1_fetched = (await client.get(f"/api/sets/{set1_id}")).json()
+    assert "Scenery" in set1_fetched["tags"]
+    assert "Nature" in set1_fetched["tags"]
+
+    # 2. Bulk Update: remove a tag
+    remove_tag_payload = {
+        "image_ids": [img1_id, img2_id],
+        "update_data": {
+            "tags": ["Nature"]
+        },
+        "operation_mode": "remove"
+    }
+    resp = await client.post("/api/images/bulk-update", json=remove_tag_payload)
+    assert resp.status_code == 200
+    assert resp.json() == 2
+
+    img1_after_remove = (await client.get(f"/api/images/{img1_id}")).json()
+    assert "Nature" not in img1_after_remove["tags"]
+    assert "Scenery" in img1_after_remove["tags"]
+
+    # 3. Bulk Update: replace all tags
+    replace_tag_payload = {
+        "image_ids": [img1_id, img2_id],
+        "update_data": {
+            "tags": ["Cyberpunk", "Neon"]
+        },
+        "operation_mode": "replace"
+    }
+    resp = await client.post("/api/images/bulk-update", json=replace_tag_payload)
+    assert resp.status_code == 200
+    assert resp.json() == 2
+
+    img1_after_replace = (await client.get(f"/api/images/{img1_id}")).json()
+    assert "Scenery" not in img1_after_replace["tags"]
+    assert "Cyberpunk" in img1_after_replace["tags"]
+    assert "Neon" in img1_after_replace["tags"]
+
+    # 4. Bulk Update across multiple sets: create an image in Set 2 and update images in Set 1 & Set 2 simultaneously
+    resp3 = await client.post(f"/api/images/set/{set2_id}", json={"filename": "img3.jpg", "local_path": "/tmp/s2/img3.jpg", "width": 100, "height": 100})
+    img3_id = resp3.json()["id"]
+
+    multi_set_payload = {
+        "image_ids": [img1_id, img3_id],
+        "update_data": {
+            "tags": ["Multi Set Tag", "Multi Set Tag"]  # Verify deduplication
+        },
+        "operation_mode": "append"
+    }
+    resp = await client.post("/api/images/bulk-update", json=multi_set_payload)
+    assert resp.status_code == 200
+    assert resp.json() == 2
+
+    # Verify both sets got rollup recalculated
+    set1_after_multi = (await client.get(f"/api/sets/{set1_id}")).json()
+    assert "Multi Set Tag" in set1_after_multi["tags"]
+
+    set2_after_multi = (await client.get(f"/api/sets/{set2_id}")).json()
+    assert "Multi Set Tag" in set2_after_multi["tags"]
+
+    # 5. Bulk Update with empty image_ids
+    empty_payload = {
+        "image_ids": [],
+        "update_data": {"tags": ["Test"]},
+        "operation_mode": "append"
+    }
+    resp = await client.post("/api/images/bulk-update", json=empty_payload)
+    assert resp.status_code == 200
+    assert resp.json() == 0
+
+    # 6. Bulk Move: Move both images to Set 2
     bulk_move_payload = {
         "image_ids": [img1_id, img2_id],
         "target_set_id": set2_id
