@@ -35,6 +35,8 @@ build/
 .ruff_cache/
 openapi.json
 backend/openapi.json
+temp_imports/
+backend/temp_imports/
 
 # node
 node_modules/

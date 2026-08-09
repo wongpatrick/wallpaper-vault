@@ -9,6 +9,7 @@ from app.models.image import Image
 from app.models.set import Set
 from app.models.creator import Creator
 from app.schemas.image import ImageUpdate, ImageCreate, ImageBulkUpdate
+from app.core.enums import BulkOperationMode
 from collections import defaultdict
 import structlog
 
@@ -209,7 +210,6 @@ async def update_image(db: AsyncSession, image_id: int, image_in: ImageUpdate) -
         
     return await get_image(db, image_id)
 
-from app.core.enums import BulkOperationMode
 
 async def bulk_update_images(db: AsyncSession, bulk_in: ImageBulkUpdate) -> int:
     """Performs a bulk update on multiple image records in the database.

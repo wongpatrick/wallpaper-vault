@@ -13,7 +13,6 @@ from sqlalchemy import select
 
 from app.models.image import Image
 from app.schemas.image import ImageCreate, ImageBulkMove, ImageCropRequest, ImageBulkUpdate
-from app.core.enums import BulkOperationMode
 from app.crud import image as crud_image
 from app.core.exceptions import ResourceNotFoundError, DuplicateResourceError
 from app.services.audit_service import calculate_phash, calculate_dominant_color
