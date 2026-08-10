@@ -9,6 +9,7 @@ from app.models.image import Image
 from app.models.set import Set
 from app.models.creator import Creator
 from app.schemas.image import ImageUpdate, ImageCreate, ImageBulkUpdate
+from app.core.enums import BulkOperationMode
 from collections import defaultdict
 import structlog
 
@@ -209,34 +210,108 @@ async def update_image(db: AsyncSession, image_id: int, image_in: ImageUpdate) -
         
     return await get_image(db, image_id)
 
+
 async def bulk_update_images(db: AsyncSession, bulk_in: ImageBulkUpdate) -> int:
     """Performs a bulk update on multiple image records in the database.
 
+    Handles appending, removing, or replacing tags, characters, and notes across images,
+    and recalculates set rollup tags for all affected sets.
+
     Args:
         db: Database session.
-        bulk_in: Bulk update schema containing target IDs and update data.
+        bulk_in: Bulk update schema containing target IDs, update data, and operation mode.
 
     Returns:
         The number of images successfully updated.
     """
-    result = await db.execute(select(Image).where(Image.id.in_(bulk_in.image_ids)))
+    result = await db.execute(
+        select(Image).options(
+            selectinload(Image.tags),
+            selectinload(Image.characters),
+        ).where(Image.id.in_(bulk_in.image_ids))
+    )
     db_images = result.scalars().all()
-    
+
     if not db_images:
         return 0
-    
-    # We ignore 'filename' and 'local_path' for bulk updates
+
+    # 1. Resolve tags if provided
+    target_tags = []
+    if bulk_in.update_data.tags is not None:
+        from app.crud.tag import get_tags_by_names
+        resolved_tags = await get_tags_by_names(db, bulk_in.update_data.tags)
+        target_tags = list({t.id: t for t in resolved_tags}.values())
+
+    # 2. Resolve characters if provided
+    target_characters = []
+    if bulk_in.update_data.characters is not None:
+        from app.crud.character import get_characters_by_names
+        resolved_chars = await get_characters_by_names(db, bulk_in.update_data.characters)
+        target_characters = list({c.id: c for c in resolved_chars}.values())
+
+    # 3. Scalar fields (exclude tags, characters, and read-only attributes)
     update_fields = bulk_in.update_data.model_dump(
-        exclude_unset=True, 
-        exclude={"filename", "local_path", "phash", "width", "height", "file_size", "aspect_ratio", "aspect_ratio_label"}
+        exclude_unset=True,
+        exclude={
+            "filename", "local_path", "phash", "width", "height",
+            "file_size", "aspect_ratio", "aspect_ratio_label",
+            "tags", "characters",
+        }
     )
-    
+
+    affected_set_ids = set()
     for db_img in db_images:
+        if db_img.set_id:
+            affected_set_ids.add(db_img.set_id)
+
+        # Standard fields & Notes logic
         for field in update_fields:
-            setattr(db_img, field, update_fields[field])
+            if field == "notes":
+                if bulk_in.operation_mode == BulkOperationMode.APPEND:
+                    current_notes = db_img.notes or ""
+                    new_notes = update_fields[field] or ""
+                    db_img.notes = f"{current_notes}\n{new_notes}".strip() if current_notes else new_notes
+                elif bulk_in.operation_mode == BulkOperationMode.REMOVE:
+                    db_img.notes = None
+                else:
+                    db_img.notes = update_fields[field]
+            else:
+                setattr(db_img, field, update_fields[field])
+
+        # Tags logic
+        if bulk_in.update_data.tags is not None:
+            if bulk_in.operation_mode == BulkOperationMode.APPEND:
+                current_ids = {t.id for t in db_img.tags}
+                to_add = [t for t in target_tags if t.id not in current_ids]
+                db_img.tags.extend(to_add)
+            elif bulk_in.operation_mode == BulkOperationMode.REMOVE:
+                remove_ids = {t.id for t in target_tags}
+                db_img.tags = [t for t in db_img.tags if t.id not in remove_ids]
+            else:  # REPLACE
+                db_img.tags = list(target_tags)
+
+        # Characters logic
+        if bulk_in.update_data.characters is not None:
+            if bulk_in.operation_mode == BulkOperationMode.APPEND:
+                current_ids = {c.id for c in db_img.characters}
+                to_add = [c for c in target_characters if c.id not in current_ids]
+                db_img.characters.extend(to_add)
+            elif bulk_in.operation_mode == BulkOperationMode.REMOVE:
+                remove_ids = {c.id for c in target_characters}
+                db_img.characters = [c for c in db_img.characters if c.id not in remove_ids]
+            else:  # REPLACE
+                db_img.characters = list(target_characters)
+
         db.add(db_img)
-        
+
     await db.flush()
+
+    # Recalculate set rollup tags for all affected sets
+    if bulk_in.update_data.tags is not None or bulk_in.update_data.characters is not None:
+        from app.crud.set import recalculate_set_rollup_tags
+        for s_id in affected_set_ids:
+            await recalculate_set_rollup_tags(db, s_id)
+
     return len(db_images)
 
 

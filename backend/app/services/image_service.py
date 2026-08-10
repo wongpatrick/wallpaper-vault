@@ -13,7 +13,6 @@ from sqlalchemy import select
 
 from app.models.image import Image
 from app.schemas.image import ImageCreate, ImageBulkMove, ImageCropRequest, ImageBulkUpdate
-from app.core.enums import BulkOperationMode
 from app.crud import image as crud_image
 from app.core.exceptions import ResourceNotFoundError, DuplicateResourceError
 from app.services.audit_service import calculate_phash, calculate_dominant_color
@@ -452,25 +451,9 @@ async def crop_image(
 
 
 async def bulk_update_images(db: AsyncSession, bulk_in: ImageBulkUpdate) -> int:
-    """Applies bulk updates to images, formatting notes string concatenation/removal before updating CRUD."""
-    result = await db.execute(select(Image).where(Image.id.in_(bulk_in.image_ids)))
-    db_images = result.scalars().all()
-
-    if not db_images:
-        return 0
-
-    if bulk_in.update_data and "notes" in bulk_in.update_data.model_fields_set:
-        update_notes = bulk_in.update_data.notes
-        if bulk_in.operation_mode == BulkOperationMode.APPEND:
-            for db_img in db_images:
-                current_notes = db_img.notes or ""
-                new_notes = update_notes or ""
-                db_img.notes = f"{current_notes}\n{new_notes}".strip() if current_notes else new_notes
-        elif bulk_in.operation_mode == BulkOperationMode.REMOVE:
-            for db_img in db_images:
-                db_img.notes = None
-
+    """Applies bulk updates to images and commits the transaction."""
     count = await crud_image.bulk_update_images(db=db, bulk_in=bulk_in)
     await db.commit()
     return count
+
 

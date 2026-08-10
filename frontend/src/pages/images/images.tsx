@@ -4,10 +4,12 @@
  * Description: Provides an infinite-scrolling gallery of all individual wallpapers with search, filtering, and lightbox viewing capabilities.
  */
 import { Title, Text, Container, Group, Tabs, Button, Stack } from '@mantine/core';
-import { IconGridDots, IconPalette, IconCheck, IconPlaylist } from '@tabler/icons-react';
-import { useReadImagesApiImagesGet } from '../../api/generated/images/images';
+import { IconGridDots, IconPalette, IconCheck, IconPlaylist, IconEdit } from '@tabler/icons-react';
+import { useReadImagesApiImagesGet, useBulkUpdateImagesApiImagesBulkUpdatePost } from '../../api/generated/images/images';
+import { notifications } from '@mantine/notifications';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { ImageEditModal } from '../../components/images/ImageEditModal';
+import { ImageBulkEditModal } from '../../components/images/ImageBulkEditModal';
 import { ImageCropModal } from '../../components/images/ImageCropModal';
 import { SetAsWallpaperModal } from '../../components/images/SetAsWallpaperModal';
 import { GalleryFilterBar } from '../../components/images/GalleryFilterBar';
@@ -22,7 +24,7 @@ import { useUrlPagination } from '../../hooks/useUrlPagination';
 import { useSelection } from '../../hooks/useSelection';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
 import { AddToPlaylistModal } from '../../components/playlists/AddToPlaylistModal';
-import type { Image as ImageModel } from '../../api/model';
+import type { Image as ImageModel, BulkOperationMode, ImageUpdate } from '../../api/model';
 
 const PAGE_SIZE = 100;
 const SEARCH_DEBOUNCE_MS = 500;
@@ -93,7 +95,10 @@ export default function Images() {
     // Selection state
     const { selectionMode, setSelectionMode, selectedIds: selectedImageIds, toggle: toggleImageSelect, clear: clearSelection } = useSelection();
     const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
+    const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
     const [wallpaperImage, setWallpaperImage] = useState<ImageModel | null>(null);
+
+    const bulkUpdateMutation = useBulkUpdateImagesApiImagesBulkUpdatePost();
 
     // Fetch data
     const { data: pageData, isLoading, isFetching, error, refetch } = useReadImagesApiImagesGet({
@@ -150,6 +155,33 @@ export default function Images() {
         setAllImages([]);
         setPage(1);
         refetch();
+    };
+
+    const handleBulkEditConfirm = async (data: Partial<ImageUpdate>, mode: BulkOperationMode) => {
+        try {
+            await bulkUpdateMutation.mutateAsync({
+                data: {
+                    image_ids: Array.from(selectedImageIds),
+                    update_data: data,
+                    operation_mode: mode,
+                },
+            });
+            notifications.show({
+                title: 'Success',
+                message: `Successfully updated ${selectedImageIds.size} images.`,
+                color: 'green',
+            });
+            setIsBulkEditOpen(false);
+            clearSelection();
+            handleCollectionReset();
+        } catch (err) {
+            console.error('Bulk update failed:', err);
+            notifications.show({
+                title: 'Error',
+                message: 'Failed to update images in bulk.',
+                color: 'red',
+            });
+        }
     };
 
     // Accumulate results & page updates
@@ -292,6 +324,16 @@ export default function Images() {
                 <Button
                     size="xs"
                     variant="light"
+                    color="blue"
+                    leftSection={<IconEdit size={14} />}
+                    radius="xl"
+                    onClick={() => setIsBulkEditOpen(true)}
+                >
+                    Bulk Edit
+                </Button>
+                <Button
+                    size="xs"
+                    variant="light"
                     color="violet"
                     leftSection={<IconPlaylist size={14} />}
                     radius="xl"
@@ -300,6 +342,14 @@ export default function Images() {
                     Add to Playlist
                 </Button>
             </FloatingSelectionBar>
+
+            <ImageBulkEditModal
+                opened={isBulkEditOpen}
+                onClose={() => setIsBulkEditOpen(false)}
+                onConfirm={handleBulkEditConfirm}
+                loading={bulkUpdateMutation.isPending}
+                selectedCount={selectedImageIds.size}
+            />
 
             <AddToPlaylistModal
                 opened={isAddToPlaylistOpen}
