@@ -41,7 +41,7 @@ export interface ElectronAPI {
     setBackendPort: (port: number) => Promise<boolean>;
     openBackendLogs: () => Promise<boolean>;
     openLogsDirectory: () => Promise<boolean>;
-    getMonitors: () => Promise<MonitorInfo[]>;
+    getMonitors: (forceRefresh?: boolean) => Promise<MonitorInfo[]>;
     getSystemWallpapers: () => Promise<Array<{ comIndex: number; wallpaper: string }>>;
     setWallpaper: (imageId: number, monitorIndex: number, style: string) => Promise<{ success: boolean; error?: string }>;
 }

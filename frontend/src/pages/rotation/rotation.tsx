@@ -1,11 +1,11 @@
-/* eslint-disable no-magic-numbers */
 /**
  * @file
  * Module: Desktop Rotation Manager Page
  * Description: Control center for desktop wallpaper rotation settings, active wallpaper monitoring, quick actions (favorite/blacklist), history, and native/DisplayFusion options with multi-monitor override support.
  */
 import { useState } from 'react';
-import { Container, SimpleGrid, Group, Stack, Title, Button } from '@mantine/core';
+import { Container, SimpleGrid, Group, Stack, Title, Button, ActionIcon, Tooltip } from '@mantine/core';
+import { IconRefresh } from '@tabler/icons-react';
 import { useMonitors } from './hooks/useMonitors';
 import { useActiveWallpaper } from './hooks/useActiveWallpaper';
 import { useRotationConfig } from './hooks/useRotationConfig';
@@ -15,7 +15,7 @@ import { MonitorGrid } from './components/MonitorGrid';
 import { GlobalConfigForm } from './components/GlobalConfigForm';
 
 export default function RotationManagement() {
-    const { monitors } = useMonitors();
+    const { monitors, refreshMonitors, isRefreshing } = useMonitors();
 
     // Active configuration tab & monitor preview focus
     const [activeConfigTab, setActiveConfigTab] = useState<string>('global');
@@ -37,16 +37,30 @@ export default function RotationManagement() {
                     <Stack gap="md">
                         <Group justify="space-between" align="center">
                             <Title order={3}>Active Wallpaper</Title>
-                            {monitors.length > 0 && (
-                                <Button 
-                                    size="xs" 
-                                    variant={activeMonitorPreview === 'all' ? 'filled' : 'light'} 
-                                    color="blue"
-                                    onClick={() => setActiveMonitorPreview('all')}
-                                >
-                                    Global View
-                                </Button>
-                            )}
+                            <Group gap="xs">
+                                <Tooltip label="Refresh Display Layout" position="bottom" withArrow>
+                                    <ActionIcon 
+                                        size="sm" 
+                                        variant="subtle" 
+                                        color="gray"
+                                        loading={isRefreshing}
+                                        onClick={() => refreshMonitors()}
+                                        aria-label="Refresh Display Layout"
+                                    >
+                                        <IconRefresh size={16} />
+                                    </ActionIcon>
+                                </Tooltip>
+                                {monitors.length > 0 && (
+                                    <Button 
+                                        size="xs" 
+                                        variant={activeMonitorPreview === 'all' ? 'filled' : 'light'} 
+                                        color="blue"
+                                        onClick={() => setActiveMonitorPreview('all')}
+                                    >
+                                        Global View
+                                    </Button>
+                                )}
+                            </Group>
                         </Group>
 
                         {/* Monitor Layout Map */}

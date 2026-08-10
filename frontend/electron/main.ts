@@ -866,8 +866,8 @@ function createWindow() {
         return false;
     });
 
-    ipcMain.handle('get-monitors', async () => {
-        return await getOrderedDisplays();
+    ipcMain.handle('get-monitors', async (_event, forceRefresh?: boolean) => {
+        return await getOrderedDisplays(Boolean(forceRefresh));
     });
 
     ipcMain.handle('get-system-wallpapers', async () => {
@@ -986,14 +986,26 @@ app.whenReady().then(() => {
 
     // Monitor configuration/metrics change listeners to refresh coordinates cache
     const notifyDisplaysChanged = () => {
-        if (globalRotationConfig.paused || isPowerStateSuspended) {
-            console.log('[Rotation Coordinator] Display change event deferred because rotation is paused or system is suspended.');
+        cachedOrderedDisplays = null;
+        cachedDisplayFingerprint = null;
+
+        if (isPowerStateSuspended) {
+            console.log('[Rotation Coordinator] Display change event deferred because system is suspended.');
             pendingDisplayChange = true;
             return;
         }
-        cachedOrderedDisplays = null;
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('displays-changed');
+
+        BrowserWindow.getAllWindows().forEach((win) => {
+            if (!win.isDestroyed()) {
+                win.webContents.send('displays-changed');
+            }
+        });
+
+        if (!globalRotationConfig.paused && activeSsePort) {
+            console.log('[Rotation Coordinator] Displays changed during active rotation. Refreshing rotation timers...');
+            fetchRotationSettings(activeSsePort).then((ok) => {
+                if (ok && activeSsePort) setupNativeTimers(activeSsePort);
+            });
         }
     };
     
@@ -1096,6 +1108,14 @@ let globalRotationConfig = {
 const monitorConfigs: Map<number, MonitorRotationConfig> = new Map();
 
 let cachedOrderedDisplays: any[] | null = null;
+let cachedDisplayFingerprint: string | null = null;
+
+function computeDisplayFingerprint(displays: Electron.Display[]): string {
+    return displays
+        .map(d => `${d.id}:${d.bounds.x},${d.bounds.y},${d.bounds.width},${d.bounds.height}:${d.scaleFactor}:${d.rotation}`)
+        .sort()
+        .join('|');
+}
 
 class PowerShellDaemon {
     private process: ChildProcess | null = null;
@@ -1389,13 +1409,9 @@ function extractJsonArray(stdout: string): string {
     return jsonLine ? jsonLine.trim() : '[]';
 }
 
-async function getOrderedDisplays(): Promise<any[]> {
-    const isPaused = globalRotationConfig.paused || isPowerStateSuspended;
-    if (isPaused && cachedOrderedDisplays) {
-        return cachedOrderedDisplays;
-    }
-
+async function getOrderedDisplays(forceRefresh = false): Promise<any[]> {
     const displays = screen.getAllDisplays();
+    const currentFingerprint = computeDisplayFingerprint(displays);
 
     const makeFallback = () => displays.map((d, i) => ({
         index: i, winNum: i + 1, id: d.id,
@@ -1403,19 +1419,19 @@ async function getOrderedDisplays(): Promise<any[]> {
         bounds: d.bounds
     }));
 
-    if (isPaused) {
-        console.log('[Rotation Coordinator] Mapping queries bypassed because rotation is paused/suspended. Returning fallback.');
-        const fb = makeFallback();
-        cachedOrderedDisplays = fb;
-        return fb;
+    if (isPowerStateSuspended) {
+        console.log('[Rotation Coordinator] System is suspended. Returning fallback display layout.');
+        return cachedOrderedDisplays || makeFallback();
     }
 
-    if (cachedOrderedDisplays) {
-        if (screen.getAllDisplays().length === cachedOrderedDisplays.length) {
-            return cachedOrderedDisplays;
-        }
-        console.warn('[Rotation Coordinator] Monitor count mismatch with cache (Cache:', cachedOrderedDisplays.length, ', Actual:', screen.getAllDisplays().length, '). Invalidating monitor cache.');
+    if (!forceRefresh && cachedOrderedDisplays && cachedDisplayFingerprint === currentFingerprint) {
+        return cachedOrderedDisplays;
+    }
+
+    if (cachedOrderedDisplays && cachedDisplayFingerprint !== currentFingerprint) {
+        console.warn('[Rotation Coordinator] Display layout fingerprint mismatch. Invalidating monitor cache.');
         cachedOrderedDisplays = null;
+        cachedDisplayFingerprint = null;
     }
 
     try {
@@ -1511,11 +1527,13 @@ async function getOrderedDisplays(): Promise<any[]> {
 
         console.log('[Rotation Coordinator] Successfully aligned display indices with Windows OS settings:', ordered);
         cachedOrderedDisplays = ordered;
+        cachedDisplayFingerprint = currentFingerprint;
         return ordered;
     } catch (err) {
         logBothToCombined('[Rotation Coordinator] Failed to get Windows monitor layout, falling back to Electron defaults: ' + err);
         const fallback = makeFallback();
         cachedOrderedDisplays = fallback;
+        cachedDisplayFingerprint = currentFingerprint;
         return fallback;
     }
 }
