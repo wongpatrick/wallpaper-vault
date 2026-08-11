@@ -10,7 +10,11 @@ db/thumbs/
 # wallpaper files — track structure, not the images themselves
 wallpapers/
 /images/
-scripts/
+/scripts/
+backend/scripts/*
+!backend/scripts/generate_openapi.py
+!backend/scripts/init_db.py
+!backend/scripts/bootstrap_models.py
 
 # environment
 .env
