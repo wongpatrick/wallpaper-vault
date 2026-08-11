@@ -35,7 +35,7 @@ jobs:
         working-directory: ./backend
 
       - name: Generate OpenAPI Spec
-        run: uv run python -c "import json; from app.main import app; openapi = app.openapi(); open('openapi.json', 'w', encoding='utf-8').write(json.dumps(openapi, indent=2))"
+        run: uv run python scripts/generate_openapi.py
         working-directory: ./backend
           
       - name: Install Dependencies
