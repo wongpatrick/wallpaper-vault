@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Tuple, Union
 import csv
+import gc
 import numpy as np
 import structlog
 from PIL import Image
@@ -16,6 +17,22 @@ logger = structlog.get_logger(__name__)
 # Category mapping constants
 CATEGORY_GENERAL = 0
 CATEGORY_CHARACTER = 4
+
+# Predefined Hugging Face repositories for ONNX Booru taggers
+PREDEFINED_REPOS = {
+    # WD v3 Models (Latest SOTA)
+    "wd_eva02_large_v3": "SmilingWolf/wd-eva02-large-tagger-v3",
+    "wd_swinv2_v3": "SmilingWolf/wd-swinv2-tagger-v3",
+    "wd_convnext_v3": "SmilingWolf/wd-convnext-tagger-v3",
+    "wd_vit_large_v3": "SmilingWolf/wd-vit-large-tagger-v3",
+    "wd_vit_v3": "SmilingWolf/wd-vit-tagger-v3",
+    # Legacy v2 Models
+    "wd14_convnext_v2": "SmilingWolf/wd-v1-4-convnext-tagger-v2",
+    "wd14_vit_v2": "SmilingWolf/wd-v1-4-vit-tagger-v2",
+    "wd14_swinv2_v2": "SmilingWolf/wd-v1-4-swinv2-tagger-v2",
+    "wd14_onnx": "SmilingWolf/wd-v1-4-convnext-tagger-v2",
+}
+
 
 def get_app_models_dir() -> Path:
     """Gets the OS-specific application data directory for storing models."""
@@ -36,6 +53,127 @@ def get_app_models_dir() -> Path:
         
     return base_dir / "Wallpaper-Vault" / "models"
 
+
+def resolve_model_identifier(
+    model_source: str = "predefined",
+    model_type: str = "wd_eva02_large_v3",
+    custom_repo: str = None,
+    custom_path: str = None
+) -> str:
+    """Resolves the human/repo identifier for a model configuration."""
+    if model_source == "local":
+        return custom_path or "local"
+    elif model_source == "huggingface":
+        return custom_repo or ""
+    else:
+        return PREDEFINED_REPOS.get(model_type, "SmilingWolf/wd-eva02-large-tagger-v3")
+
+
+def is_model_cached(
+    model_source: str = "predefined",
+    model_type: str = "wd_eva02_large_v3",
+    custom_repo: str = None,
+    custom_path: str = None
+) -> Tuple[bool, int]:
+    """
+    Checks whether the specified model's files are downloaded/available locally.
+    Returns (is_cached, size_bytes).
+    """
+    if model_source == "local":
+        if not custom_path:
+            return False, 0
+        path = Path(custom_path)
+        if not path.exists() or not path.is_dir():
+            return False, 0
+        files = list(path.glob("*"))
+        has_onnx = any(f.suffix.lower() == ".onnx" for f in files)
+        has_csv = any(f.suffix.lower() == ".csv" for f in files)
+        if not (has_onnx and has_csv):
+            return False, 0
+        total_bytes = sum(f.stat().st_size for f in files if f.is_file())
+        return True, total_bytes
+
+    repo_id = resolve_model_identifier(model_source, model_type, custom_repo, custom_path)
+    if not repo_id:
+        return False, 0
+
+    app_models_dir = get_app_models_dir()
+    repo_folder_name = f"models--{repo_id.replace('/', '--')}"
+    repo_dir = app_models_dir / repo_folder_name
+
+    if not repo_dir.exists() or not repo_dir.is_dir():
+        return False, 0
+
+    # Verify model.onnx and selected_tags.csv exist in snapshots
+    snapshots_dir = repo_dir / "snapshots"
+    if not snapshots_dir.exists() or not snapshots_dir.is_dir():
+        return False, 0
+
+    found_onnx = False
+    found_csv = False
+    for snapshot in snapshots_dir.iterdir():
+        if snapshot.is_dir():
+            if (snapshot / "model.onnx").exists():
+                found_onnx = True
+            if (snapshot / "selected_tags.csv").exists():
+                found_csv = True
+
+    if not (found_onnx and found_csv):
+        return False, 0
+
+    # Calculate directory size
+    total_bytes = sum(f.stat().st_size for f in repo_dir.rglob("*") if f.is_file())
+    return True, total_bytes
+
+
+def download_model_files(
+    model_source: str = "predefined",
+    model_type: str = "wd_eva02_large_v3",
+    custom_repo: str = None,
+    custom_path: str = None
+) -> Tuple[str, str, int]:
+    """
+    Downloads model.onnx and selected_tags.csv to the local app models directory if not already cached.
+    Returns (model_path, csv_path, total_size_bytes).
+    """
+    if model_source == "local":
+        if not custom_path:
+            raise ValueError("Model source is 'local' but no custom path was provided.")
+        path = Path(custom_path)
+        if not path.exists() or not path.is_dir():
+            raise ValueError(f"Custom local model directory '{custom_path}' does not exist or is not a directory.")
+        files = list(path.glob("*"))
+        onnx_files = [f for f in files if f.suffix.lower() == ".onnx"]
+        csv_files = [f for f in files if f.suffix.lower() == ".csv"]
+        if not onnx_files:
+            raise ValueError(f"No '.onnx' file found in custom model directory '{custom_path}'.")
+        if not csv_files:
+            raise ValueError(f"No '.csv' file found in custom model directory '{custom_path}'.")
+        total_size = sum(f.stat().st_size for f in files if f.is_file())
+        return str(onnx_files[0]), str(csv_files[0]), total_size
+
+    repo_id = resolve_model_identifier(model_source, model_type, custom_repo, custom_path)
+    if not repo_id:
+        raise ValueError("Invalid repository identifier.")
+
+    app_models_dir = get_app_models_dir()
+    app_models_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.info("Downloading/verifying Hugging Face model files", repo_id=repo_id)
+    model_path = hf_hub_download(repo_id=repo_id, filename="model.onnx", cache_dir=str(app_models_dir))
+    csv_path = hf_hub_download(repo_id=repo_id, filename="selected_tags.csv", cache_dir=str(app_models_dir))
+
+    _, total_size = is_model_cached(model_source, model_type, custom_repo, custom_path)
+    return model_path, csv_path, total_size
+
+
+def clear_tagger_instances():
+    """Unload all cached tagger instances and free system memory."""
+    global _tagger_instances
+    _tagger_instances.clear()
+    gc.collect()
+
+
 class ImageTagger(ABC):
     @abstractmethod
     def tag_image(
@@ -55,6 +193,7 @@ class ImageTagger(ABC):
         """
         pass
 
+
 class MockTagger(ImageTagger):
     def tag_image(
         self,
@@ -63,6 +202,7 @@ class MockTagger(ImageTagger):
     ) -> Tuple[List[str], List[str]]:
         logger.info("Mock tagging image", path=str(image_path) if not isinstance(image_path, Image.Image) else "PIL.Image")
         return ["anime", "girl"], []
+
 
 class WD14OnnxTagger(ImageTagger):
     def __init__(
@@ -88,48 +228,13 @@ class WD14OnnxTagger(ImageTagger):
             raise e
             
         try:
-            # Resolve model and tag file paths
-            if model_source == "local":
-                if not custom_path:
-                    raise ValueError("Model source is 'local' but no custom path was provided.")
-                path = Path(custom_path)
-                if not path.exists() or not path.is_dir():
-                    raise ValueError(f"Custom local model directory '{custom_path}' does not exist or is not a directory.")
-                
-                # Scan for first .onnx and first .csv file
-                files = list(path.glob("*"))
-                onnx_files = [f for f in files if f.suffix.lower() == ".onnx"]
-                csv_files = [f for f in files if f.suffix.lower() == ".csv"]
-                
-                if not onnx_files:
-                    raise ValueError(f"No '.onnx' file found in custom model directory '{custom_path}'.")
-                if not csv_files:
-                    raise ValueError(f"No '.csv' file found in custom model directory '{custom_path}'.")
-                    
-                self.model_path = str(onnx_files[0])
-                self.csv_path = str(csv_files[0])
-                logger.info("Local model files located successfully", model_path=self.model_path, csv_path=self.csv_path)
-            else:
-                if model_source == "huggingface":
-                    if not custom_repo:
-                        raise ValueError("Model source is 'huggingface' but no custom repository ID was provided.")
-                    model_repo = custom_repo
-                else:
-                    predefined_repos = {
-                        "wd14_onnx": "SmilingWolf/wd-v1-4-convnext-tagger-v2",
-                        "wd14_convnext_v2": "SmilingWolf/wd-v1-4-convnext-tagger-v2",
-                        "wd14_vit_v2": "SmilingWolf/wd-v1-4-vit-tagger-v2",
-                        "wd14_swinv2_v2": "SmilingWolf/wd-v1-4-swinv2-tagger-v2",
-                        "wd_vit_large_v3": "SmilingWolf/wd-vit-large-tagger-v3"
-                    }
-                    model_repo = predefined_repos.get(model_type, "SmilingWolf/wd-v1-4-convnext-tagger-v2")
-                
-                logger.info("Downloading/loading model from Hugging Face", repo_id=model_repo)
-                
-                app_models_dir = get_app_models_dir()
-                self.model_path = hf_hub_download(repo_id=model_repo, filename="model.onnx", cache_dir=str(app_models_dir))
-                self.csv_path = hf_hub_download(repo_id=model_repo, filename="selected_tags.csv", cache_dir=str(app_models_dir))
-                logger.info("Hugging Face model files loaded successfully from AppData", model_path=self.model_path, csv_path=self.csv_path)
+            # Download/resolve model weights and csv mappings
+            self.model_path, self.csv_path, _ = download_model_files(
+                model_source=model_source,
+                model_type=model_type,
+                custom_repo=custom_repo,
+                custom_path=custom_path
+            )
             
             # Load ONNX Inference Session
             available_providers = ort.get_available_providers()

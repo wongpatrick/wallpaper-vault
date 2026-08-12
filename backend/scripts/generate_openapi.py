@@ -20,6 +20,7 @@ def generate_openapi(output_path: Path | None = None) -> Path:
     if output_path is None:
         output_path = backend_dir / "openapi.json"
 
+    app.openapi_schema = None
     openapi_schema = app.openapi()
     output_path.write_text(json.dumps(openapi_schema, indent=2), encoding="utf-8")
     print(f"OpenAPI schema successfully generated at: {output_path}")
