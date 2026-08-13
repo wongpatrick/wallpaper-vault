@@ -118,6 +118,7 @@ describe('SetAsWallpaperModal', () => {
 
         await waitFor(() => {
             expect(screen.getByText('All Displays')).toBeInTheDocument();
+            expect(screen.getByText('Monitor 1')).toBeInTheDocument();
         });
 
         const allDisplaysCard = screen.getByText('All Displays');

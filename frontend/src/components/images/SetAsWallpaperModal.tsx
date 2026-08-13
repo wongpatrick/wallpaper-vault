@@ -43,12 +43,17 @@ export function SetAsWallpaperModal({ opened, onClose, image }: SetAsWallpaperMo
                         setFitStyle(savedStyle);
                         return prev;
                     }
+                    if (prev === 'all') {
+                        const savedStyle = (localStorage.getItem(FIT_STYLE_STORAGE_PREFIX + 'all') as NonNullable<SetWallpaperRequestStyle>) || 'fill';
+                        setFitStyle(savedStyle);
+                        return 'all';
+                    }
                     const defaultIndex = String(monitors[0].index);
                     const savedStyle = (localStorage.getItem(FIT_STYLE_STORAGE_PREFIX + defaultIndex) as NonNullable<SetWallpaperRequestStyle>) || 'fill';
                     setFitStyle(savedStyle);
                     return defaultIndex;
                 });
-            } else {
+            } else if (!window.electron) {
                 setTargetMonitor('all');
                 const savedStyle = (localStorage.getItem(FIT_STYLE_STORAGE_PREFIX + 'all') as NonNullable<SetWallpaperRequestStyle>) || 'fill';
                 setFitStyle(savedStyle);
