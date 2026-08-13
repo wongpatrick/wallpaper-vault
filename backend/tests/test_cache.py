@@ -4,8 +4,7 @@ Unit and integration tests for Cache Service and Settings Cache API endpoints.
 from pathlib import Path
 from unittest.mock import patch
 import pytest
-from httpx import AsyncClient, ASGITransport
-from app.main import app
+from httpx import AsyncClient
 from app.services.cache_service import (
     format_bytes,
     get_ai_models_cache_stats,
