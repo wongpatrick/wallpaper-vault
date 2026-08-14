@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-    IconAlertCircle, IconArrowLeft, IconTrash, IconChevronUp, IconChevronDown, IconGripVertical, IconCopy, IconPlaylist, IconSparkles
+    IconAlertCircle, IconArrowLeft, IconTrash, IconChevronUp, IconChevronDown, IconGripVertical, IconCopy, IconPlaylist, IconSparkles, IconEdit
 } from '@tabler/icons-react';
 import {
     useReadPlaylistApiPlaylistsPlaylistIdGet,
@@ -21,6 +21,7 @@ import {
 import { getThumbnailUrl } from '../../utils/fileUtils';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { PlaylistRotationUrlModal } from '../../components/playlists/PlaylistRotationUrlModal';
+import { PlaylistModal } from '../../components/playlists/PlaylistModal';
 
 const OPACITY_DRAG = 0.4;
 
@@ -42,6 +43,7 @@ export default function PlaylistDetail() {
     // Drag-and-drop state
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [rotationModalOpened, setRotationModalOpened] = useState(false);
+    const [editModalOpened, setEditModalOpened] = useState(false);
 
     // List of images extracted from playlist details
     const imagesWithOrder = useMemo(() => {
@@ -218,6 +220,13 @@ export default function PlaylistDetail() {
                 <Group gap="sm">
                     <Button
                         variant="light"
+                        leftSection={<IconEdit size={16} />}
+                        onClick={() => setEditModalOpened(true)}
+                    >
+                        Edit Playlist
+                    </Button>
+                    <Button
+                        variant="light"
                         leftSection={<IconSparkles size={16} />}
                         onClick={handleTriggerRandomPreview}
                         disabled={imagesWithOrder.length === 0}
@@ -279,6 +288,7 @@ export default function PlaylistDetail() {
                                     <Image
                                         src={getThumbnailUrl(image.id, 'md', image.phash || image.file_size || undefined)}
                                         alt={image.filename}
+                                        loading="lazy"
                                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                         onClick={() => setLightboxImageIndex(idx)}
                                     />
@@ -406,6 +416,14 @@ export default function PlaylistDetail() {
                 onClose={() => setRotationModalOpened(false)}
                 playlistId={numericId}
                 playlistName={playlist?.name || ''}
+            />
+
+            {/* Edit Playlist Modal */}
+            <PlaylistModal
+                opened={editModalOpened}
+                onClose={() => setEditModalOpened(false)}
+                playlist={playlist}
+                onSuccess={() => refetch()}
             />
 
             <style dangerouslySetInnerHTML={{ __html: `
