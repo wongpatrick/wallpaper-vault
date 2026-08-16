@@ -1,21 +1,28 @@
 # Wallpaper Vault
 
-A production-ready desktop application for managing high-resolution wallpaper collections. 
+A production-ready desktop application and engine for managing, cataloging, and dynamically rotating high-resolution wallpaper collections across multi-monitor setups.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+---
 
 ## 🌟 Vision
 Wallpaper Vault is more than just a gallery—it's a centralized hub for your digital aesthetics.
 
-*   **Host Anywhere:** Designed to run locally or be hosted on a server (like a NAS) to serve as a single source of truth for your entire network.
-*   **API-First Rotation:** Exposes randomization endpoints that can be plugged into tools like **DisplayFusion** to keep your desktop fresh without manual intervention.
-*   **The Future Client:** We're working towards a lightweight "Remote Client" version of the app. This client will connect to your remote vault from any machine, allowing you to manage your collection or even natively handle wallpaper rotation and multi-monitor setups—effectively becoming a bespoke, network-aware alternative to traditional display managers.
+*   **Host Anywhere & Connect Remotely:** Run locally or host the backend engine on a remote server or NAS. The desktop shell seamlessly connects to local or remote vaults via API key authentication.
+*   **Native Multi-Monitor Rotation:** Native display alignment and rotation engine powered by a persistent Windows COM daemon for instantaneous, flicker-free desktop wallpaper updates without third-party dependencies.
+*   **API-First Ecosystem:** Exposes rich REST endpoints (e.g. for **DisplayFusion** or external scripts) to serve randomized or playlist-driven wallpapers with aspect ratio filters.
+
+---
 
 ## 🏗️ Architecture
 This project is built using a **Decoupled Engine & Shell** architecture:
 
-*   **The Engine (Backend):** A high-performance **FastAPI** server managing a SQLite database via **SQLAlchemy 2.0 (Async)**.
-*   **The Shell (Frontend):** A modern **Electron** desktop application built with **React 19 (Vite)**, **TypeScript**, and **Mantine UI v7**.
-*   **Real-time Communication:** Uses **Server-Sent Events (SSE)** to provide live updates for background tasks.
-*   **Process Management:** Electron autonomously manages the lifecycle of the FastAPI backend and provides deep OS integration.
+*   **The Engine (Backend):** High-performance **FastAPI** application managing a SQLite database via **SQLAlchemy 2.0 (Async)** with **aiosqlite**, OpenCV saliency processing, and WD14 ONNX tagging.
+*   **The Shell (Frontend):** Modern **Electron** desktop application built with **React 19 (Vite)**, **TypeScript**, and **Mantine UI v7**.
+*   **Native Windows Engine:** Persistent background PowerShell daemon (`psDaemon`) using the `IDesktopWallpaper` COM interface for fast multi-monitor layout mapping, positioning, and rotation.
+*   **Real-time Communication:** **Server-Sent Events (SSE)** provide live task progression and notifications for background jobs (imports, audits).
+*   **Resilience & Supervision:** Electron manages backend process lifecycle with continuous health monitoring and auto-reconnection (`BackendStatusGuard`).
 
 ---
 
@@ -23,81 +30,150 @@ This project is built using a **Decoupled Engine & Shell** architecture:
 ```text
 wallpaper-vault/
 ├── backend/        # FastAPI application (Python 3.14+ / uv)
-│   ├── app/        # Core API logic
-│   │   ├── api/    # REST Endpoints (Creators, Images, Sets, Settings)
-│   │   ├── core/   # Business Logic (Saliency-aware Cropping, SSE Tasks, Audit)
-│   │   ├── crud/   # Database operations
-│   │   ├── models/ # SQLAlchemy models
-│   │   ├── schemas/# Pydantic validation
-│   │   └── services/# Complex services (Import Pipeline, Audit)
+│   ├── app/        # Core API & business logic
+│   │   ├── api/    # REST Endpoints (Creators, Images, Sets, Playlists, Rotation, Settings)
+│   │   ├── core/   # Configuration, SSE Tasks, Saliency Cropper, Windows Daemon
+│   │   ├── crud/   # Async database operations
+│   │   ├── db/     # Database engine & migrations
+│   │   ├── models/ # SQLAlchemy ORM models
+│   │   ├── schemas/# Pydantic validation schemas
+│   │   └── services/# Services (Import Pipeline, Audit, Rotation, Set/Creator Management)
+│   ├── scripts/    # Database bootstrapping & model downloader
+│   ├── tests/      # Pytest test suite with coverage
 │   └── README.md   # Backend technical documentation
-├── frontend/       # Electron + React application (Node.js / npm)
-│   ├── electron/   # Main & Preload scripts (Tray, IPC, Window management)
-│   ├── src/        # React UI components (Mantine UI)
+├── frontend/       # Electron + React application (Node.js 20+ / npm)
+│   ├── electron/   # Main & Preload scripts (Native IPC, Tray, Window management)
+│   ├── src/        # React UI components (Mantine UI v7, React Query v5)
+│   │   ├── api/    # Orval-generated API client & custom Axios instance
+│   │   ├── components/ # Shared components, Navigation, Global Search Omnibar
+│   │   ├── pages/  # Feature pages (Dashboard, Sets, Creators, Playlists, Rotation, Tools)
+│   │   └── providers/  # Backend status supervisor, SSE Tasks & Notifications
+│   ├── tests/      # Vitest component tests & Playwright E2E suites
 │   └── README.md   # Frontend technical documentation
-├── db/             # SQLite database and schema definitions
-└── scripts/        # Utility and automation scripts
+├── db/             # Schema definitions and database initialization scripts
+└── scripts/        # Automation tools and Windows installer packaging (NSIS + PyInstaller)
 ```
 
 ---
 
 ## 🚀 Getting Started
 
-### 1. The Engine (Backend)
-Requires **Python 3.14+** and **[uv](https://github.com/astral-sh/uv)**.
-```powershell
-cd backend
-uv sync
-uv run uvicorn app.main:app --reload
-```
-*   **API Docs:** Visit `http://localhost:8000/docs` for interactive OpenAPI documentation.
+### Prerequisites
+- **Python 3.14+** and **[uv](https://github.com/astral-sh/uv)**
+- **Node.js 20+** and **npm**
 
-### 2. The Shell (Frontend)
-Requires **Node.js 20+**.
+### Quick Start (Full Stack)
+The easiest way to run the entire application in development mode:
 ```powershell
 cd frontend
 npm install
 npm run dev
 ```
-*   **Desktop App:** A window will launch automatically, connecting to the Vite dev server and the backend.
+*(This concurrently spins up the FastAPI backend and Vite/Electron frontend with automatic Orval client generation).*
 
 ---
 
-## 🛠️ Current State
+### Individual Service Setup
 
-### ✅ Dashboard & Insights
-- **Landing Hub:** A centralized view displaying real-time library statistics (including SQLite database size), recent imports, and system health alerts.
-- **Random Inspiration:** Quickly discover and navigate to forgotten gems in your library directly from the home screen.
-- **Taxonomy Landscapes:** Interactive word clouds for tags, characters, and franchises to explore distribution.
+#### 1. Backend Engine
+```powershell
+cd backend
+uv sync
 
-### ✅ Taxonomy & Organization
-- **Characters & Franchises:** Detailed relational tracking for subjects and their respective intellectual properties or universes.
-- **Tag Management:** A robust taxonomy system for deep filtering and organizing of large collections.
+# (Optional) Pre-download default ONNX model weights
+uv run python scripts/bootstrap_models.py
 
-### ✅ Playlists & Collections
-- **Playlists:** Create, edit, and organize custom wallpaper playlists across sets with drag-and-drop sort order.
-- **Aspect Ratio Filtering:** Fine-tune rotation pools based on specific wallpaper orientations (e.g., Ultra-wide, Portrait).
+# Start FastAPI server
+uv run uvicorn app.main:app --reload
+```
+*   **Interactive API Docs:** Available at `http://localhost:8000/docs`.
 
-### ✅ Library Management
-- **Library Grid:** Immersive browsing with cover images and rich metadata.
-- **Bulk Metadata Editing:** Enter "Selection Mode" to update artists, tags, or delete multiple sets at once.
-- **Artist Hub:** Dedicated views for creators with portfolio stats and merging tools.
-- **Set Detail:** Full gallery view with lightbox support.
+#### 2. Frontend Desktop Shell
+```powershell
+cd frontend
+npm install
+npm run dev:frontend
+```
 
-### ✅ Advanced Tools
-- **Precision Cropper:** Uses **Saliency Maps (Spectral Residual)** to automatically identify the "center of interest" and crop wallpapers to custom aspect ratios.
-- **Batch Importer:** A robust, multi-phase background pipeline that uses regex to parse folder structures and handle duplicates.
-- **Audit & Repair:** Perceptual Hashing (phash) based duplicate detection and filesystem consistency checks.
+---
 
-### ✅ Native Integration
-- **System Tray:** Background persistence with a custom context menu and "Minimize to Tray" behavior.
-- **DisplayFusion Support:** Custom API endpoints (such as `/api/images/random/file/...` and playlist rotation) compatible with DisplayFusion for automatic wallpaper rotation, supporting aspect ratio filters.
-- **Native File Shell:** "Open Folder" features integrated with Electron's shell for direct filesystem access.
-- **Global Settings:** Centralized configuration store for paths, aspect ratios, and more.
+## 🛠️ Features & Current State
+
+### 🖥️ Native Multi-Monitor Rotation Engine
+- **Windows Display Alignment:** Accurately maps physical and virtual monitor coordinate systems, handling multi-monitor scaling and DPI differences.
+- **Persistent COM Daemon:** Uses an ultra-fast, persistent background PowerShell daemon leveraging Windows `IDesktopWallpaper` COM interfaces for flicker-free rotation.
+- **Rotation Profiles & Calendar Rules:** Schedule playlists and wallpaper rotation rules across a visual monthly calendar or switch profiles dynamically.
+- **Style Positioning:** Full control over wallpaper fitting (`Fit`, `Fill`, `Stretch`, `Center`, `Span`).
+- **Rotation Controls:** Searchable playlist selectors and instant Pause / Resume rotation toggles.
+- **External Display Manager Support:** REST endpoints (`/api/images/random/...`) remain fully compatible with external tools like DisplayFusion.
+
+### 📂 Playlists & Collections
+- **Manual Playlists:** Drag-and-drop custom ordering across sets and creators.
+- **Smart Playlists:** Dynamic rule-based filtering matching tags, creators, franchises, characters, ratings, and aspect ratios.
+- **Aspect Ratio Filtering:** Automatically filter pools by orientation (e.g. Ultra-wide, 16:9, Portrait).
+
+### 🏷️ Taxonomy & Tagging System
+- **Per-Image Tagging:** Tag individual images with fine-grained tags, character associations, and franchise universe links.
+- **Characters & Franchises:** Relational subject tracking with popularity sorting (by set/wallpaper count).
+- **Taxonomy Management:** Live wallpaper count statistics, bulk tag/character/franchise deletion, and fast filtering.
+- **Creator Hub:** Creator profiles with portfolio statistics, social media links (Twitter/X, Pixiv, ArtStation, Patreon), creator merging, and inline creator creation inside the Set modal.
+
+### 📚 Library & File Management
+- **Global Search (Omnibar):** Instant fuzzy search across sets, creators, characters, and franchises with breadcrumb navigation.
+- **Dedicated Hubs:** Searchable, filterable, and sortable entry points for Sets, Creators, and Taxonomy.
+- **File System Sync:** Automatic physical folder creation on set creation, and safe folder cleanup with transactional database rollback on set deletion.
+- **Draft State Protection:** Discard confirmation alerts to prevent accidental loss of edits in Set forms.
+- **Set Detail & Lightbox:** High-resolution gallery view with keyboard navigation and fullscreen lightbox.
+
+### 🔒 Remote Vault & Security
+- **Remote Connection:** Seamlessly connect desktop shell instances to a remote FastAPI backend on a NAS or home server.
+- **API Key Security:** Protected API endpoints via `X-API-Key` headers or query parameters.
+- **Process Supervisor (`BackendStatusGuard`):** Live backend health monitoring, automatic reconnection attempts, and graceful state handling.
+
+### ⚙️ Advanced Tools & Automation
+- **Batch Importer:** Multi-phase pipeline (Gather, Regex Parse & Validate, Execute) with SSE live progress broadcasting, automatic empty source folder cleanup, and stale thumbnail purging.
+- **Precision Cropper:** Saliency map detection (Spectral Residual) to compute the visual focal point and crop wallpapers to custom aspect ratios.
+- **Audit & Repair:** Perceptual Hashing (`pHash`) duplicate image detection and database/filesystem consistency auditing with detailed logs.
+
+---
+
+## 📦 Packaging & Distribution
+
+Build a standalone Windows installer bundling the compiled Python engine and Electron application:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/package-app.ps1
+```
+*   Compiles the backend using **PyInstaller** (onedir mode).
+*   Packages the Electron frontend and assets into an **NSIS Installer** via **electron-builder**.
+*   Output installer is placed in `frontend/dist-build/`.
+
+---
+
+## 🧪 Testing & Code Quality
+
+### Backend
+```powershell
+cd backend
+uv run ruff check .          # Linting
+uv run pytest               # Unit and integration tests with coverage
+```
+
+### Frontend
+```powershell
+cd frontend
+npm run lint                # ESLint
+npm run test                # Vitest unit & component tests
+npm run coverage            # Test coverage report
+npm run test:e2e            # Playwright end-to-end tests
+```
 
 ---
 
 ## 💡 Developer Notes
-- **API Generation:** If backend models change, run `npm run generate` in the `frontend` directory to update the Orval-generated API client.
-- **Styling:** We use **Mantine UI v7** for all core components, prioritizing accessibility and modern aesthetics.
-- **Task System:** Long-running operations (like imports) are handled via a robust SSE-based task broadcaster for real-time UI feedback.
+- **API Client Generation:** TypeScript models and React Query hooks are generated with **Orval**. Run `npm run generate` in `frontend/` after updating backend schemas. (Generated files in `frontend/src/api/` are automatically produced during development/build steps).
+- **Styling Architecture:** Styled using **Mantine UI v7** with centralized theme overrides for cohesive dark/light desktop styling.
+
+---
+
+## 📄 License
+This project is licensed under the [MIT License](LICENSE).
