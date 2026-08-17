@@ -3,7 +3,7 @@ API endpoints for fetching, updating, and managing images and their duplicates.
 """
 from typing import Any
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
@@ -20,6 +20,7 @@ from app.schemas.image import (
 from app.models.image import Image as ImageModel
 from app.core.exceptions import AppError
 from app.core import tasks
+from app.core.rate_limit import limiter
 from pathlib import Path
 import subprocess
 import structlog
@@ -377,7 +378,9 @@ async def delete_image(
     return map_image_to_schema(db_image)
 
 @router.get("/file/{image_id}")
+@limiter.limit("60/minute")
 async def get_image_file(
+    request: Request,
     image_id: int,
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
@@ -434,7 +437,9 @@ async def reveal_image(
         raise HTTPException(status_code=500, detail=f"Failed to open file manager: {e}")
 
 @router.post("/{image_id}/crop", response_model=ImageCropResponse)
+@limiter.limit("10/minute")
 async def crop_image(
+    request: Request,
     image_id: int,
     crop_req: ImageCropRequest,
     db: AsyncSession = Depends(get_db)
@@ -542,7 +547,9 @@ async def scan_import_paths(
 
 
 @router.post("/import", response_model=str)
+@limiter.limit("5/minute")
 async def import_images(
+    request: Request,
     req: ImageImportRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)

@@ -17,7 +17,11 @@ import { useDisclosure } from "@mantine/hooks";
 import { useTasks } from "../../hooks/useTasks";
 import { ActionLoadingOverlay } from "../ui/ActionLoadingOverlay";
 import { MetadataFormModal } from "../import/MetadataFormModal";
+import { DemoBanner } from "../ui/DemoBanner";
+import { isElectron, IS_DEMO_MODE } from "../../config";
 const AUTO_TAG_OVERLAY_HEIGHT_PX = 110;
+const HEADER_HEIGHT_DEFAULT_PX = 56;
+const DEMO_BANNER_HEIGHT_PX = 32;
 
 
 export default function MainLayout() {
@@ -27,7 +31,11 @@ export default function MainLayout() {
     const { history, unreadCount, markAllAsRead, clearHistory } = useNotificationHistory();
     const [opened, setOpened] = useState(false);
     const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
+    const [bannerDismissed, setBannerDismissed] = useState(false);
     const { tasks } = useTasks();
+
+    const isBannerVisible = IS_DEMO_MODE && !bannerDismissed;
+    const headerHeight = isBannerVisible ? HEADER_HEIGHT_DEFAULT_PX + DEMO_BANNER_HEIGHT_PX : HEADER_HEIGHT_DEFAULT_PX;
 
     // Drag and Drop Import state & handlers
     const [importOpened, setImportOpened] = useState(false);
@@ -106,7 +114,7 @@ export default function MainLayout() {
             const validWebFiles: File[] = [];
             let folderName = '';
 
-            const isElectronClient = typeof window !== 'undefined' && 'electron' in window;
+            const isElectronClient = isElectron;
             console.log('isElectronClient:', isElectronClient);
 
             // Recursive function to read files from directory entry with relative paths
@@ -302,16 +310,17 @@ export default function MainLayout() {
         <div style={{ minHeight: '100vh', position: 'relative' }}>
             <AppShell
                 layout="alt"
-            header={{ height: 56 }}
-            navbar={{
-                width: { base: width },
-                breakpoint: 'sm',
-                collapsed: { mobile: !mobileOpened },
-            }}
-            padding="md"
-        >
-            <AppShell.Header px="md" className={classes.header}>
-                <Group h="100%" justify="space-between" wrap="nowrap">
+                header={{ height: headerHeight }}
+                navbar={{
+                    width: { base: width },
+                    breakpoint: 'sm',
+                    collapsed: { mobile: !mobileOpened },
+                }}
+                padding="md"
+            >
+                <AppShell.Header className={classes.header} style={{ display: 'flex', flexDirection: 'column' }}>
+                    <DemoBanner onDismiss={() => setBannerDismissed(true)} />
+                    <Group h={HEADER_HEIGHT_DEFAULT_PX} px="md" justify="space-between" wrap="nowrap" style={{ flex: 1 }}>
                     <Group style={{ flex: 1, maxWidth: 500 }} wrap="nowrap" gap="sm">
                         <Burger opened={mobileOpened} onClick={toggleMobile} hiddenFrom="sm" size="sm" className={classes.noDrag} />
                         <Box className={classes.noDrag} style={{ flex: 1, maxWidth: 320 }}>

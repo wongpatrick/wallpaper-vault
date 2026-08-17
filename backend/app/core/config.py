@@ -11,7 +11,8 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = "sqlite+aiosqlite:///../db/wallpapers.db"
     API_KEY: str = ""
-    CORS_ORIGINS: list[str] = ["*"]
+    CORS_ORIGINS: list[str] | str = ["*"]
+    DEMO_MODE: bool = False
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

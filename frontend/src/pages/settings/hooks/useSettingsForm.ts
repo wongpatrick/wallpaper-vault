@@ -161,7 +161,8 @@ export function useSettingsForm() {
         };
 
         initForm();
-    }, [settings, form]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [settings]);
 
     const handleSave = async (values: SettingsForm) => {
         setIsSaving(true);
