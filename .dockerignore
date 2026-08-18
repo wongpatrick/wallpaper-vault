@@ -1,0 +1,40 @@
+.git
+.github
+.agents
+.vscode
+.idea
+
+# Node / Frontend
+node_modules
+frontend/node_modules
+frontend/dist
+frontend/dist-electron
+frontend/dist-build
+frontend/dist-web
+frontend/coverage
+frontend/playwright-report
+frontend/test-results
+
+# Python / Backend
+.venv
+backend/.venv
+__pycache__
+backend/**/__pycache__
+*.py[cod]
+*$py.class
+backend/dist
+backend/build
+backend/*.egg-info
+backend/htmlcov
+backend/.coverage
+backend/.pytest_cache
+backend/db/*.db
+backend/library/*
+backend/temp_imports/*
+backend/static/*
+
+# Root logs and database files
+*.log
+*.db
+*.sqlite
+*.sqlite3

@@ -12,7 +12,10 @@ interface PathInputProps extends Omit<TextInputProps, 'onChange' | 'value'> {
 }
 
 export function PathInput({ value, onChange, ...props }: PathInputProps) {
+    const isElectron = typeof window !== 'undefined' && 'electron' in window;
+
     const handlePickDirectory = async () => {
+        if (!isElectron || !window.electron?.openDirectory) return;
         const path = await window.electron.openDirectory();
         if (path && onChange) {
             onChange(path);
@@ -25,9 +28,11 @@ export function PathInput({ value, onChange, ...props }: PathInputProps) {
             value={value}
             onChange={(e) => onChange?.(e.currentTarget.value)}
             rightSection={
-                <ActionIcon variant="subtle" color="gray" onClick={handlePickDirectory}>
-                    <IconFolder size={18} />
-                </ActionIcon>
+                isElectron ? (
+                    <ActionIcon variant="subtle" color="gray" onClick={handlePickDirectory}>
+                        <IconFolder size={18} />
+                    </ActionIcon>
+                ) : null
             }
         />
     );

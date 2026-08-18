@@ -1,0 +1,20 @@
+services:
+  wallpaper-vault-demo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wallpaper-vault-demo
+    ports:
+      - "8000:8000"
+    environment:
+      - DEMO_MODE=true
+      - API_KEY=
+      - CORS_ORIGINS=*
+    volumes:
+      - demo-db:/app/db
+      - demo-library:/app/library
+    restart: unless-stopped
+
+volumes:
+  demo-db:
+  demo-library:

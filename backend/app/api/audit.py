@@ -7,7 +7,7 @@ import re
 from typing import Any
 from typing import Optional
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, update, delete
 from sqlalchemy.orm import selectinload
@@ -22,6 +22,7 @@ from app.models.set import Set
 from app.crud.settings import get_setting
 from app.core import tasks
 from app.core.enums import TaskStatus, AuditIssueStatus, AuditIssueType, ImageRating
+from app.core.rate_limit import limiter
 from app.services import audit_service
 import structlog
 import cv2
@@ -32,8 +33,10 @@ router = APIRouter()
 
 
 @router.post("/start")
+@limiter.limit("2/minute")
 async def start_audit(
-    request: AuditStartRequest,
+    request: Request,
+    audit_req: AuditStartRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
@@ -120,8 +123,11 @@ async def get_audit_results(
 
 
 @router.post("/resolve")
+@limiter.limit("5/minute")
 async def resolve_audit_issues(
-    action: AuditFixAction, db: AsyncSession = Depends(get_db)
+    request: Request,
+    action: AuditFixAction,
+    db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
     """
     Execute bulk resolution actions for discovered audit issues.

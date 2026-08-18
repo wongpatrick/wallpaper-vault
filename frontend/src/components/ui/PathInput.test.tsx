@@ -71,4 +71,11 @@ describe('PathInput', () => {
         
         expect(handleChange).not.toHaveBeenCalled();
     });
+
+    it('should not render the picker button when window.electron is undefined (browser mode)', () => {
+        vi.unstubAllGlobals();
+        render(<PathInput value="/browser/path" onChange={vi.fn()} />);
+        const button = screen.queryByRole('button');
+        expect(button).toBeNull();
+    });
 });

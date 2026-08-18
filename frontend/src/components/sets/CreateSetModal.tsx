@@ -13,6 +13,7 @@ import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { Text } from '@mantine/core';
 import type { Set } from '../../api/model';
+import { useDemoGuard } from '../../hooks/useDemoGuard';
 
 interface CreateSetModalProps {
     opened: boolean;
@@ -22,6 +23,7 @@ interface CreateSetModalProps {
 }
 
 export function CreateSetModal({ opened, onClose, onSuccess, initialCreatorNames }: CreateSetModalProps) {
+    const { guardAction } = useDemoGuard();
     const { data: creatorsData } = useReadCreatorsApiCreatorsGet({ limit: 1000 });
     const createSetMutation = useCreateSetApiSetsPost();
     const createCreatorMutation = useCreateCreatorApiCreatorsPost();
@@ -210,7 +212,7 @@ export function CreateSetModal({ opened, onClose, onSuccess, initialCreatorNames
                 <Group justify="flex-end" mt="md">
                     <Button variant="subtle" onClick={handleClose}>Cancel</Button>
                     <Button 
-                        onClick={handleCreate} 
+                        onClick={guardAction(handleCreate)} 
                         loading={createSetMutation.isPending || createCreatorMutation.isPending}
                         disabled={!title.trim()}
                     >

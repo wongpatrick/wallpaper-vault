@@ -15,11 +15,14 @@ backend/scripts/*
 !backend/scripts/generate_openapi.py
 !backend/scripts/init_db.py
 !backend/scripts/bootstrap_models.py
+!backend/scripts/seed_demo_db.py
 
 # environment
 .env
 .env.*
 !.env.example
+!.env.demo
+!*/.env.demo
 
 # python
 __pycache__/
@@ -33,6 +36,8 @@ env/
 *.egg-info/
 dist/
 */dist-electron/
+*/dist-web/
+dist-web/
 build/
 .pytest_cache/
 .mypy_cache/
