@@ -15,6 +15,7 @@ async def read_franchises(
     search: Optional[str] = Query(None, description="Search term for franchise name"),
     sort_by: Optional[str] = Query(None, description="Field to sort by (name, set_count, image_count)"),
     sort_dir: Optional[str] = Query(None, description="Sort direction (asc, desc)"),
+    scope: Optional[str] = Query(None, pattern="^(sets|images)$", description="Taxonomy scope ('sets' or 'images')"),
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db)
 ):
@@ -25,7 +26,8 @@ async def read_franchises(
         sort_by=sort_by, 
         sort_dir=sort_dir, 
         skip=pagination.skip, 
-        limit=pagination.limit
+        limit=pagination.limit,
+        scope=scope
     )
     return franchises
 

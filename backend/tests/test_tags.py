@@ -138,3 +138,46 @@ async def test_merge_tags_multiple_sets_and_images(db_session: AsyncSession):
     assert t_source not in img1_updated.tags
     assert t_target in img2_updated.tags
     assert t_source not in img2_updated.tags
+
+
+@pytest.mark.asyncio
+async def test_tag_cloud_scoped(client: AsyncClient, db_session: AsyncSession):
+    from app.models.set import Set
+    from app.models.image import Image
+
+    # 1. Create tags
+    tag_set_only = await get_or_create_tag(db_session, "Set Only Tag")
+    tag_image_only = await get_or_create_tag(db_session, "Image Only Tag")
+    await db_session.commit()
+
+    # 2. Create a set with tag_set_only
+    s = Set(title="Cloud Scope Set Test", local_path="/tmp/scope_test")
+    s.tags.append(tag_set_only)
+    db_session.add(s)
+    await db_session.commit()
+    await db_session.refresh(s)
+
+    # 3. Create an image in that set with tag_image_only
+    img = Image(filename="scope_img.jpg", local_path="/tmp/scope_img.jpg", set_id=s.id)
+    img.tags.append(tag_image_only)
+    db_session.add(img)
+    await db_session.commit()
+
+    # 4. Query cloud with scope=sets (default)
+    res_sets = await client.get("/api/tags/cloud?scope=sets")
+    assert res_sets.status_code == 200
+    sets_data = res_sets.json()
+    sets_tags = {item["tag"]: item["count"] for item in sets_data}
+    assert "Set Only Tag" in sets_tags
+    assert sets_tags["Set Only Tag"] == 1
+    assert "Image Only Tag" not in sets_tags
+
+    # 5. Query cloud with scope=images
+    res_images = await client.get("/api/tags/cloud?scope=images")
+    assert res_images.status_code == 200
+    images_data = res_images.json()
+    images_tags = {item["tag"]: item["count"] for item in images_data}
+    assert "Image Only Tag" in images_tags
+    assert images_tags["Image Only Tag"] == 1
+    assert "Set Only Tag" not in images_tags
+

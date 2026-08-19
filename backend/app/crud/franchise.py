@@ -25,7 +25,8 @@ async def get_franchises(
     sort_by: Optional[str] = None,
     sort_dir: Optional[str] = None,
     skip: int = 0,
-    limit: int = 25
+    limit: int = 25,
+    scope: Optional[str] = None
 ) -> dict:
     from app.models.character import Character
     from app.models.associations import set_characters, image_characters
@@ -72,10 +73,17 @@ async def get_franchises(
         col = image_count_sub
         order_cols.append(col.desc() if sort_dir == 'desc' else col.asc())
     else:
-        if sort_dir == 'asc':
-            order_cols.append((set_count_sub + image_count_sub).asc())
+        if scope == 'sets':
+            col = set_count_sub
+            order_cols.append(col.asc() if sort_dir == 'asc' else col.desc())
+        elif scope == 'images':
+            col = image_count_sub
+            order_cols.append(col.asc() if sort_dir == 'asc' else col.desc())
         else:
-            order_cols.append((set_count_sub + image_count_sub).desc())
+            if sort_dir == 'asc':
+                order_cols.append((set_count_sub + image_count_sub).asc())
+            else:
+                order_cols.append((set_count_sub + image_count_sub).desc())
 
     order_cols.append(Franchise.name.asc())
     stmt = stmt.order_by(*order_cols).offset(skip).limit(limit)
@@ -179,6 +187,9 @@ async def merge_franchises(db: AsyncSession, source_ids: list[int], target_id: i
         select(Franchise).where(Franchise.id == target_id)
     )
     target = target.scalars().first()
+    if not target:
+        return None
+
     source_ids = [sid for sid in source_ids if sid != target_id]
     if not source_ids:
         return {

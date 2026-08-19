@@ -25,16 +25,17 @@ class TagCount(BaseModel):
 @router.get("/cloud", response_model=List[TagCount])
 async def read_tag_cloud(
     limit: int = Query(50, ge=1, le=500, description="Maximum number of tags to return, sorted by frequency"),
+    scope: str = Query("sets", pattern="^(sets|images)$", description="Taxonomy scope ('sets' or 'images')"),
     db: AsyncSession = Depends(get_db)
 ) -> List[TagCount]:
     """
-    Retrieve the most frequently used tags across the entire vault.
+    Retrieve the most frequently used tags across sets or individual images.
 
-    Aggregates tags from both Images and Sets, counts occurrences, and returns
+    Counts occurrences across the chosen scope (sets or images), and returns
     the top N tags sorted by frequency (highest first). Designed to power
-    the tag word cloud on the Dashboard.
+    the tag word clouds on the Dashboard.
     """
-    tag_counts = await crud_tag.get_tag_cloud(db, limit=limit)
+    tag_counts = await crud_tag.get_tag_cloud(db, limit=limit, scope=scope)
     return [TagCount(**tc) for tc in tag_counts]
 
 
