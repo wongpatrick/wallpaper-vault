@@ -337,14 +337,14 @@ async def test_import_sets_same_title_different_creators(client: AsyncClient, te
 
 
 @pytest.mark.asyncio
-async def test_delete_set_folder_cleanup_and_rollback(client: AsyncClient, temp_vault: Path):
-    """Test that deleting a set removes its physical folder, and a locked folder rolls back the DB deletion."""
+async def test_delete_set_folder_cleanup_on_error_rollback(client: AsyncClient, temp_vault: Path):
+    """Test that a locked folder on set delete rolls back the DB deletion and preserves physical files."""
     # 1. Create a set
-    set_dir = temp_vault / "cleanup_test_set"
+    set_dir = temp_vault / "cleanup_test_set_rb"
     set_dir.mkdir(exist_ok=True)
     
     resp = await client.post("/api/sets/", json={
-        "title": "Cleanup Test Set",
+        "title": "Cleanup Test Set Rollback",
         "local_path": str(set_dir)
     })
     assert resp.status_code == 200
@@ -393,56 +393,63 @@ async def test_delete_set_folder_cleanup_and_rollback(client: AsyncClient, temp_
         assert thumb_file.exists()
     finally:
         shutil.rmtree = original_rmtree
-        
-    # 4. Now perform deletion successfully (no mock) on a new set
-    set_dir2 = temp_vault / "cleanup_test_set2"
-    set_dir2.mkdir(exist_ok=True)
-    resp2 = await client.post("/api/sets/", json={
-        "title": "Cleanup Test Set 2",
-        "local_path": str(set_dir2)
-    })
-    assert resp2.status_code == 200
-    set_id2 = resp2.json()["id"]
-    
-    img2_path = set_dir2 / "test_image2.jpg"
-    cv2.imwrite(str(img2_path), img)
-    
-    resync_resp2 = await client.post(f"/api/sets/{set_id2}/resync")
-    assert resync_resp2.status_code == 200
-    img_id2 = resync_resp2.json()["images"][0]["id"]
-    
-    thumb_file2 = THUMBS_DIR / f"{img_id2}_sm.jpg"
-    with open(thumb_file2, "w") as f:
-        f.write("thumb data")
-    assert thumb_file2.exists()
-    
-    del_resp2 = await client.delete(f"/api/sets/{set_id2}")
-    assert del_resp2.status_code == 200
-    
-    # Verify set is gone from database
-    get_resp2 = await client.get(f"/api/sets/{set_id2}")
-    assert get_resp2.status_code == 404
-    
-    # Verify folder is deleted from disk
-    assert not set_dir2.exists()
-    # Verify thumbnail is deleted
-    assert not thumb_file2.exists()
 
 
 @pytest.mark.asyncio
-async def test_bulk_delete_sets_folder_cleanup_and_rollback(client: AsyncClient, temp_vault: Path):
-    """Test that bulk deleting sets removes physical folders, and rolls back all deletions if one is locked."""
+async def test_delete_set_folder_cleanup_success(client: AsyncClient, temp_vault: Path):
+    """Test that deleting a set successfully removes its physical folder and cached thumbnails."""
+    from app.api.thumbnails import THUMBS_DIR
+
+    set_dir = temp_vault / "cleanup_test_set_ok"
+    set_dir.mkdir(exist_ok=True)
+    resp = await client.post("/api/sets/", json={
+        "title": "Cleanup Test Set OK",
+        "local_path": str(set_dir)
+    })
+    assert resp.status_code == 200
+    set_id = resp.json()["id"]
+    
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    img_path = set_dir / "test_image.jpg"
+    cv2.imwrite(str(img_path), img)
+    
+    resync_resp = await client.post(f"/api/sets/{set_id}/resync")
+    assert resync_resp.status_code == 200
+    img_id = resync_resp.json()["images"][0]["id"]
+    
+    THUMBS_DIR.mkdir(parents=True, exist_ok=True)
+    thumb_file = THUMBS_DIR / f"{img_id}_sm.jpg"
+    with open(thumb_file, "w") as f:
+        f.write("thumb data")
+    assert thumb_file.exists()
+    
+    del_resp = await client.delete(f"/api/sets/{set_id}")
+    assert del_resp.status_code == 200
+    
+    # Verify set is gone from database
+    get_resp = await client.get(f"/api/sets/{set_id}")
+    assert get_resp.status_code == 404
+    
+    # Verify folder is deleted from disk
+    assert not set_dir.exists()
+    # Verify thumbnail is deleted
+    assert not thumb_file.exists()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_sets_folder_cleanup_on_error_rollback(client: AsyncClient, temp_vault: Path):
+    """Test that bulk deleting sets rolls back DB and preserves thumbnails if one folder is locked."""
     from app.api.thumbnails import THUMBS_DIR
 
     # 1. Create two sets
-    set_dir1 = temp_vault / "bulk_cleanup_1"
+    set_dir1 = temp_vault / "bulk_cleanup_rb1"
     set_dir1.mkdir(exist_ok=True)
-    resp1 = await client.post("/api/sets/", json={"title": "Bulk 1", "local_path": str(set_dir1)})
+    resp1 = await client.post("/api/sets/", json={"title": "Bulk RB 1", "local_path": str(set_dir1)})
     id1 = resp1.json()["id"]
 
-    set_dir2 = temp_vault / "bulk_cleanup_2"
+    set_dir2 = temp_vault / "bulk_cleanup_rb2"
     set_dir2.mkdir(exist_ok=True)
-    resp2 = await client.post("/api/sets/", json={"title": "Bulk 2", "local_path": str(set_dir2)})
+    resp2 = await client.post("/api/sets/", json={"title": "Bulk RB 2", "local_path": str(set_dir2)})
     id2 = resp2.json()["id"]
 
     # 2. Add an image and thumbnail to set 1
@@ -470,7 +477,7 @@ async def test_bulk_delete_sets_folder_cleanup_and_rollback(client: AsyncClient,
     original_rmtree = shutil.rmtree
 
     def mocked_rmtree(path, *args, **kwargs):
-        if "bulk_cleanup_2" in str(path):
+        if "bulk_cleanup_rb2" in str(path):
             raise PermissionError("File locked")
         original_rmtree(path, *args, **kwargs)
 
@@ -484,46 +491,53 @@ async def test_bulk_delete_sets_folder_cleanup_and_rollback(client: AsyncClient,
         assert not set_dir1.exists()
         # Verify that set_dir2 was not deleted (due to simulated lock)
         assert set_dir2.exists()
-        # Verify that thumbnails are NOT deleted (due to database transaction rollback preventing thumbnail invalidation)
+        # Verify that thumbnails are NOT deleted (due to database transaction rollback)
         assert thumb_file1.exists()
         assert thumb_file2.exists()
     finally:
         shutil.rmtree = original_rmtree
 
-    # 4. Now perform bulk deletion successfully on new sets
-    set_dir3 = temp_vault / "bulk_cleanup_3"
-    set_dir3.mkdir(exist_ok=True)
-    resp3 = await client.post("/api/sets/", json={"title": "Bulk 3", "local_path": str(set_dir3)})
-    id3 = resp3.json()["id"]
 
-    set_dir4 = temp_vault / "bulk_cleanup_4"
-    set_dir4.mkdir(exist_ok=True)
-    resp4 = await client.post("/api/sets/", json={"title": "Bulk 4", "local_path": str(set_dir4)})
-    id4 = resp4.json()["id"]
+@pytest.mark.asyncio
+async def test_bulk_delete_sets_folder_cleanup_success(client: AsyncClient, temp_vault: Path):
+    """Test that bulk deleting sets removes physical folders and thumbnails successfully."""
+    from app.api.thumbnails import THUMBS_DIR
 
-    cv2.imwrite(str(set_dir3 / "image3.jpg"), img)
-    resync_resp3 = await client.post(f"/api/sets/{id3}/resync")
-    img_id3 = resync_resp3.json()["images"][0]["id"]
-    thumb_file3 = THUMBS_DIR / f"{img_id3}_sm.jpg"
-    with open(thumb_file3, "w") as f:
-        f.write("thumb data 3")
+    set_dir1 = temp_vault / "bulk_cleanup_ok1"
+    set_dir1.mkdir(exist_ok=True)
+    resp1 = await client.post("/api/sets/", json={"title": "Bulk OK 1", "local_path": str(set_dir1)})
+    id1 = resp1.json()["id"]
 
-    cv2.imwrite(str(set_dir4 / "image4.jpg"), img)
-    resync_resp4 = await client.post(f"/api/sets/{id4}/resync")
-    img_id4 = resync_resp4.json()["images"][0]["id"]
-    thumb_file4 = THUMBS_DIR / f"{img_id4}_sm.jpg"
-    with open(thumb_file4, "w") as f:
-        f.write("thumb data 4")
+    set_dir2 = temp_vault / "bulk_cleanup_ok2"
+    set_dir2.mkdir(exist_ok=True)
+    resp2 = await client.post("/api/sets/", json={"title": "Bulk OK 2", "local_path": str(set_dir2)})
+    id2 = resp2.json()["id"]
 
-    del_resp2 = await client.post("/api/sets/bulk-delete", json=[id3, id4])
-    assert del_resp2.status_code == 200
-    assert del_resp2.json() == 2
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    cv2.imwrite(str(set_dir1 / "image1.jpg"), img)
+    resync_resp1 = await client.post(f"/api/sets/{id1}/resync")
+    img_id1 = resync_resp1.json()["images"][0]["id"]
+    THUMBS_DIR.mkdir(parents=True, exist_ok=True)
+    thumb_file1 = THUMBS_DIR / f"{img_id1}_sm.jpg"
+    with open(thumb_file1, "w") as f:
+        f.write("thumb data 1")
+
+    cv2.imwrite(str(set_dir2 / "image2.jpg"), img)
+    resync_resp2 = await client.post(f"/api/sets/{id2}/resync")
+    img_id2 = resync_resp2.json()["images"][0]["id"]
+    thumb_file2 = THUMBS_DIR / f"{img_id2}_sm.jpg"
+    with open(thumb_file2, "w") as f:
+        f.write("thumb data 2")
+
+    del_resp = await client.post("/api/sets/bulk-delete", json=[id1, id2])
+    assert del_resp.status_code == 200
+    assert del_resp.json() == 2
 
     # Verify folders and thumbnails are deleted
-    assert not set_dir3.exists()
-    assert not set_dir4.exists()
-    assert not thumb_file3.exists()
-    assert not thumb_file4.exists()
+    assert not set_dir1.exists()
+    assert not set_dir2.exists()
+    assert not thumb_file1.exists()
+    assert not thumb_file2.exists()
 
 
 

@@ -62,40 +62,71 @@ export default function Dashboard() {
     // 3. Fetch Random Inspiration
     const { data: randomImage } = useReadRandomImageApiImagesRandomGet({ log_rotation: false });
 
-    // 4. Fetch Tag Cloud
-    const { data: tagCloud } = useReadTagCloudApiTagsCloudGet({ limit: 50 });
+    // 4. Fetch Tag Clouds (Sets & Images)
+    const { data: setTagCloud } = useReadTagCloudApiTagsCloudGet({ limit: 50, scope: 'sets' });
+    const { data: imageTagCloud } = useReadTagCloudApiTagsCloudGet({ limit: 50, scope: 'images' });
 
-    // 5. Fetch Characters
-    const { data: characters } = useReadCharactersApiCharactersGet({ limit: 50 });
+    // 5. Fetch Characters (Sets & Images)
+    const { data: setCharacters } = useReadCharactersApiCharactersGet({ limit: 50, scope: 'sets' });
+    const { data: imageCharacters } = useReadCharactersApiCharactersGet({ limit: 50, scope: 'images' });
 
-    // 6. Fetch Franchises
-    const { data: franchises } = useReadFranchisesApiFranchisesGet({ limit: 50 });
+    // 6. Fetch Franchises (Sets & Images)
+    const { data: setFranchises } = useReadFranchisesApiFranchisesGet({ limit: 50, scope: 'sets' });
+    const { data: imageFranchises } = useReadFranchisesApiFranchisesGet({ limit: 50, scope: 'images' });
 
-    // 7. Transform characters data into TagCloudItem shape
-    const characterCloud = useMemo(() => {
-        if (!characters?.items) return [];
-        return characters.items
-            .filter((c) => (c.set_count ?? 0) > 0 || (c.image_count ?? 0) > 0)
+    // 7. Filter and transform tag clouds into pure tag shapes
+    const setTagsOnly = useMemo(() => (setTagCloud || []).filter((t) => !t.type || t.type === 'tag'), [setTagCloud]);
+    const imageTagsOnly = useMemo(() => (imageTagCloud || []).filter((t) => !t.type || t.type === 'tag'), [imageTagCloud]);
+
+    // 8. Transform characters data into TagCloudItem shapes
+    const characterSetCloud = useMemo(() => {
+        if (!setCharacters?.items) return [];
+        return setCharacters.items
+            .filter((c) => (c.set_count ?? 0) > 0)
             .map((c) => ({
                 tag: c.name,
                 type: 'character',
-                count: (c.set_count ?? 0) + (c.image_count ?? 0),
+                count: c.set_count ?? 0,
             }))
             .sort((a, b) => b.count - a.count);
-    }, [characters]);
+    }, [setCharacters]);
 
-    // 8. Transform franchises data into TagCloudItem shape
-    const franchiseCloud = useMemo(() => {
-        if (!franchises?.items) return [];
-        return franchises.items
-            .filter((f) => (f.set_count ?? 0) > 0 || (f.image_count ?? 0) > 0)
+    const characterImageCloud = useMemo(() => {
+        if (!imageCharacters?.items) return [];
+        return imageCharacters.items
+            .filter((c) => (c.image_count ?? 0) > 0)
+            .map((c) => ({
+                tag: c.name,
+                type: 'character',
+                count: c.image_count ?? 0,
+            }))
+            .sort((a, b) => b.count - a.count);
+    }, [imageCharacters]);
+
+    // 9. Transform franchises data into TagCloudItem shapes
+    const franchiseSetCloud = useMemo(() => {
+        if (!setFranchises?.items) return [];
+        return setFranchises.items
+            .filter((f) => (f.set_count ?? 0) > 0)
             .map((f) => ({
                 tag: f.name,
                 type: 'franchise',
-                count: (f.set_count ?? 0) + (f.image_count ?? 0),
+                count: f.set_count ?? 0,
             }))
             .sort((a, b) => b.count - a.count);
-    }, [franchises]);
+    }, [setFranchises]);
+
+    const franchiseImageCloud = useMemo(() => {
+        if (!imageFranchises?.items) return [];
+        return imageFranchises.items
+            .filter((f) => (f.image_count ?? 0) > 0)
+            .map((f) => ({
+                tag: f.name,
+                type: 'franchise',
+                count: f.image_count ?? 0,
+            }))
+            .sort((a, b) => b.count - a.count);
+    }, [imageFranchises]);
 
 
     if (statsLoading) {
@@ -258,18 +289,18 @@ export default function Dashboard() {
                             )}
                         </Stack>
 
-                        {/* 4. Taxonomy Landscape */}
+                        {/* 4. Set Taxonomy */}
                         <Stack gap="md" mt="md">
                             <Group justify="space-between" align="flex-end">
                                 <Box>
                                     <Group gap="xs" mb={4}>
                                         <ThemeIcon color="violet" variant="light" size={28} radius="md">
-                                            <IconTags size="1rem" />
+                                            <IconFolders size="1rem" />
                                         </ThemeIcon>
-                                        <Title order={3} size="h4">Taxonomy Landscape</Title>
+                                        <Title order={3} size="h4">Set Taxonomy</Title>
                                     </Group>
                                     <Text size="xs" c="dimmed" ml="xl">
-                                        Explore tags, characters, and franchises across your collection — click any to browse
+                                        Explore tags, characters, and franchises across your sets — click any to browse
                                     </Text>
                                 </Box>
                             </Group>
@@ -277,27 +308,27 @@ export default function Dashboard() {
                                 <Tabs defaultValue="tags">
                                     <Tabs.List mb="md">
                                         <Tabs.Tab value="tags" leftSection={<IconTags size="1rem" />}>
-                                            Tags ({tagCloud?.length || 0})
+                                            Tags ({setTagsOnly.length})
                                         </Tabs.Tab>
                                         <Tabs.Tab value="characters" leftSection={<IconUser size="1rem" />}>
-                                            Characters ({characterCloud.length})
+                                            Characters ({characterSetCloud.length})
                                         </Tabs.Tab>
                                         <Tabs.Tab value="franchises" leftSection={<IconFolders size="1rem" />}>
-                                            Franchises ({franchiseCloud.length})
+                                            Franchises ({franchiseSetCloud.length})
                                         </Tabs.Tab>
                                     </Tabs.List>
 
                                     <Tabs.Panel value="tags">
                                         <TagCloud 
-                                            tags={tagCloud || []} 
+                                            tags={setTagsOnly} 
                                             height={300} 
-                                            emptyMessage="No tags yet — start tagging your sets!"
+                                            emptyMessage="No set tags yet — start tagging your sets!"
                                         />
                                     </Tabs.Panel>
 
                                     <Tabs.Panel value="characters">
                                         <TagCloud 
-                                            tags={characterCloud} 
+                                            tags={characterSetCloud} 
                                             height={300} 
                                             emptyMessage="No characters yet — start adding characters to your sets!"
                                         />
@@ -305,7 +336,7 @@ export default function Dashboard() {
 
                                     <Tabs.Panel value="franchises">
                                         <TagCloud 
-                                            tags={franchiseCloud} 
+                                            tags={franchiseSetCloud} 
                                             height={300} 
                                             emptyMessage="No franchises yet — start adding franchises to your sets!"
                                         />
@@ -336,7 +367,7 @@ export default function Dashboard() {
                                     <Button 
                                         component={Link} 
                                         to={`/sets/${randomImage.set_id}`} 
-                                        state={{ from: location.pathname, fromLabel: 'Dashboard' }}
+                                        state={{ from: location.pathname, fromLabel: 'Dashboard' }} 
                                         variant="light" 
                                         fullWidth 
                                         leftSection={<IconExternalLink size="1rem" />}
@@ -352,6 +383,62 @@ export default function Dashboard() {
                                 </Center>
                             </Paper>
                         )}
+
+                        {/* 5. Image Taxonomy */}
+                        <Stack gap="md" mt="md">
+                            <Group justify="space-between" align="flex-end">
+                                <Box>
+                                    <Group gap="xs" mb={4}>
+                                        <ThemeIcon color="teal" variant="light" size={28} radius="md">
+                                            <IconPhoto size="1rem" />
+                                        </ThemeIcon>
+                                        <Title order={3} size="h4">Image Taxonomy</Title>
+                                    </Group>
+                                    <Text size="xs" c="dimmed" ml="xl">
+                                        Explore tags, characters, and franchises across individual wallpapers — click any to browse
+                                    </Text>
+                                </Box>
+                            </Group>
+                            <Paper withBorder p="md" radius="md">
+                                <Tabs defaultValue="tags">
+                                    <Tabs.List mb="md">
+                                        <Tabs.Tab value="tags" leftSection={<IconTags size="1rem" />}>
+                                            Tags ({imageTagsOnly.length})
+                                        </Tabs.Tab>
+                                        <Tabs.Tab value="characters" leftSection={<IconUser size="1rem" />}>
+                                            Characters ({characterImageCloud.length})
+                                        </Tabs.Tab>
+                                        <Tabs.Tab value="franchises" leftSection={<IconFolders size="1rem" />}>
+                                            Franchises ({franchiseImageCloud.length})
+                                        </Tabs.Tab>
+                                    </Tabs.List>
+
+                                    <Tabs.Panel value="tags">
+                                        <TagCloud 
+                                            tags={imageTagsOnly} 
+                                            height={300} 
+                                            emptyMessage="No image tags yet — start tagging individual images!"
+                                        />
+                                    </Tabs.Panel>
+
+                                    <Tabs.Panel value="characters">
+                                        <TagCloud 
+                                            tags={characterImageCloud} 
+                                            height={300} 
+                                            emptyMessage="No image characters yet — start adding characters to your images!"
+                                        />
+                                    </Tabs.Panel>
+
+                                    <Tabs.Panel value="franchises">
+                                        <TagCloud 
+                                            tags={franchiseImageCloud} 
+                                            height={300} 
+                                            emptyMessage="No image franchises yet — start adding franchises to your images!"
+                                        />
+                                    </Tabs.Panel>
+                                </Tabs>
+                            </Paper>
+                        </Stack>
                     </Stack>
                 </SimpleGrid>
             </Stack>

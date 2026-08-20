@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete
 from sqlalchemy.exc import IntegrityError
 from app.models.tag import Tag
-from app.models.associations import set_tags
 from app.models.character import Character
 from app.models.franchise import Franchise
 import structlog
@@ -38,47 +37,89 @@ async def get_unique_tags(
 
 async def get_tag_cloud(
     db: AsyncSession,
-    limit: int = 50
+    limit: int = 50,
+    scope: str = "sets"
 ) -> List[dict]:
-    """Returns the top N tags, characters, and franchises by frequency across sets."""
-    from app.models.associations import set_characters
-    
-    # Query Tags
-    tag_stmt = (
-        select(
-            Tag.name,
-            func.count(set_tags.c.set_id).label("count")
-        )
-        .join(set_tags, Tag.id == set_tags.c.tag_id)
-        .group_by(Tag.id)
-        .order_by(func.count(set_tags.c.set_id).desc())
-        .limit(limit)
+    """Returns the top N tags, characters, and franchises by frequency across sets or images."""
+    from app.models.associations import (
+        set_tags, set_characters,
+        image_tags, image_characters
     )
     
-    # Query Characters
-    char_stmt = (
-        select(
-            Character.name,
-            func.count(set_characters.c.set_id).label("count")
+    if scope == "images":
+        # Query Tags
+        tag_stmt = (
+            select(
+                Tag.name,
+                func.count(image_tags.c.image_id).label("count")
+            )
+            .join(image_tags, Tag.id == image_tags.c.tag_id)
+            .group_by(Tag.id)
+            .order_by(func.count(image_tags.c.image_id).desc())
+            .limit(limit)
         )
-        .join(set_characters, Character.id == set_characters.c.character_id)
-        .group_by(Character.id)
-        .order_by(func.count(set_characters.c.set_id).desc())
-        .limit(limit)
-    )
-    
-    # Query Franchises
-    franchise_stmt = (
-        select(
-            Franchise.name,
-            func.count(set_characters.c.set_id.distinct()).label("count")
+        
+        # Query Characters
+        char_stmt = (
+            select(
+                Character.name,
+                func.count(image_characters.c.image_id).label("count")
+            )
+            .join(image_characters, Character.id == image_characters.c.character_id)
+            .group_by(Character.id)
+            .order_by(func.count(image_characters.c.image_id).desc())
+            .limit(limit)
         )
-        .join(Character, Franchise.id == Character.franchise_id)
-        .join(set_characters, Character.id == set_characters.c.character_id)
-        .group_by(Franchise.id)
-        .order_by(func.count(set_characters.c.set_id.distinct()).desc())
-        .limit(limit)
-    )
+        
+        # Query Franchises
+        franchise_stmt = (
+            select(
+                Franchise.name,
+                func.count(image_characters.c.image_id.distinct()).label("count")
+            )
+            .join(Character, Franchise.id == Character.franchise_id)
+            .join(image_characters, Character.id == image_characters.c.character_id)
+            .group_by(Franchise.id)
+            .order_by(func.count(image_characters.c.image_id.distinct()).desc())
+            .limit(limit)
+        )
+    else:
+        # Query Tags
+        tag_stmt = (
+            select(
+                Tag.name,
+                func.count(set_tags.c.set_id).label("count")
+            )
+            .join(set_tags, Tag.id == set_tags.c.tag_id)
+            .group_by(Tag.id)
+            .order_by(func.count(set_tags.c.set_id).desc())
+            .limit(limit)
+        )
+        
+        # Query Characters
+        char_stmt = (
+            select(
+                Character.name,
+                func.count(set_characters.c.set_id).label("count")
+            )
+            .join(set_characters, Character.id == set_characters.c.character_id)
+            .group_by(Character.id)
+            .order_by(func.count(set_characters.c.set_id).desc())
+            .limit(limit)
+        )
+        
+        # Query Franchises
+        franchise_stmt = (
+            select(
+                Franchise.name,
+                func.count(set_characters.c.set_id.distinct()).label("count")
+            )
+            .join(Character, Franchise.id == Character.franchise_id)
+            .join(set_characters, Character.id == set_characters.c.character_id)
+            .group_by(Franchise.id)
+            .order_by(func.count(set_characters.c.set_id.distinct()).desc())
+            .limit(limit)
+        )
 
     tag_res = await db.execute(tag_stmt)
     char_res = await db.execute(char_stmt)

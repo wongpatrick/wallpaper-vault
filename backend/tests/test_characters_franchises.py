@@ -347,5 +347,84 @@ async def test_character_unique_constraints(db_session: AsyncSession):
     await db_session.rollback()
 
 
+@pytest.mark.asyncio
+async def test_characters_and_franchises_scope(client: AsyncClient, db_session: AsyncSession):
+    from app.models.image import Image
+    from app.models.character import Character
+    from app.models.franchise import Franchise
+
+    # 1. Create franchises
+    f_set = Franchise(name="Set Scope Franchise")
+    f_img = Franchise(name="Image Scope Franchise")
+    db_session.add_all([f_set, f_img])
+    await db_session.commit()
+    await db_session.refresh(f_set)
+    await db_session.refresh(f_img)
+
+    # 2. Create characters
+    c_set = Character(name="Set Scope Char", franchise_id=f_set.id)
+    c_img = Character(name="Image Scope Char", franchise_id=f_img.id)
+    db_session.add_all([c_set, c_img])
+    await db_session.commit()
+    await db_session.refresh(c_set)
+    await db_session.refresh(c_img)
+
+    # 3. Associate c_set with Set
+    s = Set(title="Scope Char Set", local_path="/tmp/scope_char_set")
+    s.characters.append(c_set)
+    db_session.add(s)
+    await db_session.commit()
+    await db_session.refresh(s)
+
+    # 4. Associate c_img with Image
+    img = Image(filename="scope_char_img.jpg", local_path="/tmp/scope_char_img.jpg", set_id=s.id)
+    img.characters.append(c_img)
+    db_session.add(img)
+    await db_session.commit()
+
+    # 5. Check characters scope=sets
+    res_chars_sets = await client.get("/api/characters/?scope=sets")
+    assert res_chars_sets.status_code == 200
+    chars_sets = res_chars_sets.json()["items"]
+    # The first item with set_count > 0 should be c_set
+    c_set_entry = next((c for c in chars_sets if c["name"] == "Set Scope Char"), None)
+    c_img_entry = next((c for c in chars_sets if c["name"] == "Image Scope Char"), None)
+    assert c_set_entry is not None and c_set_entry["set_count"] == 1
+    assert c_img_entry is not None and c_img_entry["image_count"] == 1
+    # Check default sort order under scope=sets puts higher set_count ahead of 0 set_count
+    set_char_idx = chars_sets.index(c_set_entry)
+    img_char_idx = chars_sets.index(c_img_entry)
+    assert set_char_idx < img_char_idx
+
+    # 6. Check characters scope=images
+    res_chars_images = await client.get("/api/characters/?scope=images")
+    assert res_chars_images.status_code == 200
+    chars_images = res_chars_images.json()["items"]
+    c_set_entry_i = next((c for c in chars_images if c["name"] == "Set Scope Char"), None)
+    c_img_entry_i = next((c for c in chars_images if c["name"] == "Image Scope Char"), None)
+    set_char_idx_i = chars_images.index(c_set_entry_i)
+    img_char_idx_i = chars_images.index(c_img_entry_i)
+    assert img_char_idx_i < set_char_idx_i
+
+    # 7. Check franchises scope=sets
+    res_fran_sets = await client.get("/api/franchises/?scope=sets")
+    assert res_fran_sets.status_code == 200
+    fran_sets = res_fran_sets.json()["items"]
+    f_set_entry = next((f for f in fran_sets if f["name"] == "Set Scope Franchise"), None)
+    f_img_entry = next((f for f in fran_sets if f["name"] == "Image Scope Franchise"), None)
+    assert f_set_entry is not None and f_set_entry["set_count"] == 1
+    assert f_img_entry is not None and f_img_entry["image_count"] == 1
+    assert fran_sets.index(f_set_entry) < fran_sets.index(f_img_entry)
+
+    # 8. Check franchises scope=images
+    res_fran_images = await client.get("/api/franchises/?scope=images")
+    assert res_fran_images.status_code == 200
+    fran_images = res_fran_images.json()["items"]
+    f_set_entry_i = next((f for f in fran_images if f["name"] == "Set Scope Franchise"), None)
+    f_img_entry_i = next((f for f in fran_images if f["name"] == "Image Scope Franchise"), None)
+    assert fran_images.index(f_img_entry_i) < fran_images.index(f_set_entry_i)
+
+
+
 
 
