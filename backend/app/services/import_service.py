@@ -514,11 +514,24 @@ async def import_images_background_task(
         parent_dirs = set()
 
         # Get base library path
-        vault_setting = await get_setting(db, "base_library_path")
-        if not vault_setting or not vault_setting.value:
-            await tasks.update_task(db, task_id, status="error", error_message="base_library_path not configured")
+        from app.crud import library_path as crud_lp
+        req_lp_id = request_data.get("library_path_id")
+        target_lp = None
+        if req_lp_id:
+            target_lp = await crud_lp.get_library_path(db, int(req_lp_id))
+        if not target_lp:
+            target_lp = await crud_lp.get_default_library_path(db)
+
+        vault_path_str = target_lp.path if target_lp else None
+        if not vault_path_str:
+            vault_setting = await get_setting(db, "base_library_path")
+            if vault_setting and vault_setting.value:
+                vault_path_str = vault_setting.value
+
+        if not vault_path_str:
+            await tasks.update_task(db, task_id, status="error", error_message="No library storage path configured")
             return
-        vault_root = Path(vault_setting.value)
+        vault_root = Path(vault_path_str)
 
         # Get aspect ratios
         h_label, v_label = await get_aspect_ratio_labels(db)
@@ -572,7 +585,11 @@ async def import_images_background_task(
                 folder_name = sanitize_filename(f"{joined_creators} - {set_title}")
                 dest_dir = vault_root / folder_name
                 dest_dir.mkdir(parents=True, exist_ok=True)
-                db_set = SetModel(title=set_title, local_path=os.path.normpath(str(dest_dir.resolve())))
+                db_set = SetModel(
+                    title=set_title,
+                    local_path=os.path.normpath(str(dest_dir.resolve())),
+                    library_path_id=target_lp.id if target_lp else None
+                )
                 db_set.creators = db_creators
                 db_set.images = []
                 db_set.tags = []
@@ -591,7 +608,11 @@ async def import_images_background_task(
             if not db_set:
                 dest_dir = vault_root / "Imports"
                 dest_dir.mkdir(parents=True, exist_ok=True)
-                db_set = SetModel(title="Imports", local_path=os.path.normpath(str(dest_dir.resolve())))
+                db_set = SetModel(
+                    title="Imports",
+                    local_path=os.path.normpath(str(dest_dir.resolve())),
+                    library_path_id=target_lp.id if target_lp else None
+                )
                 db_set.creators = []
                 db_set.images = []
                 db_set.tags = []

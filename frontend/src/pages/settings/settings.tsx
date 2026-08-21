@@ -32,6 +32,7 @@ import { SettingsSection } from './components/SettingsSection';
 import { UnsavedChangesModal } from './components/UnsavedChangesModal';
 import { AppInfoSection } from './components/AppInfoSection';
 import { CacheManagementSection } from './components/CacheManagementSection';
+import { LibraryPathsSection } from './components/LibraryPathsSection';
 import { PathInput } from '../../components/ui/PathInput';
 import {
     checkAiModelStatusApiSettingsCacheAiModelsStatusPost,
@@ -106,18 +107,7 @@ export default function Settings() {
                 <Text c="dimmed" mb="xl">Configure your Wallpaper Vault experience.</Text>
 
                 <Stack gap="xl">
-                    <SettingsSection 
-                        title="Storage & Library" 
-                        description="Define where your high-resolution collection lives."
-                        isDirty={form.isDirty()}
-                    >
-                        <PathInput
-                            label="Base Library Path"
-                            description="All managed wallpaper sets will be stored in this directory."
-                            placeholder="C:/Users/You/Pictures/Wallpapers"
-                            {...form.getInputProps(SETTING_KEYS.BASE_LIBRARY_PATH)}
-                        />
-                    </SettingsSection>
+                    <LibraryPathsSection />
 
                     <SettingsSection 
                         title="Import & AI Processing" 

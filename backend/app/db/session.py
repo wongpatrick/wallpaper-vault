@@ -55,10 +55,49 @@ def run_startup_migrations(connection):
         ("rotation_rules", "CREATE INDEX IF NOT EXISTS ix_rotation_rules_enabled ON rotation_rules(enabled)"),
         ("characters", "CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_character_franchise ON characters(lower(name), franchise_id) WHERE franchise_id IS NOT NULL"),
         ("characters", "CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_character_no_franchise ON characters(lower(name)) WHERE franchise_id IS NULL"),
+        ("sets", "CREATE INDEX IF NOT EXISTS ix_sets_library_path_id ON sets(library_path_id)"),
     ]:
         res = connection.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
         if res:
             try:
                 connection.execute(text(index_sql))
             except Exception:
-                pass
+                pass
+
+    # Ensure library_paths table exists
+    connection.execute(text("""
+        CREATE TABLE IF NOT EXISTS library_paths (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path VARCHAR UNIQUE NOT NULL,
+            label VARCHAR,
+            is_default BOOLEAN DEFAULT 0,
+            created_at DATETIME DEFAULT (date('now'))
+        )
+    """))
+    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_library_paths_path ON library_paths(path)"))
+
+    # Ensure library_path_id column exists on sets table
+    res_sets = connection.execute(text("PRAGMA table_info(sets)")).fetchall()
+    set_cols = [row[1] for row in res_sets]
+    if "library_path_id" not in set_cols:
+        connection.execute(text("ALTER TABLE sets ADD COLUMN library_path_id INTEGER REFERENCES library_paths(id) ON DELETE SET NULL"))
+
+    # Backfill migration from base_library_path setting if library_paths table is empty
+    try:
+        lp_count = connection.execute(text("SELECT COUNT(*) FROM library_paths")).scalar()
+        if lp_count == 0:
+            res_setting = connection.execute(text("SELECT value FROM settings WHERE key = 'base_library_path'")).fetchone()
+            if res_setting and res_setting[0] and res_setting[0].strip():
+                base_path_val = res_setting[0].strip()
+                connection.execute(
+                    text("INSERT INTO library_paths (path, label, is_default) VALUES (:path, :label, 1)"),
+                    {"path": base_path_val, "label": "Default Library"}
+                )
+                inserted_id = connection.execute(text("SELECT id FROM library_paths WHERE path = :path"), {"path": base_path_val}).scalar()
+                if inserted_id:
+                    connection.execute(
+                        text("UPDATE sets SET library_path_id = :lid WHERE library_path_id IS NULL"),
+                        {"lid": inserted_id}
+                    )
+    except Exception:
+        pass
