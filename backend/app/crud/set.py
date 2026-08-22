@@ -111,13 +111,9 @@ async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Op
     # Base query for sets
     query = select(Set)
     
-    # Joins for filtering if needed
-    if tag or search or character or franchise or creator_type:
-        query = query.outerjoin(Set.creators).outerjoin(Set.tags).outerjoin(Set.characters).outerjoin(Character.franchise)
-    
     # Apply filters
     if creator_type:
-        query = query.filter(Creator.type == creator_type)
+        query = query.filter(Set.creators.any(Creator.type == creator_type))
     if tag:
         query = query.filter(Set.tags.any(Tag.name.icontains(tag)))
     if character:
@@ -129,9 +125,9 @@ async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Op
             or_(
                 Set.title.icontains(search),
                 Set.tags.any(Tag.name.icontains(search)),
-                Creator.canonical_name.icontains(search),
-                Character.name.icontains(search),
-                Franchise.name.icontains(search)
+                Set.creators.any(Creator.canonical_name.icontains(search)),
+                Set.characters.any(Character.name.icontains(search)),
+                Set.characters.any(Character.franchise.has(Franchise.name.icontains(search)))
             )
         )
     
@@ -510,12 +506,19 @@ async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task
 
     # 3. Execution Phase
     # Get vault path
-    vault_setting = await get_setting(db, "base_library_path")
-    if not vault_setting or not vault_setting.value:
+    from app.crud import library_path as crud_lp
+    default_lp = await crud_lp.get_default_library_path(db)
+    vault_path_str = default_lp.path if default_lp else None
+    if not vault_path_str:
+        vault_setting = await get_setting(db, "base_library_path")
+        if vault_setting and vault_setting.value:
+            vault_path_str = vault_setting.value
+
+    if not vault_path_str:
         from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail="base_library_path not configured")
+        raise HTTPException(status_code=400, detail="No library storage path configured")
     
-    vault_root = Path(vault_setting.value)
+    vault_root = Path(vault_path_str)
     
     # Get target ratios from settings
     h_label, v_label = await get_aspect_ratio_labels(db)

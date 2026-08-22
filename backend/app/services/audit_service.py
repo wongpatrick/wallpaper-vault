@@ -63,13 +63,34 @@ def calculate_dominant_color(path: Path) -> Optional[str]:
         return None
 
 
-async def run_library_audit(vault_root_str: str, task_id: str) -> None:
+async def run_library_audit(vault_roots_input: Optional[str | list[str]] = None, task_id: str = "") -> None:
     async with SessionLocal() as db:
         try:
             await tasks.update_task(
                 db, task_id, status=TaskStatus.PROCESSING, progress=0, total=100
             )
-            vault_root = Path(vault_root_str)
+            # Resolve all library roots to scan
+            from app.models.library_path import LibraryPath
+            from app.crud.settings import get_setting
+
+            vault_roots: list[Path] = []
+            if isinstance(vault_roots_input, list):
+                for p in vault_roots_input:
+                    if p and str(p).strip():
+                        vault_roots.append(Path(str(p).strip()))
+            elif isinstance(vault_roots_input, str) and vault_roots_input.strip():
+                vault_roots.append(Path(vault_roots_input.strip()))
+
+            if not vault_roots:
+                lp_res = await db.execute(select(LibraryPath.path))
+                for row in lp_res.scalars().all():
+                    if row and row.strip():
+                        vault_roots.append(Path(row.strip()))
+
+            if not vault_roots:
+                base_setting = await get_setting(db, "base_library_path")
+                if base_setting and base_setting.value and base_setting.value.strip():
+                    vault_roots.append(Path(base_setting.value.strip()))
 
             # 1. Clear old pending issues for this task (if any)
             await db.execute(delete(AuditIssue).where(AuditIssue.task_id == task_id))
@@ -178,7 +199,7 @@ async def run_library_audit(vault_root_str: str, task_id: str) -> None:
             await db.flush()
 
             # 3. ORPHAN HUNT (Disk -> DB)
-            logger.info("Audit: Starting Orphan Hunt...", vault_root=str(vault_root))
+            logger.info("Audit: Starting Orphan Hunt...", vault_roots=[str(r) for r in vault_roots])
             await tasks.update_task(
                 db, task_id, progress=45, status="Scanning Filesystem..."
             )
@@ -200,9 +221,12 @@ async def run_library_audit(vault_root_str: str, task_id: str) -> None:
 
             orphans = []
             files_found = 0
-            for r, _, f in os.walk(vault_root):
-                dir_path = os.path.normpath(r)
-                matching_set_id = set_dir_map.get(os.path.normcase(dir_path))
+            for vault_root in vault_roots:
+                if not vault_root.exists() or not vault_root.is_dir():
+                    continue
+                for r, _, f in os.walk(vault_root):
+                    dir_path = os.path.normpath(r)
+                    matching_set_id = set_dir_map.get(os.path.normcase(dir_path))
 
                 for file in f:
                     if Path(file).suffix.lower() in image_exts:

@@ -4,9 +4,10 @@
  * Description: A modal for creating a new wallpaper set.
  */
 import { useState, useMemo, useEffect } from 'react';
-import { Modal, TextInput, Textarea, TagsInput, Stack, Button, Group } from '@mantine/core';
+import { Modal, TextInput, Textarea, TagsInput, Stack, Button, Group, Select } from '@mantine/core';
 import { useCreateSetApiSetsPost } from '../../api/generated/sets/sets';
 import { useReadCreatorsApiCreatorsGet, useCreateCreatorApiCreatorsPost } from '../../api/generated/creators/creators';
+import { useListLibraryPathsApiLibraryPathsGet } from '../../api/generated/library-paths/library-paths';
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
 import { CharacterTagsInput } from '../ui/CharacterTagsInput';
 import { notifications } from '@mantine/notifications';
@@ -25,21 +26,29 @@ interface CreateSetModalProps {
 export function CreateSetModal({ opened, onClose, onSuccess, initialCreatorNames }: CreateSetModalProps) {
     const { guardAction } = useDemoGuard();
     const { data: creatorsData } = useReadCreatorsApiCreatorsGet({ limit: 1000 });
+    const { data: libraryPathsData } = useListLibraryPathsApiLibraryPathsGet();
     const createSetMutation = useCreateSetApiSetsPost();
     const createCreatorMutation = useCreateCreatorApiCreatorsPost();
     
     const [title, setTitle] = useState('');
     const [creatorNames, setCreatorNames] = useState<string[]>(initialCreatorNames || []);
+    const [selectedLibraryPathId, setSelectedLibraryPathId] = useState<string | null>(null);
     const [tags, setTags] = useState<string[]>([]);
     const [characters, setCharacters] = useState<string[]>([]);
     const [notes, setNotes] = useState('');
+
+    const libraryPaths = useMemo(() => libraryPathsData?.items || [], [libraryPathsData]);
 
     useEffect(() => {
         if (opened) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setCreatorNames(initialCreatorNames || []);
+            const defaultLp = libraryPaths.find(p => p.is_default) || libraryPaths[0];
+            if (defaultLp) {
+                setSelectedLibraryPathId(defaultLp.id.toString());
+            }
         }
-    }, [opened, initialCreatorNames]);
+    }, [opened, initialCreatorNames, libraryPaths]);
 
     const isFormDirty = useMemo(() => {
         const initialNames = initialCreatorNames || [];
@@ -128,8 +137,9 @@ export function CreateSetModal({ opened, onClose, onSuccess, initialCreatorNames
                     tags: tags,
                     characters: characters,
                     notes: notes.trim() || undefined,
-                    source_url: undefined, // Or leave it off completely
-                    local_path: undefined, // Backend will auto-generate using base_library_path
+                    source_url: undefined,
+                    local_path: undefined,
+                    library_path_id: selectedLibraryPathId ? Number(selectedLibraryPathId) : undefined,
                     images: []
                 }
             });
@@ -177,6 +187,20 @@ export function CreateSetModal({ opened, onClose, onSuccess, initialCreatorNames
                     onChange={(e) => setTitle(e.currentTarget.value)}
                     required
                 />
+
+                {libraryPaths.length > 1 && (
+                    <Select
+                        label="Storage Location"
+                        description="Select the library storage directory for this set."
+                        data={libraryPaths.map(p => ({
+                            value: p.id.toString(),
+                            label: `${p.label || 'Default Library'} (${p.path})`
+                        }))}
+                        value={selectedLibraryPathId}
+                        onChange={setSelectedLibraryPathId}
+                        allowDeselect={false}
+                    />
+                )}
                 
                 <TagsInput
                     label="Artists / Creators"

@@ -190,11 +190,26 @@ async def create_set(db: AsyncSession, set_in: SetCreate) -> Set:
 
     # Auto-generate local_path if not provided
     if not set_in.local_path:
-        base_path_setting = await get_setting(db, "base_library_path")
-        if not base_path_setting or not base_path_setting.value:
-            raise FileSystemError("Failed to create set: 'base_library_path' setting is not configured.")
+        from app.crud import library_path as crud_lp
+        target_lp = None
+        if set_in.library_path_id:
+            target_lp = await crud_lp.get_library_path(db, set_in.library_path_id)
+        if not target_lp:
+            target_lp = await crud_lp.get_default_library_path(db)
+
+        base_dir_str = None
+        if target_lp:
+            base_dir_str = target_lp.path
+            set_in.library_path_id = target_lp.id
+        else:
+            base_path_setting = await get_setting(db, "base_library_path")
+            if base_path_setting and base_path_setting.value:
+                base_dir_str = base_path_setting.value
+
+        if not base_dir_str:
+            raise FileSystemError("Failed to create set: No library storage path configured.")
         
-        base_dir = anyio.Path(base_path_setting.value)
+        base_dir = anyio.Path(base_dir_str)
         
         # Retrieve creators to form folder name
         creator_names = []
