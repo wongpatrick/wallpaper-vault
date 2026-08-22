@@ -54,8 +54,11 @@ async def start_audit(
     # This might catch other tasks, but since we only have audit and import,
     # we should ideally tag tasks. For now, let's check.
 
+    from app.models.library_path import LibraryPath
+
+    lp_exists = (await db.execute(select(func.count(LibraryPath.id)))).scalar() or 0
     vault_setting = await get_setting(db, "base_library_path")
-    if not vault_setting or not vault_setting.value:
+    if lp_exists == 0 and (not vault_setting or not vault_setting.value):
         raise HTTPException(status_code=400, detail="base_library_path not configured")
 
     # Clear ALL old pending/ignored issues before starting a fresh scan
@@ -68,7 +71,7 @@ async def start_audit(
 
     task_id = await tasks.create_task(db, status=TaskStatus.ACCEPTED, prefix="audit")
     background_tasks.add_task(
-        audit_service.run_library_audit, vault_setting.value, task_id
+        audit_service.run_library_audit, None, task_id
     )
 
     return {"task_id": task_id, "status": TaskStatus.ACCEPTED}

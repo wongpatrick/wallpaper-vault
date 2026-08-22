@@ -132,6 +132,7 @@ class ImageImportRequest(BaseModel):
     creator_name: Optional[str] = Field(None, description="Global creator/artist to assign by default.")
     set_title: Optional[str] = Field(None, description="Global set name/title to assign by default.")
     set_id: Optional[int] = Field(None, description="Global set ID to import into, if assigning to an existing set.")
+    library_path_id: Optional[int] = Field(None, description="Optional library path ID to import into.")
     tags: Optional[list[str]] = Field(None, description="Global tags to assign to all imported files.")
     rating: Optional[str] = Field("questionable", description="Global content rating.")
     delete_source: bool = Field(False, description="Whether to delete source files after successful import.")

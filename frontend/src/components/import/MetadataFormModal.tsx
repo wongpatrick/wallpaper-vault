@@ -4,7 +4,7 @@
  * Description: Displays a form allowing users to assign global creators, sets, tags, and ratings
  * to dropped files/folders, showing a preview list with phash duplicate warnings and overrides.
  */
-import { useMemo, Fragment } from 'react';
+import { useMemo, useState, useEffect, Fragment } from 'react';
 import { 
     Modal, TextInput, Stack, Button, Group, Text, Checkbox, 
     Table, Badge, ScrollArea, ActionIcon, Tooltip, Select, 
@@ -17,6 +17,7 @@ import { useTasks } from '../../hooks/useTasks';
 import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
 import { useReadSetsApiSetsGet } from '../../api/generated/sets/sets';
 import { useReadSettingsApiSettingsGet } from '../../api/generated/settings/settings';
+import { useListLibraryPathsApiLibraryPathsGet } from '../../api/generated/library-paths/library-paths';
 import { useImportValidation } from './hooks/useImportValidation';
 
 const OPACITY_DESELECTED = 0.6;
@@ -43,6 +44,21 @@ export function MetadataFormModal({
     const { data: creatorsData } = useReadCreatorsApiCreatorsGet({ limit: 1000 });
     const { data: setsData } = useReadSetsApiSetsGet({ limit: 1000 });
     const { data: settingsData } = useReadSettingsApiSettingsGet();
+    const { data: libraryPathsData } = useListLibraryPathsApiLibraryPathsGet();
+
+    const [selectedLibraryPathId, setSelectedLibraryPathId] = useState<string | null>(null);
+
+    const libraryPaths = useMemo(() => libraryPathsData?.items || [], [libraryPathsData]);
+
+    useEffect(() => {
+        if (opened) {
+            const defaultLp = libraryPaths.find(p => p.is_default) || libraryPaths[0];
+            if (defaultLp) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect
+                setSelectedLibraryPathId(defaultLp.id.toString());
+            }
+        }
+    }, [opened, libraryPaths]);
 
     const validation = useImportValidation({
         opened,
@@ -57,12 +73,24 @@ export function MetadataFormModal({
     const { addTask } = useTasks();
 
     const isSourceInVault = useMemo(() => {
-        if (!isElectron || !settingsData || initialLocalPaths.length === 0) return false;
-        const vaultSetting = settingsData.find(s => s.key === 'base_library_path');
-        if (!vaultSetting?.value) return false;
-        const vaultPath = vaultSetting.value.replace(/\\/g, '/').toLowerCase();
-        return initialLocalPaths.some(p => p.replace(/\\/g, '/').toLowerCase().startsWith(vaultPath));
-    }, [isElectron, settingsData, initialLocalPaths]);
+        if (!isElectron || initialLocalPaths.length === 0) return false;
+        const paths: string[] = [];
+        if (libraryPaths.length > 0) {
+            libraryPaths.forEach(p => {
+                if (p.path) paths.push(p.path);
+            });
+        } else if (settingsData) {
+            const vaultSetting = settingsData.find(s => s.key === 'base_library_path');
+            if (vaultSetting?.value) paths.push(vaultSetting.value);
+        }
+        if (paths.length === 0) return false;
+
+        const normalizedVaultPaths = paths.map(p => p.replace(/\\/g, '/').toLowerCase());
+        return initialLocalPaths.some(p => {
+            const normP = p.replace(/\\/g, '/').toLowerCase();
+            return normalizedVaultPaths.some(vp => normP.startsWith(vp));
+        });
+    }, [isElectron, libraryPaths, settingsData, initialLocalPaths]);
 
     const preselectedSetName = useMemo(() => {
         if (!preselectedSetId || !setsData?.items) return null;
@@ -129,9 +157,10 @@ export function MetadataFormModal({
                         creator_name: creatorStr || undefined,
                         set_title: targetSetTitle || undefined,
                         set_id: targetSetId || undefined,
+                        library_path_id: selectedLibraryPathId ? Number(selectedLibraryPathId) : undefined,
                         tags: validation.globalTags.length > 0 ? validation.globalTags : undefined,
                         rating: validation.globalRating,
-                        delete_source: validation.deleteSource
+                        delete_source: isSourceInVault ? false : validation.deleteSource
                     }
                 });
 
@@ -252,6 +281,20 @@ export function MetadataFormModal({
                                         onChange={(val) => validation.setGlobalRating(val || 'questionable')}
                                     />
                                 </Group>
+
+                                {libraryPaths.length > 1 && (
+                                    <Select
+                                        label="Target Storage Location"
+                                        description="Designate which library storage path new sets will be imported into."
+                                        data={libraryPaths.map(p => ({
+                                            value: p.id.toString(),
+                                            label: `${p.label || 'Default Library'} (${p.path})`
+                                        }))}
+                                        value={selectedLibraryPathId}
+                                        onChange={setSelectedLibraryPathId}
+                                        allowDeselect={false}
+                                    />
+                                )}
                                 <Tooltip
                                     label="Source files are inside the vault and cannot be deleted."
                                     disabled={!isSourceInVault}

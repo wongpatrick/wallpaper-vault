@@ -17,6 +17,7 @@ class SetBase(BaseModel):
     notes: Optional[str] = Field(None, description="User-provided notes or context for the set.")
     tags: list[str] = Field(default_factory=list, description="List of descriptive tag names for the set.")
     characters: list[str] = Field(default_factory=list, description="List of character names for the set.")
+    library_path_id: Optional[int] = Field(None, description="The library path ID this set belongs to.")
 
     @field_validator('tags', mode='before')
     @classmethod
