@@ -22,6 +22,7 @@ import { Notifications } from '@mantine/notifications'
 import { ModalsProvider } from '@mantine/modals'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NotificationProvider } from './context/NotificationProvider'
+import { VaultProvider } from './context/VaultProvider'
 import { TaskProvider } from './context/TaskProvider'
 import BackendStatusGuard from './components/ui/BackendStatusGuard'
 import ApiKeyModal from './components/ui/ApiKeyModal'
@@ -143,11 +144,13 @@ function App() {
           <NotificationProvider>
             <Notifications position="top-right" />
             <ApiKeyModal />
-            <TaskProvider>
-              <BackendStatusGuard>
-                <RouterProvider router={router} />
-              </BackendStatusGuard>
-            </TaskProvider>
+            <VaultProvider>
+              <TaskProvider>
+                <BackendStatusGuard>
+                  <RouterProvider router={router} />
+                </BackendStatusGuard>
+              </TaskProvider>
+            </VaultProvider>
           </NotificationProvider>
         </ModalsProvider>
       </MantineProvider>

@@ -18,6 +18,7 @@ from app.api import rotation_history
 from app.api import rotation_profiles
 from app.api import rotation_rules
 from app.api import library_paths
+from app.api import vault
 
 api_router = APIRouter()
 
@@ -37,3 +38,4 @@ api_router.include_router(rotation_history.router, prefix="/rotation-history", t
 api_router.include_router(rotation_profiles.router, prefix="/rotation-profiles", tags=["rotation-profiles"])
 api_router.include_router(rotation_rules.router, prefix="/rotation-rules", tags=["rotation-rules"])
 api_router.include_router(library_paths.router, prefix="/library-paths", tags=["library-paths"])
+api_router.include_router(vault.router, prefix="/vault", tags=["vault"])

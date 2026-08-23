@@ -8,6 +8,7 @@ import { AppShell, Title, Box, Button, Group, ActionIcon, Tooltip, Popover, Indi
 import SideNav from "./SideNav"
 import TitleBarControls from "./TitleBarControls"
 import GlobalSearch from "./GlobalSearch"
+import { VaultSwitcher } from "./VaultSwitcher"
 import classes from './Layout.module.css';
 import { useSidebarResizer } from "../../hooks/useSidebarResizer";
 import { IconPackage, IconBell, IconCheck, IconX, IconCloudUpload } from "@tabler/icons-react";
@@ -321,10 +322,13 @@ export default function MainLayout() {
                 <AppShell.Header className={classes.header} style={{ display: 'flex', flexDirection: 'column' }}>
                     <DemoBanner onDismiss={() => setBannerDismissed(true)} />
                     <Group h={HEADER_HEIGHT_DEFAULT_PX} px="md" justify="space-between" wrap="nowrap" style={{ flex: 1 }}>
-                    <Group style={{ flex: 1, maxWidth: 500 }} wrap="nowrap" gap="sm">
+                    <Group style={{ flex: 1, maxWidth: 650 }} wrap="nowrap" gap="sm">
                         <Burger opened={mobileOpened} onClick={toggleMobile} hiddenFrom="sm" size="sm" className={classes.noDrag} />
                         <Box className={classes.noDrag} style={{ flex: 1, maxWidth: 320 }}>
                             <GlobalSearch />
+                        </Box>
+                        <Box className={classes.noDrag}>
+                            <VaultSwitcher />
                         </Box>
                     </Group>
 
