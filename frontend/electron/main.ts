@@ -10,8 +10,12 @@ import fs from 'node:fs';
 import { spawn, ChildProcess, exec } from 'node:child_process';
 import net from 'node:net';
 import http from 'node:http';
+import https from 'node:https';
+import { VaultRegistryManager } from './vaultRegistry';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+let vaultRegistryManager: VaultRegistryManager | null = null;
 
 const DEFAULT_PORT = 8000;
 const STARTUP_TIMEOUT_MS = 20000;
@@ -21,6 +25,8 @@ const PING_TIMEOUT_MS = 2000;
 const RESTART_ATTEMPT_DELAY_MS = 2000;
 const RESTART_MANUAL_DELAY_MS = 500;
 const HTTP_STATUS_OK = 200;
+const HTTP_DEFAULT_PORT = 80;
+const HTTPS_DEFAULT_PORT = 443;
 const MAX_AUTO_RESTARTS = 3;
 
 let mainWindow: BrowserWindow | null = null;
@@ -874,19 +880,67 @@ function createWindow() {
         return await getSystemWallpapers();
     });
 
+    ipcMain.handle('get-vault-registry', () => {
+        return vaultRegistryManager?.getRegistry() || { activeVaultId: 'local-vault', vaults: [] };
+    });
+
+    ipcMain.handle('get-active-vault', () => {
+        return vaultRegistryManager?.getActiveVault();
+    });
+
+    ipcMain.handle('set-active-vault', (_event, vaultId: string) => {
+        return vaultRegistryManager?.setActiveVault(vaultId);
+    });
+
+    ipcMain.handle('add-vault', async (_event, payload: { label: string; url: string; apiKey?: string }) => {
+        return await vaultRegistryManager?.addVault(payload);
+    });
+
+    ipcMain.handle('update-vault', async (_event, id: string, updates: Partial<{ label: string; url: string; apiKey: string }>) => {
+        return await vaultRegistryManager?.updateVault(id, updates);
+    });
+
+    ipcMain.handle('remove-vault', (_event, id: string) => {
+        return vaultRegistryManager?.removeVault(id);
+    });
+
+    ipcMain.handle('test-vault-connection', async (_event, url: string, apiKey?: string) => {
+        return await vaultRegistryManager?.testConnection(url, apiKey);
+    });
+
     ipcMain.handle('set-wallpaper', async (_event, { imageId, monitorIndex, style }) => {
         const port = getBackendPort();
+        const activeVault = vaultRegistryManager?.getActiveVault();
+        const baseUrl = activeVault ? activeVault.url : `http://127.0.0.1:${port}`;
+        const apiKey = activeVault?.apiKey || '';
+
         const parsedMonitorIndex = typeof monitorIndex === 'number' ? monitorIndex : parseInt(String(monitorIndex), 10);
         const effectiveStyle = style || 'fill';
         
         const tempDir = app.getPath('temp');
         const filename = `wallpaper-vault-active-monitor-${parsedMonitorIndex === -1 ? 'all' : parsedMonitorIndex}-id-${imageId}.jpg`;
         const tempPath = path.join(tempDir, filename);
-        const fileUrl = `http://127.0.0.1:${port}/api/images/file/${imageId}`;
+        const cleanBaseUrl = baseUrl.replace(/\/+$/, '');
+        const fileUrl = `${cleanBaseUrl}/api/images/file/${imageId}`;
 
         return new Promise((resolve) => {
+            let parsedUrl: URL;
+            try {
+                parsedUrl = new URL(fileUrl);
+            } catch (urlErr) {
+                resolve({ success: false, error: String(urlErr) });
+                return;
+            }
+
+            const isHttps = parsedUrl.protocol === 'https:';
+            const client = isHttps ? https : http;
+            const headers: Record<string, string> = {};
+            if (apiKey) {
+                headers['X-API-Key'] = apiKey;
+            }
+
             const fileStream = fs.createWriteStream(tempPath);
-            http.get(fileUrl, (res) => {
+            const req = client.get(fileUrl, { headers }, (res) => {
                 if (res.statusCode !== HTTP_STATUS_OK) {
                     fileStream.close();
                     console.error(`[Main IPC] Failed to fetch image ${imageId}, status code: ${res.statusCode}`);
@@ -909,14 +963,15 @@ function createWindow() {
                             style: effectiveStyle
                         });
 
-                        const req = http.request({
-                            hostname: '127.0.0.1',
-                            port: port,
+                        const postReq = client.request({
+                            hostname: parsedUrl.hostname,
+                            port: parsedUrl.port || (isHttps ? HTTPS_DEFAULT_PORT : HTTP_DEFAULT_PORT),
                             path: '/api/rotation-history/set-wallpaper',
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Content-Length': Buffer.byteLength(postData)
+                                'Content-Length': Buffer.byteLength(postData),
+                                ...(apiKey ? { 'X-API-Key': apiKey } : {})
                             }
                         }, (apiRes) => {
                             apiRes.resume();
@@ -924,21 +979,22 @@ function createWindow() {
                             resolve({ success: true });
                         });
 
-                        req.on('error', (err) => {
+                        postReq.on('error', (err) => {
                             console.error('[Main IPC] Failed to inform backend of wallpaper update:', err);
                             fetchCurrentWallpaperInfo(port);
                             resolve({ success: true });
                         });
 
-                        req.write(postData);
-                        req.end();
+                        postReq.write(postData);
+                        postReq.end();
                     } catch (nativeErr: unknown) {
                         const errMsg = nativeErr instanceof Error ? nativeErr.message : 'Native wallpaper execution failed';
                         console.error('[Main IPC] setWallpaperNatively failed:', nativeErr);
                         resolve({ success: false, error: errMsg });
                     }
                 });
-            }).on('error', (err) => {
+            });
+            req.on('error', (err) => {
                 console.error('[Main IPC] File download error:', err);
                 fileStream.close();
                 resolve({ success: false, error: err.message });
@@ -978,6 +1034,13 @@ app.on('before-quit', () => {
 });
 
 app.whenReady().then(() => {
+    vaultRegistryManager = new VaultRegistryManager(getBackendPort);
+    vaultRegistryManager.startHealthMonitoring((data) => {
+        if (mainWindow && !mainWindow.webContents.isDestroyed()) {
+            mainWindow.webContents.send('vault-registry-updated', data);
+        }
+    });
+
     startBackend();
     createWindow();
     // Delay tray creation by 1s to allow OS/GPU systems to stabilize

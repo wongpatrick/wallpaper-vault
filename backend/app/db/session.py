@@ -104,4 +104,25 @@ def run_startup_migrations(connection):
                             {"lid": inserted_id}
                         )
         except Exception:
+            pass
+
+    # Ensure vault_id and vault_name exist in settings
+    if res_settings:
+        import uuid
+        import socket
+        try:
+            vault_id_row = connection.execute(text("SELECT value FROM settings WHERE key = 'vault_id'")).fetchone()
+            if not vault_id_row:
+                connection.execute(
+                    text("INSERT INTO settings (key, value, description) VALUES (:key, :value, :description)"),
+                    {"key": "vault_id", "value": str(uuid.uuid4()), "description": "Unique identifier for this vault instance"}
+                )
+            vault_name_row = connection.execute(text("SELECT value FROM settings WHERE key = 'vault_name'")).fetchone()
+            if not vault_name_row:
+                hostname = socket.gethostname() or "Local Vault"
+                connection.execute(
+                    text("INSERT INTO settings (key, value, description) VALUES (:key, :value, :description)"),
+                    {"key": "vault_name", "value": hostname, "description": "Display name for this vault instance"}
+                )
+        except Exception:
             pass

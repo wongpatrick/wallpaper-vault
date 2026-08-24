@@ -1,7 +1,7 @@
 /**
  * @file
  * Backend Status Guard component.
- * Restricts app access while the backend service is starting, crashed, or experiencing port collisions, providing recovery modals.
+ * Restricts app access while the active backend (local or remote) is starting, crashed, offline, or experiencing port collisions, providing recovery modals.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -18,7 +18,8 @@ import {
     Loader, 
     NumberInput, 
     Modal,
-    Box
+    Box,
+    Select
 } from '@mantine/core';
 import { 
     IconAlertTriangle, 
@@ -28,9 +29,12 @@ import {
     IconPlug, 
     IconSettings,
     IconChevronDown,
-    IconChevronUp
+    IconChevronUp,
+    IconServer,
+    IconLock
 } from '@tabler/icons-react';
 import { AXIOS_INSTANCE } from '../../api/axios-instance';
+import { useVault } from '../../hooks/useVault';
 import type { BackendStatusInfo } from '../../types/electron';
 
 const DEFAULT_PORT = 8000;
@@ -46,6 +50,7 @@ interface BackendStatusGuardProps {
 
 export default function BackendStatusGuard({ children }: BackendStatusGuardProps) {
     const isElectron = typeof window !== 'undefined' && 'electron' in window;
+    const { activeVault, vaults, switchVault, refreshHealth } = useVault();
     
     const [statusInfo, setStatusInfo] = useState<BackendStatusInfo>({
         status: isElectron ? 'starting' : 'running',
@@ -71,10 +76,14 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
     }, [statusInfo.port]);
 
     useEffect(() => {
-        const customBackendUrl = localStorage.getItem('backend_url') || '';
+        if (!activeVault.isLocal) {
+            // Active vault is remote; health is tracked by VaultProvider
+            return;
+        }
 
-        if (customBackendUrl || !isElectron) {
+        if (!isElectron) {
             let timeoutId: ReturnType<typeof setTimeout>;
+            const customBackendUrl = localStorage.getItem('backend_url') || '';
             const targetUrl = customBackendUrl || `http://localhost:${DEFAULT_PORT}`;
 
             // Web fallback / remote URL check
@@ -114,7 +123,7 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
             return () => clearTimeout(timeoutId);
         }
 
-        // Electron setup
+        // Electron local setup
         const initStatus = async () => {
             try {
                 const status = await window.electron.getBackendStatus();
@@ -127,9 +136,10 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
         initStatus();
 
         // Listen for updates from Main process
-        const unsubscribe = window.electron.onBackendStatusChange((status) => {
-            setStatusInfo(status);
-            if (status.status === 'running') {
+        const unsubscribe = window.electron.onBackendStatusChange((status: unknown) => {
+            const statusData = status as BackendStatusInfo;
+            setStatusInfo(statusData);
+            if (statusData.status === 'running') {
                 setIsRetrying(false);
             }
         });
@@ -137,17 +147,19 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
         return () => {
             unsubscribe();
         };
-    }, [isElectron]);
+    }, [isElectron, activeVault.isLocal, activeVault.id]);
 
     const handleRetry = async () => {
-        if (!isElectron) {
-            window.location.reload();
-            return;
-        }
         setIsRetrying(true);
         try {
-            await window.electron.restartBackend();
-            // Timeout safety to disable spinner if nothing changes
+            if (!activeVault.isLocal) {
+                await refreshHealth();
+            } else if (!isElectron) {
+                window.location.reload();
+                return;
+            } else {
+                await window.electron.restartBackend();
+            }
             setTimeout(() => setIsRetrying(false), RETRY_TIMEOUT_MS);
         } catch (err) {
             console.error('Retry failed:', err);
@@ -184,12 +196,109 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
         }
     };
 
+    const handleSwitchToLocal = () => {
+        const localVault = vaults.find(v => v.isLocal) || vaults[0];
+        if (localVault) {
+            switchVault(localVault.id);
+        }
+    };
+
     // Render normal application when backend is successfully connected
-    if (statusInfo.status === 'running') {
+    if (activeVault.isLocal && statusInfo.status === 'running') {
         return <>{children}</>;
     }
 
-    // Diagnostic visual helpers
+    if (!activeVault.isLocal && activeVault.status === 'online') {
+        return <>{children}</>;
+    }
+
+    // Remote vault offline/unauthorized guard screen
+    if (!activeVault.isLocal) {
+        const isUnauthorized = activeVault.status === 'unauthorized';
+        return (
+            <Box
+                style={{
+                    width: '100vw',
+                    height: '100vh',
+                    backgroundColor: '#0a0b0d',
+                    color: '#eceff4',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden'
+                }}
+            >
+                <Container size="xs" w="100%">
+                    <Paper
+                        p="xl"
+                        radius="lg"
+                        style={{
+                            background: 'rgba(23, 26, 32, 0.85)',
+                            backdropFilter: 'blur(16px)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            boxShadow: `0 20px 40px rgba(0, 0, 0, 0.5), 0 0 50px ${isUnauthorized ? 'rgba(255, 193, 7, 0.15)' : 'rgba(244, 67, 54, 0.15)'}`,
+                            transition: 'all 0.5s ease-in-out'
+                        }}
+                    >
+                        <Stack align="center" gap="lg" ta="center">
+                            <ThemeIcon color={isUnauthorized ? "yellow" : "red"} size={54} radius="xl" variant="light">
+                                {isUnauthorized ? <IconLock size={32} /> : <IconAlertTriangle size={32} />}
+                            </ThemeIcon>
+
+                            <Stack gap="xs">
+                                <Title order={2} style={{ letterSpacing: '-0.5px' }}>
+                                    {isUnauthorized ? 'Authentication Failed' : 'Remote Vault Unreachable'}
+                                </Title>
+                                <Text size="sm" c="dimmed" px="md">
+                                    {isUnauthorized
+                                        ? `The configured API key for "${activeVault.label}" is invalid or missing. Please update the API key in Settings.`
+                                        : `Unable to establish a connection to "${activeVault.label}" at ${activeVault.url}.`}
+                                </Text>
+                            </Stack>
+
+                            <Stack w="100%" gap="sm" mt="md">
+                                <Button
+                                    onClick={handleSwitchToLocal}
+                                    leftSection={<IconServer size={18} />}
+                                    color="blue"
+                                    radius="md"
+                                    size="md"
+                                >
+                                    Switch to Local Vault
+                                </Button>
+
+                                <Button
+                                    onClick={handleRetry}
+                                    loading={isRetrying}
+                                    leftSection={<IconRefresh size={18} />}
+                                    variant="light"
+                                    color="gray"
+                                    radius="md"
+                                    size="md"
+                                >
+                                    Retry Connection
+                                </Button>
+
+                                {vaults.length > 2 && (
+                                    <Select
+                                        placeholder="Switch to another vault..."
+                                        data={vaults.filter(v => v.id !== activeVault.id).map(v => ({ value: v.id, label: v.label }))}
+                                        onChange={(val) => { if (val) switchVault(val); }}
+                                        radius="md"
+                                        size="xs"
+                                        mt="xs"
+                                    />
+                                )}
+                            </Stack>
+                        </Stack>
+                    </Paper>
+                </Container>
+            </Box>
+        );
+    }
+
+    // Diagnostic visual helpers for local backend
     const getStatusConfig = () => {
         switch (statusInfo.status) {
             case 'starting':

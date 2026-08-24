@@ -23,6 +23,13 @@ contextBridge.exposeInMainWorld('electron', {
             ipcRenderer.removeListener('backend-status-change', subscription);
         };
     },
+    onVaultRegistryUpdated: (callback: (data: unknown) => void) => {
+        const subscription = (_event: unknown, data: unknown) => callback(data);
+        ipcRenderer.on('vault-registry-updated', subscription);
+        return () => {
+            ipcRenderer.removeListener('vault-registry-updated', subscription);
+        };
+    },
     onDisplaysChanged: (callback: () => void) => {
         const subscription = () => callback();
         ipcRenderer.on('displays-changed', subscription);
@@ -50,5 +57,12 @@ contextBridge.exposeInMainWorld('electron', {
     getMonitors: (forceRefresh?: boolean) => ipcRenderer.invoke('get-monitors', forceRefresh),
     getSystemWallpapers: () => ipcRenderer.invoke('get-system-wallpapers'),
     setWallpaper: (imageId: number, monitorIndex: number, style: string) => ipcRenderer.invoke('set-wallpaper', { imageId, monitorIndex, style }),
+    getVaultRegistry: () => ipcRenderer.invoke('get-vault-registry'),
+    getActiveVault: () => ipcRenderer.invoke('get-active-vault'),
+    setActiveVault: (vaultId: string) => ipcRenderer.invoke('set-active-vault', vaultId),
+    addVault: (payload: { label: string; url: string; apiKey?: string }) => ipcRenderer.invoke('add-vault', payload),
+    updateVault: (id: string, updates: Record<string, unknown>) => ipcRenderer.invoke('update-vault', id, updates),
+    removeVault: (id: string) => ipcRenderer.invoke('remove-vault', id),
+    testVaultConnection: (url: string, apiKey?: string) => ipcRenderer.invoke('test-vault-connection', url, apiKey),
     platform: process.platform,
 })

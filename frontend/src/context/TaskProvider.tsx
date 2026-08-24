@@ -253,8 +253,25 @@ export function TaskProvider({ children }: TaskProviderProps) {
 
         connect();
 
+        const handleVaultSwitched = () => {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            if (retryTimeout) {
+                clearTimeout(retryTimeout);
+                retryTimeout = null;
+            }
+            setTasks({});
+            retryDelay = INITIAL_RETRY_DELAY_MS;
+            connect();
+        };
+
+        window.addEventListener('vault-switched', handleVaultSwitched);
+
         return () => {
             isUnmounted = true;
+            window.removeEventListener('vault-switched', handleVaultSwitched);
             if (retryTimeout) clearTimeout(retryTimeout);
             if (eventSource) eventSource.close();
         };

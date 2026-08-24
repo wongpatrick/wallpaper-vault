@@ -8,6 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Wallpaper Vault API"
+    VERSION: str = "0.1.0"
 
     DATABASE_URL: str = "sqlite+aiosqlite:///../db/wallpapers.db"
     API_KEY: str = ""

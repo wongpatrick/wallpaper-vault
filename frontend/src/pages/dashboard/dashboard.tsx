@@ -23,7 +23,9 @@ import {
     Image,
     Box,
     Tabs,
-    Progress
+    Progress,
+    ActionIcon,
+    Tooltip
 } from '@mantine/core';
 import { 
     IconAlertCircle, 
@@ -35,7 +37,8 @@ import {
     IconDatabase,
     IconExternalLink,
     IconArrowRight,
-    IconTags
+    IconTags,
+    IconRefresh
 } from '@tabler/icons-react';
 import { useReadDashboardDataApiDashboardGet } from '../../api/generated/dashboard/dashboard';
 import { useReadSetsApiSetsGet } from '../../api/generated/sets/sets';
@@ -46,6 +49,8 @@ import { useReadFranchisesApiFranchisesGet } from '../../api/generated/franchise
 import { formatBytes, getImageUrl } from '../../utils/fileUtils';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import TagCloud from '../../components/ui/TagCloud';
+
+const INSPIRATION_ROTATION_INTERVAL_MS = 20000;
 
 export default function Dashboard() {
     const navigate = useNavigate();
@@ -59,8 +64,23 @@ export default function Dashboard() {
         limit: 5
     });
 
-    // 3. Fetch Random Inspiration
-    const { data: randomImage } = useReadRandomImageApiImagesRandomGet({ log_rotation: false });
+    // 3. Fetch Random Inspiration with auto-rotation interval
+    const { 
+        data: randomImage, 
+        refetch: refetchInspiration, 
+        isFetching: isFetchingInspiration 
+    } = useReadRandomImageApiImagesRandomGet(
+        { log_rotation: false },
+        {
+            query: {
+                refetchInterval: INSPIRATION_ROTATION_INTERVAL_MS,
+                refetchIntervalInBackground: false,
+                staleTime: 0,
+                refetchOnMount: 'always',
+                refetchOnWindowFocus: true
+            }
+        }
+    );
 
     // 4. Fetch Tag Clouds (Sets & Images)
     const { data: setTagCloud } = useReadTagCloudApiTagsCloudGet({ limit: 50, scope: 'sets' });
@@ -347,7 +367,20 @@ export default function Dashboard() {
                     </Stack>
 
                     <Stack gap="md">
-                        <Title order={3} size="h4">Inspiration</Title>
+                        <Group justify="space-between" align="center">
+                            <Title order={3} size="h4">Inspiration</Title>
+                            <Tooltip label="Shuffle inspiration">
+                                <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
+                                    size="sm"
+                                    onClick={() => refetchInspiration()}
+                                    loading={isFetchingInspiration}
+                                >
+                                    <IconRefresh size={16} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </Group>
                         {randomImage ? (
                             <Card withBorder radius="md" p={0}>
                                 <Card.Section>

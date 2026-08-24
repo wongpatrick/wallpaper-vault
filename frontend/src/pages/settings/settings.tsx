@@ -33,6 +33,7 @@ import { UnsavedChangesModal } from './components/UnsavedChangesModal';
 import { AppInfoSection } from './components/AppInfoSection';
 import { CacheManagementSection } from './components/CacheManagementSection';
 import { LibraryPathsSection } from './components/LibraryPathsSection';
+import { ConnectedVaultsSection } from './components/ConnectedVaultsSection';
 import { PathInput } from '../../components/ui/PathInput';
 import {
     checkAiModelStatusApiSettingsCacheAiModelsStatusPost,
@@ -107,6 +108,7 @@ export default function Settings() {
                 <Text c="dimmed" mb="xl">Configure your Wallpaper Vault experience.</Text>
 
                 <Stack gap="xl">
+                    <ConnectedVaultsSection />
                     <LibraryPathsSection />
 
                     <SettingsSection 

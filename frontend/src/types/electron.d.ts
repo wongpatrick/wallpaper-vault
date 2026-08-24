@@ -19,9 +19,37 @@ export interface MonitorInfo {
     bounds: { width: number; height: number; x: number; y: number; };
 }
 
+export interface VaultEntry {
+    id: string;
+    label: string;
+    url: string;
+    apiKey?: string;
+    isLocal: boolean;
+    status?: 'online' | 'offline' | 'unauthorized';
+    lastSeen?: string;
+    vaultId?: string;
+    vaultName?: string;
+    version?: string;
+}
+
+export interface VaultRegistryData {
+    activeVaultId: string;
+    vaults: VaultEntry[];
+}
+
+export interface TestConnectionResult {
+    success: boolean;
+    status: 'online' | 'offline' | 'unauthorized';
+    vaultId?: string;
+    vaultName?: string;
+    version?: string;
+    error?: string;
+}
+
 export interface ElectronAPI {
     onWindowMaximizedChange: (callback: (isMaximized: boolean) => void) => () => void;
     onBackendStatusChange: (callback: (status: BackendStatusInfo) => void) => () => void;
+    onVaultRegistryUpdated: (callback: (data: VaultRegistryData) => void) => () => void;
     onDisplaysChanged: (callback: () => void) => () => void;
     openDirectory: () => Promise<string | null>;
     openPath: (path: string) => Promise<{ success: boolean; error?: string }>;
@@ -44,6 +72,13 @@ export interface ElectronAPI {
     getMonitors: (forceRefresh?: boolean) => Promise<MonitorInfo[]>;
     getSystemWallpapers: () => Promise<Array<{ comIndex: number; wallpaper: string }>>;
     setWallpaper: (imageId: number, monitorIndex: number, style: string) => Promise<{ success: boolean; error?: string }>;
+    getVaultRegistry: () => Promise<VaultRegistryData>;
+    getActiveVault: () => Promise<VaultEntry>;
+    setActiveVault: (vaultId: string) => Promise<VaultEntry>;
+    addVault: (payload: { label: string; url: string; apiKey?: string }) => Promise<VaultEntry>;
+    updateVault: (id: string, updates: Partial<{ label: string; url: string; apiKey: string }>) => Promise<VaultEntry>;
+    removeVault: (id: string) => Promise<VaultRegistryData>;
+    testVaultConnection: (url: string, apiKey?: string) => Promise<TestConnectionResult>;
 }
 
 declare global {
@@ -51,4 +86,3 @@ declare global {
         electron: ElectronAPI;
     }
 }
-
