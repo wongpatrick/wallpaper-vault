@@ -81,10 +81,9 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
             return;
         }
 
-        const customBackendUrl = localStorage.getItem('backend_url') || '';
-
-        if (customBackendUrl || !isElectron) {
+        if (!isElectron) {
             let timeoutId: ReturnType<typeof setTimeout>;
+            const customBackendUrl = localStorage.getItem('backend_url') || '';
             const targetUrl = customBackendUrl || `http://localhost:${DEFAULT_PORT}`;
 
             // Web fallback / remote URL check
@@ -137,9 +136,10 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
         initStatus();
 
         // Listen for updates from Main process
-        const unsubscribe = window.electron.onBackendStatusChange((status) => {
-            setStatusInfo(status);
-            if (status.status === 'running') {
+        const unsubscribe = window.electron.onBackendStatusChange((status: unknown) => {
+            const statusData = status as BackendStatusInfo;
+            setStatusInfo(statusData);
+            if (statusData.status === 'running') {
                 setIsRetrying(false);
             }
         });

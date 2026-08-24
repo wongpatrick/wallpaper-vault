@@ -89,10 +89,13 @@ export function VaultProvider({ children }: VaultProviderProps) {
                     console.error('[VaultProvider] Failed to load registry from Electron:', err);
                 }
             } else {
-                const currentActive = registry.vaults.find(v => v.id === registry.activeVaultId) || registry.vaults[0];
-                if (currentActive) {
-                    applyVaultConnection(currentActive);
-                }
+                setRegistry((prev) => {
+                    const currentActive = prev.vaults.find(v => v.id === prev.activeVaultId) || prev.vaults[0];
+                    if (currentActive) {
+                        applyVaultConnection(currentActive);
+                    }
+                    return prev;
+                });
             }
             if (isMounted) {
                 setIsLoading(false);
@@ -117,7 +120,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
         return () => {
             isMounted = false;
         };
-    }, [isElectron, applyVaultConnection, registry.activeVaultId, registry.vaults]);
+    }, [isElectron, applyVaultConnection]);
 
     const switchVault = useCallback(async (vaultId: string) => {
         const targetVault = registry.vaults.find(v => v.id === vaultId);
