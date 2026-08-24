@@ -4,9 +4,11 @@
  * Description: Lists all wallpaper sets with search, filtering, pagination, and bulk management capabilities.
  */
 import { useState } from 'react';
-import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Select, Box, Overlay, Button, SegmentedControl, Table, Image, Checkbox } from '@mantine/core';
+import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Select, Box, Overlay, Button, SegmentedControl, Table, Image, Checkbox, Badge } from '@mantine/core';
 import { IconAlertCircle, IconSearch, IconFilter, IconCheck, IconList, IconLayoutGrid } from '@tabler/icons-react';
-import { useReadSetsApiSetsGet, useDeleteSetApiSetsSetIdDelete } from '../../api/generated/sets/sets';
+import { useDeleteSetApiSetsSetIdDelete } from '../../api/generated/sets/sets';
+import { useMultiVaultSets } from '../../hooks/useMultiVaultQuery';
+import { AggregatedVaultBanner } from '../../components/vault/AggregatedVaultBanner';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { SetCard } from '../../components/sets/SetCard';
@@ -22,6 +24,10 @@ import { PaginationWithSkip } from '../../components/ui/PaginationWithSkip';
 import { SortControl } from '../../components/ui/SortControl';
 import { CharacterAutocompleteInput } from '../../components/ui/CharacterAutocompleteInput';
 import { FranchiseAutocompleteInput } from '../../components/ui/FranchiseAutocompleteInput';
+import { useVault } from '../../hooks/useVault';
+import type { Set as SetModel } from '../../api/model';
+import type { WithMultiVault } from '../../types/vault';
+
 
 const PAGE_SIZE = 12;
 const SEARCH_DEBOUNCE_MS = 500;
@@ -34,6 +40,7 @@ export default function Sets() {
     const { search, localSearch, setLocalSearch } = useUrlSearch(SEARCH_DEBOUNCE_MS);
     const { page, setPage, totalPages: getTotalPages } = useUrlPagination(PAGE_SIZE);
     const [createModalOpened, setCreateModalOpened] = useState(false);
+    const { activeVault, switchVault } = useVault();
 
     // View state
     const view = searchParams.get('view') || 'card';
@@ -48,7 +55,18 @@ export default function Sets() {
     // Selection State
     const { selectionMode, setSelectionMode, selectedIds, toggle: toggleSelect, selectAll, clear: clearSelection, startSelectionWith } = useSelection();
 
-    const { data: pageData, isLoading, isFetching, error, refetch } = useReadSetsApiSetsGet({
+    const { 
+        data: pageData, 
+        isLoading, 
+        isFetching, 
+        error, 
+        refetch,
+        isAggregated,
+        onlineCount,
+        totalVaultsCount,
+        offlineVaults
+    } = useMultiVaultSets({
+
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
         search: search || undefined,
@@ -58,6 +76,7 @@ export default function Sets() {
         sort_by: sortBy,
         sort_dir: sortDir
     });
+
 
     const sets = pageData?.items || [];
     const totalCount = pageData?.total || 0;
@@ -127,6 +146,10 @@ export default function Sets() {
             confirmProps: { color: 'red' },
             onConfirm: async () => {
                 try {
+                    const multiSet = targetSet as WithMultiVault<SetModel>;
+                    if (isAggregated && multiSet?._vaultId && activeVault.id !== multiSet._vaultId) {
+                        await switchVault(multiSet._vaultId);
+                    }
                     await deleteMutation.mutateAsync({ setId });
                     notifications.show({
                         title: 'Set deleted',
@@ -152,10 +175,18 @@ export default function Sets() {
 
 
 
+
     const selectedSets = sets.filter(s => selectedIds.has(s.id));
 
     return (
         <Container fluid px="xl" style={{ position: 'relative', paddingBottom: selectionMode ? PADDING_SELECTION_MODE_PX : PADDING_DEFAULT_PX }}>
+            <AggregatedVaultBanner
+                isAggregated={isAggregated}
+                onlineCount={onlineCount}
+                totalVaultsCount={totalVaultsCount}
+                offlineVaults={offlineVaults}
+            />
+
             <Group justify="space-between" align="flex-start" mb="xs">
                 <Stack gap={0}>
                     <Title order={1}>📚 Wallpaper Sets</Title>
@@ -179,6 +210,7 @@ export default function Sets() {
                     </Button>
                 </Group>
             </Group>
+
 
             <Group mb="xl" align="flex-end" style={{ flexWrap: 'wrap', gap: 'var(--mantine-spacing-md)' }}>
                 <Stack gap={4} style={{ flex: 1, minWidth: 220, maxWidth: 400 }}>
@@ -281,15 +313,22 @@ export default function Sets() {
                                             </Table.Thead>
                                             <Table.Tbody>
                                                 {sets.map(set => {
+                                                    const multiSet = set as WithMultiVault<SetModel>;
+                                                    const itemKey = `${multiSet._vaultId || 'local'}-${set.id}`;
                                                     const currentImage = set.images && set.images.length > 0 ? set.images[0] : null;
-                                                    const coverUrl = currentImage ? getThumbnailUrl(currentImage.id, 'sm') : FALLBACK_IMAGE;
+                                                    const coverUrl = currentImage ? getThumbnailUrl(currentImage.id, 'sm', undefined, multiSet._vaultUrl, multiSet._vaultApiKey) : FALLBACK_IMAGE;
                                                     const creatorNames = set.creators?.map(c => c.canonical_name).join(', ') || '-';
                                                     const dateAdded = new Date(set.date_added).toLocaleDateString();
 
                                                     return (
                                                         <Table.Tr 
-                                                            key={set.id}
-                                                            onClick={() => navigate(`/sets/${set.id}`)}
+                                                            key={itemKey}
+                                                            onClick={async () => {
+                                                                if (isAggregated && multiSet._vaultId) {
+                                                                    await switchVault(multiSet._vaultId);
+                                                                }
+                                                                navigate(`/sets/${set.id}`);
+                                                            }}
                                                             style={{ cursor: 'pointer', backgroundColor: selectedIds.has(set.id) ? 'var(--mantine-color-blue-light)' : undefined }}
                                                         >
                                                             <Table.Td onClick={(e) => e.stopPropagation()}>
@@ -304,7 +343,16 @@ export default function Sets() {
                                                             <Table.Td>
                                                                 <Image src={coverUrl} w={80} h={60} radius="sm" fit="cover" />
                                                             </Table.Td>
-                                                            <Table.Td fw={500}>{set.title || 'Untitled Set'}</Table.Td>
+                                                            <Table.Td fw={500}>
+                                                                <Group gap="xs">
+                                                                    {set.title || 'Untitled Set'}
+                                                                    {isAggregated && multiSet._vaultLabel && (
+                                                                        <Badge size="xs" variant="dot" color="teal">
+                                                                            {multiSet._vaultLabel}
+                                                                        </Badge>
+                                                                    )}
+                                                                </Group>
+                                                            </Table.Td>
                                                             <Table.Td>{creatorNames}</Table.Td>
                                                             <Table.Td>{set.images?.length || 0}</Table.Td>
                                                             <Table.Td c="dimmed">{dateAdded}</Table.Td>
@@ -316,23 +364,29 @@ export default function Sets() {
                                     </Table.ScrollContainer>
                                 ) : (
                                     <Box style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 'var(--mantine-spacing-lg)' }}>
-                                        {sets.map((set) => (
-                                            <SetCard 
-                                                key={set.id} 
-                                                set={set} 
-                                                onDelete={handleDelete}
-                                                selectionMode={selectionMode}
-                                                selected={selectedIds.has(set.id)}
-                                                onToggleSelect={() => toggleSelect(set.id)}
-                                                onLongPress={() => {
-                                                    if (!selectionMode) {
-                                                        startSelectionWith(set.id);
-                                                    }
-                                                }}
-                                            />
-                                        ))}
+                                        {sets.map((set) => {
+                                            const multiSet = set as WithMultiVault<SetModel>;
+                                            const itemKey = `${multiSet._vaultId || 'local'}-${set.id}`;
+
+                                            return (
+                                                <SetCard 
+                                                    key={itemKey} 
+                                                    set={set} 
+                                                    onDelete={handleDelete}
+                                                    selectionMode={selectionMode}
+                                                    selected={selectedIds.has(set.id)}
+                                                    onToggleSelect={() => toggleSelect(set.id)}
+                                                    onLongPress={() => {
+                                                        if (!selectionMode) {
+                                                            startSelectionWith(set.id);
+                                                        }
+                                                    }}
+                                                />
+                                            );
+                                        })}
                                     </Box>
                                 )}
+
                                 
                                 {sets.length === 0 && !isFetching && (
                                     <Stack align="center" py={100} gap="md">

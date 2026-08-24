@@ -40,28 +40,48 @@ import {
     IconTags,
     IconRefresh
 } from '@tabler/icons-react';
-import { useReadDashboardDataApiDashboardGet } from '../../api/generated/dashboard/dashboard';
-import { useReadSetsApiSetsGet } from '../../api/generated/sets/sets';
-import { useReadRandomImageApiImagesRandomGet } from '../../api/generated/images/images';
-import { useReadTagCloudApiTagsCloudGet } from '../../api/generated/tags/tags';
-import { useReadCharactersApiCharactersGet } from '../../api/generated/characters/characters';
-import { useReadFranchisesApiFranchisesGet } from '../../api/generated/franchises/franchises';
+
+import { 
+    useMultiVaultDashboard,
+    useMultiVaultSets,
+    useMultiVaultRandomImage,
+    useMultiVaultTagCloud,
+    useMultiVaultCharacters,
+    useMultiVaultFranchises
+} from '../../hooks/useMultiVaultQuery';
+import { useVault } from '../../hooks/useVault';
+import { AggregatedVaultBanner } from '../../components/vault/AggregatedVaultBanner';
 import { formatBytes, getImageUrl } from '../../utils/fileUtils';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import TagCloud from '../../components/ui/TagCloud';
+
+import type { WithMultiVault } from '../../types/vault';
+import type { Set, Image as ImageModel } from '../../api/model';
+
 
 const INSPIRATION_ROTATION_INTERVAL_MS = 20000;
 
 export default function Dashboard() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { switchVault } = useVault();
     
     // 1. Fetch Dashboard Stats
-    const { data: dashboard, isLoading: statsLoading, error: statsError } = useReadDashboardDataApiDashboardGet();
+    const { 
+        data: dashboard, 
+        isLoading: statsLoading, 
+        error: statsError,
+        isAggregated,
+        onlineCount,
+        totalVaultsCount,
+        offlineVaults
+    } = useMultiVaultDashboard();
     
     // 2. Fetch Recent Sets
-    const { data: recentSets, isLoading: setsLoading } = useReadSetsApiSetsGet({
-        limit: 5
+    const { data: recentSets, isLoading: setsLoading } = useMultiVaultSets({
+        limit: 5,
+        sort_by: 'date_added',
+        sort_dir: 'desc'
     });
 
     // 3. Fetch Random Inspiration with auto-rotation interval
@@ -69,30 +89,29 @@ export default function Dashboard() {
         data: randomImage, 
         refetch: refetchInspiration, 
         isFetching: isFetchingInspiration 
-    } = useReadRandomImageApiImagesRandomGet(
+    } = useMultiVaultRandomImage(
         { log_rotation: false },
         {
-            query: {
-                refetchInterval: INSPIRATION_ROTATION_INTERVAL_MS,
-                refetchIntervalInBackground: false,
-                staleTime: 0,
-                refetchOnMount: 'always',
-                refetchOnWindowFocus: true
-            }
+            refetchInterval: INSPIRATION_ROTATION_INTERVAL_MS,
+            refetchIntervalInBackground: false,
+            staleTime: 0,
+            refetchOnMount: 'always',
+            refetchOnWindowFocus: true
         }
     );
 
     // 4. Fetch Tag Clouds (Sets & Images)
-    const { data: setTagCloud } = useReadTagCloudApiTagsCloudGet({ limit: 50, scope: 'sets' });
-    const { data: imageTagCloud } = useReadTagCloudApiTagsCloudGet({ limit: 50, scope: 'images' });
+    const { data: setTagCloud } = useMultiVaultTagCloud({ limit: 50, scope: 'sets' });
+    const { data: imageTagCloud } = useMultiVaultTagCloud({ limit: 50, scope: 'images' });
 
     // 5. Fetch Characters (Sets & Images)
-    const { data: setCharacters } = useReadCharactersApiCharactersGet({ limit: 50, scope: 'sets' });
-    const { data: imageCharacters } = useReadCharactersApiCharactersGet({ limit: 50, scope: 'images' });
+    const { data: setCharacters } = useMultiVaultCharacters({ limit: 50, scope: 'sets' });
+    const { data: imageCharacters } = useMultiVaultCharacters({ limit: 50, scope: 'images' });
 
     // 6. Fetch Franchises (Sets & Images)
-    const { data: setFranchises } = useReadFranchisesApiFranchisesGet({ limit: 50, scope: 'sets' });
-    const { data: imageFranchises } = useReadFranchisesApiFranchisesGet({ limit: 50, scope: 'images' });
+    const { data: setFranchises } = useMultiVaultFranchises({ limit: 50, scope: 'sets' });
+    const { data: imageFranchises } = useMultiVaultFranchises({ limit: 50, scope: 'images' });
+
 
     // 7. Filter and transform tag clouds into pure tag shapes
     const setTagsOnly = useMemo(() => (setTagCloud || []).filter((t) => !t.type || t.type === 'tag'), [setTagCloud]);
@@ -172,6 +191,12 @@ export default function Dashboard() {
 
     return (
         <Container fluid px="xl" py="md">
+            <AggregatedVaultBanner
+                isAggregated={isAggregated}
+                onlineCount={onlineCount}
+                totalVaultsCount={totalVaultsCount}
+                offlineVaults={offlineVaults}
+            />
             <Stack gap="xl">
                 <Box>
                     <Title order={1} mb={rem(4)}>📊 Dashboard</Title>
@@ -277,35 +302,49 @@ export default function Dashboard() {
                             ) : recentSets?.items?.length === 0 ? (
                                 <Text size="sm" c="dimmed">No sets imported yet.</Text>
                             ) : (
-                                recentSets?.items?.map((set) => (
-                                    <Paper 
-                                        key={set.id} 
-                                        withBorder 
-                                        p="xs" 
-                                        radius="md" 
-                                        component={Link} 
-                                        to={`/sets/${set.id}`} 
-                                        state={{ from: location.pathname, fromLabel: 'Dashboard' }} 
-                                        style={{ textDecoration: 'none', color: 'inherit' }}
-                                    >
-                                        <Group justify="space-between" wrap="nowrap">
-                                            <Group wrap="nowrap">
-                                                <Image 
-                                                    src={set.images?.[0]?.id ? getImageUrl(set.images[0].id, set.images[0].phash || set.images[0].file_size || undefined) : null} 
-                                                    w={40} 
-                                                    h={40} 
-                                                    radius="sm" 
-                                                    fallbackSrc="https://placehold.co/40x40?text=Set"
-                                                />
-                                                <Box>
-                                                    <Text size="sm" fw={600} truncate="end" maw={250}>{set.title}</Text>
-                                                    <Text size="xs" c="dimmed">{set.creators?.[0]?.canonical_name || 'Unknown'}</Text>
-                                                </Box>
+                                recentSets?.items?.map((set) => {
+                                    const multiSet = set as WithMultiVault<Set>;
+                                    return (
+                                        <Paper 
+                                            key={`${multiSet._vaultId || 'local'}-${set.id}`} 
+                                            withBorder 
+                                            p="xs" 
+                                            radius="md" 
+                                            onClick={async (e) => {
+                                                e.preventDefault();
+                                                if (isAggregated && multiSet._vaultId) {
+                                                    await switchVault(multiSet._vaultId);
+                                                }
+                                                navigate(`/sets/${set.id}`, { state: { from: location.pathname, fromLabel: 'Dashboard' } });
+                                            }}
+                                            style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
+                                        >
+                                            <Group justify="space-between" wrap="nowrap">
+                                                <Group wrap="nowrap">
+                                                    <Image 
+                                                        src={set.images?.[0]?.id ? getImageUrl(set.images[0].id, set.images[0].phash || set.images[0].file_size || undefined, multiSet._vaultUrl, multiSet._vaultApiKey) : null} 
+                                                        w={40} 
+                                                        h={40} 
+                                                        radius="sm" 
+                                                        fallbackSrc="https://placehold.co/40x40?text=Set"
+                                                    />
+                                                    <Box>
+                                                        <Group gap={6} wrap="nowrap">
+                                                            <Text size="sm" fw={600} truncate="end" maw={220}>{set.title}</Text>
+                                                            {isAggregated && multiSet._vaultLabel && (
+                                                                <Badge size="xs" variant="dot" color="teal">
+                                                                    {multiSet._vaultLabel}
+                                                                </Badge>
+                                                            )}
+                                                        </Group>
+                                                        <Text size="xs" c="dimmed">{set.creators?.[0]?.canonical_name || 'Unknown'}</Text>
+                                                    </Box>
+                                                </Group>
+                                                <Badge variant="light" size="xs">{set.images?.length || 0} images</Badge>
                                             </Group>
-                                            <Badge variant="light" size="xs">{set.images?.length || 0} images</Badge>
-                                        </Group>
-                                    </Paper>
-                                ))
+                                        </Paper>
+                                    );
+                                })
                             )}
                         </Stack>
 
@@ -385,7 +424,7 @@ export default function Dashboard() {
                             <Card withBorder radius="md" p={0}>
                                 <Card.Section>
                                     <Image 
-                                        src={getImageUrl(randomImage.id, randomImage.phash || randomImage.file_size || undefined)} 
+                                        src={getImageUrl(randomImage.id, randomImage.phash || randomImage.file_size || undefined, (randomImage as WithMultiVault<ImageModel>)._vaultUrl, (randomImage as WithMultiVault<ImageModel>)._vaultApiKey)} 
                                         fallbackSrc="https://placehold.co/600x400?text=No+Preview"
                                         alt="Random inspiration"
                                     />
@@ -393,14 +432,24 @@ export default function Dashboard() {
                                 <Stack p="md" gap="xs">
                                     <Group justify="space-between">
                                         <Text fw={600} truncate="end" maw={200}>{randomImage.filename}</Text>
-                                        <Badge color={getARColor(randomImage.aspect_ratio_label || '')}>
-                                            {randomImage.aspect_ratio_label}
-                                        </Badge>
+                                        <Group gap="xs">
+                                            {isAggregated && (randomImage as WithMultiVault<ImageModel>)._vaultLabel && (
+                                                <Badge size="xs" variant="dot" color="teal">
+                                                    {(randomImage as WithMultiVault<ImageModel>)._vaultLabel}
+                                                </Badge>
+                                            )}
+                                            <Badge color={getARColor(randomImage.aspect_ratio_label || '')}>
+                                                {randomImage.aspect_ratio_label}
+                                            </Badge>
+                                        </Group>
                                     </Group>
                                     <Button 
-                                        component={Link} 
-                                        to={`/sets/${randomImage.set_id}`} 
-                                        state={{ from: location.pathname, fromLabel: 'Dashboard' }} 
+                                        onClick={async () => {
+                                            if (isAggregated && (randomImage as WithMultiVault<ImageModel>)._vaultId) {
+                                                await switchVault((randomImage as WithMultiVault<ImageModel>)._vaultId!);
+                                            }
+                                            navigate(`/sets/${randomImage.set_id}`, { state: { from: location.pathname, fromLabel: 'Dashboard' } });
+                                        }}
                                         variant="light" 
                                         fullWidth 
                                         leftSection={<IconExternalLink size="1rem" />}
@@ -416,6 +465,7 @@ export default function Dashboard() {
                                 </Center>
                             </Paper>
                         )}
+
 
                         {/* 5. Image Taxonomy */}
                         <Stack gap="md" mt="md">

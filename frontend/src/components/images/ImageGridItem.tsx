@@ -8,11 +8,13 @@ import { Card, Image, Box, Text, Stack, Badge, Group, Checkbox, ActionIcon, Tool
 import { IconAlertTriangle, IconExclamationCircle, IconWallpaper } from '@tabler/icons-react';
 import { getThumbnailUrl } from '../../utils/fileUtils';
 import type { Image as ImageModel } from '../../api/model';
+import type { WithMultiVault } from '../../types/vault';
 import { useLongPress } from '../../hooks/useLongPress';
+import { useVault } from '../../hooks/useVault';
 import { ImageRating } from '../../types/enums';
 
 interface ImageGridItemProps {
-    image: ImageModel;
+    image: WithMultiVault<ImageModel>;
     onClick: () => void;
     selectionMode?: boolean;
     selected?: boolean;
@@ -25,7 +27,9 @@ const OPACITY_UNSELECTED = 0.7;
 const OPACITY_FULL = 1;
 
 export const ImageGridItem = memo(function ImageGridItem({ image, onClick, selectionMode, selected, onToggleSelect, onSetWallpaper }: ImageGridItemProps) {
+    const { isAggregated } = useVault();
     const rating = image.rating || ImageRating.SAFE;
+
     const dominantColor = image.dominant_color;
     
     const borderColor = rating === ImageRating.EXPLICIT ? 'var(--mantine-color-red-filled)' : 
@@ -74,7 +78,7 @@ export const ImageGridItem = memo(function ImageGridItem({ image, onClick, selec
             {...longPressProps}
         >
             <Image
-                src={getThumbnailUrl(image.id, 'md', image.phash || image.file_size || undefined)}
+                src={getThumbnailUrl(image.id, 'md', image.phash || image.file_size || undefined, image._vaultUrl, image._vaultApiKey)}
                 alt={image.filename}
                 loading="lazy"
                 radius={0}
@@ -103,13 +107,25 @@ export const ImageGridItem = memo(function ImageGridItem({ image, onClick, selec
             {/* Top Badges */}
             <Box style={{ position: 'absolute', top: 8, right: 8, zIndex: 5, pointerEvents: 'none' }}>
                 <Group gap={4}>
+                    {isAggregated && image._vaultLabel && (
+                        <Badge 
+                            color="teal" 
+                            variant="filled" 
+                            size="xs"
+                            styles={{ 
+                                root: { textTransform: 'none', fontSize: '8px', padding: '0 4px' }
+                            }}
+                        >
+                            {image._vaultLabel}
+                        </Badge>
+                    )}
                     {dominantColor && (
                         <Box 
                             style={{ 
                                 width: 12, 
                                 height: 12, 
                                 borderRadius: '50%', 
-                                backgroundColor: dominantColor,
+                                backgroundColor: dominantColor, 
                                 border: '1px solid rgba(255,255,255,0.5)',
                                 boxShadow: '0 0 4px rgba(0,0,0,0.5)'
                             }} 
@@ -131,6 +147,7 @@ export const ImageGridItem = memo(function ImageGridItem({ image, onClick, selec
                     )}
                 </Group>
             </Box>
+
             
             <Box
                 className="image-overlay"

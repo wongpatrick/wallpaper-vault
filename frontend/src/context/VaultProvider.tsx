@@ -4,13 +4,14 @@
  * Manages active vault switching, persistent registry state, health statuses,
  * React Query cache invalidation, and dynamic Axios base URL/headers synchronization.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
 import { AXIOS_INSTANCE } from '../api/axios-instance';
 import { API_BASE_URL } from '../config';
 import { VaultContext } from './VaultContext';
 import type { VaultEntry, VaultRegistryData, TestConnectionResult } from '../types/electron';
+
 
 interface VaultProviderProps {
     children: React.ReactNode;
@@ -55,8 +56,22 @@ export function VaultProvider({ children }: VaultProviderProps) {
     });
 
     const [isLoading, setIsLoading] = useState(true);
+    const [isAggregated, setIsAggregatedState] = useState<boolean>(() => {
+        return localStorage.getItem('vault_aggregated_mode') === 'true';
+    });
+
+    const setAggregated = useCallback((val: boolean) => {
+        setIsAggregatedState(val);
+        localStorage.setItem('vault_aggregated_mode', val ? 'true' : 'false');
+        queryClient.clear();
+    }, [queryClient]);
 
     const activeVault = registry.vaults.find(v => v.id === registry.activeVaultId) || registry.vaults[0] || DEFAULT_LOCAL_VAULT;
+
+    const onlineVaults = React.useMemo(() => {
+        return registry.vaults.filter(v => v.isLocal || v.status === 'online');
+    }, [registry.vaults]);
+
 
     // Apply active vault settings to Axios and localStorage
     const applyVaultConnection = useCallback((vault: VaultEntry) => {
@@ -123,6 +138,22 @@ export function VaultProvider({ children }: VaultProviderProps) {
     }, [isElectron, applyVaultConnection]);
 
     const switchVault = useCallback(async (vaultId: string) => {
+        if (vaultId === 'all') {
+            setIsAggregatedState(true);
+            localStorage.setItem('vault_aggregated_mode', 'true');
+            queryClient.clear();
+            notifications.show({
+                title: 'Aggregated View',
+                message: 'Viewing aggregated library across all online vaults.',
+                color: 'blue'
+            });
+            return;
+        }
+
+        // Switching to a specific vault turns off aggregated mode
+        setIsAggregatedState(false);
+        localStorage.setItem('vault_aggregated_mode', 'false');
+
         const targetVault = registry.vaults.find(v => v.id === vaultId);
         if (!targetVault) {
             console.error(`[VaultProvider] Cannot switch to non-existent vault: ${vaultId}`);
@@ -163,6 +194,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
             color: 'blue'
         });
     }, [registry, isElectron, applyVaultConnection, queryClient]);
+
 
     const testConnection = useCallback(async (url: string, apiKey?: string): Promise<TestConnectionResult> => {
         if (isElectron) {
@@ -351,9 +383,12 @@ export function VaultProvider({ children }: VaultProviderProps) {
         localStorage.setItem('vault_registry', JSON.stringify(newRegistry));
     }, [isElectron, registry, testConnection]);
 
-    const contextValue = {
+    const contextValue = useMemo(() => ({
         vaults: registry.vaults,
+        onlineVaults,
         activeVault,
+        isAggregated,
+        setAggregated,
         isLoading,
         switchVault,
         addVault,
@@ -361,7 +396,22 @@ export function VaultProvider({ children }: VaultProviderProps) {
         removeVault,
         testConnection,
         refreshHealth
-    };
+    }), [
+        registry.vaults,
+        onlineVaults,
+        activeVault,
+        isAggregated,
+        setAggregated,
+        isLoading,
+        switchVault,
+        addVault,
+        updateVault,
+        removeVault,
+        testConnection,
+        refreshHealth
+    ]);
+
+
 
     return (
         <VaultContext.Provider value={contextValue}>

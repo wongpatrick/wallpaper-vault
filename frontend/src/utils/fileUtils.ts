@@ -11,11 +11,16 @@ import { API_BASE_URL } from "../config";
  * @param imageId The ID of the image in the database.
  * @returns A string URL to be used in src attributes.
  */
-export const getImageUrl = (imageId: number | string | undefined | null, cacheBuster?: string | number): string => {
+export const getImageUrl = (
+    imageId: number | string | undefined | null, 
+    cacheBuster?: string | number,
+    baseUrlOverride?: string,
+    apiKeyOverride?: string
+): string => {
     if (!imageId) return 'https://placehold.co/600x400?text=No+Image';
     
-    const baseURL = localStorage.getItem('backend_url') || AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
-    const token = localStorage.getItem('api_key') || '';
+    const baseURL = (baseUrlOverride ? baseUrlOverride.replace(/\/+$/, '') : null) || localStorage.getItem('backend_url') || AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
+    const token = apiKeyOverride !== undefined ? apiKeyOverride : (localStorage.getItem('api_key') || '');
     let url = `${baseURL}/api/images/file/${imageId}`;
     const params: string[] = [];
     if (cacheBuster) params.push(`cb=${cacheBuster}`);
@@ -31,17 +36,21 @@ export const getImageUrl = (imageId: number | string | undefined | null, cacheBu
  * @param imageId The ID of the image in the database.
  * @param size 'sm' (200px wide) or 'md' (400px wide).
  * @param cacheBuster Optional query parameter value to bypass cached images when files change.
+ * @param baseUrlOverride Optional backend base URL to override the default active vault.
+ * @param apiKeyOverride Optional API key to override the default active vault.
  * @returns A string URL for the thumbnail.
  */
 export const getThumbnailUrl = (
     imageId: number | string | undefined | null, 
     size: 'sm' | 'md' | 'lg' = 'sm',
-    cacheBuster?: string | number
+    cacheBuster?: string | number,
+    baseUrlOverride?: string,
+    apiKeyOverride?: string
 ): string => {
     if (!imageId) return 'https://placehold.co/600x400?text=No+Image';
     
-    const baseURL = localStorage.getItem('backend_url') || AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
-    const token = localStorage.getItem('api_key') || '';
+    const baseURL = (baseUrlOverride ? baseUrlOverride.replace(/\/+$/, '') : null) || localStorage.getItem('backend_url') || AXIOS_INSTANCE.defaults.baseURL || API_BASE_URL;
+    const token = apiKeyOverride !== undefined ? apiKeyOverride : (localStorage.getItem('api_key') || '');
     let url = `${baseURL}/api/images/thumb/${imageId}`;
     const params: string[] = [`size=${size}`];
     if (cacheBuster) params.push(`cb=${cacheBuster}`);
@@ -49,6 +58,7 @@ export const getThumbnailUrl = (
     url += `?${params.join('&')}`;
     return url;
 };
+
 
 /**
  * A standard fallback image for when a set has no images.

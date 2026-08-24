@@ -3,7 +3,6 @@
  * Header Vault Switcher component.
  * Displays active vault status pill and dropdown menu for switching between backends.
  */
-/* eslint-disable no-magic-numbers */
 import { useState } from 'react';
 import {
     Menu,
@@ -18,14 +17,18 @@ import {
     IconChevronDown,
     IconCheck,
     IconPlus,
-    IconSettings
+    IconSettings,
+    IconLayersIntersect
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { useVault } from '../../hooks/useVault';
 import { AddVaultModal } from '../vault/AddVaultModal';
 
+const FONT_WEIGHT_ACTIVE = 600;
+const FONT_WEIGHT_NORMAL = 400;
+
 export function VaultSwitcher() {
-    const { vaults, activeVault, switchVault } = useVault();
+    const { vaults, onlineVaults, activeVault, isAggregated, switchVault } = useVault();
     const navigate = useNavigate();
     const [addModalOpen, setAddModalOpen] = useState(false);
 
@@ -53,11 +56,17 @@ export function VaultSwitcher() {
         }
     };
 
+    const pillLabel = isAggregated ? 'All Vaults' : activeVault.label;
+    const isAllOnline = onlineVaults.length === vaults.length;
+    const aggregatedStatusColor = onlineVaults.length === 0 ? '#fa5252' : (isAllOnline ? '#40c057' : '#fab005');
+    const pillColor = isAggregated ? aggregatedStatusColor : getStatusColor(activeVault.status);
+
     return (
         <>
-            <Menu position="bottom-start" shadow="md" width={260} radius="md" withinPortal={false}>
+            <Menu position="bottom-start" shadow="md" width={270} radius="md" withinPortal={false}>
                 <Menu.Target>
                     <UnstyledButton
+                        data-testid="vault-switcher-btn"
                         style={{
                             padding: '4px 10px',
                             borderRadius: '20px',
@@ -76,26 +85,58 @@ export function VaultSwitcher() {
                                     width: 8,
                                     height: 8,
                                     borderRadius: '50%',
-                                    backgroundColor: getStatusColor(activeVault.status),
-                                    boxShadow: `0 0 6px ${getStatusColor(activeVault.status)}`
+                                    backgroundColor: pillColor,
+                                    boxShadow: `0 0 6px ${pillColor}`
                                 }}
                             />
-                            <IconServer size={14} style={{ opacity: 0.75 }} />
+                            {isAggregated ? (
+                                <IconLayersIntersect size={14} style={{ opacity: 0.85, color: 'var(--mantine-color-blue-5)' }} />
+                            ) : (
+                                <IconServer size={14} style={{ opacity: 0.75 }} />
+                            )}
                             <Text size="xs" fw={600} style={{ maxWidth: 140 }} truncate>
-                                {activeVault.label}
+                                {pillLabel}
                             </Text>
+                            {isAggregated && vaults.length > 1 && (
+                                <Badge size="xs" variant="filled" color="blue" style={{ height: 16, padding: '0 4px', fontSize: 9 }}>
+                                    {onlineVaults.length}/{vaults.length}
+                                </Badge>
+                            )}
                             <IconChevronDown size={12} style={{ opacity: 0.5 }} />
                         </Group>
                     </UnstyledButton>
                 </Menu.Target>
 
                 <Menu.Dropdown>
+                    <Menu.Label>View Mode</Menu.Label>
+                    <Menu.Item
+                        data-testid="all-vaults-item"
+                        onClick={() => switchVault('all')}
+                        leftSection={<IconLayersIntersect size={15} color="var(--mantine-color-blue-5)" />}
+                        rightSection={
+                            <Group gap={4}>
+                                <Badge size="xs" variant="light" color="blue">
+                                    {onlineVaults.length}/{vaults.length} Online
+                                </Badge>
+                                {isAggregated && <IconCheck size={14} color="var(--mantine-color-blue-5)" />}
+                            </Group>
+                        }
+                    >
+                        <Text size="xs" fw={isAggregated ? FONT_WEIGHT_ACTIVE : FONT_WEIGHT_NORMAL}>
+                            All Vaults (Aggregated)
+                        </Text>
+
+                    </Menu.Item>
+
+                    <Menu.Divider />
+
                     <Menu.Label>Connected Vaults</Menu.Label>
                     {vaults.map((vault) => {
-                        const isActive = vault.id === activeVault.id;
+                        const isActive = !isAggregated && vault.id === activeVault.id;
                         return (
                             <Menu.Item
                                 key={vault.id}
+                                data-testid={`vault-item-${vault.id}`}
                                 onClick={() => switchVault(vault.id)}
                                 leftSection={
                                     <Box
@@ -119,7 +160,7 @@ export function VaultSwitcher() {
                                     </Group>
                                 }
                             >
-                                <Text size="xs" fw={isActive ? 600 : 400} truncate>
+                                <Text size="xs" fw={isActive ? FONT_WEIGHT_ACTIVE : FONT_WEIGHT_NORMAL} truncate>
                                     {vault.label}
                                 </Text>
                             </Menu.Item>
@@ -151,3 +192,4 @@ export function VaultSwitcher() {
         </>
     );
 }
+

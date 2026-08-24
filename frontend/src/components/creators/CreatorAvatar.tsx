@@ -10,12 +10,14 @@ import { getImageUrl } from '../../utils/fileUtils';
 interface CreatorAvatarProps {
     imageId: number | null | undefined;
     size?: number;
+    baseUrlOverride?: string;
+    apiKeyOverride?: string;
 }
 
 const DEFAULT_AVATAR_SIZE = 60;
 const ICON_SCALE_FACTOR = 0.5;
 
-export function CreatorAvatar({ imageId, size = DEFAULT_AVATAR_SIZE }: CreatorAvatarProps) {
+export function CreatorAvatar({ imageId, size = DEFAULT_AVATAR_SIZE, baseUrlOverride, apiKeyOverride }: CreatorAvatarProps) {
     // If no image, show generic icon
     if (!imageId) {
         return (
@@ -32,7 +34,7 @@ export function CreatorAvatar({ imageId, size = DEFAULT_AVATAR_SIZE }: CreatorAv
     return (
         <Box w={size} h={size} style={{ borderRadius: '8px', overflow: 'hidden' }}>
             <Image 
-                src={getImageUrl(imageId)} 
+                src={getImageUrl(imageId, undefined, baseUrlOverride, apiKeyOverride)} 
                 height={size} 
                 width={size}
                 fit="cover" 
@@ -40,3 +42,4 @@ export function CreatorAvatar({ imageId, size = DEFAULT_AVATAR_SIZE }: CreatorAv
         </Box>
     );
 }
+
