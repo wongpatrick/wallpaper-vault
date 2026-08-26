@@ -10,11 +10,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 import { getThumbnailUrl, FALLBACK_IMAGE } from '../../utils/fileUtils';
 import { useLongPress } from '../../hooks/useLongPress';
+import { useVault } from '../../hooks/useVault';
 import type { Set } from '../../api/model';
+import type { WithMultiVault } from '../../types/vault';
 import { getLabelFromPath } from '../../utils/navigationUtils';
 
 interface SetCardProps {
-    set: Set;
+    set: WithMultiVault<Set>;
     onDelete: (id: number) => void;
     selectionMode?: boolean;
     selected?: boolean;
@@ -28,6 +30,7 @@ const HOVER_SLIDESHOW_MAX_IMAGES = 5;
 const DEFAULT_FOCAL_POINT = 50;
 
 export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect, onLongPress }: SetCardProps) {
+    const { isAggregated, switchVault } = useVault();
     const navigate = useNavigate();
     const location = useLocation();
     const [isHovered, setIsHovered] = useState(false);
@@ -43,10 +46,13 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
         return () => clearInterval(interval);
     }, [isHovered, set.images]);
     
-    const handleCardClick = () => {
+    const handleCardClick = async () => {
         if (selectionMode && onToggleSelect) {
             onToggleSelect();
         } else {
+            if (isAggregated && set._vaultId) {
+                await switchVault(set._vaultId);
+            }
             navigate(`/sets/${set.id}`, {
                 state: {
                     from: location.pathname,
@@ -55,6 +61,7 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
             });
         }
     };
+
 
     const longPressProps = useLongPress(
         () => {
@@ -106,7 +113,9 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
     };
 
     const currentImage = set.images && set.images.length > 0 ? set.images[imageIndex] : null;
-    const coverUrl = currentImage ? getThumbnailUrl(currentImage.id, 'lg') : FALLBACK_IMAGE;
+    const coverUrl = currentImage 
+        ? getThumbnailUrl(currentImage.id, 'lg', undefined, set._vaultUrl, set._vaultApiKey) 
+        : FALLBACK_IMAGE;
     const focalX = currentImage?.focal_point_x ?? DEFAULT_FOCAL_POINT;
     const focalY = currentImage?.focal_point_y ?? DEFAULT_FOCAL_POINT;
     const creatorNames = set.creators?.map(c => c.canonical_name).join(' & ') || 'Unknown Creator';
@@ -187,12 +196,17 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
                             <Menu.Label>Actions</Menu.Label>
                             <Menu.Item 
                                 leftSection={<IconExternalLink style={{ width: rem(ICON_SIZE_PX), height: rem(ICON_SIZE_PX) }} />}
-                                onClick={() => navigate(`/sets/${set.id}`, {
-                                    state: {
-                                        from: location.pathname,
-                                        fromLabel: getLabelFromPath(location.pathname)
+                                onClick={async () => {
+                                    if (isAggregated && set._vaultId) {
+                                        await switchVault(set._vaultId);
                                     }
-                                })}
+                                    navigate(`/sets/${set.id}`, {
+                                        state: {
+                                            from: location.pathname,
+                                            fromLabel: getLabelFromPath(location.pathname)
+                                        }
+                                    });
+                                }}
                             >
                                 View Details
                             </Menu.Item>
@@ -207,7 +221,13 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
                             <Menu.Item 
                                 color="red" 
                                 leftSection={<IconTrash style={{ width: rem(ICON_SIZE_PX), height: rem(ICON_SIZE_PX) }} />}
-                                onClick={() => onDelete(set.id)}
+                                onClick={async () => {
+                                    if (isAggregated && set._vaultId) {
+                                        await switchVault(set._vaultId);
+                                    }
+                                    onDelete(set.id);
+                                }}
+
                             >
                                 Delete Set
                             </Menu.Item>
@@ -217,6 +237,11 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
             </Group>
 
             <Group gap="xs">
+               {isAggregated && set._vaultLabel && (
+                   <Badge variant="dot" color="teal" size="sm" data-testid="vault-origin-badge">
+                       {set._vaultLabel}
+                   </Badge>
+               )}
                <Badge variant="light" color="blue">
                    {set.images?.length || 0} Images
                </Badge>
@@ -226,4 +251,5 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
             </Group>
         </Card>
     );
+
 }

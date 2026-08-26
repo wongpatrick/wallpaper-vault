@@ -3,9 +3,12 @@
  * Module: Creators Directory Page
  * Description: Lists all artists and creators in the system with search, filtering, pagination, and bulk merge capabilities.
  */
-import { Title, Text, Container, Table, Group, Loader, Center, Alert, ActionIcon, TextInput, Select, Stack, Button, Modal, Overlay, Box, MultiSelect, SegmentedControl, SimpleGrid } from '@mantine/core';
+import { Title, Text, Container, Table, Group, Loader, Center, Alert, ActionIcon, TextInput, Select, Stack, Button, Modal, Overlay, Box, MultiSelect, SegmentedControl, SimpleGrid, Badge } from '@mantine/core';
 import { IconAlertCircle, IconChevronRight, IconSearch, IconFilter, IconGitMerge, IconPlus, IconList, IconLayoutGrid } from '@tabler/icons-react';
 import { useReadCreatorsApiCreatorsGet, useMergeCreatorsApiCreatorsMergePost } from '../../api/generated/creators/creators';
+import { useMultiVaultCreators } from '../../hooks/useMultiVaultQuery';
+import { useVault } from '../../hooks/useVault';
+import { AggregatedVaultBanner } from '../../components/vault/AggregatedVaultBanner';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { CREATOR_TYPES } from '../../types/enums';
 import { useState, useMemo } from 'react';
@@ -17,11 +20,15 @@ import { useUrlSearch } from '../../hooks/useUrlSearch';
 import { useUrlPagination } from '../../hooks/useUrlPagination';
 import { PaginationWithSkip } from '../../components/ui/PaginationWithSkip';
 import { SortControl } from '../../components/ui/SortControl';
+import type { Creator } from '../../api/model';
+import type { WithMultiVault } from '../../types/vault';
+
 
 const PAGE_SIZE = 12;
 const SEARCH_DEBOUNCE_MS = 500;
 
 export default function Creators() {
+    const { switchVault } = useVault();
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -66,7 +73,17 @@ export default function Creators() {
         }, { replace: true });
     };
 
-    const { data: pageData, isLoading, isFetching, error, refetch } = useReadCreatorsApiCreatorsGet({
+    const { 
+        data: pageData, 
+        isLoading, 
+        isFetching, 
+        error, 
+        refetch,
+        isAggregated,
+        onlineCount,
+        totalVaultsCount,
+        offlineVaults
+    } = useMultiVaultCreators({
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
         search: search || undefined,
@@ -74,6 +91,7 @@ export default function Creators() {
         sort_by: sortBy,
         sort_dir: sortDir
     });
+
     
     // Separate query to fetch ALL creators for the merge dropdowns (high limit)
     const { data: allCreatorsData } = useReadCreatorsApiCreatorsGet({
@@ -125,16 +143,35 @@ export default function Creators() {
 
     const rows = creators.map((element) => (
         <Table.Tr 
-            key={element.id} 
-            onClick={() => navigate(`/creators/${element.id}`, { state: { from: location.pathname, fromLabel: 'Creators' } })}
+            key={`${element._vaultId || 'local'}-${element.id}`} 
+            onClick={async () => {
+                if (isAggregated && element._vaultId) {
+                    await switchVault(element._vaultId);
+                }
+                navigate(`/creators/${element.id}`, { state: { from: location.pathname, fromLabel: 'Creators' } });
+            }}
             style={{ cursor: 'pointer' }}
         >
             <Table.Td>
                 <Group gap="sm">
-                    <CreatorAvatar imageId={element.stats?.preview_image_id} size={40} />
-                    <Text size="sm" fw={500}>
-                        {element.canonical_name}
-                    </Text>
+                    <CreatorAvatar 
+                        imageId={element.stats?.preview_image_id} 
+                        size={40} 
+                        baseUrlOverride={element._vaultUrl}
+                        apiKeyOverride={element._vaultApiKey}
+                    />
+                    <Box>
+                        <Group gap={6}>
+                            <Text size="sm" fw={500}>
+                                {element.canonical_name}
+                            </Text>
+                            {isAggregated && element._vaultLabel && (
+                                <Badge size="xs" variant="dot" color="teal">
+                                    {element._vaultLabel}
+                                </Badge>
+                            )}
+                        </Group>
+                    </Box>
                 </Group>
             </Table.Td>
             <Table.Td>{element.type || 'Artist'}</Table.Td>
@@ -153,6 +190,13 @@ export default function Creators() {
 
     return (
         <Container fluid px="xl">
+            <AggregatedVaultBanner
+                isAggregated={isAggregated}
+                onlineCount={onlineCount}
+                totalVaultsCount={totalVaultsCount}
+                offlineVaults={offlineVaults}
+            />
+
             <Group justify="space-between" mb="xs">
                 <Title order={1}>🎨 Artists & Creators</Title>
                 <Group>
@@ -163,6 +207,7 @@ export default function Creators() {
                     >
                         Merge Artists
                     </Button>
+
                     <Button 
                         leftSection={<IconPlus size={16} />}
                         onClick={() => setIsCreateModalOpen(true)}
@@ -249,9 +294,11 @@ export default function Creators() {
                                     </Table.ScrollContainer>
                                 ) : (
                                     <SimpleGrid cols={{ base: 2, sm: 3, md: 4, lg: 5 }} spacing="md">
-                                        {creators.map(creator => (
-                                            <CreatorCard key={creator.id} creator={creator} />
-                                        ))}
+                                        {creators.map(creator => {
+                                            const multiCreator = creator as WithMultiVault<Creator>;
+                                            const itemKey = `${multiCreator._vaultId || 'local'}-${creator.id}`;
+                                            return <CreatorCard key={itemKey} creator={creator} />;
+                                        })}
                                     </SimpleGrid>
                                 )}
                                 

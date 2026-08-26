@@ -5,7 +5,10 @@
  */
 import { Title, Text, Container, Group, Tabs, Button, Stack } from '@mantine/core';
 import { IconGridDots, IconPalette, IconCheck, IconPlaylist, IconEdit } from '@tabler/icons-react';
-import { useReadImagesApiImagesGet, useBulkUpdateImagesApiImagesBulkUpdatePost } from '../../api/generated/images/images';
+import { useBulkUpdateImagesApiImagesBulkUpdatePost } from '../../api/generated/images/images';
+import { useMultiVaultImages } from '../../hooks/useMultiVaultQuery';
+import { AggregatedVaultBanner } from '../../components/vault/AggregatedVaultBanner';
+
 import { notifications } from '@mantine/notifications';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { ImageEditModal } from '../../components/images/ImageEditModal';
@@ -25,6 +28,8 @@ import { useSelection } from '../../hooks/useSelection';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
 import { AddToPlaylistModal } from '../../components/playlists/AddToPlaylistModal';
 import type { Image as ImageModel, BulkOperationMode, ImageUpdate } from '../../api/model';
+import type { WithMultiVault } from '../../types/vault';
+
 
 const PAGE_SIZE = 100;
 const SEARCH_DEBOUNCE_MS = 500;
@@ -101,7 +106,17 @@ export default function Images() {
     const bulkUpdateMutation = useBulkUpdateImagesApiImagesBulkUpdatePost();
 
     // Fetch data
-    const { data: pageData, isLoading, isFetching, error, refetch } = useReadImagesApiImagesGet({
+    const { 
+        data: pageData, 
+        isLoading, 
+        isFetching, 
+        error, 
+        refetch,
+        isAggregated,
+        onlineCount,
+        totalVaultsCount,
+        offlineVaults
+    } = useMultiVaultImages({
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
         search: search || undefined,
@@ -114,6 +129,7 @@ export default function Images() {
         sort_by: sortBy,
         sort_dir: sortDir
     });
+
 
     // Unified helper to update search params and reset collection pagination
     const updateFilterParam = useCallback((key: string, value: string | null) => {
@@ -158,6 +174,15 @@ export default function Images() {
     };
 
     const handleBulkEditConfirm = async (data: Partial<ImageUpdate>, mode: BulkOperationMode) => {
+        if (isAggregated) {
+            notifications.show({
+                title: 'Operation Not Supported',
+                message: 'Bulk editing across multiple vaults is not supported. Please switch to a specific vault first.',
+                color: 'yellow'
+            });
+            return;
+        }
+
         try {
             await bulkUpdateMutation.mutateAsync({
                 data: {
@@ -192,7 +217,12 @@ export default function Images() {
                 if (page === 1) return pageData.items!;
                 const next = [...prev];
                 pageData.items!.forEach(newItem => {
-                    const idx = next.findIndex(img => img.id === newItem.id);
+                    const newMulti = newItem as WithMultiVault<ImageModel>;
+                    const newKey = `${newMulti._vaultId || 'local'}-${newMulti.id}`;
+                    const idx = next.findIndex(img => {
+                        const imgMulti = img as WithMultiVault<ImageModel>;
+                        return `${imgMulti._vaultId || 'local'}-${imgMulti.id}` === newKey;
+                    });
                     if (idx !== -1) next[idx] = newItem;
                     else next.push(newItem);
                 });
@@ -201,6 +231,7 @@ export default function Images() {
             setHasMore(pageData.items.length === PAGE_SIZE);
         }
     }, [pageData, page]);
+
 
     // Trigger next page when sentinel is visible
     useEffect(() => {
@@ -211,9 +242,17 @@ export default function Images() {
 
     return (
         <Container fluid px="xl">
+            <AggregatedVaultBanner
+                isAggregated={isAggregated}
+                onlineCount={onlineCount}
+                totalVaultsCount={totalVaultsCount}
+                offlineVaults={offlineVaults}
+            />
+
             <Group justify="space-between" align="flex-start" mb="xl">
                 <Stack gap={0}>
                     <Title order={1} fw={800} style={{ letterSpacing: '-1px' }}>🖼️ Individual Wallpapers</Title>
+
                     <Text c="dimmed" size="lg">Continuous stream of your entire library.</Text>
                 </Stack>
                 <Button 

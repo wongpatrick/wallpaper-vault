@@ -7,7 +7,10 @@ import type { VaultEntry, TestConnectionResult } from '../types/electron';
 
 export interface VaultContextType {
     vaults: VaultEntry[];
+    onlineVaults: VaultEntry[];
     activeVault: VaultEntry;
+    isAggregated: boolean;
+    setAggregated: (aggregated: boolean) => void;
     isLoading: boolean;
     switchVault: (vaultId: string) => Promise<void>;
     addVault: (payload: { label: string; url: string; apiKey?: string }) => Promise<VaultEntry>;
@@ -18,3 +21,4 @@ export interface VaultContextType {
 }
 
 export const VaultContext = createContext<VaultContextType | undefined>(undefined);
+

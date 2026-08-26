@@ -7,6 +7,7 @@ import { Modal, Box, Group, Stack, Text, ActionIcon, Center, Image, Badge, Toolt
 import { IconWallpaper, IconX, IconChevronLeft, IconChevronRight, IconEdit, IconAlertTriangle, IconExclamationCircle, IconTrash, IconFolderOpen, IconCrop, IconTag } from '@tabler/icons-react';
 import { getImageUrl, getThumbnailUrl } from '../../utils/fileUtils';
 import type { Image as ImageModel } from '../../api/model';
+import type { WithMultiVault } from '../../types/vault';
 import { useDeleteImageApiImagesImageIdDelete, useReadImageApiImagesImageIdGet, useUpdateImageApiImagesImageIdPatch } from '../../api/generated/images/images';
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
 import { CharacterTagsInput } from '../ui/CharacterTagsInput';
@@ -14,12 +15,13 @@ import { SetAsWallpaperModal } from './SetAsWallpaperModal';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useVault } from '../../hooks/useVault';
 import { ImageRating } from '../../types/enums';
 import { useMemo, useEffect, useState } from 'react';
 import { getLabelFromPath } from '../../utils/navigationUtils';
 
 interface ImageLightboxProps {
-    images: ImageModel[];
+    images: WithMultiVault<ImageModel>[];
     selectedIndex: number | null;
     onClose: () => void;
     onSelectIndex: (index: number) => void;
@@ -30,6 +32,7 @@ interface ImageLightboxProps {
     disableActions?: boolean;
     onCrop?: (image: ImageModel) => void;
 }
+
 
 const BYTES_PER_KB = 1024;
 const OPACITY_DIMMED = 0.5;
@@ -44,6 +47,7 @@ const ARROW_OFFSET_DEFAULT = 20;
 const ARROW_OFFSET_WITH_SIDEBAR = SIDEBAR_WIDTH + ARROW_OFFSET_DEFAULT;
 
 export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit, onDelete, onUpdated, totalCount, disableActions, onCrop }: ImageLightboxProps) {
+    const { isAggregated, activeVault, switchVault } = useVault();
     const deleteMutation = useDeleteImageApiImagesImageIdDelete();
     const navigate = useNavigate();
     const location = useLocation();
@@ -69,7 +73,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
     const { data: imageDetail, refetch: refetchImageDetail, isFetching: isDetailFetching } = useReadImageApiImagesImageIdGet(
         currentImage?.id || 0,
         undefined,
-        { query: { enabled: !!currentImage?.id } }
+        { query: { enabled: !!currentImage?.id && (!isAggregated || (currentImage as WithMultiVault<ImageModel>)._vaultId === activeVault.id) } }
     );
 
     // Mutation for updating image tags
@@ -78,6 +82,10 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
     const handleUpdateTags = async (newTags: string[]) => {
         if (!currentImage) return;
         try {
+            const multiImage = currentImage as WithMultiVault<ImageModel>;
+            if (isAggregated && multiImage._vaultId && activeVault.id !== multiImage._vaultId) {
+                await switchVault(multiImage._vaultId);
+            }
             await updateMutation.mutateAsync({
                 imageId: currentImage.id,
                 data: { tags: newTags }
@@ -93,6 +101,10 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
     const handleUpdateCharacters = async (newCharacters: string[]) => {
         if (!currentImage) return;
         try {
+            const multiImage = currentImage as WithMultiVault<ImageModel>;
+            if (isAggregated && multiImage._vaultId && activeVault.id !== multiImage._vaultId) {
+                await switchVault(multiImage._vaultId);
+            }
             await updateMutation.mutateAsync({
                 imageId: currentImage.id,
                 data: { characters: newCharacters }
@@ -105,28 +117,23 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
         }
     };
 
-    // Compute the visible filmstrip window
+
+    // Calculate window of visible thumbnails in filmstrip (centered on selectedIndex)
     const filmstripWindow = useMemo(() => {
-        if (selectedIndex === null) return [];
+        if (selectedIndex === null || images.length === 0) return [];
         
-        let start = selectedIndex - FILMSTRIP_HALF;
-        let end = selectedIndex + FILMSTRIP_HALF;
+        let start = Math.max(0, selectedIndex - FILMSTRIP_HALF);
+        const end = Math.min(images.length, start + FILMSTRIP_VISIBLE);
         
-        // Clamp to bounds
-        if (start < 0) {
-            end = Math.min(end - start, images.length - 1);
-            start = 0;
-        }
-        if (end >= images.length) {
-            start = Math.max(start - (end - images.length + 1), 0);
-            end = images.length - 1;
+        // Adjust start if we are near the end
+        if (end - start < FILMSTRIP_VISIBLE) {
+            start = Math.max(0, end - FILMSTRIP_VISIBLE);
         }
         
-        const window: { index: number; image: ImageModel }[] = [];
-        for (let i = start; i <= end; i++) {
-            window.push({ index: i, image: images[i] });
-        }
-        return window;
+        return images.slice(start, end).map((img, i) => ({
+            index: start + i,
+            image: img,
+        }));
     }, [selectedIndex, images]);
 
     // Close lightbox if the index becomes invalid (e.g. after deletion or list reload)
@@ -182,6 +189,10 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
             confirmProps: { color: 'red' },
             onConfirm: async () => {
                 try {
+                    const multiImage = currentImage as WithMultiVault<ImageModel>;
+                    if (isAggregated && multiImage._vaultId && activeVault.id !== multiImage._vaultId) {
+                        await switchVault(multiImage._vaultId);
+                    }
                     await deleteMutation.mutateAsync({ imageId: currentImage.id });
                     notifications.show({ title: 'Image deleted', message: 'The image has been permanently removed.', color: 'blue' });
                     onDelete?.();
@@ -190,12 +201,17 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                     notifications.show({ title: 'Error', message: 'Could not delete image', color: 'red' });
                 }
             },
+
         });
     };
 
-    const navigateToSet = () => {
+    const navigateToSet = async () => {
         if (currentImage.set_id) {
             onClose();
+            const multiImage = currentImage as WithMultiVault<ImageModel>;
+            if (isAggregated && multiImage._vaultId) {
+                await switchVault(multiImage._vaultId);
+            }
             navigate(`/sets/${currentImage.set_id}`, {
                 state: {
                     from: location.pathname,
@@ -229,6 +245,11 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                                     {currentImage.filename}
                                 </Text>
                             </Tooltip>
+                            {isAggregated && (currentImage as WithMultiVault<ImageModel>)._vaultLabel && (
+                                <Badge color="teal" variant="dot" size="xs">
+                                    {(currentImage as WithMultiVault<ImageModel>)._vaultLabel}
+                                </Badge>
+                            )}
                             {rating !== ImageRating.SAFE && (
                                 <Badge 
                                     color={rating === ImageRating.EXPLICIT ? 'red' : 'yellow'} 
@@ -324,7 +345,12 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                 <Box style={{ flex: 1, display: 'flex', minHeight: 0, width: '100%', position: 'relative' }}>
                     <Center style={{ flex: 1, padding: '40px', position: 'relative' }}>
                         <Image
-                            src={getImageUrl(currentImage.id, currentImage.phash || currentImage.file_size || undefined)}
+                            src={getImageUrl(
+                                currentImage.id, 
+                                currentImage.phash || currentImage.file_size || undefined,
+                                (currentImage as WithMultiVault<ImageModel>)._vaultUrl,
+                                (currentImage as WithMultiVault<ImageModel>)._vaultApiKey
+                            )}
                             style={{ 
                                 maxHeight: '75vh', 
                                 maxWidth: '100%', 
@@ -444,10 +470,10 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                                         borderRadius: 6,
                                         overflow: 'hidden',
                                         border: isActive 
-                                            ? '3px solid var(--mantine-color-blue-filled)' 
-                                            : imgRating !== ImageRating.SAFE 
-                                                ? `2px solid ${imgRating === ImageRating.EXPLICIT ? 'var(--mantine-color-red-filled)' : 'var(--mantine-color-yellow-filled)'}`
-                                                : '2px solid transparent',
+                                             ? '3px solid var(--mantine-color-blue-filled)' 
+                                             : imgRating !== ImageRating.SAFE 
+                                                 ? `2px solid ${imgRating === ImageRating.EXPLICIT ? 'var(--mantine-color-red-filled)' : 'var(--mantine-color-yellow-filled)'}`
+                                                 : '2px solid transparent',
                                         opacity: isActive ? OPACITY_FULL : OPACITY_DIMMED,
                                         transition: 'all 0.2s ease',
                                         flexShrink: 0,
@@ -455,7 +481,13 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                                     }}
                                 >
                                     <Image 
-                                        src={getThumbnailUrl(img.id, 'sm', img.phash || img.file_size || undefined)} 
+                                        src={getThumbnailUrl(
+                                            img.id, 
+                                            'sm', 
+                                            img.phash || img.file_size || undefined,
+                                            (img as WithMultiVault<ImageModel>)._vaultUrl,
+                                            (img as WithMultiVault<ImageModel>)._vaultApiKey
+                                        )} 
                                         height={THUMB_HEIGHT} 
                                         width={THUMB_WIDTH}
                                         fit="cover" 
@@ -465,6 +497,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                             );
                         })}
                     </Group>
+
                 </Box>
             </Box>
         </Modal>

@@ -22,7 +22,7 @@ setMutatorAxiosInstance(AXIOS_INSTANCE);
 // Request interceptor to append API key header
 AXIOS_INSTANCE.interceptors.request.use((config) => {
     const key = localStorage.getItem('api_key') || '';
-    if (key) {
+    if (key && !config.headers?.['X-API-Key']) {
         config.headers = config.headers || {};
         config.headers['X-API-Key'] = key;
     }
@@ -35,12 +35,15 @@ AXIOS_INSTANCE.interceptors.request.use((config) => {
 AXIOS_INSTANCE.interceptors.response.use((response) => {
     return response;
 }, (error) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, no-magic-numbers
+    const shouldSkipAuth = (error.config as any)?.skipAuthInterceptor;
     // eslint-disable-next-line no-magic-numbers
-    if (error.response && error.response.status === 401) {
+    if (!shouldSkipAuth && error.response && error.response.status === 401) {
         window.dispatchEvent(new Event('unauthorized-api-call'));
     }
     return Promise.reject(error);
 });
+
 
 export { customInstance } from './mutator';
 
