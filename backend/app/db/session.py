@@ -56,6 +56,8 @@ def run_startup_migrations(connection):
         ("characters", "CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_character_franchise ON characters(lower(name), franchise_id) WHERE franchise_id IS NOT NULL"),
         ("characters", "CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_character_no_franchise ON characters(lower(name)) WHERE franchise_id IS NULL"),
         ("sets", "CREATE INDEX IF NOT EXISTS ix_sets_library_path_id ON sets(library_path_id)"),
+        ("cross_vault_playlist_images", "CREATE INDEX IF NOT EXISTS idx_cvpi_playlist_id ON cross_vault_playlist_images(playlist_id)"),
+        ("cross_vault_playlist_images", "CREATE INDEX IF NOT EXISTS idx_cvpi_vault_id ON cross_vault_playlist_images(vault_id)"),
     ]:
         res = connection.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
         if res:
@@ -63,6 +65,36 @@ def run_startup_migrations(connection):
                 connection.execute(text(index_sql))
             except Exception:
                 pass
+
+    # Ensure playlists has is_cross_vault column
+    res_playlists = connection.execute(text("PRAGMA table_info(playlists)")).fetchall()
+    if res_playlists:
+        playlist_cols = [row[1] for row in res_playlists]
+        if "is_cross_vault" not in playlist_cols:
+            connection.execute(text("ALTER TABLE playlists ADD COLUMN is_cross_vault INTEGER NOT NULL DEFAULT 0"))
+
+    # Ensure cross_vault_playlist_images table exists
+    connection.execute(text("""
+        CREATE TABLE IF NOT EXISTS cross_vault_playlist_images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+            vault_id TEXT NOT NULL,
+            image_id INTEGER NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            UNIQUE(playlist_id, vault_id, image_id)
+        )
+    """))
+    connection.execute(text("CREATE INDEX IF NOT EXISTS idx_cvpi_playlist_id ON cross_vault_playlist_images(playlist_id)"))
+    connection.execute(text("CREATE INDEX IF NOT EXISTS idx_cvpi_vault_id ON cross_vault_playlist_images(vault_id)"))
+
+    # Ensure rotation_history has vault_id and vault_image_id columns
+    res_rh = connection.execute(text("PRAGMA table_info(rotation_history)")).fetchall()
+    if res_rh:
+        rh_cols = [row[1] for row in res_rh]
+        if "vault_id" not in rh_cols:
+            connection.execute(text("ALTER TABLE rotation_history ADD COLUMN vault_id TEXT"))
+        if "vault_image_id" not in rh_cols:
+            connection.execute(text("ALTER TABLE rotation_history ADD COLUMN vault_image_id INTEGER"))
 
     # Ensure library_paths table exists
     connection.execute(text("""

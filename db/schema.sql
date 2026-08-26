@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS playlists (
     name         TEXT    NOT NULL UNIQUE,
     description  TEXT,
     is_smart     INTEGER NOT NULL DEFAULT 0,
+    is_cross_vault INTEGER NOT NULL DEFAULT 0,
     rules        TEXT, -- Stores the JSON filter rules for smart playlists
     created_at   TEXT    NOT NULL DEFAULT (date('now'))
 );
@@ -116,6 +117,15 @@ CREATE TABLE IF NOT EXISTS playlist_images (
     image_id    INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,
     sort_order  INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (playlist_id, image_id)
+);
+
+CREATE TABLE IF NOT EXISTS cross_vault_playlist_images (
+    id           INTEGER PRIMARY KEY,
+    playlist_id  INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+    vault_id     TEXT    NOT NULL,
+    image_id     INTEGER NOT NULL,
+    sort_order   INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(playlist_id, vault_id, image_id)
 );
 
 CREATE TABLE IF NOT EXISTS settings (
@@ -173,6 +183,8 @@ CREATE INDEX IF NOT EXISTS idx_image_tags_tag_id               ON image_tags(tag
 CREATE INDEX IF NOT EXISTS idx_image_characters_image_id       ON image_characters(image_id);
 CREATE INDEX IF NOT EXISTS idx_image_characters_character_id   ON image_characters(character_id);
 CREATE INDEX IF NOT EXISTS idx_playlist_images_image_id        ON playlist_images(image_id);
+CREATE INDEX IF NOT EXISTS idx_cvpi_playlist_id                 ON cross_vault_playlist_images(playlist_id);
+CREATE INDEX IF NOT EXISTS idx_cvpi_vault_id                    ON cross_vault_playlist_images(vault_id);
 CREATE INDEX IF NOT EXISTS idx_images_is_favorite              ON images(is_favorite);
 CREATE INDEX IF NOT EXISTS idx_images_rating                   ON images(rating);
 CREATE INDEX IF NOT EXISTS idx_rotation_rules_enabled          ON rotation_rules(enabled);
@@ -186,10 +198,12 @@ INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_confidence_
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('ai_rollup_threshold', '0.3', 'Rollup threshold (0.0 to 1.0) to promote tags to sets');
 
 CREATE TABLE IF NOT EXISTS rotation_history (
-    id           INTEGER PRIMARY KEY,
-    timestamp    TEXT    NOT NULL DEFAULT (datetime('now')),
-    image_id     INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,
-    aspect_ratio TEXT
+    id             INTEGER PRIMARY KEY,
+    timestamp      TEXT    NOT NULL DEFAULT (datetime('now')),
+    image_id       INTEGER REFERENCES images(id) ON DELETE CASCADE,
+    aspect_ratio   TEXT,
+    vault_id       TEXT,
+    vault_image_id INTEGER
 );
 
 INSERT OR IGNORE INTO settings (key, value, description) VALUES ('wallpaper_rotation_mode', 'displayfusion', 'Wallpaper rotation mode: displayfusion or native');

@@ -29,10 +29,22 @@ class RotationBroadcaster:
 
 rotation_broadcaster = RotationBroadcaster()
 
-async def log_rotation(db: AsyncSession, image_id: int, aspect_ratio: Optional[str] = None, target_monitor: Optional[str] = "all") -> None:
+async def log_rotation(
+    db: AsyncSession,
+    image_id: Optional[int] = None,
+    aspect_ratio: Optional[str] = None,
+    target_monitor: Optional[str] = "all",
+    vault_id: Optional[str] = None,
+    vault_image_id: Optional[int] = None,
+) -> None:
     """Logs a rotation event to the database and broadcasts it to all connected SSE clients."""
     # Write the history record
-    history_entry = RotationHistory(image_id=image_id, aspect_ratio=aspect_ratio)
+    history_entry = RotationHistory(
+        image_id=image_id,
+        aspect_ratio=aspect_ratio,
+        vault_id=vault_id,
+        vault_image_id=vault_image_id,
+    )
     db.add(history_entry)
     await db.commit()
     await db.refresh(history_entry)
@@ -41,32 +53,44 @@ async def log_rotation(db: AsyncSession, image_id: int, aspect_ratio: Optional[s
     from app.models.settings import Setting
     from sqlalchemy import select
     
-    keys_to_update = ["wallpaper_active_image_id"]
-    if target_monitor is not None and target_monitor != "all":
-        keys_to_update.append(f"monitor_{target_monitor}_active_image_id")
-        
-    for key in keys_to_update:
-        stmt = select(Setting).where(Setting.key == key)
-        res = await db.execute(stmt)
-        setting = res.scalar_one_or_none()
-        if setting:
-            setting.value = str(image_id)
-        else:
-            setting = Setting(key=key, value=str(image_id), description=f"Active image ID for {key}")
-            db.add(setting)
+    active_val = str(image_id) if image_id is not None else (f"{vault_id}:{vault_image_id}" if vault_id else "")
+    if active_val:
+        keys_to_update = ["wallpaper_active_image_id"]
+        if target_monitor is not None and target_monitor != "all":
+            keys_to_update.append(f"monitor_{target_monitor}_active_image_id")
             
-    await db.commit()
+        for key in keys_to_update:
+            stmt = select(Setting).where(Setting.key == key)
+            res = await db.execute(stmt)
+            setting = res.scalar_one_or_none()
+            if setting:
+                setting.value = active_val
+            else:
+                setting = Setting(key=key, value=active_val, description=f"Active image ID for {key}")
+                db.add(setting)
+                
+        await db.commit()
     
-    # Import locally to avoid circular dependencies
-    from app.crud.image import get_image
-    from app.api.images import map_image_to_context_schema
-    
-    db_image = await get_image(db, image_id)
-    if db_image:
-        schema_img = map_image_to_context_schema(db_image)
+    if image_id is not None:
+        # Import locally to avoid circular dependencies
+        from app.crud.image import get_image
+        from app.api.images import map_image_to_context_schema
+        
+        db_image = await get_image(db, image_id)
+        if db_image:
+            schema_img = map_image_to_context_schema(db_image)
+            await rotation_broadcaster.broadcast({
+                "event": "rotation",
+                "image": schema_img.model_dump(),
+                "target_monitor": target_monitor
+            })
+    elif vault_id is not None and vault_image_id is not None:
         await rotation_broadcaster.broadcast({
             "event": "rotation",
-            "image": schema_img.model_dump(),
+            "is_cross_vault": True,
+            "vault_id": vault_id,
+            "vault_image_id": vault_image_id,
+            "aspect_ratio": aspect_ratio,
             "target_monitor": target_monitor
         })
 

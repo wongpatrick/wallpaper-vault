@@ -21,6 +21,7 @@ class PlaylistBase(BaseModel):
     name: str = Field(..., description="The name of the playlist.")
     description: Optional[str] = Field(None, description="Optional description of the playlist.")
     is_smart: bool = Field(False, description="Whether the playlist is a smart (dynamic) playlist.")
+    is_cross_vault: bool = Field(False, description="Whether the playlist is a cross-vault playlist.")
     rules: Optional[SmartPlaylistRules] = Field(None, description="Filter rules for the smart playlist.")
 
 class PlaylistCreate(PlaylistBase):
@@ -34,6 +35,16 @@ class PlaylistUpdate(BaseModel):
 class PlaylistImageDetail(BaseModel):
     image: Image = Field(..., description="The image object.")
     sort_order: int = Field(..., description="The position of the image in the playlist.")
+
+class CrossVaultImageRef(BaseModel):
+    vault_id: str = Field(..., description="The UUID of the source vault.")
+    image_id: int = Field(..., description="The image ID on the source vault.")
+
+class CrossVaultImageDetail(BaseModel):
+    vault_id: str = Field(..., description="The UUID of the source vault.")
+    image_id: int = Field(..., description="The image ID on the source vault.")
+    sort_order: int = Field(..., description="The position of the image in the playlist.")
+    vault_label: Optional[str] = Field(None, description="Display name / label of the source vault.")
 
 class Playlist(PlaylistBase):
     id: int = Field(..., description="Unique database identifier for the playlist.")
@@ -49,6 +60,7 @@ class Playlist(PlaylistBase):
 
 class PlaylistDetail(Playlist):
     images: List[PlaylistImageDetail] = Field(default_factory=list, description="Sorted list of images in the playlist.")
+    cross_vault_images: List[CrossVaultImageDetail] = Field(default_factory=list, description="Sorted list of cross-vault image references if cross-vault.")
 
 class PlaylistImagesAdd(BaseModel):
     image_ids: List[int] = Field(..., description="List of image IDs to add to the playlist.")
@@ -58,3 +70,12 @@ class PlaylistImagesRemove(BaseModel):
 
 class PlaylistImagesReorder(BaseModel):
     image_ids: List[int] = Field(..., description="Ordered list of image IDs representing the new sequence.")
+
+class CrossVaultImagesAdd(BaseModel):
+    images: List[CrossVaultImageRef] = Field(..., description="List of vault_id and image_id pairs to add.")
+
+class CrossVaultImagesRemove(BaseModel):
+    images: List[CrossVaultImageRef] = Field(..., description="List of vault_id and image_id pairs to remove.")
+
+class CrossVaultImagesReorder(BaseModel):
+    images: List[CrossVaultImageRef] = Field(..., description="Ordered list of vault_id and image_id pairs representing new sequence.")

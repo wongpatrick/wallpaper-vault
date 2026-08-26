@@ -357,10 +357,57 @@ export class VaultRegistryManager {
                 this.saveRegistry();
                 this.notifyUpdate();
             }
+
+            // Push remote vault health status to local backend
+            this.pushHealthToBackend();
         };
 
         runCheck();
         this.healthTimer = setInterval(runCheck, HEALTH_CHECK_INTERVAL_MS);
+    }
+
+    private pushHealthToBackend(): void {
+        const localPort = this.getLocalPort();
+        const localVault = this.data.vaults.find((v) => v.isLocal);
+        const localApiKey = localVault?.apiKey || '';
+
+        const updates = this.data.vaults
+            .filter((v) => !v.isLocal && v.vaultId)
+            .map((v) => ({
+                vault_id: v.vaultId,
+                url: v.url,
+                is_online: v.status === 'online',
+                vault_name: v.vaultName || v.label,
+                api_key: v.apiKey || null
+            }));
+
+        if (updates.length === 0) return;
+
+        const bodyData = JSON.stringify(updates);
+        const options: http.RequestOptions = {
+            hostname: '127.0.0.1',
+            port: localPort,
+            path: '/api/vault/health',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(bodyData),
+                ...(localApiKey ? { 'X-API-Key': localApiKey } : {})
+            },
+            timeout: HTTP_TIMEOUT_MS
+        };
+
+        const req = http.request(options, (res) => {
+            res.resume();
+        });
+        req.on('error', () => {
+            // Ignored if local backend is starting up or unavailable
+        });
+        req.on('timeout', () => {
+            req.destroy();
+        });
+        req.write(bodyData);
+        req.end();
     }
 
     public stopHealthMonitoring(): void {
