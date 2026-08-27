@@ -21,6 +21,19 @@ class PlaylistImage(Base):
     image: Mapped["Image"] = relationship(back_populates="playlist_images")
 
 
+class CrossVaultPlaylistImage(Base):
+    __tablename__ = "cross_vault_playlist_images"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    playlist_id: Mapped[int] = mapped_column(ForeignKey("playlists.id", ondelete="CASCADE"), index=True)
+    vault_id: Mapped[str] = mapped_column(index=True)
+    image_id: Mapped[int] = mapped_column()
+    sort_order: Mapped[int] = mapped_column(server_default=text("0"), default=0)
+
+    # Relationships
+    playlist: Mapped["Playlist"] = relationship(back_populates="cross_vault_images")
+
+
 class Playlist(Base):
     __tablename__ = "playlists"
 
@@ -28,6 +41,7 @@ class Playlist(Base):
     name: Mapped[str] = mapped_column(unique=True, nullable=False)
     description: Mapped[Optional[str]] = mapped_column()
     is_smart: Mapped[bool] = mapped_column(server_default=text("0"), default=False)
+    is_cross_vault: Mapped[bool] = mapped_column(server_default=text("0"), default=False)
     rules: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[str] = mapped_column(server_default=text("(date('now'))"))
 
@@ -36,6 +50,11 @@ class Playlist(Base):
         back_populates="playlist",
         cascade="all, delete-orphan",
         order_by="PlaylistImage.sort_order"
+    )
+    cross_vault_images: Mapped[list["CrossVaultPlaylistImage"]] = relationship(
+        back_populates="playlist",
+        cascade="all, delete-orphan",
+        order_by="CrossVaultPlaylistImage.sort_order"
     )
 
     def __repr__(self) -> str:

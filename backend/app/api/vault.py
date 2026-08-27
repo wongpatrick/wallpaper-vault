@@ -11,6 +11,14 @@ from app.schemas.vault import VaultIdentityResponse
 from app.schemas.settings import SettingUpdate
 from app.core.config import settings
 
+from typing import List, Dict
+from app.core.vault_health import (
+    VaultHealthUpdate,
+    VaultHealthEntry,
+    update_vault_health_entries,
+    get_all_vault_health,
+)
+
 router = APIRouter()
 
 
@@ -42,3 +50,22 @@ async def get_vault_identity(
         vault_name=vault_name_setting.value,
         version=settings.VERSION,
     )
+
+
+@router.post("/health")
+async def update_health(
+    updates: List[VaultHealthUpdate]
+) -> dict:
+    """
+    Update the in-memory health status of remote vaults.
+    """
+    update_vault_health_entries(updates)
+    return {"status": "ok", "updated_count": len(updates)}
+
+
+@router.get("/health", response_model=Dict[str, VaultHealthEntry])
+async def get_health() -> Dict[str, VaultHealthEntry]:
+    """
+    Retrieve current in-memory health status of all registered remote vaults.
+    """
+    return get_all_vault_health()

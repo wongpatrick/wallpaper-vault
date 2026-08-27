@@ -140,9 +140,17 @@ export default function Playlists() {
                                         <Text fw={700} size="lg" truncate="end">
                                             {playlist.name}
                                         </Text>
-                                        <Badge variant="light" color="violet" size="md">
-                                            {playlist.image_count} {playlist.image_count === 1 ? 'wallpaper' : 'wallpapers'}
-                                        </Badge>
+                                        <Group gap="xs" wrap="nowrap">
+                                            {Boolean((playlist as unknown as { is_cross_vault?: boolean }).is_cross_vault) && (
+                                                <Badge variant="light" color="indigo" size="xs">Cross-Vault</Badge>
+                                            )}
+                                            {playlist.is_smart && (
+                                                <Badge variant="light" color="violet" size="xs">Smart</Badge>
+                                            )}
+                                            <Badge variant="light" color="blue" size="md">
+                                                {playlist.image_count} {playlist.image_count === 1 ? 'wallpaper' : 'wallpapers'}
+                                            </Badge>
+                                        </Group>
                                     </Group>
 
                                     <Text size="sm" c="dimmed" lineClamp={2} style={{ minHeight: '2.8rem' }}>

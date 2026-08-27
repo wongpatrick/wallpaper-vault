@@ -1,7 +1,7 @@
 /**
  * @file
  * Module: Playlist Detail Page
- * Description: Displays a single custom collection of wallpapers, allowing drag-and-drop reordering, Up/Down navigation, and image removal.
+ * Description: Displays a single custom collection of wallpapers, supporting local and cross-vault collections with drag-and-drop reordering.
  */
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-    IconAlertCircle, IconArrowLeft, IconTrash, IconChevronUp, IconChevronDown, IconGripVertical, IconCopy, IconPlaylist, IconSparkles, IconEdit
+    IconAlertCircle, IconArrowLeft, IconTrash, IconChevronUp, IconChevronDown, IconGripVertical, IconCopy, IconPlaylist, IconSparkles, IconEdit, IconPlus
 } from '@tabler/icons-react';
 import {
     useReadPlaylistApiPlaylistsPlaylistIdGet,
@@ -19,19 +19,30 @@ import {
     useReadPlaylistRandomImageApiPlaylistsPlaylistIdRandomGet
 } from '../../api/generated/playlists/playlists';
 import { getThumbnailUrl } from '../../utils/fileUtils';
+import { useVault } from '../../hooks/useVault';
+import { AXIOS_INSTANCE } from '../../api/axios-instance';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { PlaylistRotationUrlModal } from '../../components/playlists/PlaylistRotationUrlModal';
 import { PlaylistModal } from '../../components/playlists/PlaylistModal';
+import { VaultBadge } from '../../components/playlists/VaultBadge';
+import { CrossVaultImagePickerModal } from '../../components/playlists/CrossVaultImagePickerModal';
 
 const OPACITY_DRAG = 0.4;
+const OPACITY_OFFLINE = 0.6;
 
 export default function PlaylistDetail() {
     const { playlistId } = useParams<{ playlistId: string }>();
     const navigate = useNavigate();
     const location = useLocation();
     const numericId = Number(playlistId);
+    const { vaults } = useVault();
 
-    const { data: playlist, isLoading, error, refetch } = useReadPlaylistApiPlaylistsPlaylistIdGet(numericId);
+    const { data: rawPlaylist, isLoading, error, refetch } = useReadPlaylistApiPlaylistsPlaylistIdGet(numericId);
+    const playlist = rawPlaylist as typeof rawPlaylist & {
+        is_cross_vault?: boolean;
+        cross_vault_images?: Array<{ vault_id: string; image_id: number; sort_order: number; vault_label?: string }>;
+    };
+
     const removeMutation = useRemoveImagesApiPlaylistsPlaylistIdImagesDelete();
     const reorderMutation = useReorderImagesApiPlaylistsPlaylistIdImagesReorderPut();
     const randomImageQuery = useReadPlaylistRandomImageApiPlaylistsPlaylistIdRandomGet(numericId, undefined, {
@@ -44,17 +55,26 @@ export default function PlaylistDetail() {
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [rotationModalOpened, setRotationModalOpened] = useState(false);
     const [editModalOpened, setEditModalOpened] = useState(false);
+    const [addVaultModalOpened, setAddVaultModalOpened] = useState(false);
 
     // List of images extracted from playlist details
+    const isCrossVault = !!playlist?.is_cross_vault;
+
+    const crossVaultImages = useMemo(() => {
+        if (!playlist?.cross_vault_images) return [];
+        return [...playlist.cross_vault_images].sort((a, b) => a.sort_order - b.sort_order);
+    }, [playlist]);
+
     const imagesWithOrder = useMemo(() => {
         if (!playlist?.images) return [];
-        // Sort them by their sort_order to display correctly
         return [...playlist.images].sort((a, b) => a.sort_order - b.sort_order);
     }, [playlist]);
 
     const imagesOnly = useMemo(() => {
         return imagesWithOrder.map(imgOrder => imgOrder.image);
     }, [imagesWithOrder]);
+
+    const totalItemCount = isCrossVault ? crossVaultImages.length : imagesWithOrder.length;
 
     const handleCopyRotationUrl = () => {
         setRotationModalOpened(true);
@@ -64,7 +84,6 @@ export default function PlaylistDetail() {
         try {
             const result = await randomImageQuery.refetch();
             if (result.data) {
-                // Find index of the random image in the list to open in lightbox
                 const idx = imagesOnly.findIndex(img => img.id === result.data.id);
                 if (idx !== -1) {
                     setLightboxImageIndex(idx);
@@ -106,6 +125,26 @@ export default function PlaylistDetail() {
         }
     };
 
+    const handleRemoveCrossVaultImage = async (vaultId: string, imageId: number) => {
+        try {
+            await AXIOS_INSTANCE.delete(`/api/playlists/${numericId}/cross-vault-images`, {
+                data: { images: [{ vault_id: vaultId, image_id: imageId }] }
+            });
+            notifications.show({
+                title: 'Removed',
+                message: 'Wallpaper removed from cross-vault playlist.',
+                color: 'blue'
+            });
+            refetch();
+        } catch {
+            notifications.show({
+                title: 'Error',
+                message: 'Could not remove cross-vault image.',
+                color: 'red'
+            });
+        }
+    };
+
     const handleReorder = async (newImages: typeof imagesWithOrder) => {
         const imageIds = newImages.map(x => x.image.id);
         try {
@@ -123,12 +162,37 @@ export default function PlaylistDetail() {
         }
     };
 
+    const handleReorderCrossVault = async (newImages: typeof crossVaultImages) => {
+        try {
+            await AXIOS_INSTANCE.put(`/api/playlists/${numericId}/cross-vault-images/reorder`, {
+                images: newImages.map(x => ({ vault_id: x.vault_id, image_id: x.image_id }))
+            });
+            refetch();
+        } catch {
+            notifications.show({
+                title: 'Reorder Failed',
+                message: 'Could not save new cross-vault order to database.',
+                color: 'red'
+            });
+        }
+    };
+
     const handleMove = async (currentIndex: number, direction: 'up' | 'down') => {
+        if (isCrossVault) {
+            const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+            if (targetIndex < 0 || targetIndex >= crossVaultImages.length) return;
+            const updated = [...crossVaultImages];
+            const temp = updated[currentIndex];
+            updated[currentIndex] = updated[targetIndex];
+            updated[targetIndex] = temp;
+            await handleReorderCrossVault(updated);
+            return;
+        }
+
         const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
         if (targetIndex < 0 || targetIndex >= imagesWithOrder.length) return;
 
         const updated = [...imagesWithOrder];
-        // Swap
         const temp = updated[currentIndex];
         updated[currentIndex] = updated[targetIndex];
         updated[targetIndex] = temp;
@@ -149,6 +213,15 @@ export default function PlaylistDetail() {
     const handleDrop = async (e: React.DragEvent, index: number) => {
         e.preventDefault();
         if (draggedIndex === null || draggedIndex === index) return;
+
+        if (isCrossVault) {
+            const updated = [...crossVaultImages];
+            const [draggedItem] = updated.splice(draggedIndex, 1);
+            updated.splice(index, 0, draggedItem);
+            setDraggedIndex(null);
+            await handleReorderCrossVault(updated);
+            return;
+        }
 
         const updated = [...imagesWithOrder];
         const [draggedItem] = updated.splice(draggedIndex, 1);
@@ -211,6 +284,7 @@ export default function PlaylistDetail() {
                     <Title order={1} fw={800} style={{ letterSpacing: '-1.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         🎵 {playlist.name}
                         {playlist.is_smart && <Badge variant="light" color="violet" size="lg">Smart Playlist</Badge>}
+                        {isCrossVault && <Badge variant="light" color="indigo" size="lg">Cross-Vault</Badge>}
                     </Title>
                     <Text size="md" c="dimmed">
                         {playlist.description || 'No description provided.'}
@@ -218,6 +292,16 @@ export default function PlaylistDetail() {
                 </Stack>
 
                 <Group gap="sm">
+                    {isCrossVault && (
+                        <Button
+                            variant="light"
+                            color="indigo"
+                            leftSection={<IconPlus size={16} />}
+                            onClick={() => setAddVaultModalOpened(true)}
+                        >
+                            Add from Vault
+                        </Button>
+                    )}
                     <Button
                         variant="light"
                         leftSection={<IconEdit size={16} />}
@@ -229,7 +313,7 @@ export default function PlaylistDetail() {
                         variant="light"
                         leftSection={<IconSparkles size={16} />}
                         onClick={handleTriggerRandomPreview}
-                        disabled={imagesWithOrder.length === 0}
+                        disabled={totalItemCount === 0 || isCrossVault}
                     >
                         Random Preview
                     </Button>
@@ -243,7 +327,7 @@ export default function PlaylistDetail() {
                 </Group>
             </Group>
 
-            {imagesWithOrder.length === 0 ? (
+            {totalItemCount === 0 ? (
                 <Center style={{ minHeight: '30vh', flexDirection: 'column' }}>
                     <IconPlaylist size={48} style={{ opacity: 0.1 }} />
                     <Text size="lg" fw={600} c="dimmed" mt="md">
@@ -252,15 +336,171 @@ export default function PlaylistDetail() {
                     <Text c="dimmed" size="sm" mt={4} mb="xl">
                         {playlist.is_smart
                             ? 'No wallpapers match your current rules. Try adjusting the filter criteria.'
+                            : isCrossVault
+                            ? 'Add wallpapers across your connected vaults to populate this playlist.'
                             : 'Go to individual wallpapers or sets and select images to add them here.'}
                     </Text>
-                    {!playlist.is_smart && (
-                        <Button variant="outline" onClick={() => navigate('/images')}>
-                            Browse Wallpapers
+                    {isCrossVault ? (
+                        <Button
+                            variant="filled"
+                            color="indigo"
+                            leftSection={<IconPlus size={16} />}
+                            onClick={() => setAddVaultModalOpened(true)}
+                        >
+                            Add from Vault
                         </Button>
+                    ) : (
+                        !playlist.is_smart && (
+                            <Button variant="outline" onClick={() => navigate('/images')}>
+                                Browse Wallpapers
+                            </Button>
+                        )
                     )}
                 </Center>
+            ) : isCrossVault ? (
+                /* Cross-Vault Image Grid */
+                <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
+                    {crossVaultImages.map((item, idx) => {
+                        const { vault_id, image_id, sort_order, vault_label } = item;
+                        const vault = vaults.find(v => v.vaultId === vault_id || v.id === vault_id);
+                        const isOnline = vault ? (vault.isLocal || vault.status === 'online') : true;
+                        const cleanUrl = vault?.url ? vault.url.replace(/\/+$/, '') : '';
+                        const thumbUrl = `${cleanUrl}/api/thumbnails/${image_id}.webp`;
+
+                        return (
+                            <Card
+                                key={`${vault_id}-${image_id}`}
+                                shadow="sm"
+                                padding={0}
+                                radius="md"
+                                withBorder
+                                draggable={true}
+                                onDragStart={() => handleDragStart(idx)}
+                                onDragOver={(e) => handleDragOver(e, idx)}
+                                onDrop={(e) => handleDrop(e, idx)}
+                                style={{
+                                    overflow: 'hidden',
+                                    position: 'relative',
+                                    transition: 'transform 0.2s ease',
+                                    opacity: draggedIndex === idx ? OPACITY_DRAG : (isOnline ? 1 : OPACITY_OFFLINE),
+                                    cursor: 'grab',
+                                }}
+                                className="playlist-item-card"
+                            >
+                                <Box style={{ position: 'relative', height: 180, overflow: 'hidden', backgroundColor: 'var(--mantine-color-dark-7)' }}>
+                                    {isOnline ? (
+                                        <Image
+                                            src={thumbUrl}
+                                            alt={`Image ${image_id}`}
+                                            loading="lazy"
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                            fallbackSrc="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' fill='%23555'><rect width='100' height='100'/></svg>"
+                                        />
+                                    ) : (
+                                        <Center h={180}>
+                                            <Stack align="center" gap={4}>
+                                                <IconAlertCircle size={28} color="gray" />
+                                                <Text size="xs" c="dimmed" fw={600}>
+                                                    Vault Offline
+                                                </Text>
+                                            </Stack>
+                                        </Center>
+                                    )}
+
+                                    {/* Top Controls Overlay */}
+                                    <Box
+                                        style={{
+                                            position: 'absolute',
+                                            top: 8,
+                                            left: 8,
+                                            right: 8,
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            zIndex: 10
+                                        }}
+                                    >
+                                        <Group gap={6}>
+                                            <ActionIcon
+                                                variant="glass"
+                                                color="dark"
+                                                size="md"
+                                                radius="md"
+                                                style={{ cursor: 'grab', backgroundColor: 'rgba(0,0,0,0.5)', border: 'none' }}
+                                            >
+                                                <IconGripVertical size={16} color="white" />
+                                            </ActionIcon>
+                                            <VaultBadge vaultId={vault_id} label={vault_label} size="xs" />
+                                        </Group>
+
+                                        <ActionIcon
+                                            variant="filled"
+                                            color="red"
+                                            size="md"
+                                            radius="md"
+                                            onClick={() => handleRemoveCrossVaultImage(vault_id, image_id)}
+                                            style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+                                            title="Remove from cross-vault playlist"
+                                        >
+                                            <IconTrash size={14} />
+                                        </ActionIcon>
+                                    </Box>
+
+                                    {/* Info Overlay */}
+                                    <Box
+                                        style={{
+                                            position: 'absolute',
+                                            bottom: 0,
+                                            left: 0,
+                                            right: 0,
+                                            background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+                                            color: 'white',
+                                            padding: '8px',
+                                            pointerEvents: 'none'
+                                        }}
+                                    >
+                                        <Text size="xs" truncate="end" fw={600}>
+                                            Image #{image_id}
+                                        </Text>
+                                    </Box>
+                                </Box>
+
+                                {/* Bottom Reorder Buttons */}
+                                <Group gap="xs" p="xs" justify="space-between" style={{ backgroundColor: 'var(--mantine-color-body)' }}>
+                                    <Badge size="sm" variant="light" color="gray">
+                                        Pos: {sort_order}
+                                    </Badge>
+                                    <Group gap={4}>
+                                        <Tooltip label="Move Up">
+                                            <ActionIcon
+                                                variant="subtle"
+                                                color="gray"
+                                                size="sm"
+                                                onClick={() => handleMove(idx, 'up')}
+                                                disabled={idx === 0}
+                                            >
+                                                <IconChevronUp size={16} />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                        <Tooltip label="Move Down">
+                                            <ActionIcon
+                                                variant="subtle"
+                                                color="gray"
+                                                size="sm"
+                                                onClick={() => handleMove(idx, 'down')}
+                                                disabled={idx === crossVaultImages.length - 1}
+                                            >
+                                                <IconChevronDown size={16} />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    </Group>
+                                </Group>
+                            </Card>
+                        );
+                    })}
+                </SimpleGrid>
             ) : (
+                /* Standard Local Image Grid */
                 <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
                     {imagesWithOrder.map((item, idx) => {
                         const { image, sort_order } = item;
@@ -402,7 +642,6 @@ export default function PlaylistDetail() {
                     onSelectIndex={setLightboxImageIndex}
                     onEdit={() => {}}
                     onDelete={() => {
-                        // If deleted globally, we should refetch
                         refetch();
                         setLightboxImageIndex(null);
                     }}
@@ -425,6 +664,16 @@ export default function PlaylistDetail() {
                 playlist={playlist}
                 onSuccess={() => refetch()}
             />
+
+            {/* Cross Vault Image Picker Modal */}
+            {isCrossVault && (
+                <CrossVaultImagePickerModal
+                    opened={addVaultModalOpened}
+                    onClose={() => setAddVaultModalOpened(false)}
+                    playlistId={numericId}
+                    onSuccess={() => refetch()}
+                />
+            )}
 
             <style dangerouslySetInnerHTML={{ __html: `
                 .playlist-item-card:active {

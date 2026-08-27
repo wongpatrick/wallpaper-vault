@@ -113,12 +113,13 @@ async def get_smart_playlist_count(db: AsyncSession, playlist: Playlist) -> int:
 
 
 async def get_playlist(db: AsyncSession, playlist_id: int) -> Optional[Playlist]:
-    """Retrieves a single playlist by its ID, with its ordered images loaded if static."""
+    """Retrieves a single playlist by its ID, with its ordered images loaded if static or cross-vault."""
     stmt = (
         select(Playlist)
         .options(
             selectinload(Playlist.playlist_images)
-            .selectinload(PlaylistImage.image)
+            .selectinload(PlaylistImage.image),
+            selectinload(Playlist.cross_vault_images),
         )
         .filter(Playlist.id == playlist_id)
     )
@@ -128,6 +129,8 @@ async def get_playlist(db: AsyncSession, playlist_id: int) -> Optional[Playlist]
     if playlist:
         if playlist.is_smart:
             playlist.image_count = await get_smart_playlist_count(db, playlist)
+        elif playlist.is_cross_vault:
+            playlist.image_count = len(playlist.cross_vault_images)
         else:
             playlist.image_count = len(playlist.playlist_images)
     return playlist
@@ -141,30 +144,37 @@ async def get_playlist_by_name(db: AsyncSession, name: str) -> Optional[Playlist
 async def get_playlists(db: AsyncSession) -> List[Playlist]:
     """Retrieves all playlists with their image counts, sorted by name."""
     stmt = (
-        select(Playlist, func.count(PlaylistImage.image_id).label("image_count"))
-        .outerjoin(PlaylistImage)
-        .group_by(Playlist.id)
+        select(Playlist)
+        .options(
+            selectinload(Playlist.playlist_images),
+            selectinload(Playlist.cross_vault_images),
+        )
         .order_by(Playlist.name.asc())
     )
     result = await db.execute(stmt)
     
     playlists = []
-    for playlist, image_count in result.all():
+    for playlist in result.scalars().all():
         if playlist.is_smart:
             playlist.image_count = await get_smart_playlist_count(db, playlist)
+        elif playlist.is_cross_vault:
+            playlist.image_count = len(playlist.cross_vault_images)
         else:
-            playlist.image_count = image_count
+            playlist.image_count = len(playlist.playlist_images)
         playlists.append(playlist)
         
     return playlists
 
 async def create_playlist(db: AsyncSession, playlist_in: PlaylistCreate) -> Playlist:
     """Creates a new playlist."""
+    is_smart = playlist_in.is_smart if not playlist_in.is_cross_vault else False
+    rules = playlist_in.rules.model_dump(exclude_unset=True) if (playlist_in.rules and not playlist_in.is_cross_vault) else None
     db_playlist = Playlist(
         name=playlist_in.name,
         description=playlist_in.description,
-        is_smart=playlist_in.is_smart,
-        rules=playlist_in.rules.model_dump(exclude_unset=True) if playlist_in.rules else None
+        is_smart=is_smart,
+        is_cross_vault=playlist_in.is_cross_vault,
+        rules=rules,
     )
     db.add(db_playlist)
     await db.flush()

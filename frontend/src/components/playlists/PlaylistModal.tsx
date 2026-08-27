@@ -5,14 +5,16 @@
  */
 import { useState } from 'react';
 import {
-    Modal, Stack, TextInput, Textarea, SegmentedControl, MultiSelect, Select, Group, Button
+    Modal, Stack, TextInput, Textarea, SegmentedControl, MultiSelect, Select, Group, Button, Switch, Alert
 } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import {
     useCreatePlaylistEndpointApiPlaylistsPost,
     useUpdatePlaylistEndpointApiPlaylistsPlaylistIdPut
 } from '../../api/generated/playlists/playlists';
 import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
+import { useVault } from '../../hooks/useVault';
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
 import type { Playlist, PlaylistDetail, SmartPlaylistRules } from '../../api/model';
 
@@ -23,17 +25,20 @@ const RADIX_DECIMAL = 10;
 interface PlaylistModalProps {
     opened: boolean;
     onClose: () => void;
-    playlist?: Playlist | PlaylistDetail | null;
+    playlist?: (Playlist | PlaylistDetail) & { is_cross_vault?: boolean } | null;
     onSuccess?: () => void;
 }
 
 interface PlaylistModalFormProps {
-    playlist?: Playlist | PlaylistDetail | null;
+    playlist?: (Playlist | PlaylistDetail) & { is_cross_vault?: boolean } | null;
     onClose: () => void;
     onSuccess?: () => void;
 }
 
 function PlaylistModalForm({ playlist, onClose, onSuccess }: PlaylistModalFormProps) {
+    const { vaults } = useVault();
+    const hasRemoteVaults = vaults.some(v => !v.isLocal);
+
     const createMutation = useCreatePlaylistEndpointApiPlaylistsPost();
     const updateMutation = useUpdatePlaylistEndpointApiPlaylistsPlaylistIdPut();
 
@@ -46,6 +51,7 @@ function PlaylistModalForm({ playlist, onClose, onSuccess }: PlaylistModalFormPr
     const rules = playlist?.rules;
     const [formName, setFormName] = useState(playlist?.name || '');
     const [formDesc, setFormDesc] = useState(playlist?.description || '');
+    const [isCrossVault, setIsCrossVault] = useState(playlist?.is_cross_vault || false);
     const [isSmart, setIsSmart] = useState(playlist?.is_smart || false);
     const [includedTags, setIncludedTags] = useState<string[]>(rules?.included_tags || []);
     const [excludedTags, setExcludedTags] = useState<string[]>(rules?.excluded_tags || []);
@@ -73,7 +79,7 @@ function PlaylistModalForm({ playlist, onClose, onSuccess }: PlaylistModalFormPr
             return;
         }
 
-        const rulesPayload: SmartPlaylistRules | null = isSmart ? {
+        const rulesPayload: SmartPlaylistRules | null = (!isCrossVault && isSmart) ? {
             included_tags: includedTags,
             excluded_tags: excludedTags,
             ratings: ratings as SmartPlaylistRules['ratings'],
@@ -105,7 +111,8 @@ function PlaylistModalForm({ playlist, onClose, onSuccess }: PlaylistModalFormPr
                     data: {
                         name: formName,
                         description: formDesc,
-                        is_smart: isSmart,
+                        is_smart: !isCrossVault && isSmart,
+                        is_cross_vault: isCrossVault,
                         rules: rulesPayload
                     }
                 });
@@ -146,7 +153,28 @@ function PlaylistModalForm({ playlist, onClose, onSuccess }: PlaylistModalFormPr
                 minRows={TEXTAREA_MIN_ROWS}
             />
 
-            {!playlist && (
+            {!playlist && hasRemoteVaults && (
+                <Switch
+                    label="Cross-Vault Playlist"
+                    description="Span wallpapers across multiple connected vaults"
+                    checked={isCrossVault}
+                    onChange={(e) => {
+                        const checked = e.currentTarget.checked;
+                        setIsCrossVault(checked);
+                        if (checked) {
+                            setIsSmart(false);
+                        }
+                    }}
+                />
+            )}
+
+            {isCrossVault && (
+                <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
+                    Cross-vault playlists pull wallpapers from any connected vault. Wallpapers can be picked from specific vaults on the playlist detail page.
+                </Alert>
+            )}
+
+            {!playlist && !isCrossVault && (
                 <SegmentedControl
                     value={isSmart ? 'smart' : 'static'}
                     onChange={(val) => setIsSmart(val === 'smart')}
@@ -158,7 +186,7 @@ function PlaylistModalForm({ playlist, onClose, onSuccess }: PlaylistModalFormPr
                 />
             )}
 
-            {isSmart && (
+            {!isCrossVault && isSmart && (
                 <Stack gap="sm">
                     <TagAutocompleteInput
                         label="Included Tags"

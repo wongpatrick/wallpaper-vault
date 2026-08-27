@@ -10,11 +10,13 @@ class RotationHistory(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, server_default=func.now(), nullable=False)
-    image_id = Column(Integer, ForeignKey("images.id", ondelete="CASCADE"), nullable=False)
+    image_id = Column(Integer, ForeignKey("images.id", ondelete="CASCADE"), nullable=True)
     aspect_ratio = Column(String, nullable=True)
+    vault_id = Column(String, nullable=True, index=True)
+    vault_image_id = Column(Integer, nullable=True)
 
     # Relationships
     image = relationship("Image")
 
     def __repr__(self) -> str:
-        return f"<RotationHistory(id={self.id}, image_id={self.image_id}, timestamp='{self.timestamp}')>"
+        return f"<RotationHistory(id={self.id}, image_id={self.image_id}, vault_id={self.vault_id}, timestamp='{self.timestamp}')>"
