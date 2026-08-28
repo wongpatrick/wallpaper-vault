@@ -6,7 +6,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.session import get_db
+from app.db.session import get_db, SessionLocal
 from app.api.deps import PaginationParams, pagination_params
 from app.crud import image as crud_image
 
@@ -552,12 +552,12 @@ async def import_images(
     request: Request,
     req: ImageImportRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
 ) -> str:
     """Triggers an asynchronous background task to import images and folders into the library."""
-    task_id = await tasks.create_task(db_session=db, status="accepted", prefix="import")
+    async with SessionLocal() as db:
+        task_id = await tasks.create_task(db_session=db, status="accepted", prefix="import")
     req_dict = req.model_dump()
-    background_tasks.add_task(import_service.import_images_background_task, db, req_dict, task_id)
+    background_tasks.add_task(import_service.import_images_background_task, req_dict, task_id)
     logger.info("Started images import background task", task_id=task_id)
     return task_id
 

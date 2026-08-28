@@ -115,23 +115,23 @@ async def _scan_library_path_impl(db: AsyncSession, library_path_id: int, task_i
                     db.add(creator)
                     await db.flush()
 
-                    db_set = Set(
-                        title=set_title,
-                        local_path=norm_dir,
-                        library_path_id=library_path_id,
-                        creators=[creator] if creator else []
-                    )
-                    db.add(db_set)
+                db_set = Set(
+                    title=set_title,
+                    local_path=norm_dir,
+                    library_path_id=library_path_id,
+                    creators=[creator] if creator else []
+                )
+                db.add(db_set)
+                await db.flush()
+                sets_created += 1
+                existing_paths = set()
+            else:
+                # Update library_path_id if not linked
+                if db_set.library_path_id != library_path_id:
+                    db_set.library_path_id = library_path_id
                     await db.flush()
-                    sets_created += 1
-                    existing_paths = set()
-                else:
-                    # Update library_path_id if not linked
-                    if db_set.library_path_id != library_path_id:
-                        db_set.library_path_id = library_path_id
-                        await db.flush()
-                    # Get existing images for this set
-                    existing_paths = {os.path.normcase(os.path.normpath(img.local_path)) for img in db_set.images if img.local_path}
+                # Get existing images for this set
+                existing_paths = {os.path.normcase(os.path.normpath(img.local_path)) for img in db_set.images if img.local_path}
 
             for filename in img_files:
                 full_p = dir_path / filename

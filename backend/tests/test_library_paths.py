@@ -179,3 +179,130 @@ async def test_library_scan_background_task(client: AsyncClient, db_session: Asy
     assert res.status_code == 200
     sets = res.json()["items"]
     assert any(s["title"] == "Cyberpunk Girl" for s in sets)
+
+
+@pytest.mark.asyncio
+async def test_library_scan_existing_creator_new_set(client: AsyncClient, db_session: AsyncSession, tmp_path: Path):
+    from app.models.creator import Creator
+    from sqlalchemy.orm import selectinload
+    from sqlalchemy import select
+
+    # Pre-create existing creator
+    creator = Creator(canonical_name="Existing Artist")
+    db_session.add(creator)
+    await db_session.commit()
+
+    scan_vault = tmp_path / "scan_vault_existing_creator"
+    scan_vault.mkdir(parents=True, exist_ok=True)
+
+    set_folder = scan_vault / "Existing Artist - Fantastic Scenery"
+    set_folder.mkdir(parents=True, exist_ok=True)
+    img_path = set_folder / "pic1.jpg"
+
+    dummy_img = np.zeros((100, 100, 3), dtype=np.uint8)
+    cv2.imwrite(str(img_path), dummy_img)
+
+    res = await client.post("/api/library-paths/", json={
+        "path": str(scan_vault),
+        "label": "Existing Creator Vault",
+        "is_default": False,
+        "scan_existing": False
+    })
+    assert res.status_code == 200
+    lp = res.json()
+
+    from app.core import tasks
+    task_id = await tasks.create_task(db_session, prefix="scan")
+    await scan_library_path_background_task(lp["id"], task_id, db=db_session)
+
+    stmt = select(Set).where(Set.title == "Fantastic Scenery").options(selectinload(Set.creators), selectinload(Set.images))
+    set_res = await db_session.execute(stmt)
+    db_set = set_res.scalars().first()
+
+    assert db_set is not None
+    assert db_set.library_path_id == lp["id"]
+    assert len(db_set.creators) == 1
+    assert db_set.creators[0].canonical_name == "Existing Artist"
+    assert len(db_set.images) == 1
+
+
+@pytest.mark.asyncio
+async def test_library_scan_unknown_creator_folder(client: AsyncClient, db_session: AsyncSession, tmp_path: Path):
+    from sqlalchemy.orm import selectinload
+    from sqlalchemy import select
+
+    scan_vault = tmp_path / "scan_vault_unknown_creator"
+    scan_vault.mkdir(parents=True, exist_ok=True)
+
+    # Folder without hyphen delimiter
+    set_folder = scan_vault / "LoneFolderWithoutCreator"
+    set_folder.mkdir(parents=True, exist_ok=True)
+    img_path = set_folder / "lone.jpg"
+
+    dummy_img = np.zeros((100, 100, 3), dtype=np.uint8)
+    cv2.imwrite(str(img_path), dummy_img)
+
+    res = await client.post("/api/library-paths/", json={
+        "path": str(scan_vault),
+        "label": "Unknown Creator Vault",
+        "is_default": False,
+        "scan_existing": False
+    })
+    assert res.status_code == 200
+    lp = res.json()
+
+    from app.core import tasks
+    task_id = await tasks.create_task(db_session, prefix="scan")
+    await scan_library_path_background_task(lp["id"], task_id, db=db_session)
+
+    stmt = select(Set).where(Set.title == "LoneFolderWithoutCreator").options(selectinload(Set.creators), selectinload(Set.images))
+    set_res = await db_session.execute(stmt)
+    db_set = set_res.scalars().first()
+
+    assert db_set is not None
+    assert db_set.library_path_id == lp["id"]
+    assert len(db_set.creators) == 0
+    assert len(db_set.images) == 1
+
+
+@pytest.mark.asyncio
+async def test_library_scan_rescan_existing_set(client: AsyncClient, db_session: AsyncSession, tmp_path: Path):
+    from sqlalchemy.orm import selectinload
+    from sqlalchemy import select
+
+    scan_vault = tmp_path / "scan_vault_rescan"
+    scan_vault.mkdir(parents=True, exist_ok=True)
+
+    set_folder = scan_vault / "ArtistA - RescanSet"
+    set_folder.mkdir(parents=True, exist_ok=True)
+    img1 = set_folder / "img1.jpg"
+    dummy_img = np.zeros((100, 100, 3), dtype=np.uint8)
+    cv2.imwrite(str(img1), dummy_img)
+
+    res = await client.post("/api/library-paths/", json={
+        "path": str(scan_vault),
+        "label": "Rescan Vault",
+        "is_default": False,
+        "scan_existing": False
+    })
+    assert res.status_code == 200
+    lp = res.json()
+
+    from app.core import tasks
+    task_id_1 = await tasks.create_task(db_session, prefix="scan")
+    await scan_library_path_background_task(lp["id"], task_id_1, db=db_session)
+
+    # Now add a second image to the folder
+    img2 = set_folder / "img2.jpg"
+    dummy_img2 = np.ones((100, 100, 3), dtype=np.uint8) * 128
+    cv2.imwrite(str(img2), dummy_img2)
+
+    task_id_2 = await tasks.create_task(db_session, prefix="scan")
+    await scan_library_path_background_task(lp["id"], task_id_2, db=db_session)
+
+    stmt = select(Set).where(Set.title == "RescanSet").options(selectinload(Set.images))
+    set_res = await db_session.execute(stmt)
+    db_set = set_res.scalars().first()
+
+    assert db_set is not None
+    assert len(db_set.images) == 2

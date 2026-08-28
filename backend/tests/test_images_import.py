@@ -250,3 +250,54 @@ async def test_images_import_delete_source_directory(client: AsyncClient, mock_i
         assert not temp_src_dir.exists()
 
 
+@pytest.mark.asyncio
+async def test_images_import_background_task_creates_own_session(client: AsyncClient, mock_images_dir: Path, db_session: AsyncSession):
+    """Test that import_images_background_task manages its own session when db is None."""
+    with tempfile.TemporaryDirectory() as vault_dir:
+        await client.put("/api/settings/base_library_path", json={"value": vault_dir})
+
+        temp_src_dir = Path(vault_dir) / "temp_src_session_test"
+        temp_src_dir.mkdir()
+
+        p1 = temp_src_dir / "img1.png"
+        shutil.copy(mock_images_dir / "img1.png", p1)
+
+        from app.core import tasks
+        task_id = await tasks.create_task(db_session=db_session, status="accepted", prefix="import")
+
+        import_req = {
+            "items": [
+                {"local_path": str(p1)}
+            ],
+            "creator_name": "Session Artist",
+            "set_title": "Session Own Set",
+            "tags": ["session_tag"],
+            "rating": "safe",
+            "delete_source": False
+        }
+
+        class MockSessionLocal:
+            async def __aenter__(self):
+                return db_session
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        original_session_local = import_service.SessionLocal
+        import_service.SessionLocal = MockSessionLocal
+        try:
+            # Call with db=None (the default) so it creates its own SessionLocal()
+            await import_service.import_images_background_task(
+                request_data=import_req,
+                task_id=task_id,
+                db=None
+            )
+        finally:
+            import_service.SessionLocal = original_session_local
+
+        res = await db_session.execute(select(SetModel).where(SetModel.title == "Session Own Set"))
+        db_set = res.scalars().first()
+        assert db_set is not None
+        assert db_set.title == "Session Own Set"
+
+
