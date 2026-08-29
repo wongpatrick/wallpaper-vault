@@ -2,13 +2,14 @@
 Service for importing new sets and images into the vault.
 Handles folder parsing, validation, and batch execution of media imports.
 """
-from typing import Any
+from typing import Any, Optional
 import re
 import os
 from pathlib import Path
 import structlog
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.session import SessionLocal
 from app.schemas.set import BatchImportRequest, BatchImportItem
 from app.crud.settings import get_setting
 from app.crud.creator import get_creator_by_name, create_creator
@@ -482,17 +483,23 @@ async def validate_local_paths(db: AsyncSession, local_paths: list[str]) -> Any:
 
 
 async def import_images_background_task(
+    request_data: dict,
+    task_id: str,
+    db: Optional[AsyncSession] = None
+) -> None:
+    """Asynchronous background task to process and import multiple images/folders into the vault."""
+    if db is not None:
+        await _import_images_background_task_impl(db, request_data, task_id)
+    else:
+        async with SessionLocal() as session:
+            await _import_images_background_task_impl(session, request_data, task_id)
+
+
+async def _import_images_background_task_impl(
     db: AsyncSession,
     request_data: dict,
     task_id: str
 ) -> None:
-    """Asynchronous background task to process and import multiple images/folders into the vault."""
-    import sys
-    created_session = False
-    if "pytest" not in sys.modules:
-        from app.db.session import SessionLocal
-        db = SessionLocal()
-        created_session = True
     from app.core import tasks
     from app.models.image import Image as ImageModel
     from app.models.set import Set as SetModel
@@ -772,6 +779,3 @@ async def import_images_background_task(
         logger.exception("Error during background import", task_id=task_id, error=str(e))
         await db.rollback()
         await tasks.update_task(db, task_id, status="error", error_message=str(e))
-    finally:
-        if created_session:
-            await db.close()

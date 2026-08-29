@@ -59,10 +59,9 @@ export async function fetchFromVault<T>(
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     const url = `${cleanBaseUrl}${cleanEndpoint}`;
 
-    const headers: Record<string, string> = {};
-    if (vault.apiKey) {
-        headers['X-API-Key'] = vault.apiKey;
-    }
+    const headers: Record<string, string> = {
+        'X-API-Key': vault.apiKey || ''
+    };
 
     const response = await AXIOS_INSTANCE.get<T>(url, {
         headers,

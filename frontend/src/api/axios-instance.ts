@@ -21,6 +21,11 @@ setMutatorAxiosInstance(AXIOS_INSTANCE);
 
 // Request interceptor to append API key header
 AXIOS_INSTANCE.interceptors.request.use((config) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const shouldSkipAuth = (config as any)?.skipAuthInterceptor;
+    if (shouldSkipAuth) {
+        return config;
+    }
     const key = localStorage.getItem('api_key') || '';
     if (key && !config.headers?.['X-API-Key']) {
         config.headers = config.headers || {};

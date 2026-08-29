@@ -11,7 +11,8 @@ import {
     useMultiVaultSets, 
     mergePaginatedResults,
     mergeDashboardStats,
-    mergeTagCloudItems
+    mergeTagCloudItems,
+    fetchFromVault
 } from './useMultiVaultQuery';
 import * as VaultHook from './useVault';
 import { AXIOS_INSTANCE } from '../api/axios-instance';
@@ -261,6 +262,51 @@ describe('useMultiVaultSets hook', () => {
         });
 
         expect(result.current.data?.items[0].id).toBe(10);
+    });
+
+    describe('fetchFromVault', () => {
+        it('sends explicit apiKey header when apiKey is present', async () => {
+            (AXIOS_INSTANCE.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ data: { ok: true } });
+
+            const vaultWithKey: VaultEntry = {
+                id: 'remote-1',
+                label: 'Remote 1',
+                url: 'http://192.168.1.100:8000',
+                isLocal: false,
+                apiKey: 'my-secret-key'
+            };
+
+            await fetchFromVault(vaultWithKey, '/api/stats');
+
+            expect(AXIOS_INSTANCE.get).toHaveBeenCalledWith(
+                'http://192.168.1.100:8000/api/stats',
+                expect.objectContaining({
+                    headers: { 'X-API-Key': 'my-secret-key' },
+                    skipAuthInterceptor: true
+                })
+            );
+        });
+
+        it('sends empty string apiKey header when apiKey is undefined/empty', async () => {
+            (AXIOS_INSTANCE.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ data: { ok: true } });
+
+            const vaultWithoutKey: VaultEntry = {
+                id: 'remote-no-key',
+                label: 'Remote No Key',
+                url: 'http://192.168.1.101:8000',
+                isLocal: false
+            };
+
+            await fetchFromVault(vaultWithoutKey, '/api/stats');
+
+            expect(AXIOS_INSTANCE.get).toHaveBeenCalledWith(
+                'http://192.168.1.101:8000/api/stats',
+                expect.objectContaining({
+                    headers: { 'X-API-Key': '' },
+                    skipAuthInterceptor: true
+                })
+            );
+        });
     });
 });
 
