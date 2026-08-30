@@ -88,6 +88,21 @@ class SetUpdate(SetBase):
     characters: Optional[list[str]] = Field(None, description="Updated list of character names for this set.")
     creator_ids: Optional[list[int]] = Field(None, description="Updated list of creator IDs for this set.")
 
+class SetSummary(SetBase):
+    id: int = Field(..., description="Unique database identifier for the set.")
+    created_at: str = Field(..., description="Timestamp when the set was added to the vault.")
+
+    @computed_field
+    def date_added(self) -> str:
+        return self.created_at
+
+    creators: list[Creator] = Field([], description="List of creators associated with this set.")
+    image_count: int = Field(0, description="Total number of images in this set.")
+    preview_image_id: Optional[int] = Field(None, description="Primary/first image ID for thumbnail preview.")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class Set(SetBase):
     id: int = Field(..., description="Unique database identifier for the set.")
     created_at: str = Field(..., description="Timestamp when the set was added to the vault.")
@@ -101,8 +116,9 @@ class Set(SetBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class SetPage(BaseModel):
-    items: list[Set] = Field(..., description="Paginated list of sets.")
+    items: list[SetSummary] = Field(..., description="Paginated list of sets.")
     total: int = Field(..., description="Total number of sets matching the query.")
     skip: int = Field(..., description="Number of items skipped.")
     limit: int = Field(..., description="Maximum number of items returned.")

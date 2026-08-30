@@ -32,13 +32,13 @@ async def get_library_stats(db: AsyncSession) -> LibraryStats:
     Returns:
         A LibraryStats object containing the aggregated metrics.
     """
-    # 1. Total counts and size
+    # 1. Total counts and size in a single aggregated round trip
     stats_query = select(
-        func.count(Image.id).label("total_images"),
-        func.sum(Image.file_size).label("total_size_bytes")
+        select(func.count(Image.id)).scalar_subquery().label("total_images"),
+        select(func.coalesce(func.sum(Image.file_size), 0)).scalar_subquery().label("total_size_bytes"),
+        select(func.count(Set.id)).scalar_subquery().label("total_sets"),
+        select(func.count(Creator.id)).scalar_subquery().label("total_creators"),
     )
-    sets_count_query = select(func.count(Set.id))
-    creators_count_query = select(func.count(Creator.id))
 
     # 2. Aspect Ratio distribution
     ar_query = select(
@@ -50,12 +50,6 @@ async def get_library_stats(db: AsyncSession) -> LibraryStats:
     stats_result = await db.execute(stats_query)
     stats_data = stats_result.one()
 
-    sets_count_result = await db.execute(sets_count_query)
-    total_sets = sets_count_result.scalar()
-
-    creators_count_result = await db.execute(creators_count_query)
-    total_creators = creators_count_result.scalar()
-
     ar_result = await db.execute(ar_query)
     ar_dist = {}
     for row in ar_result.all():
@@ -64,8 +58,8 @@ async def get_library_stats(db: AsyncSession) -> LibraryStats:
 
     return LibraryStats(
         total_images=stats_data.total_images or 0,
-        total_sets=total_sets or 0,
-        total_creators=total_creators or 0,
+        total_sets=stats_data.total_sets or 0,
+        total_creators=stats_data.total_creators or 0,
         total_size_bytes=int(stats_data.total_size_bytes or 0),
         database_size_bytes=get_db_file_size(),
         aspect_ratio_distribution=ar_dist
@@ -82,15 +76,17 @@ async def get_health_alerts(db: AsyncSession) -> list[HealthAlert]:
     Returns:
         A list of HealthAlert objects detailing potential system issues.
     """
+    # Combine alert counts into a single SQL query
+    alerts_query = select(
+        select(func.count(Set.id)).join(Set.creators).filter(Creator.canonical_name == "Unknown").scalar_subquery().label("unknown_count"),
+        select(func.count(Image.id)).filter(Image.phash.is_(None)).scalar_subquery().label("phash_count"),
+        select(func.count(Set.id)).filter(~Set.tags.any()).scalar_subquery().label("tags_count"),
+    )
+    res = await db.execute(alerts_query)
+    row = res.one()
+
     alerts = []
-    
-    # 1. Critical: Broken Paths (This is expensive if we check disk, so let's check for missing required metadata first)
-    # For now, let's define 'critical' as missing local_path in DB (shouldn't happen) or other DB-level issues
-    # Real broken path check should probably be a separate background task.
-    
-    # 2. Warning: Unknown Artist
-    unknown_artist_query = select(func.count(Set.id)).join(Set.creators).filter(Creator.canonical_name == "Unknown")
-    unknown_count = (await db.execute(unknown_artist_query)).scalar()
+    unknown_count = row.unknown_count or 0
     if unknown_count > 0:
         alerts.append(HealthAlert(
             id="unknown_artist",
@@ -100,28 +96,24 @@ async def get_health_alerts(db: AsyncSession) -> list[HealthAlert]:
             link="/creators?search=Unknown"
         ))
         
-    # 3. Warning: Missing pHash (for duplicate detection)
-    missing_phash_query = select(func.count(Image.id)).filter(Image.phash.is_(None))
-    phash_count = (await db.execute(missing_phash_query)).scalar()
+    phash_count = row.phash_count or 0
     if phash_count > 0:
         alerts.append(HealthAlert(
             id="missing_phash",
             severity="warning",
             message="Images missing perceptual hash",
             count=phash_count,
-            link="/tools" # Link to tools where they might run a rescan
+            link="/tools"
         ))
 
-    # 4. Optimization: Missing Tags
-    missing_tags_query = select(func.count(Set.id)).filter(~Set.tags.any())
-    tags_count = (await db.execute(missing_tags_query)).scalar()
+    tags_count = row.tags_count or 0
     if tags_count > 0:
         alerts.append(HealthAlert(
             id="missing_tags",
             severity="optimization",
             message="Sets with no tags assigned",
             count=tags_count,
-            link="/sets?filter=untagged" # We'll need to support this filter
+            link="/sets?filter=untagged"
         ))
 
     return alerts

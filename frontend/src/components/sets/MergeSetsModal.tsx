@@ -47,7 +47,7 @@ export function MergeSetsModal({ opened, onClose, selectedSets, onConfirm, loadi
                                     <Radio value={String(s.id)} mt={4} />
                                     <Stack gap={0}>
                                         <Text size="sm" fw={600} lineClamp={1}>{s.title || 'Untitled'}</Text>
-                                        <Text size="xs" c="dimmed" lineClamp={1}>{s.images?.length || 0} images • {s.local_path}</Text>
+                                        <Text size="xs" c="dimmed" lineClamp={1}>{s.image_count ?? s.images?.length ?? 0} images • {s.local_path}</Text>
                                     </Stack>
                                 </Group>
                             </Paper>

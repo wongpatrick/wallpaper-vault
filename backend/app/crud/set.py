@@ -151,17 +151,36 @@ async def get_sets(db: AsyncSession, skip: int = 0, limit: int = 100, search: Op
     else:
         order_expr = order_col.desc()
 
-    # Final paginated query with relationship loading
+    # Final paginated query with relationship loading (images omitted for payload optimization)
     # We use distinct() because the join might create multiple rows per set
     sets_query = query.distinct().options(
         selectinload(Set.creators),
-        selectinload(Set.images),
         selectinload(Set.tags),
         selectinload(Set.characters)
     ).order_by(order_expr, Set.id.desc()).offset(skip).limit(limit)
     
     result = await db.execute(sets_query)
-    return list(result.scalars().all()), total
+    sets_list = list(result.scalars().all())
+
+    if sets_list:
+        set_ids = [s.id for s in sets_list]
+        stats_stmt = (
+            select(
+                Image.set_id,
+                func.count(Image.id).label("img_count"),
+                func.min(Image.id).label("min_img_id")
+            )
+            .where(Image.set_id.in_(set_ids))
+            .group_by(Image.set_id)
+        )
+        stats_res = await db.execute(stats_stmt)
+        stats_map = {row.set_id: (row.img_count, row.min_img_id) for row in stats_res.all()}
+        for s in sets_list:
+            img_count, min_id = stats_map.get(s.id, (0, None))
+            s.image_count = img_count
+            s.preview_image_id = min_id
+
+    return sets_list, total
 
 async def create_set(db: AsyncSession, set_in: SetCreate) -> Set:
     """Creates a new Set record and associates requested creators and images.

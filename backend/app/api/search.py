@@ -18,18 +18,8 @@ from app.schemas.search import SearchResultItem
 
 router = APIRouter()
 
-@router.get("", response_model=List[SearchResultItem])
-async def search_all(
-    q: str = Query(..., min_length=1, description="The search term"),
-    db: AsyncSession = Depends(get_db)
-) -> List[SearchResultItem]:
-    """
-    Search for potential matches across Sets, Creators, Characters, Franchises, and Tags.
-    Sorts matches starting with the search query first, followed by substring matches.
-    """
-    results = []
 
-    # 1. Search Sets
+async def _search_sets(db: AsyncSession, q: str) -> List[SearchResultItem]:
     set_stmt = (
         select(Set)
         .options(selectinload(Set.creators))
@@ -44,6 +34,7 @@ async def search_all(
         .limit(5)
     )
     set_result = await db.execute(set_stmt)
+    results = []
     for s in set_result.scalars().all():
         creator_str = " & ".join(c.canonical_name for c in s.creators) if s.creators else "Unknown"
         results.append(SearchResultItem(
@@ -52,8 +43,10 @@ async def search_all(
             type="set",
             detail=creator_str
         ))
+    return results
 
-    # 2. Search Creators
+
+async def _search_creators(db: AsyncSession, q: str) -> List[SearchResultItem]:
     creator_stmt = (
         select(Creator, func.count(set_creators.c.set_id).label("set_count"))
         .outerjoin(set_creators, Creator.id == set_creators.c.creator_id)
@@ -70,6 +63,7 @@ async def search_all(
         .limit(5)
     )
     creator_result = await db.execute(creator_stmt)
+    results = []
     for row in creator_result.all():
         c = row.Creator
         count = row.set_count
@@ -80,8 +74,10 @@ async def search_all(
             type="creator",
             detail=detail_str
         ))
+    return results
 
-    # 3. Search Characters
+
+async def _search_characters(db: AsyncSession, q: str) -> List[SearchResultItem]:
     char_stmt = (
         select(Character)
         .options(selectinload(Character.franchise))
@@ -96,6 +92,7 @@ async def search_all(
         .limit(5)
     )
     char_result = await db.execute(char_stmt)
+    results = []
     for char in char_result.scalars().all():
         franchise_name = char.franchise.name if char.franchise else "Original"
         results.append(SearchResultItem(
@@ -104,8 +101,10 @@ async def search_all(
             type="character",
             detail=franchise_name
         ))
+    return results
 
-    # 4. Search Franchises
+
+async def _search_franchises(db: AsyncSession, q: str) -> List[SearchResultItem]:
     franchise_stmt = (
         select(Franchise, func.count(set_characters.c.set_id.distinct()).label("set_count"))
         .outerjoin(Character, Franchise.id == Character.franchise_id)
@@ -123,6 +122,7 @@ async def search_all(
         .limit(5)
     )
     franchise_result = await db.execute(franchise_stmt)
+    results = []
     for row in franchise_result.all():
         f = row.Franchise
         count = row.set_count
@@ -133,8 +133,10 @@ async def search_all(
             type="franchise",
             detail=detail_str
         ))
+    return results
 
-    # 5. Search Tags
+
+async def _search_tags(db: AsyncSession, q: str) -> List[SearchResultItem]:
     tag_stmt = (
         select(Tag, func.count(set_tags.c.set_id).label("set_count"))
         .outerjoin(set_tags, Tag.id == set_tags.c.tag_id)
@@ -151,6 +153,7 @@ async def search_all(
         .limit(5)
     )
     tag_result = await db.execute(tag_stmt)
+    results = []
     for row in tag_result.all():
         t = row.Tag
         count = row.set_count
@@ -161,5 +164,21 @@ async def search_all(
             type="tag",
             detail=detail_str
         ))
-
     return results
+
+
+@router.get("", response_model=List[SearchResultItem])
+async def search_all(
+    q: str = Query(..., min_length=1, description="The search term"),
+    db: AsyncSession = Depends(get_db)
+) -> List[SearchResultItem]:
+    """
+    Search for potential matches across Sets, Creators, Characters, Franchises, and Tags.
+    Sorts matches starting with the search query first, followed by substring matches.
+    """
+    sets_res = await _search_sets(db, q)
+    creators_res = await _search_creators(db, q)
+    chars_res = await _search_characters(db, q)
+    franchises_res = await _search_franchises(db, q)
+    tags_res = await _search_tags(db, q)
+    return sets_res + creators_res + chars_res + franchises_res + tags_res

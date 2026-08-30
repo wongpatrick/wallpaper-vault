@@ -82,8 +82,14 @@ async def test_audit_create_and_import(
 
     assert imported_set is not None
     assert "Orphan Creator" in imported_set["creators"][0]["canonical_name"]
-    assert len(imported_set["images"]) == 1
-    assert imported_set["images"][0]["filename"] == "orphan_img.jpg"
+    assert imported_set["image_count"] == 1
+
+    # Check detail view for full images list
+    detail_resp = await client.get(f"/api/sets/{imported_set['id']}")
+    assert detail_resp.status_code == 200
+    detail = detail_resp.json()
+    assert len(detail["images"]) == 1
+    assert detail["images"][0]["filename"] == "orphan_img.jpg"
 
 
 @pytest.mark.asyncio

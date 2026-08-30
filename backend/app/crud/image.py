@@ -491,7 +491,9 @@ async def get_images(
 
     # Include Image.id for deterministic sorting when values are equal
     items_query = query.distinct().options(
-        selectinload(Image.set).selectinload(Set.creators)
+        selectinload(Image.set).selectinload(Set.creators),
+        selectinload(Image.tags),
+        selectinload(Image.characters),
     ).order_by(order_expr, Image.id.desc())
     
     # Total count
