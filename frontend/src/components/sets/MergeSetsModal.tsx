@@ -6,12 +6,12 @@
 import { Modal, Stack, Radio, Text, Button, Alert, Group, Paper } from '@mantine/core';
 import { IconAlertCircle, IconGitMerge } from '@tabler/icons-react';
 import { useState } from 'react';
-import type { Set as SetModel } from '../../api/model';
+import type { SetSummary, Set as SetModel } from '../../api/model';
 
 interface MergeSetsModalProps {
     opened: boolean;
     onClose: () => void;
-    selectedSets: SetModel[];
+    selectedSets: (SetSummary | SetModel)[];
     onConfirm: (targetId: number) => void;
     loading: boolean;
 }
@@ -47,7 +47,7 @@ export function MergeSetsModal({ opened, onClose, selectedSets, onConfirm, loadi
                                     <Radio value={String(s.id)} mt={4} />
                                     <Stack gap={0}>
                                         <Text size="sm" fw={600} lineClamp={1}>{s.title || 'Untitled'}</Text>
-                                        <Text size="xs" c="dimmed" lineClamp={1}>{s.image_count ?? s.images?.length ?? 0} images • {s.local_path}</Text>
+                                        <Text size="xs" c="dimmed" lineClamp={1}>{('image_count' in s && s.image_count !== undefined) ? s.image_count : ('images' in s && s.images ? s.images.length : 0)} images • {s.local_path}</Text>
                                     </Stack>
                                 </Group>
                             </Paper>

@@ -306,9 +306,7 @@ export default function Dashboard() {
                                     const multiSet = set as WithMultiVault<SetSummary>;
                                     const coverUrl = set.preview_image_id 
                                         ? getThumbnailUrl(set.preview_image_id, 'sm', undefined, multiSet._vaultUrl, multiSet._vaultApiKey)
-                                        : (set.images?.[0]?.id 
-                                            ? getImageUrl(set.images[0].id, set.images[0].phash || set.images[0].file_size || undefined, multiSet._vaultUrl, multiSet._vaultApiKey) 
-                                            : null);
+                                        : null;
                                     return (
                                         <Paper 
                                             key={`${multiSet._vaultId || 'local'}-${set.id}`} 
@@ -345,7 +343,7 @@ export default function Dashboard() {
                                                         <Text size="xs" c="dimmed">{set.creators?.[0]?.canonical_name || 'Unknown'}</Text>
                                                     </Box>
                                                 </Group>
-                                                <Badge variant="light" size="xs">{set.image_count ?? set.images?.length ?? 0} images</Badge>
+                                                <Badge variant="light" size="xs">{set.image_count ?? 0} images</Badge>
                                             </Group>
                                         </Paper>
                                     );
