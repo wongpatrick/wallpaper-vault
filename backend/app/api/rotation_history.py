@@ -13,10 +13,31 @@ from app.api.images import map_image_to_schema, map_image_to_context_schema
 from app.core.rotation import rotation_broadcaster
 from typing import List, AsyncGenerator
 import structlog
+from sqlalchemy.orm import selectinload
+from app.models.image import Image
+from app.models.set import Set
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
 MAX_HISTORY_DISPLAY_COUNT = 5
+
+
+async def _batch_get_images_map(db: AsyncSession, image_ids: list[int]) -> dict[int, Image]:
+    """Batch fetch multiple images with their required eager loaded relationships."""
+    if not image_ids:
+        return {}
+    stmt = (
+        select(Image)
+        .options(
+            selectinload(Image.tags),
+            selectinload(Image.characters),
+            selectinload(Image.set).selectinload(Set.creators),
+        )
+        .where(Image.id.in_(image_ids))
+    )
+    res = await db.execute(stmt)
+    return {img.id: img for img in res.scalars().all()}
+
 
 @router.get("/current", response_model=ImageWithContext)
 async def read_current_wallpaper(db: AsyncSession = Depends(get_db)) -> ImageWithContext:
@@ -27,15 +48,16 @@ async def read_current_wallpaper(db: AsyncSession = Depends(get_db)) -> ImageWit
         .limit(1)
     )
     history_entry = result.scalar_one_or_none()
-    if history_entry is None:
+    if history_entry is None or not history_entry.image_id:
         raise HTTPException(status_code=404, detail="No wallpaper has been served yet")
     
-    from app.crud.image import get_image
-    img = await get_image(db, history_entry.image_id)
+    images_map = await _batch_get_images_map(db, [history_entry.image_id])
+    img = images_map.get(history_entry.image_id)
     if img is None:
         raise HTTPException(status_code=404, detail="Active wallpaper image record not found")
         
     return map_image_to_context_schema(img)
+
 
 @router.get("/history", response_model=List[ImageDetail])
 async def read_wallpaper_history(db: AsyncSession = Depends(get_db)) -> List[ImageDetail]:
@@ -47,27 +69,24 @@ async def read_wallpaper_history(db: AsyncSession = Depends(get_db)) -> List[Ima
     )
     entries = result.scalars().all()
     
-    from app.crud.image import get_image
-    images = []
-    seen_ids = set()
-    
+    seen_ids: list[int] = []
     for entry in entries:
-        if entry.image_id in seen_ids:
-            continue
-        seen_ids.add(entry.image_id)
-        img = await get_image(db, entry.image_id)
-        if img:
-            images.append(map_image_to_schema(img))
-        if len(images) >= MAX_HISTORY_DISPLAY_COUNT:
-            break
+        if entry.image_id and entry.image_id not in seen_ids:
+            seen_ids.append(entry.image_id)
+            if len(seen_ids) >= MAX_HISTORY_DISPLAY_COUNT:
+                break
             
-    return images
+    if not seen_ids:
+        return []
+
+    images_map = await _batch_get_images_map(db, seen_ids)
+    return [map_image_to_schema(images_map[img_id]) for img_id in seen_ids if img_id in images_map]
+
 
 @router.get("/current-monitors", response_model=dict[str, ImageWithContext])
 async def read_current_monitors_wallpapers(db: AsyncSession = Depends(get_db)) -> dict[str, ImageWithContext]:
     """Fetch the currently active wallpapers for all monitors and global."""
     from app.models.settings import Setting
-    from app.crud.image import get_image
     
     # Query all active image settings
     result = await db.execute(
@@ -77,31 +96,33 @@ async def read_current_monitors_wallpapers(db: AsyncSession = Depends(get_db)) -
     )
     settings = result.scalars().all()
     
-    response = {}
+    setting_map: dict[str, int] = {}
     for setting in settings:
-        image_id_str = setting.value
         try:
-            image_id = int(image_id_str)
-        except ValueError:
+            image_id = int(setting.value)
+            key = "global" if setting.key == "wallpaper_active_image_id" else setting.key.split("_")[1]
+            setting_map[key] = image_id
+        except (ValueError, TypeError):
             continue
             
-        img = await get_image(db, image_id)
-        if img:
-            key = "global" if setting.key == "wallpaper_active_image_id" else setting.key.split("_")[1]
-            response[key] = map_image_to_context_schema(img)
-            
     # Also fetch the overall last rotated image as fallback for "global" if not set
-    if "global" not in response:
+    if "global" not in setting_map:
         result_last = await db.execute(
             select(RotationHistory)
             .order_by(RotationHistory.timestamp.desc())
             .limit(1)
         )
         last_entry = result_last.scalar_one_or_none()
-        if last_entry:
-            img = await get_image(db, last_entry.image_id)
-            if img:
-                response["global"] = map_image_to_context_schema(img)
+        if last_entry and last_entry.image_id:
+            setting_map["global"] = last_entry.image_id
+
+    needed_ids = list(set(setting_map.values()))
+    images_map = await _batch_get_images_map(db, needed_ids)
+
+    response = {}
+    for key, img_id in setting_map.items():
+        if img_id in images_map:
+            response[key] = map_image_to_context_schema(images_map[img_id])
                 
     return response
 

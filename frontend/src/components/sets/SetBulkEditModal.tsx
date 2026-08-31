@@ -7,7 +7,7 @@ import { Modal, Stack, MultiSelect, Button, Group, SegmentedControl, Text, Alert
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
-import type { SetUpdate, BulkOperationMode, Set as SetModel } from '../../api/model';
+import type { SetUpdate, BulkOperationMode, SetSummary, Set as SetModel } from '../../api/model';
 import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
 import { CharacterTagsInput } from '../../components/ui/CharacterTagsInput';
 
@@ -21,7 +21,7 @@ interface SetBulkEditModalProps {
     selectedCount: number;
     onConfirm: (data: SetUpdate, mode: BulkOperationMode) => void;
     loading?: boolean;
-    selectedSets?: SetModel[];
+    selectedSets?: (SetSummary | SetModel)[];
 }
 
 export function SetBulkEditModal({ opened, onClose, type, selectedCount, onConfirm, loading, selectedSets }: SetBulkEditModalProps) {
@@ -123,7 +123,7 @@ export function SetBulkEditModal({ opened, onClose, type, selectedCount, onConfi
                         <Text size="xs" fw={500} c="dimmed">Selected sets:</Text>
                         <ul style={{ margin: 0, paddingLeft: 20, fontSize: '13px' }}>
                             {selectedSets?.slice(0, MAX_VISIBLE_SETS_IN_DELETE_CONFIRM).map(s => (
-                                <li key={s.id}>{s.title || `Set #${s.id}`} ({s.images?.length || 0} images)</li>
+                                <li key={s.id}>{s.title || `Set #${s.id}`} ({('image_count' in s && s.image_count !== undefined) ? s.image_count : ('images' in s && s.images ? s.images.length : 0)} images)</li>
                             ))}
                             {selectedSets && selectedSets.length > MAX_VISIBLE_SETS_IN_DELETE_CONFIRM && (
                                 <li>and {selectedSets.length - MAX_VISIBLE_SETS_IN_DELETE_CONFIRM} more...</li>

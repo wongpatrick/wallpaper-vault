@@ -2,6 +2,7 @@
 API endpoints for managing application settings, configurations, and disk caches.
 """
 from typing import List
+import anyio
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
@@ -21,7 +22,7 @@ async def read_cache_stats() -> schema_cache.CacheStatsResponse:
     """
     Retrieve aggregated disk cache statistics for AI models and image thumbnails.
     """
-    return cache_service.get_all_cache_stats()
+    return await anyio.to_thread.run_sync(cache_service.get_all_cache_stats)
 
 
 @router.post("/cache/ai-models/status", response_model=schema_cache.ModelStatusResponse)
@@ -31,11 +32,13 @@ async def check_ai_model_status(
     """
     Check if a specific AI model configuration is downloaded and cached locally.
     """
-    return cache_service.check_model_status(
-        model_source=payload.model_source,
-        model_type=payload.model_type,
-        custom_repo=payload.custom_repo,
-        custom_path=payload.custom_path,
+    return await anyio.to_thread.run_sync(
+        lambda: cache_service.check_model_status(
+            model_source=payload.model_source,
+            model_type=payload.model_type,
+            custom_repo=payload.custom_repo,
+            custom_path=payload.custom_path,
+        )
     )
 
 
@@ -47,11 +50,13 @@ async def download_ai_model(
     Pre-download AI model weights and tag definitions into local storage cache.
     """
     try:
-        return cache_service.download_model(
-            model_source=payload.model_source,
-            model_type=payload.model_type,
-            custom_repo=payload.custom_repo,
-            custom_path=payload.custom_path,
+        return await anyio.to_thread.run_sync(
+            lambda: cache_service.download_model(
+                model_source=payload.model_source,
+                model_type=payload.model_type,
+                custom_repo=payload.custom_repo,
+                custom_path=payload.custom_path,
+            )
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to download model: {str(e)}")
@@ -63,7 +68,7 @@ async def clear_ai_models_cache() -> schema_cache.ClearCacheResponse:
     Clear downloaded AI model files from disk cache and unload active inference sessions from memory.
     """
     try:
-        return cache_service.clear_ai_models_cache()
+        return await anyio.to_thread.run_sync(cache_service.clear_ai_models_cache)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to clear AI models cache: {str(e)}")
 
@@ -74,7 +79,7 @@ async def clear_thumbnails_cache() -> schema_cache.ClearCacheResponse:
     Clear generated image thumbnails from disk cache.
     """
     try:
-        return cache_service.clear_thumbnail_cache()
+        return await anyio.to_thread.run_sync(cache_service.clear_thumbnail_cache)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to clear thumbnail cache: {str(e)}")
 

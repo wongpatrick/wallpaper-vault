@@ -51,12 +51,12 @@ import {
 } from '../../hooks/useMultiVaultQuery';
 import { useVault } from '../../hooks/useVault';
 import { AggregatedVaultBanner } from '../../components/vault/AggregatedVaultBanner';
-import { formatBytes, getImageUrl } from '../../utils/fileUtils';
+import { formatBytes, getImageUrl, getThumbnailUrl } from '../../utils/fileUtils';
 import { useNavigate, useLocation } from 'react-router-dom';
 import TagCloud from '../../components/ui/TagCloud';
 
 import type { WithMultiVault } from '../../types/vault';
-import type { Set, Image as ImageModel } from '../../api/model';
+import type { SetSummary, Image as ImageModel } from '../../api/model';
 
 
 const INSPIRATION_ROTATION_INTERVAL_MS = 20000;
@@ -303,7 +303,10 @@ export default function Dashboard() {
                                 <Text size="sm" c="dimmed">No sets imported yet.</Text>
                             ) : (
                                 recentSets?.items?.map((set) => {
-                                    const multiSet = set as WithMultiVault<Set>;
+                                    const multiSet = set as WithMultiVault<SetSummary>;
+                                    const coverUrl = set.preview_image_id 
+                                        ? getThumbnailUrl(set.preview_image_id, 'sm', undefined, multiSet._vaultUrl, multiSet._vaultApiKey)
+                                        : null;
                                     return (
                                         <Paper 
                                             key={`${multiSet._vaultId || 'local'}-${set.id}`} 
@@ -322,7 +325,7 @@ export default function Dashboard() {
                                             <Group justify="space-between" wrap="nowrap">
                                                 <Group wrap="nowrap">
                                                     <Image 
-                                                        src={set.images?.[0]?.id ? getImageUrl(set.images[0].id, set.images[0].phash || set.images[0].file_size || undefined, multiSet._vaultUrl, multiSet._vaultApiKey) : null} 
+                                                        src={coverUrl} 
                                                         w={40} 
                                                         h={40} 
                                                         radius="sm" 
@@ -340,7 +343,7 @@ export default function Dashboard() {
                                                         <Text size="xs" c="dimmed">{set.creators?.[0]?.canonical_name || 'Unknown'}</Text>
                                                     </Box>
                                                 </Group>
-                                                <Badge variant="light" size="xs">{set.images?.length || 0} images</Badge>
+                                                <Badge variant="light" size="xs">{set.image_count ?? 0} images</Badge>
                                             </Group>
                                         </Paper>
                                     );

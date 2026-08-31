@@ -5,6 +5,7 @@ from typing import Any
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks, Request
 from fastapi.responses import FileResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db, SessionLocal
 from app.api.deps import PaginationParams, pagination_params
@@ -377,6 +378,23 @@ async def delete_image(
     logger.info("Deleted image", image_id=image_id)
     return map_image_to_schema(db_image)
 
+def _run_reveal_file_process(file_path: Path) -> None:
+    if sys.platform == "win32":
+        subprocess.run(['explorer', '/select,', str(file_path)])
+    elif sys.platform == "darwin":
+        subprocess.run(['open', '-R', str(file_path)])
+    else:
+        # Linux / Unix
+        try:
+            subprocess.run([
+                'dbus-send', '--print-reply', '--dest=org.freedesktop.FileManager1',
+                '/org/freedesktop/FileManager1', 'org.freedesktop.FileManager1.ShowItems',
+                f'array:string:"file://{file_path}"', 'string:""'
+            ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            subprocess.run(['xdg-open', str(file_path.parent)])
+
+
 @router.get("/file/{image_id}")
 @limiter.limit("60/minute")
 async def get_image_file(
@@ -384,11 +402,12 @@ async def get_image_file(
     image_id: int,
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
-    db_image = await crud_image.get_image(db, image_id=image_id)
-    if db_image is None:
+    res = await db.execute(select(ImageModel.local_path).where(ImageModel.id == image_id))
+    local_path = res.scalar_one_or_none()
+    if local_path is None:
         raise HTTPException(status_code=404, detail="Image not found")
     
-    file_path = Path(db_image.local_path)
+    file_path = Path(local_path)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Image file not found on disk")
     
@@ -405,31 +424,17 @@ async def reveal_image(
     """
     Open the image's directory in the system file explorer and select the file.
     """
-    db_image = await crud_image.get_image(db, image_id=image_id)
-    if db_image is None:
+    res = await db.execute(select(ImageModel.local_path).where(ImageModel.id == image_id))
+    local_path = res.scalar_one_or_none()
+    if local_path is None:
         raise HTTPException(status_code=404, detail="Image not found")
     
-    file_path = Path(db_image.local_path)
+    file_path = Path(local_path)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Image file not found on disk")
     
     try:
-        if sys.platform == "win32":
-            subprocess.run(['explorer', '/select,', str(file_path)])
-        elif sys.platform == "darwin":
-            subprocess.run(['open', '-R', str(file_path)])
-        else:
-            # Linux / Unix
-            # Try dbus-send to highlight the file first, fallback to opening parent directory
-            try:
-                subprocess.run([
-                    'dbus-send', '--print-reply', '--dest=org.freedesktop.FileManager1',
-                    '/org/freedesktop/FileManager1', 'org.freedesktop.FileManager1.ShowItems',
-                    f'array:string:"file://{file_path}"', 'string:""'
-                ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except (subprocess.CalledProcessError, FileNotFoundError):
-                subprocess.run(['xdg-open', str(file_path.parent)])
-                
+        await anyio.to_thread.run_sync(_run_reveal_file_process, file_path)
         logger.info("Revealed image in file manager", image_id=image_id, path=str(file_path))
         return {"status": "success"}
     except Exception as e:

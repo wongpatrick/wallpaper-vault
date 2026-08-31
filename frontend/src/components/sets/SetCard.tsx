@@ -11,12 +11,12 @@ import { notifications } from '@mantine/notifications';
 import { getThumbnailUrl, FALLBACK_IMAGE } from '../../utils/fileUtils';
 import { useLongPress } from '../../hooks/useLongPress';
 import { useVault } from '../../hooks/useVault';
-import type { Set } from '../../api/model';
+import type { Set, SetSummary } from '../../api/model';
 import type { WithMultiVault } from '../../types/vault';
 import { getLabelFromPath } from '../../utils/navigationUtils';
 
 interface SetCardProps {
-    set: WithMultiVault<Set>;
+    set: WithMultiVault<Set | SetSummary>;
     onDelete: (id: number) => void;
     selectionMode?: boolean;
     selected?: boolean;
@@ -36,15 +36,19 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
     const [isHovered, setIsHovered] = useState(false);
     const [imageIndex, setImageIndex] = useState(0);
 
+    const setImages = 'images' in set && Array.isArray(set.images) ? set.images : undefined;
+    const previewImageId = 'preview_image_id' in set ? set.preview_image_id : undefined;
+    const imageCount = ('image_count' in set && set.image_count !== undefined) ? set.image_count : (setImages?.length ?? 0);
+
     useEffect(() => {
         let interval: ReturnType<typeof setTimeout>;
-        if (isHovered && set.images && set.images.length > 1) {
+        if (isHovered && setImages && setImages.length > 1) {
             interval = setInterval(() => {
-                setImageIndex(prev => (prev + 1) % Math.min(set.images!.length, HOVER_SLIDESHOW_MAX_IMAGES));
+                setImageIndex(prev => (prev + 1) % Math.min(setImages.length, HOVER_SLIDESHOW_MAX_IMAGES));
             }, HOVER_SLIDESHOW_INTERVAL_MS);
         }
         return () => clearInterval(interval);
-    }, [isHovered, set.images]);
+    }, [isHovered, setImages]);
     
     const handleCardClick = async () => {
         if (selectionMode && onToggleSelect) {
@@ -112,10 +116,12 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
         }
     };
 
-    const currentImage = set.images && set.images.length > 0 ? set.images[imageIndex] : null;
+    const currentImage = setImages && setImages.length > 0 ? setImages[imageIndex] : null;
     const coverUrl = currentImage 
         ? getThumbnailUrl(currentImage.id, 'lg', undefined, set._vaultUrl, set._vaultApiKey) 
-        : FALLBACK_IMAGE;
+        : (previewImageId 
+            ? getThumbnailUrl(previewImageId, 'lg', undefined, set._vaultUrl, set._vaultApiKey) 
+            : FALLBACK_IMAGE);
     const focalX = currentImage?.focal_point_x ?? DEFAULT_FOCAL_POINT;
     const focalY = currentImage?.focal_point_y ?? DEFAULT_FOCAL_POINT;
     const creatorNames = set.creators?.map(c => c.canonical_name).join(' & ') || 'Unknown Creator';
@@ -243,7 +249,7 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
                    </Badge>
                )}
                <Badge variant="light" color="blue">
-                   {set.images?.length || 0} Images
+                   {imageCount} Images
                </Badge>
                <Badge variant="outline" color="gray">
                    {set.date_added}

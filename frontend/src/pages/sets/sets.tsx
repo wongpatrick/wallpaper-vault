@@ -25,7 +25,7 @@ import { SortControl } from '../../components/ui/SortControl';
 import { CharacterAutocompleteInput } from '../../components/ui/CharacterAutocompleteInput';
 import { FranchiseAutocompleteInput } from '../../components/ui/FranchiseAutocompleteInput';
 import { useVault } from '../../hooks/useVault';
-import type { Set as SetModel } from '../../api/model';
+import type { SetSummary as SetModel } from '../../api/model';
 import type { WithMultiVault } from '../../types/vault';
 
 
@@ -139,7 +139,7 @@ export default function Sets() {
             centered: true,
             children: (
                 <Text size="sm">
-                    Are you sure you want to delete the set <b>"{targetSet?.title || `Set #${setId}`}"</b> ({targetSet?.images?.length || 0} images)? This will permanently remove all images in this set from your computer. This action cannot be undone.
+                    Are you sure you want to delete the set <b>"{targetSet?.title || `Set #${setId}`}"</b> ({targetSet?.image_count ?? 0} images)? This will permanently remove all images in this set from your computer. This action cannot be undone.
                 </Text>
             ),
             labels: { confirm: 'Delete permanently', cancel: 'Cancel' },
@@ -315,8 +315,9 @@ export default function Sets() {
                                                 {sets.map(set => {
                                                     const multiSet = set as WithMultiVault<SetModel>;
                                                     const itemKey = `${multiSet._vaultId || 'local'}-${set.id}`;
-                                                    const currentImage = set.images && set.images.length > 0 ? set.images[0] : null;
-                                                    const coverUrl = currentImage ? getThumbnailUrl(currentImage.id, 'sm', undefined, multiSet._vaultUrl, multiSet._vaultApiKey) : FALLBACK_IMAGE;
+                                                    const coverUrl = set.preview_image_id 
+                                                        ? getThumbnailUrl(set.preview_image_id, 'sm', undefined, multiSet._vaultUrl, multiSet._vaultApiKey) 
+                                                        : FALLBACK_IMAGE;
                                                     const creatorNames = set.creators?.map(c => c.canonical_name).join(', ') || '-';
                                                     const dateAdded = new Date(set.date_added).toLocaleDateString();
 
@@ -354,7 +355,7 @@ export default function Sets() {
                                                                 </Group>
                                                             </Table.Td>
                                                             <Table.Td>{creatorNames}</Table.Td>
-                                                            <Table.Td>{set.images?.length || 0}</Table.Td>
+                                                            <Table.Td>{set.image_count ?? 0}</Table.Td>
                                                             <Table.Td c="dimmed">{dateAdded}</Table.Td>
                                                         </Table.Tr>
                                                     );

@@ -12,7 +12,7 @@ import type { VaultEntry } from '../types/electron';
 import type { WithMultiVault } from '../types/vault';
 import type {
     SetPage,
-    Set,
+    SetSummary,
     ImagePage,
     Image,
     CreatorPage,
@@ -219,8 +219,8 @@ export function mergeTagCloudItems(
  */
 export function useMultiVaultSets(
     params: Record<string, unknown> = {},
-    options?: Partial<UseQueryOptions<MultiVaultPage<Set>, Error>>
-): MultiVaultQueryResult<MultiVaultPage<Set>> {
+    options?: Partial<UseQueryOptions<MultiVaultPage<SetSummary>, Error>>
+): MultiVaultQueryResult<MultiVaultPage<SetSummary>> {
     const { vaults, onlineVaults, activeVault, isAggregated } = useVault();
     const offlineVaults = vaults.filter(v => !v.isLocal && v.status !== 'online');
 
@@ -231,7 +231,7 @@ export function useMultiVaultSets(
 
     const queryKey = ['multi-vault', 'sets', isAggregated, isAggregated ? onlineVaults.map(v => v.id) : activeVault.id, params];
 
-    const query = useQuery<MultiVaultPage<Set>, Error>({
+    const query = useQuery<MultiVaultPage<SetSummary>, Error>({
         queryKey,
         queryFn: async ({ signal }) => {
             if (!isAggregated) {
@@ -256,14 +256,14 @@ export function useMultiVaultSets(
                 })
             );
 
-            const successful: Array<{ data: { items?: Set[]; total: number; skip?: number; limit?: number }; vault: VaultEntry }> = [];
+            const successful: Array<{ data: { items?: SetSummary[]; total: number; skip?: number; limit?: number }; vault: VaultEntry }> = [];
             for (const result of settled) {
                 if (result.status === 'fulfilled' && result.value?.data) {
                     successful.push(result.value);
                 }
             }
 
-            return mergePaginatedResults<Set>(successful, sortBy, sortDir, skip, limit);
+            return mergePaginatedResults<SetSummary>(successful, sortBy, sortDir, skip, limit);
         },
         ...options
     });

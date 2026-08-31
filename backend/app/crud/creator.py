@@ -155,18 +155,74 @@ async def get_creators(db: AsyncSession, skip: int = 0, limit: int = 100, search
     else:
         order_expr = order_col.asc()
 
-    # Final paginated query with relationship loading
-    query = query.options(
-        selectinload(Creator.sets).selectinload(Set.images),
-        selectinload(Creator.sets).selectinload(Set.creators),
-        selectinload(Creator.sets).selectinload(Set.tags),
-        selectinload(Creator.sets).selectinload(Set.characters)
-    ).order_by(order_expr, Creator.id.desc()).offset(skip).limit(limit)
+    # Final paginated query without eager loading sets/images
+    query = query.order_by(order_expr, Creator.id.desc()).offset(skip).limit(limit)
     
     result = await db.execute(query)
     creators = list(result.scalars().all())
-    for c in creators:
-        await _attach_stats(c)
+
+    if creators:
+        from app.models.associations import set_creators
+        from app.models.image import Image
+
+        creator_ids = [c.id for c in creators]
+
+        # 1. Aggregated numeric stats per creator
+        stats_stmt = (
+            select(
+                set_creators.c.creator_id,
+                func.count(func.distinct(set_creators.c.set_id)).label("total_sets"),
+                func.count(Image.id).label("total_images"),
+                func.coalesce(func.sum(Image.file_size), 0).label("total_size_bytes"),
+                func.min(Image.id).label("preview_image_id"),
+            )
+            .select_from(set_creators)
+            .outerjoin(Image, set_creators.c.set_id == Image.set_id)
+            .where(set_creators.c.creator_id.in_(creator_ids))
+            .group_by(set_creators.c.creator_id)
+        )
+        stats_map = {row.creator_id: row for row in (await db.execute(stats_stmt)).all()}
+
+        # 2. Most common aspect ratio per creator
+        ar_stmt = (
+            select(
+                set_creators.c.creator_id,
+                Image.aspect_ratio_label,
+                func.count(Image.id).label("ar_count"),
+            )
+            .select_from(set_creators)
+            .join(Image, set_creators.c.set_id == Image.set_id)
+            .where(
+                set_creators.c.creator_id.in_(creator_ids),
+                Image.aspect_ratio_label.isnot(None),
+            )
+            .group_by(set_creators.c.creator_id, Image.aspect_ratio_label)
+            .order_by(set_creators.c.creator_id, func.count(Image.id).desc())
+        )
+        ar_res = await db.execute(ar_stmt)
+        primary_ar_map = {}
+        for row in ar_res.all():
+            if row.creator_id not in primary_ar_map and row.aspect_ratio_label:
+                primary_ar_map[row.creator_id] = row.aspect_ratio_label
+
+        for c in creators:
+            s_row = stats_map.get(c.id)
+            if s_row:
+                c.stats = CreatorStats(
+                    total_sets=s_row.total_sets or 0,
+                    total_images=s_row.total_images or 0,
+                    total_size_bytes=int(s_row.total_size_bytes or 0),
+                    primary_aspect_ratio=primary_ar_map.get(c.id, "Unknown"),
+                    preview_image_id=s_row.preview_image_id
+                )
+            else:
+                c.stats = CreatorStats(
+                    total_sets=0,
+                    total_images=0,
+                    total_size_bytes=0,
+                    primary_aspect_ratio="Unknown",
+                    preview_image_id=None
+                )
 
     # Inject virtual "Unknown Creator"
     if skip == 0 and (not search or "unknown" in search.lower()):

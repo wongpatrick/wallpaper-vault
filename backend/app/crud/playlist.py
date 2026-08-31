@@ -1,13 +1,12 @@
 """
 CRUD operations for retrieving and managing Playlists and their images.
 """
-from typing import Optional, List, TYPE_CHECKING
-if TYPE_CHECKING:
-    from app.models.image import Image
+from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete, update
 from sqlalchemy.orm import selectinload
-from app.models.playlist import Playlist, PlaylistImage
+from app.models.image import Image
+from app.models.playlist import Playlist, PlaylistImage, CrossVaultPlaylistImage
 from app.schemas.playlist import PlaylistCreate, PlaylistUpdate
 
 def apply_smart_playlist_rules_to_query(query, rules: dict):
@@ -118,7 +117,11 @@ async def get_playlist(db: AsyncSession, playlist_id: int) -> Optional[Playlist]
         select(Playlist)
         .options(
             selectinload(Playlist.playlist_images)
-            .selectinload(PlaylistImage.image),
+            .selectinload(PlaylistImage.image)
+            .selectinload(Image.tags),
+            selectinload(Playlist.playlist_images)
+            .selectinload(PlaylistImage.image)
+            .selectinload(Image.characters),
             selectinload(Playlist.cross_vault_images),
         )
         .filter(Playlist.id == playlist_id)
@@ -143,25 +146,42 @@ async def get_playlist_by_name(db: AsyncSession, name: str) -> Optional[Playlist
 
 async def get_playlists(db: AsyncSession) -> List[Playlist]:
     """Retrieves all playlists with their image counts, sorted by name."""
-    stmt = (
-        select(Playlist)
-        .options(
-            selectinload(Playlist.playlist_images),
-            selectinload(Playlist.cross_vault_images),
-        )
-        .order_by(Playlist.name.asc())
-    )
+    stmt = select(Playlist).order_by(Playlist.name.asc())
     result = await db.execute(stmt)
+    playlists = list(result.scalars().all())
     
-    playlists = []
-    for playlist in result.scalars().all():
+    if not playlists:
+        return []
+
+    # Batch count static playlists
+    static_stmt = (
+        select(
+            PlaylistImage.playlist_id,
+            func.count(PlaylistImage.image_id).label("count")
+        )
+        .group_by(PlaylistImage.playlist_id)
+    )
+    static_res = await db.execute(static_stmt)
+    static_counts = {row.playlist_id: row.count for row in static_res.all()}
+
+    # Batch count cross-vault playlists
+    cv_stmt = (
+        select(
+            CrossVaultPlaylistImage.playlist_id,
+            func.count(CrossVaultPlaylistImage.id).label("count")
+        )
+        .group_by(CrossVaultPlaylistImage.playlist_id)
+    )
+    cv_res = await db.execute(cv_stmt)
+    cv_counts = {row.playlist_id: row.count for row in cv_res.all()}
+
+    for playlist in playlists:
         if playlist.is_smart:
             playlist.image_count = await get_smart_playlist_count(db, playlist)
         elif playlist.is_cross_vault:
-            playlist.image_count = len(playlist.cross_vault_images)
+            playlist.image_count = cv_counts.get(playlist.id, 0)
         else:
-            playlist.image_count = len(playlist.playlist_images)
-        playlists.append(playlist)
+            playlist.image_count = static_counts.get(playlist.id, 0)
         
     return playlists
 
