@@ -3,7 +3,7 @@ SQLAlchemy model definition for wallpaper rotation rules.
 Allows users to override rotation settings based on date/time conditions.
 """
 from typing import Optional, TYPE_CHECKING
-from sqlalchemy import text, ForeignKey
+from sqlalchemy import text, ForeignKey, Index
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.models.base import Base
 
@@ -12,6 +12,10 @@ if TYPE_CHECKING:
 
 class RotationRule(Base):
     __tablename__ = "rotation_rules"
+
+    __table_args__ = (
+        Index("idx_rotation_rules_enabled_priority", "enabled", "priority"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(nullable=False)
@@ -27,7 +31,7 @@ class RotationRule(Base):
     
     # Overrides
     source: Mapped[str] = mapped_column(nullable=False) # "entire_library" or "playlist"
-    playlist_id: Mapped[Optional[int]] = mapped_column(ForeignKey("playlists.id", ondelete="SET NULL"), nullable=True)
+    playlist_id: Mapped[Optional[int]] = mapped_column(ForeignKey("playlists.id", ondelete="SET NULL"), nullable=True, index=True)
     style: Mapped[Optional[str]] = mapped_column(nullable=True)        # "fill", "fit", "stretch", "center", "span"
 
     # Relationships

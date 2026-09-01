@@ -3,7 +3,7 @@ SQLAlchemy model definition for tracking library audit issues.
 """
 
 from typing import Optional
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, func
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, func, Index
 from sqlalchemy.orm import relationship
 from app.models.base import Base
 from app.core.enums import AuditIssueStatus
@@ -12,6 +12,10 @@ from app.core.enums import AuditIssueStatus
 class AuditIssue(Base):
     __tablename__ = "audit_issues"
 
+    __table_args__ = (
+        Index("idx_audit_issues_type_status", "issue_type", "status"),
+    )
+
     id = Column(Integer, primary_key=True, index=True)
     task_id = Column(String, index=True)
     issue_type = Column(String)  # Uses AuditIssueType
@@ -19,8 +23,8 @@ class AuditIssue(Base):
     directory = Column(Text, index=True)  # Parent folder for grouping
 
     # Context
-    image_id = Column(Integer, ForeignKey("images.id"), nullable=True)
-    set_id = Column(Integer, ForeignKey("sets.id"), nullable=True)
+    image_id = Column(Integer, ForeignKey("images.id"), nullable=True, index=True)
+    set_id = Column(Integer, ForeignKey("sets.id"), nullable=True, index=True)
 
     # Relationships
     image = relationship("Image")
