@@ -52,12 +52,34 @@ def run_startup_migrations(connection):
         ("playlist_images", "CREATE INDEX IF NOT EXISTS idx_playlist_images_image_id ON playlist_images(image_id)"),
         ("images", "CREATE INDEX IF NOT EXISTS ix_images_is_favorite ON images(is_favorite)"),
         ("images", "CREATE INDEX IF NOT EXISTS ix_images_rating ON images(rating)"),
+        ("images", "CREATE INDEX IF NOT EXISTS ix_images_dominant_color_bucket ON images(dominant_color_bucket)"),
+        ("images", "CREATE INDEX IF NOT EXISTS ix_images_set_id ON images(set_id)"),
+        ("images", "CREATE INDEX IF NOT EXISTS ix_images_is_blacklisted ON images(is_blacklisted)"),
+        ("images", "CREATE INDEX IF NOT EXISTS ix_images_created_at ON images(created_at)"),
+        ("images", "CREATE INDEX IF NOT EXISTS ix_images_aspect_ratio_label ON images(aspect_ratio_label)"),
+        ("sets", "CREATE INDEX IF NOT EXISTS ix_sets_library_path_id ON sets(library_path_id)"),
+        ("sets", "CREATE INDEX IF NOT EXISTS ix_sets_created_at ON sets(created_at)"),
         ("rotation_rules", "CREATE INDEX IF NOT EXISTS ix_rotation_rules_enabled ON rotation_rules(enabled)"),
+        ("rotation_rules", "CREATE INDEX IF NOT EXISTS ix_rotation_rules_playlist_id ON rotation_rules(playlist_id)"),
+        ("rotation_rules", "CREATE INDEX IF NOT EXISTS idx_rotation_rules_enabled_priority ON rotation_rules(enabled, priority)"),
+        ("rotation_history", "CREATE INDEX IF NOT EXISTS ix_rotation_history_timestamp ON rotation_history(timestamp)"),
+        ("rotation_history", "CREATE INDEX IF NOT EXISTS ix_rotation_history_image_id ON rotation_history(image_id)"),
+        ("rotation_history", "CREATE INDEX IF NOT EXISTS ix_rotation_history_vault_id ON rotation_history(vault_id)"),
         ("characters", "CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_character_franchise ON characters(lower(name), franchise_id) WHERE franchise_id IS NOT NULL"),
         ("characters", "CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_character_no_franchise ON characters(lower(name)) WHERE franchise_id IS NULL"),
-        ("sets", "CREATE INDEX IF NOT EXISTS ix_sets_library_path_id ON sets(library_path_id)"),
+        ("characters", "CREATE INDEX IF NOT EXISTS ix_characters_franchise_id ON characters(franchise_id)"),
         ("cross_vault_playlist_images", "CREATE INDEX IF NOT EXISTS idx_cvpi_playlist_id ON cross_vault_playlist_images(playlist_id)"),
         ("cross_vault_playlist_images", "CREATE INDEX IF NOT EXISTS idx_cvpi_vault_id ON cross_vault_playlist_images(vault_id)"),
+        ("set_creators", "CREATE INDEX IF NOT EXISTS ix_set_creators_creator_id ON set_creators(creator_id)"),
+        ("set_tags", "CREATE INDEX IF NOT EXISTS ix_set_tags_tag_id ON set_tags(tag_id)"),
+        ("set_characters", "CREATE INDEX IF NOT EXISTS ix_set_characters_character_id ON set_characters(character_id)"),
+        ("image_tags", "CREATE INDEX IF NOT EXISTS ix_image_tags_tag_id ON image_tags(tag_id)"),
+        ("image_characters", "CREATE INDEX IF NOT EXISTS ix_image_characters_character_id ON image_characters(character_id)"),
+        ("audit_issues", "CREATE INDEX IF NOT EXISTS idx_audit_issues_type_status ON audit_issues(issue_type, status)"),
+        ("audit_issues", "CREATE INDEX IF NOT EXISTS ix_audit_issues_task_id ON audit_issues(task_id)"),
+        ("audit_issues", "CREATE INDEX IF NOT EXISTS ix_audit_issues_directory ON audit_issues(directory)"),
+        ("audit_issues", "CREATE INDEX IF NOT EXISTS ix_audit_issues_image_id ON audit_issues(image_id)"),
+        ("audit_issues", "CREATE INDEX IF NOT EXISTS ix_audit_issues_set_id ON audit_issues(set_id)"),
     ]:
         res = connection.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
         if res:
@@ -84,8 +106,6 @@ def run_startup_migrations(connection):
             UNIQUE(playlist_id, vault_id, image_id)
         )
     """))
-    connection.execute(text("CREATE INDEX IF NOT EXISTS idx_cvpi_playlist_id ON cross_vault_playlist_images(playlist_id)"))
-    connection.execute(text("CREATE INDEX IF NOT EXISTS idx_cvpi_vault_id ON cross_vault_playlist_images(vault_id)"))
 
     # Ensure rotation_history has vault_id and vault_image_id columns
     res_rh = connection.execute(text("PRAGMA table_info(rotation_history)")).fetchall()
@@ -93,6 +113,7 @@ def run_startup_migrations(connection):
         rh_cols = [row[1] for row in res_rh]
         if "vault_id" not in rh_cols:
             connection.execute(text("ALTER TABLE rotation_history ADD COLUMN vault_id TEXT"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_rotation_history_vault_id ON rotation_history(vault_id)"))
         if "vault_image_id" not in rh_cols:
             connection.execute(text("ALTER TABLE rotation_history ADD COLUMN vault_image_id INTEGER"))
 

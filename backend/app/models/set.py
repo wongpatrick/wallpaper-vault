@@ -23,8 +23,8 @@ class Set(Base):
     local_path: Mapped[Optional[str]] = mapped_column()
     phash:      Mapped[Optional[str]] = mapped_column()
     notes:      Mapped[Optional[str]] = mapped_column()
-    created_at: Mapped[Optional[str]] = mapped_column(server_default=text("(date('now'))"))
-    library_path_id: Mapped[Optional[int]] = mapped_column(ForeignKey("library_paths.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[Optional[str]] = mapped_column(server_default=text("(date('now'))"), index=True)
+    library_path_id: Mapped[Optional[int]] = mapped_column(ForeignKey("library_paths.id", ondelete="SET NULL"), nullable=True, index=True)
 
     library_path: Mapped[Optional["LibraryPath"]] = relationship(
         back_populates="sets"

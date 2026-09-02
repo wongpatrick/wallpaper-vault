@@ -10,7 +10,7 @@ class Character(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(nullable=False)
-    franchise_id: Mapped[Optional[int]] = mapped_column(ForeignKey("franchises.id", ondelete="SET NULL"))
+    franchise_id: Mapped[Optional[int]] = mapped_column(ForeignKey("franchises.id", ondelete="SET NULL"), index=True)
 
     __table_args__ = (
         Index(

@@ -17,7 +17,7 @@ class Image(Base):
     __tablename__ = "images"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    set_id: Mapped[int] = mapped_column(ForeignKey("sets.id", ondelete="CASCADE"), nullable=False)
+    set_id: Mapped[int] = mapped_column(ForeignKey("sets.id", ondelete="CASCADE"), nullable=False, index=True)
     filename: Mapped[str] = mapped_column(nullable=False)
     local_path: Mapped[str] = mapped_column(nullable=False, unique=True)
     phash: Mapped[Optional[str]] = mapped_column()
@@ -25,7 +25,7 @@ class Image(Base):
     height: Mapped[Optional[int]] = mapped_column()
     file_size:  Mapped[Optional[int]] = mapped_column()
     aspect_ratio: Mapped[Optional[float]] = mapped_column()
-    aspect_ratio_label: Mapped[Optional[str]] = mapped_column()
+    aspect_ratio_label: Mapped[Optional[str]] = mapped_column(index=True)
     sort_order: Mapped[Optional[int]] = mapped_column()
     notes:      Mapped[Optional[str]] = mapped_column()
     rating:     Mapped[Optional[str]] = mapped_column(server_default=text(f"'{ImageRating.SAFE}'"), index=True)
@@ -34,8 +34,8 @@ class Image(Base):
     focal_point_x: Mapped[Optional[int]] = mapped_column(server_default=text("50"))
     focal_point_y: Mapped[Optional[int]] = mapped_column(server_default=text("50"))
     is_favorite: Mapped[bool] = mapped_column(server_default=text("0"), default=False, index=True)
-    is_blacklisted: Mapped[bool] = mapped_column(server_default=text("0"), default=False)
-    created_at: Mapped[str] = mapped_column(server_default=text("(date('now'))"))
+    is_blacklisted: Mapped[bool] = mapped_column(server_default=text("0"), default=False, index=True)
+    created_at: Mapped[str] = mapped_column(server_default=text("(date('now'))"), index=True)
 
     set: Mapped["Set"] = relationship(back_populates="images")
     tags: Mapped[list["Tag"]] = relationship(

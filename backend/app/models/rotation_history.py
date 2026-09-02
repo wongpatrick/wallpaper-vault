@@ -9,8 +9,8 @@ class RotationHistory(Base):
     __tablename__ = "rotation_history"
 
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, server_default=func.now(), nullable=False)
-    image_id = Column(Integer, ForeignKey("images.id", ondelete="CASCADE"), nullable=True)
+    timestamp = Column(DateTime, server_default=func.now(), nullable=False, index=True)
+    image_id = Column(Integer, ForeignKey("images.id", ondelete="CASCADE"), nullable=True, index=True)
     aspect_ratio = Column(String, nullable=True)
     vault_id = Column(String, nullable=True, index=True)
     vault_image_id = Column(Integer, nullable=True)

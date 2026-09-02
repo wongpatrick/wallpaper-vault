@@ -8,7 +8,7 @@ set_creators = Table(
     "set_creators",
     Base.metadata,
     Column("set_id", ForeignKey("sets.id"), primary_key=True),
-    Column("creator_id", ForeignKey("creators.id"), primary_key=True),
+    Column("creator_id", ForeignKey("creators.id"), primary_key=True, index=True),
     Column("role", String)
 )
 
@@ -16,26 +16,26 @@ set_tags = Table(
     "set_tags",
     Base.metadata,
     Column("set_id", ForeignKey("sets.id"), primary_key=True),
-    Column("tag_id", ForeignKey("tags.id"), primary_key=True)
+    Column("tag_id", ForeignKey("tags.id"), primary_key=True, index=True)
 )
 
 set_characters = Table(
     "set_characters",
     Base.metadata,
     Column("set_id", ForeignKey("sets.id"), primary_key=True),
-    Column("character_id", ForeignKey("characters.id"), primary_key=True)
+    Column("character_id", ForeignKey("characters.id"), primary_key=True, index=True)
 )
 
 image_tags = Table(
     "image_tags",
     Base.metadata,
     Column("image_id", ForeignKey("images.id", ondelete="CASCADE"), primary_key=True),
-    Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True)
+    Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True, index=True)
 )
 
 image_characters = Table(
     "image_characters",
     Base.metadata,
     Column("image_id", ForeignKey("images.id", ondelete="CASCADE"), primary_key=True),
-    Column("character_id", ForeignKey("characters.id", ondelete="CASCADE"), primary_key=True)
+    Column("character_id", ForeignKey("characters.id", ondelete="CASCADE"), primary_key=True, index=True)
 )
