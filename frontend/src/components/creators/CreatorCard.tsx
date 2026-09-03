@@ -3,6 +3,7 @@
  * Module: CreatorCard Component
  * Description: Displays a single creator with their avatar and name in a card layout.
  */
+import { memo } from 'react';
 import { Card, Text, Stack, Badge } from '@mantine/core';
 import type { Creator } from '../../api/model';
 import type { WithMultiVault } from '../../types/vault';
@@ -15,7 +16,7 @@ interface CreatorCardProps {
     creator: WithMultiVault<Creator>;
 }
 
-export function CreatorCard({ creator }: CreatorCardProps) {
+export const CreatorCard = memo(function CreatorCard({ creator }: CreatorCardProps) {
     const { isAggregated, switchVault } = useVault();
     const navigate = useNavigate();
     const location = useLocation();
@@ -68,5 +69,5 @@ export function CreatorCard({ creator }: CreatorCardProps) {
             </Stack>
         </Card>
     );
-}
+});
 

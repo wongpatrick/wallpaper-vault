@@ -10,24 +10,33 @@ import { getThumbnailUrl } from '../../utils/fileUtils';
 import type { Image as ImageModel } from '../../api/model';
 import type { WithMultiVault } from '../../types/vault';
 import { useLongPress } from '../../hooks/useLongPress';
-import { useVault } from '../../hooks/useVault';
 import { ImageRating } from '../../types/enums';
 
 interface ImageGridItemProps {
     image: WithMultiVault<ImageModel>;
-    onClick: () => void;
+    originalIndex?: number;
+    onClick?: (originalIndex: number) => void;
     selectionMode?: boolean;
     selected?: boolean;
-    onToggleSelect?: () => void;
+    onToggleSelect?: (id: number) => void;
     onSetWallpaper?: (image: ImageModel) => void;
+    isAggregated?: boolean;
 }
 
 const SCROLL_DEBOUNCE_MS = 500;
 const OPACITY_UNSELECTED = 0.7;
 const OPACITY_FULL = 1;
 
-export const ImageGridItem = memo(function ImageGridItem({ image, onClick, selectionMode, selected, onToggleSelect, onSetWallpaper }: ImageGridItemProps) {
-    const { isAggregated } = useVault();
+export const ImageGridItem = memo(function ImageGridItem({
+    image,
+    originalIndex = 0,
+    onClick,
+    selectionMode,
+    selected,
+    onToggleSelect,
+    onSetWallpaper,
+    isAggregated = false,
+}: ImageGridItemProps) {
     const rating = image.rating || ImageRating.SAFE;
 
     const dominantColor = image.dominant_color;
@@ -39,16 +48,16 @@ export const ImageGridItem = memo(function ImageGridItem({ image, onClick, selec
     const handleItemClick = (e: React.MouseEvent | React.TouchEvent) => {
         if (selectionMode && onToggleSelect) {
             e.stopPropagation();
-            onToggleSelect();
+            onToggleSelect(image.id);
         } else {
-            onClick();
+            onClick?.(originalIndex);
         }
     };
 
     const longPressProps = useLongPress(
         () => {
             if (!selectionMode && onToggleSelect) {
-                onToggleSelect();
+                onToggleSelect(image.id);
             }
         },
         handleItemClick,
@@ -85,6 +94,7 @@ export const ImageGridItem = memo(function ImageGridItem({ image, onClick, selec
                 style={{ 
                     width: '100%', 
                     height: 'auto', 
+                    aspectRatio: (image.width && image.height) ? `${image.width} / ${image.height}` : undefined,
                     display: 'block',
                     transition: 'transform 0.3s ease'
                 }}
@@ -93,13 +103,12 @@ export const ImageGridItem = memo(function ImageGridItem({ image, onClick, selec
             
             {/* Selection Checkbox */}
             {selectionMode && (
-                <Box style={{ position: 'absolute', top: 8, left: 8, zIndex: 10 }}>
+                <Box style={{ position: 'absolute', top: 8, left: 8, zIndex: 10, pointerEvents: 'none' }}>
                     <Checkbox 
                         checked={selected} 
-                        onChange={() => onToggleSelect?.()} 
+                        readOnly
                         size="md"
                         radius="xl"
-                        styles={{ input: { cursor: 'pointer' } }}
                     />
                 </Box>
             )}

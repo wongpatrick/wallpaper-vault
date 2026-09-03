@@ -3,7 +3,7 @@
  * Module: Set Card Component
  * Description: Displays a preview card for a wallpaper set, showing its cover image, title, creators, and providing contextual actions.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Card, Image, Group, Stack, Text, Menu, ActionIcon, Badge, rem, Checkbox, Box, Overlay } from '@mantine/core';
 import { IconDotsVertical, IconExternalLink, IconFolder, IconTrash } from '@tabler/icons-react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -20,8 +20,8 @@ interface SetCardProps {
     onDelete: (id: number) => void;
     selectionMode?: boolean;
     selected?: boolean;
-    onToggleSelect?: () => void;
-    onLongPress?: () => void;
+    onToggleSelect?: (id: number) => void;
+    onLongPress?: (id: number) => void;
 }
 
 const ICON_SIZE_PX = 14;
@@ -29,7 +29,7 @@ const HOVER_SLIDESHOW_INTERVAL_MS = 1000;
 const HOVER_SLIDESHOW_MAX_IMAGES = 5;
 const DEFAULT_FOCAL_POINT = 50;
 
-export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect, onLongPress }: SetCardProps) {
+export const SetCard = memo(function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect, onLongPress }: SetCardProps) {
     const { isAggregated, switchVault } = useVault();
     const navigate = useNavigate();
     const location = useLocation();
@@ -52,7 +52,7 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
     
     const handleCardClick = async () => {
         if (selectionMode && onToggleSelect) {
-            onToggleSelect();
+            onToggleSelect(set.id);
         } else {
             if (isAggregated && set._vaultId) {
                 await switchVault(set._vaultId);
@@ -70,7 +70,7 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
     const longPressProps = useLongPress(
         () => {
             if (onLongPress) {
-                onLongPress();
+                onLongPress(set.id);
             }
         },
         handleCardClick,
@@ -257,5 +257,4 @@ export function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect
             </Group>
         </Card>
     );
-
-}
+});

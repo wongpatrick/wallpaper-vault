@@ -165,6 +165,7 @@ export default function Images() {
 
     const handleImageClick = useCallback((originalIdx: number) => setSelectedImageIndex(originalIdx), []);
     const handleToggleSelect = useCallback((id: number) => toggleImageSelect(id), [toggleImageSelect]);
+    const handleSetWallpaper = useCallback((img: ImageModel) => setWallpaperImage(img), []);
 
     // Reset/Refetch helper for image modifications
     const handleCollectionReset = () => {
@@ -312,7 +313,8 @@ export default function Images() {
                 selectedImageIds={selectedImageIds}
                 onToggleSelect={handleToggleSelect}
                 onImageClick={handleImageClick}
-                onSetWallpaper={(img) => setWallpaperImage(img)}
+                onSetWallpaper={handleSetWallpaper}
+                isAggregated={isAggregated}
             />
 
             <ImageLightbox

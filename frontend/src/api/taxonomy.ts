@@ -141,9 +141,6 @@ export const useCreateCharacter = () => {
     mutationFn: createCharacter,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['characters'] });
-      queryClient.invalidateQueries({ queryKey: ['tags'] });
-      queryClient.invalidateQueries({ queryKey: ['sets'] });
-      queryClient.invalidateQueries({ queryKey: ['images'] });
     },
   });
 };
@@ -154,9 +151,6 @@ export const useUpdateCharacter = () => {
     mutationFn: ({ id, data }: { id: number; data: CharacterUpdate }) => updateCharacter(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['characters'] });
-      queryClient.invalidateQueries({ queryKey: ['tags'] });
-      queryClient.invalidateQueries({ queryKey: ['sets'] });
-      queryClient.invalidateQueries({ queryKey: ['images'] });
     },
   });
 };
@@ -175,7 +169,6 @@ export const useMergeCharacters = () => {
     mutationFn: ({ source_ids, target_id }: { source_ids: number[], target_id: number }) => mergeCharacters(source_ids, target_id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['characters'] });
-      queryClient.invalidateQueries({ queryKey: ['tags'] });
       queryClient.invalidateQueries({ queryKey: ['sets'] });
     },
   });
@@ -222,8 +215,6 @@ export const useMergeFranchises = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['franchises'] });
       queryClient.invalidateQueries({ queryKey: ['characters'] });
-      queryClient.invalidateQueries({ queryKey: ['tags'] });
-      queryClient.invalidateQueries({ queryKey: ['sets'] });
     },
   });
 };
@@ -308,9 +299,6 @@ export const useBulkDeleteCharacters = () => {
     mutationFn: bulkDeleteCharacters,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['characters'] });
-      queryClient.invalidateQueries({ queryKey: ['tags'] });
-      queryClient.invalidateQueries({ queryKey: ['sets'] });
-      queryClient.invalidateQueries({ queryKey: ['images'] });
     },
   });
 };
@@ -322,8 +310,6 @@ export const useBulkDeleteFranchises = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['franchises'] });
       queryClient.invalidateQueries({ queryKey: ['characters'] });
-      queryClient.invalidateQueries({ queryKey: ['tags'] });
-      queryClient.invalidateQueries({ queryKey: ['sets'] });
     },
   });
 };

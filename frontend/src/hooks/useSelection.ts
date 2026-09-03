@@ -1,39 +1,43 @@
 /**
  * @file useSelection hook
  */
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 export function useSelection<T = number>() {
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<T>>(new Set());
 
-    const toggle = (id: T) => {
-        const next = new Set(selectedIds);
-        if (next.has(id)) {
-            next.delete(id);
-        } else {
-            next.add(id);
-        }
-        setSelectedIds(next);
-        if (next.size > 0) setSelectionMode(true);
-    };
-
-    const selectAll = (allIds: T[]) => {
-        const next = new Set(selectedIds);
-        allIds.forEach(id => next.add(id));
-        setSelectedIds(next);
+    const toggle = useCallback((id: T) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
         setSelectionMode(true);
-    };
+    }, []);
 
-    const clear = () => {
+    const selectAll = useCallback((allIds: T[]) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            allIds.forEach(id => next.add(id));
+            return next;
+        });
+        setSelectionMode(true);
+    }, []);
+
+    const clear = useCallback(() => {
         setSelectedIds(new Set());
         setSelectionMode(false);
-    };
+    }, []);
 
-    const startSelectionWith = (id: T) => {
+    const startSelectionWith = useCallback((id: T) => {
         setSelectionMode(true);
         setSelectedIds(new Set([id]));
-    };
+    }, []);
 
     return {
         selectionMode,

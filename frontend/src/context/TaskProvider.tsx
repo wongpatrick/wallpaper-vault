@@ -11,6 +11,7 @@ import { API_BASE_URL } from '../config';
 import { AXIOS_INSTANCE } from '../api/axios-instance';
 import { TaskStatus } from '../types/enums';
 import { TaskContext, type TaskInfo } from './TaskContext';
+import { TaskActionsContext } from './TaskActionsContext';
 
 const CLEANUP_DELAY_MS = 5000;
 const INITIAL_RETRY_DELAY_MS = 1000;
@@ -32,40 +33,40 @@ export function TaskProvider({ children }: TaskProviderProps) {
     const { showNotification } = useNotificationHistory();
     const queryClient = useQueryClient();
 
-    // Helper to invalidate all related queries upon task completion to keep UI fresh
-    const invalidateAppQueries = useCallback(() => {
+    // Helper to invalidate queries upon task completion scoped by task domain to prevent refetch storms
+    const invalidateTaskQueries = useCallback((taskType: 'import' | 'autotag' | 'audit' | 'all') => {
         queryClient.invalidateQueries({
             predicate: (query) => {
-                const key = query.queryKey[0];
-                if (typeof key === 'string') {
-                    const prefixes = [
-                        '/api/sets',
-                        '/api/tags',
-                        '/api/characters',
-                        '/api/images',
-                        '/api/creators',
-                        '/api/franchises'
-                    ];
-                    const exactKeys = [
-                        'sets',
-                        'tags',
-                        'characters',
-                        'images',
-                        'creators',
-                        'franchises'
-                    ];
-                    return prefixes.some(prefix => key.startsWith(prefix)) || exactKeys.includes(key);
+                const key0 = query.queryKey[0];
+                const key1 = query.queryKey[1];
+                
+                const isMatch = (target: string) => {
+                    if (typeof key0 === 'string') {
+                        if (key0 === target || key0.startsWith(`/api/${target}`)) return true;
+                        if (key0 === 'multi-vault' && typeof key1 === 'string' && (key1 === target || key1.startsWith(`/api/${target}`))) return true;
+                    }
+                    return false;
+                };
+
+                if (taskType === 'import') {
+                    return isMatch('sets') || isMatch('images');
                 }
-                return false;
+                if (taskType === 'autotag') {
+                    return isMatch('sets') || isMatch('tags') || isMatch('characters');
+                }
+                if (taskType === 'audit') {
+                    return isMatch('sets');
+                }
+                const allTargets = ['sets', 'tags', 'characters', 'images', 'creators', 'franchises'];
+                return allTargets.some(isMatch);
             }
         });
     }, [queryClient]);
 
     // Handle notifications and cache invalidations for task completions/failures
     const handleTaskCompletion = useCallback((tid: string, tinfo: { error_message?: string }) => {
-        invalidateAppQueries();
-
         if (tid.startsWith('import-')) {
+            invalidateTaskQueries('import');
             const hasWarning = !!tinfo.error_message;
             showNotification({
                 id: tid,
@@ -76,6 +77,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
                 status: TaskStatus.COMPLETED,
             });
         } else if (tid.startsWith('autotag-')) {
+            invalidateTaskQueries('autotag');
             showNotification({
                 id: tid,
                 title: 'AI Auto-Tagging Complete',
@@ -85,6 +87,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
                 status: TaskStatus.COMPLETED,
             });
         } else if (tid.startsWith('audit-')) {
+            invalidateTaskQueries('audit');
             showNotification({
                 id: tid,
                 title: 'Audit Complete',
@@ -93,14 +96,16 @@ export function TaskProvider({ children }: TaskProviderProps) {
                 autoClose: 5000,
                 status: TaskStatus.COMPLETED,
             });
+        } else {
+            invalidateTaskQueries('all');
         }
-    }, [invalidateAppQueries, showNotification]);
+    }, [invalidateTaskQueries, showNotification]);
 
     const handleTaskFailure = useCallback((tid: string, tinfo: { error_message?: string }) => {
-        invalidateAppQueries();
         const errorMessage = tinfo.error_message || 'An error occurred during execution.';
 
         if (tid.startsWith('import-')) {
+            invalidateTaskQueries('import');
             showNotification({
                 id: tid,
                 title: 'Batch Import Failed',
@@ -110,6 +115,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
                 status: TaskStatus.ERROR,
             });
         } else if (tid.startsWith('autotag-')) {
+            invalidateTaskQueries('autotag');
             showNotification({
                 id: tid,
                 title: 'AI Auto-Tagging Failed',
@@ -119,6 +125,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
                 status: TaskStatus.ERROR,
             });
         } else if (tid.startsWith('audit-')) {
+            invalidateTaskQueries('audit');
             showNotification({
                 id: tid,
                 title: 'Audit Failed',
@@ -127,8 +134,10 @@ export function TaskProvider({ children }: TaskProviderProps) {
                 autoClose: false,
                 status: TaskStatus.ERROR,
             });
+        } else {
+            invalidateTaskQueries('all');
         }
-    }, [invalidateAppQueries, showNotification]);
+    }, [invalidateTaskQueries, showNotification]);
 
     const addTask = useCallback((task: TaskInfo) => {
         setTasks((prev) => ({
@@ -303,6 +312,10 @@ export function TaskProvider({ children }: TaskProviderProps) {
         return Object.values(tasks).find((t) => t.id.startsWith(prefix));
     }, [tasks]);
 
+    const actionsValue = useMemo(() => ({
+        addTask,
+    }), [addTask]);
+
     const contextValue = useMemo(() => ({
         tasks,
         getTaskForSet,
@@ -311,8 +324,10 @@ export function TaskProvider({ children }: TaskProviderProps) {
     }), [tasks, getTaskForSet, isTaskRunning, addTask]);
 
     return (
-        <TaskContext.Provider value={contextValue}>
-            {children}
-        </TaskContext.Provider>
+        <TaskActionsContext.Provider value={actionsValue}>
+            <TaskContext.Provider value={contextValue}>
+                {children}
+            </TaskContext.Provider>
+        </TaskActionsContext.Provider>
     );
 }

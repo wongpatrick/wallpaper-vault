@@ -111,18 +111,16 @@ export function useActiveWallpaper(monitors: MonitorInfo[], activeMonitorPreview
         eventSource.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                if (data.event === 'rotation' || data.event === 'ping') {
+                if (data.event === 'rotation') {
                     refetchCurrent();
                     refetchHistory();
                     refetchCurrentMonitors();
-                    if (data.event === 'rotation') {
-                        const target = data.target_monitor || 'all';
-                        setActiveWallpapers(prev => ({
-                            ...prev,
-                            [target]: data.image
-                        }));
-                        fetchSystemWallpapers();
-                    }
+                    const target = data.target_monitor || 'all';
+                    setActiveWallpapers(prev => ({
+                        ...prev,
+                        [target]: data.image
+                    }));
+                    fetchSystemWallpapers();
                 }
             } catch {
                 // ignore parsing errors

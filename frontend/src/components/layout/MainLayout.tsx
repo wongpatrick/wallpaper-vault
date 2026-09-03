@@ -13,14 +13,12 @@ import classes from './Layout.module.css';
 import { useSidebarResizer } from "../../hooks/useSidebarResizer";
 import { IconPackage, IconBell, IconCheck, IconX, IconCloudUpload } from "@tabler/icons-react";
 import { useNotificationHistory } from "../../hooks/useNotificationHistory";
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useDisclosure } from "@mantine/hooks";
-import { useTasks } from "../../hooks/useTasks";
-import { ActionLoadingOverlay } from "../ui/ActionLoadingOverlay";
+import { GlobalTaskOverlays } from "./GlobalTaskOverlays";
 import { MetadataFormModal } from "../import/MetadataFormModal";
 import { DemoBanner } from "../ui/DemoBanner";
 import { isElectron, IS_DEMO_MODE } from "../../config";
-const AUTO_TAG_OVERLAY_HEIGHT_PX = 110;
 const HEADER_HEIGHT_DEFAULT_PX = 56;
 const DEMO_BANNER_HEIGHT_PX = 32;
 
@@ -33,7 +31,6 @@ export default function MainLayout() {
     const [opened, setOpened] = useState(false);
     const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
     const [bannerDismissed, setBannerDismissed] = useState(false);
-    const { tasks } = useTasks();
 
     const isBannerVisible = IS_DEMO_MODE && !bannerDismissed;
     const headerHeight = isBannerVisible ? HEADER_HEIGHT_DEFAULT_PX + DEMO_BANNER_HEIGHT_PX : HEADER_HEIGHT_DEFAULT_PX;
@@ -273,40 +270,6 @@ export default function MainLayout() {
         };
     }, [location.pathname]);
 
-
-    const activeAutoTagTask = useMemo(() => {
-        return Object.values(tasks).find(
-            (t) => t.id.startsWith('autotag-') && (t.status === 'accepted' || t.status === 'processing')
-        );
-    }, [tasks]);
-
-    const activeImportTask = useMemo(() => {
-        const importTasks = Object.values(tasks).filter(
-            (t) => t.id.startsWith('import-') && (t.status === 'accepted' || t.status === 'processing')
-        );
-        if (importTasks.length === 0) return null;
-
-        let progress = 0;
-        let total = 0;
-        let isProcessing = false;
-
-        importTasks.forEach(t => {
-            progress += t.progress || 0;
-            total += t.total || 0;
-            if (t.status === 'processing') {
-                isProcessing = true;
-            }
-        });
-
-        return {
-            id: 'import-consolidated',
-            status: isProcessing ? 'processing' : 'accepted',
-            progress,
-            total
-        };
-    }, [tasks]);
-
-
     return (
         <div style={{ minHeight: '100vh', position: 'relative' }}>
             <AppShell
@@ -436,29 +399,7 @@ export default function MainLayout() {
 
             <AppShell.Main>
                 <Outlet />
-                <ActionLoadingOverlay 
-                    visible={!!activeAutoTagTask} 
-                    title="Auto-tagging Set" 
-                    message={
-                        activeAutoTagTask?.status === 'processing' 
-                            ? 'Auto-tagging set...' 
-                            : 'Starting auto-tagging...'
-                    } 
-                    progress={activeAutoTagTask?.progress}
-                    total={activeAutoTagTask?.total}
-                />
-                <ActionLoadingOverlay 
-                    visible={!!activeImportTask} 
-                    title="Importing Images" 
-                    message={
-                        activeImportTask?.status === 'processing' 
-                            ? 'Importing and processing files...' 
-                            : 'Starting file import...'
-                    } 
-                    progress={activeImportTask?.progress}
-                    total={activeImportTask?.total}
-                    bottomOffset={activeAutoTagTask ? AUTO_TAG_OVERLAY_HEIGHT_PX : 0}
-                />
+                <GlobalTaskOverlays />
             </AppShell.Main>
         </AppShell>
 
