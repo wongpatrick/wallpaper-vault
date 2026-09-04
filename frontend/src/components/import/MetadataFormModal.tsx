@@ -13,7 +13,7 @@ import {
 import { IconAlertTriangle, IconCheck, IconTrash, IconFolder, IconPhoto } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
-import { useTasks } from '../../hooks/useTasks';
+import { useTaskActions } from '../../hooks/useTaskActions';
 import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
 import { useReadSetsApiSetsGet } from '../../api/generated/sets/sets';
 import { useReadSettingsApiSettingsGet } from '../../api/generated/settings/settings';
@@ -70,7 +70,7 @@ export function MetadataFormModal({
         preselectedSetId
     });
 
-    const { addTask } = useTasks();
+    const { addTask } = useTaskActions();
 
     const isSourceInVault = useMemo(() => {
         if (!isElectron || initialLocalPaths.length === 0) return false;

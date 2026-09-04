@@ -3,7 +3,7 @@
  * Module: Sets Directory Page
  * Description: Lists all wallpaper sets with search, filtering, pagination, and bulk management capabilities.
  */
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Select, Box, Overlay, Button, SegmentedControl, Table, Image, Checkbox, Badge } from '@mantine/core';
 import { IconAlertCircle, IconSearch, IconFilter, IconCheck, IconList, IconLayoutGrid } from '@tabler/icons-react';
 import { useDeleteSetApiSetsSetIdDelete } from '../../api/generated/sets/sets';
@@ -78,7 +78,7 @@ export default function Sets() {
     });
 
 
-    const sets = pageData?.items || [];
+    const sets = useMemo(() => pageData?.items || [], [pageData?.items]);
     const totalCount = pageData?.total || 0;
     const totalPages = getTotalPages(totalCount);
 
@@ -132,7 +132,7 @@ export default function Sets() {
         clearSelection();
     };
 
-    const handleDelete = (setId: number) => {
+    const handleDelete = useCallback((setId: number) => {
         const targetSet = sets.find(s => s.id === setId);
         modals.openConfirmModal({
             title: 'Delete Set',
@@ -169,7 +169,13 @@ export default function Sets() {
                 }
             },
         });
-    };
+    }, [sets, isAggregated, activeVault.id, switchVault, deleteMutation, refetch]);
+
+    const handleLongPress = useCallback((id: number) => {
+        if (!selectionMode) {
+            startSelectionWith(id);
+        }
+    }, [selectionMode, startSelectionWith]);
 
 
 
@@ -376,12 +382,8 @@ export default function Sets() {
                                                     onDelete={handleDelete}
                                                     selectionMode={selectionMode}
                                                     selected={selectedIds.has(set.id)}
-                                                    onToggleSelect={() => toggleSelect(set.id)}
-                                                    onLongPress={() => {
-                                                        if (!selectionMode) {
-                                                            startSelectionWith(set.id);
-                                                        }
-                                                    }}
+                                                    onToggleSelect={toggleSelect}
+                                                    onLongPress={handleLongPress}
                                                 />
                                             );
                                         })}

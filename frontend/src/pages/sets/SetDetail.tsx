@@ -3,7 +3,7 @@
  * Module: Set Detail Page
  * Description: Displays detailed information and a gallery view for a specific wallpaper set, supporting selection, bulk editing, and syncing.
  */
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useSelection } from '../../hooks/useSelection';
 import { 
@@ -63,6 +63,9 @@ export default function SetDetail() {
     const [croppingImage, setCroppingImage] = useState<ImageModel | null>(null);
     const [movingSingleImage, setMovingSingleImage] = useState<ImageModel | null>(null);
     const [wallpaperImage, setWallpaperImage] = useState<ImageModel | null>(null);
+
+    const handleImageClick = useCallback((index: number) => setSelectedImageIndex(index), []);
+    const handleSetWallpaper = useCallback((img: ImageModel) => setWallpaperImage(img), []);
 
     const { getTaskForSet, tasks } = useTasks();
     const activeTask = getTaskForSet(Number(setId));
@@ -352,8 +355,8 @@ export default function SetDetail() {
                 selectionMode={selectionMode}
                 selectedImageIds={selectedImageIds}
                 toggleImageSelect={toggleImageSelect}
-                onImageClick={(index) => setSelectedImageIndex(index)}
-                onSetWallpaper={(img) => setWallpaperImage(img)}
+                onImageClick={handleImageClick}
+                onSetWallpaper={handleSetWallpaper}
             />
 
             {/* Lightbox for full size preview */}

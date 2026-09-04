@@ -33,7 +33,7 @@ import { SetCard } from '../../components/sets/SetCard';
 import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
 import { SetBulkOperations } from '../../components/sets/SetBulkOperations';
 import { CreateSetModal } from '../../components/sets/CreateSetModal';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { formatBytes } from '../../utils/fileUtils';
 import type { Set as SetModel, CreatorWithSets } from '../../api/model';
 import { CREATOR_TYPES } from '../../types/enums';
@@ -239,6 +239,48 @@ export default function CreatorDetail() {
         ];
     }, [creator]);
 
+    const handleDeleteSet = useCallback((setId: number) => {
+        const targetSet = creator?.sets?.find(s => s.id === setId);
+        modals.openConfirmModal({
+            title: 'Delete Set',
+            centered: true,
+            children: (
+                <Text size="sm">
+                    Are you sure you want to delete the set <b>"{targetSet?.title || `Set #${setId}`}"</b> ({targetSet?.images?.length || 0} images)? This will permanently remove all images in this set from your computer. This action cannot be undone.
+                </Text>
+            ),
+            labels: { confirm: 'Delete permanently', cancel: 'Cancel' },
+            confirmProps: { color: 'red' },
+            onConfirm: async () => {
+                try {
+                    await deleteSetMutation.mutateAsync({ setId });
+                    notifications.show({
+                        title: 'Set deleted',
+                        message: 'The set has been removed from your library.',
+                        color: 'blue',
+                    });
+                    queryClient.invalidateQueries({ queryKey: getReadSetsApiSetsGetQueryKey() });
+                    refetch();
+                } catch (err) {
+                    const axiosError = err as { response?: { data?: { detail?: string } } };
+                    const message = axiosError.response?.data?.detail || 'Could not delete the set.';
+                    notifications.show({
+                        title: 'Error',
+                        message: typeof message === 'string' ? message : 'Could not delete the set.',
+                        color: 'red',
+                        autoClose: 10000
+                    });
+                }
+            },
+        });
+    }, [creator, deleteSetMutation, queryClient, refetch]);
+
+    const handleLongPress = useCallback((id: number) => {
+        if (!selectionMode) {
+            startSelectionWith(id);
+        }
+    }, [selectionMode, startSelectionWith]);
+
     // 2. Early returns
     if (isLoading) return <Center h={400}><Loader size="xl" /></Center>;
 
@@ -321,42 +363,6 @@ export default function CreatorDetail() {
         } catch {
             notifications.show({ title: 'Error', message: 'Could not delete creator', color: 'red' });
         }
-    };
-
-    const handleDeleteSet = (setId: number) => {
-        const targetSet = creator?.sets?.find(s => s.id === setId);
-        modals.openConfirmModal({
-            title: 'Delete Set',
-            centered: true,
-            children: (
-                <Text size="sm">
-                    Are you sure you want to delete the set <b>"{targetSet?.title || `Set #${setId}`}"</b> ({targetSet?.images?.length || 0} images)? This will permanently remove all images in this set from your computer. This action cannot be undone.
-                </Text>
-            ),
-            labels: { confirm: 'Delete permanently', cancel: 'Cancel' },
-            confirmProps: { color: 'red' },
-            onConfirm: async () => {
-                try {
-                    await deleteSetMutation.mutateAsync({ setId });
-                    notifications.show({
-                        title: 'Set deleted',
-                        message: 'The set has been removed from your library.',
-                        color: 'blue',
-                    });
-                    queryClient.invalidateQueries({ queryKey: getReadSetsApiSetsGetQueryKey() });
-                    refetch();
-                } catch (err) {
-                    const axiosError = err as { response?: { data?: { detail?: string } } };
-                    const message = axiosError.response?.data?.detail || 'Could not delete the set.';
-                    notifications.show({
-                        title: 'Error',
-                        message: typeof message === 'string' ? message : 'Could not delete the set.',
-                        color: 'red',
-                        autoClose: 10000
-                    });
-                }
-            },
-        });
     };
 
     return (
@@ -541,12 +547,8 @@ export default function CreatorDetail() {
                                     onDelete={handleDeleteSet} 
                                     selectionMode={selectionMode}
                                     selected={selectedIds.has(set.id)}
-                                    onToggleSelect={() => toggleSelect(set.id)}
-                                    onLongPress={() => {
-                                        if (!selectionMode) {
-                                            startSelectionWith(set.id);
-                                        }
-                                    }}
+                                    onToggleSelect={toggleSelect}
+                                    onLongPress={handleLongPress}
                                 />
                             ))}
                         </SimpleGrid>

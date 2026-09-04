@@ -26,6 +26,7 @@ import { VaultProvider } from './context/VaultProvider'
 import { TaskProvider } from './context/TaskProvider'
 import BackendStatusGuard from './components/ui/BackendStatusGuard'
 import ApiKeyModal from './components/ui/ApiKeyModal'
+import { isElectron } from './config'
 
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
@@ -75,7 +76,8 @@ const theme = createTheme({
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5000, // Keep data fresh for 5 seconds to prevent duplicate fetches on remount/StrictMode
+      staleTime: 60_000, // Keep data fresh for 60 seconds to prevent unnecessary refetches
+      refetchOnWindowFocus: !isElectron,
     },
   },
 });

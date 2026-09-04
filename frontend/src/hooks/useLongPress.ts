@@ -1,5 +1,5 @@
 /** @file useLongPress.ts */
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 
 const DEFAULT_LONG_PRESS_DELAY = 500;
 
@@ -11,6 +11,17 @@ export function useLongPress(
     const timeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const target = useRef<EventTarget | null>(null);
     const longPressTriggered = useRef(false);
+
+    useEffect(() => {
+        return () => {
+            if (timeout.current) {
+                clearTimeout(timeout.current);
+            }
+            if (shouldPreventDefault && target.current) {
+                target.current.removeEventListener('touchend', preventDefault);
+            }
+        };
+    }, [shouldPreventDefault]);
 
     const start = useCallback(
         (event: React.MouseEvent | React.TouchEvent) => {
