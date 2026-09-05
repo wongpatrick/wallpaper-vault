@@ -15,17 +15,17 @@ from app.models.image import Image
 from app.schemas.image import ImageCreate, ImageBulkMove, ImageCropRequest, ImageBulkUpdate
 from app.crud import image as crud_image
 from app.core.exceptions import ResourceNotFoundError, DuplicateResourceError
-from app.services.audit_service import calculate_phash, calculate_dominant_color
-from app.core.crop import load_image
-from app.core.constants import THUMBNAIL_SIZES
+from app.core.constants import THUMBNAIL_SIZES, THUMBS_DIR
+from app.core.image_analysis import calculate_dominant_color, calculate_phash
 from app.core.aspect_ratio import get_aspect_ratio_labels, parse_ratio
+from app.core.crop import load_image
 
 logger = structlog.get_logger(__name__)
 
 
 def delete_image_thumbnails(image_id: int) -> None:
     """Deletes all cached thumbnail sizes for the given image ID."""
-    thumbs_dir = Path(__file__).resolve().parent.parent.parent.parent / "db" / "thumbs"
+    thumbs_dir = THUMBS_DIR
     for size in THUMBNAIL_SIZES:
         thumb_file = thumbs_dir / f"{image_id}_{size}.jpg"
         if thumb_file.exists():

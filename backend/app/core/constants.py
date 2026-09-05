@@ -2,6 +2,10 @@
 Shared application constants and magic values.
 """
 
+from pathlib import Path
+
+THUMBS_DIR: Path = Path(__file__).resolve().parent.parent.parent / "db" / "thumbs"
+
 THUMBNAIL_SIZES: tuple[str, ...] = ("sm", "md", "lg")
 
 PRESET_SWATCHES: list[str] = [
