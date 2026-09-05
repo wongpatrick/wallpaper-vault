@@ -2,7 +2,6 @@
 Service for managing application disk caches (AI models and preview thumbnails).
 Provides inspection, pre-download, and cache cleanup operations.
 """
-from pathlib import Path
 import shutil
 import structlog
 
@@ -15,6 +14,7 @@ from app.schemas.cache import (
     ModelStatusResponse,
     ThumbnailCacheStats,
 )
+from app.core.constants import THUMBS_DIR
 from app.services.ai_tagging import (
     clear_tagger_instances,
     download_model_files,
@@ -24,9 +24,6 @@ from app.services.ai_tagging import (
 )
 
 logger = structlog.get_logger(__name__)
-
-# Thumbs directory relative to repo root
-THUMBS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "db" / "thumbs"
 
 
 BYTES_PER_KB = 1024.0

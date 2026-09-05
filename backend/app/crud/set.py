@@ -15,17 +15,17 @@ from app.models.tag import Tag
 from app.schemas.set import (
     SetCreate, 
     SetUpdate,
-    BatchImportRequest, 
-    BatchImportResponse,
     SetBulkUpdate
 )
-from app.core.enums import BulkOperationMode, TaskStatus
-from app.core.aspect_ratio import get_aspect_ratio_labels, parse_ratio
+from app.core.enums import BulkOperationMode
 from app.crud.settings import get_setting
-from app.core import tasks
-from app.db.session import SessionLocal
-from pathlib import Path
+from app.services.import_processor import batch_import_sets, run_batch_import_background
 import structlog
+
+__all__ = [
+    "batch_import_sets",
+    "run_batch_import_background",
+]
 
 logger = structlog.get_logger(__name__)
 
@@ -51,8 +51,14 @@ async def get_set(db: AsyncSession, set_id: int) -> Optional[Set]:
     return result.scalar_one_or_none()
 
 
-async def recalculate_set_rollup_tags(db: AsyncSession, set_id: int) -> None:
-    """Recalculates the rollup tags for a set based on image tags and rollup threshold."""
+async def recalculate_set_rollup_tags(
+    db: AsyncSession, set_id: int, additive: bool = False
+) -> None:
+    """Recalculates the rollup tags for a set based on image tags and rollup threshold.
+
+    If additive=True, existing tags on the set are preserved and new rollup tags are appended.
+    If additive=False, the set's tags are replaced with the computed rollup tags.
+    """
     result = await db.execute(
         select(Set).options(
             selectinload(Set.images).selectinload(Image.tags),
@@ -87,9 +93,17 @@ async def recalculate_set_rollup_tags(db: AsyncSession, set_id: int) -> None:
             if freq >= rollup_threshold:
                 rollup_tags.append(tag_objects[tag_name])
         
-        db_set.tags = rollup_tags
+        if additive:
+            existing_tag_ids = {t.id for t in db_set.tags}
+            for t in rollup_tags:
+                if t.id not in existing_tag_ids:
+                    db_set.tags.append(t)
+                    existing_tag_ids.add(t.id)
+        else:
+            db_set.tags = rollup_tags
     else:
-        db_set.tags = []
+        if not additive:
+            db_set.tags = []
         
     db.add(db_set)
     await db.flush()
@@ -493,138 +507,3 @@ async def bulk_delete_sets(db: AsyncSession, set_ids: list[int]) -> int:
 
     await db.flush()
     return len(db_sets)
-
-
-
-
-
-async def batch_import_sets(db: AsyncSession, batch_in: BatchImportRequest, task_id: str = None) -> BatchImportResponse:
-    """Executes a batch import process for multiple folders.
-
-    Parses candidate folders, validates them, and optionally imports and crops
-    images to the vault location.
-
-    Args:
-        db: Database session.
-        batch_in: Request payload detailing paths and import behaviors.
-        task_id: Optional ID for progress tracking.
-
-    Returns:
-        A response object detailing the success/failure of each imported item.
-    """
-    from app.services import import_service
-    # 1. Gather
-    candidates = await import_service.gather_candidates(db, batch_in)
-    
-    # 2. Parse & Validate
-    regex = import_service.compile_parsing_regex(batch_in.parsing_template)
-    results = await import_service.parse_and_validate_candidates(db, candidates, regex)
-
-    if batch_in.dry_run:
-        return BatchImportResponse(items=results)
-
-    # 3. Execution Phase
-    # Get vault path
-    from app.crud import library_path as crud_lp
-    default_lp = await crud_lp.get_default_library_path(db)
-    vault_path_str = default_lp.path if default_lp else None
-    if not vault_path_str:
-        vault_setting = await get_setting(db, "base_library_path")
-        if vault_setting and vault_setting.value:
-            vault_path_str = vault_setting.value
-
-    if not vault_path_str:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail="No library storage path configured")
-    
-    vault_root = Path(vault_path_str)
-    
-    # Get target ratios from settings
-    h_label, v_label = await get_aspect_ratio_labels(db)
-    h_ratio = parse_ratio(h_label, 16.0 / 9.0)
-    v_ratio = parse_ratio(v_label, 9.0 / 16.0)
-
-    
-    # Pre-scan for Total Images across valid folders
-    from app.core.crop import collect_image_paths
-    total_images = 0
-    for item in results:
-        if item.is_valid:
-            try:
-                img_paths = collect_image_paths(item.source_path, recursive=True)
-                total_images += len(img_paths)
-            except Exception as e:
-                logger.error("Failed to collect image paths during pre-scan", path=item.source_path, error=str(e))
-                
-    progress_state = {"processed": 0, "total": total_images}
-    if task_id:
-        await tasks.update_task(db, task_id, progress=0, total=total_images)
-        
-    final_results = []
-    for item in results:
-        processed_item = await import_service.execute_import_item(
-            db=db,
-            item=item,
-            vault_root=vault_root,
-            h_ratio=h_ratio,
-            v_ratio=v_ratio,
-            h_label=h_label,
-            v_label=v_label,
-            delete_source_default=batch_in.delete_source_default,
-            task_id=task_id,
-            progress_state=progress_state
-        )
-        final_results.append(processed_item)
-
-    # Check for source directories that weren't fully cleaned up
-    cleanup_warnings = []
-    if batch_in.delete_source_default:
-        from app.services.import_service import delete_dir_if_empty
-        for item in batch_in.items:
-            source_p = Path(item.source_path)
-            if source_p.exists() and source_p.is_dir():
-                try:
-                    if delete_dir_if_empty(source_p):
-                        logger.info("Deleted empty batch source directory", path=item.source_path)
-                    else:
-                        cleanup_warnings.append(source_p.name)
-                        logger.info("Batch source directory not empty, leaving on disk", path=item.source_path)
-                except Exception as err:
-                    logger.error("Failed to delete empty batch source directory", path=item.source_path, error=str(err))
-
-    await db.flush()
-    if task_id:
-        await tasks.update_task(db, task_id, progress=progress_state["processed"], total=total_images)
-    
-    response = BatchImportResponse(items=final_results)
-    response.cleanup_warnings = cleanup_warnings  # Attach warnings for caller
-    return response
-
-async def run_batch_import_background(batch_in: BatchImportRequest, task_id: str) -> None:
-    """Entry point for running batch imports as a background task.
-
-    Manages its own database session and updates the task status upon
-    completion or error.
-
-    Args:
-        batch_in: Request payload for the batch import.
-        task_id: The ID of the task to update.
-    """
-    async with SessionLocal() as db:
-        try:
-            await tasks.update_task(db, task_id, status=TaskStatus.PROCESSING)
-            response = await batch_import_sets(db, batch_in, task_id=task_id)
-            await db.commit()
-            
-            warning_msg = None
-            warnings = getattr(response, 'cleanup_warnings', [])
-            if warnings:
-                folders_str = ", ".join(f"'{f}'" for f in warnings)
-                warning_msg = f"Source folder(s) {folders_str} still contained files and were left on disk."
-            
-            await tasks.update_task(db, task_id, status=TaskStatus.COMPLETED, error_message=warning_msg)
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            await db.rollback()
-            await tasks.update_task(db, task_id, status=TaskStatus.ERROR, error_message=str(e))
