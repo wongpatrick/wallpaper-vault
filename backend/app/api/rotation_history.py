@@ -9,7 +9,7 @@ from app.db.session import get_db
 from app.models.rotation_history import RotationHistory
 from app.schemas.image import ImageDetail, ImageWithContext
 from app.schemas.rotation_history import SetWallpaperRequest, SetWallpaperResponse
-from app.api.images import map_image_to_schema, map_image_to_context_schema
+from app.api.mappers import map_image_to_schema, map_image_to_context_schema
 from app.core.rotation import rotation_broadcaster
 from typing import List, AsyncGenerator
 import structlog

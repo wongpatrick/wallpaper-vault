@@ -12,15 +12,13 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import THUMBS_DIR
 from app.db.session import get_db
 from app.models.image import Image
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter()
-
-# Thumbnail cache directory: <project_root>/db/thumbs/
-THUMBS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "db" / "thumbs"
 
 # Width presets for each thumbnail size
 SIZE_WIDTHS = {

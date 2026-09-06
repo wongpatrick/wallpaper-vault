@@ -3,7 +3,6 @@ API endpoints for running and managing library audits and issue resolutions.
 """
 
 import os
-import re
 from typing import Any
 from typing import Optional
 from pathlib import Path
@@ -54,11 +53,10 @@ async def start_audit(
     # This might catch other tasks, but since we only have audit and import,
     # we should ideally tag tasks. For now, let's check.
 
-    from app.models.library_path import LibraryPath
+    from app.core.vault_utils import resolve_all_vault_roots
 
-    lp_exists = (await db.execute(select(func.count(LibraryPath.id)))).scalar() or 0
-    vault_setting = await get_setting(db, "base_library_path")
-    if lp_exists == 0 and (not vault_setting or not vault_setting.value):
+    roots = await resolve_all_vault_roots(db)
+    if not roots:
         raise HTTPException(status_code=400, detail="base_library_path not configured")
 
     # Clear ALL old pending/ignored issues before starting a fresh scan
@@ -349,13 +347,9 @@ async def resolve_audit_issues(
                     dir_path = Path(issue.directory)
                     if dir_path.exists():
                         # 1. Parse folder name (e.g. "Creator - Title")
-                        folder_name = dir_path.name
-                        creator_name, set_title = "Unknown", folder_name
-                        parts = re.split(r'\s+[-\u2010-\u2015\uff0d–—]\s+|\s*[\u2010-\u2015\uff0d–—]\s*', folder_name, maxsplit=1)
-                        if len(parts) <= 1:
-                            parts = re.split(r'\s*[-\u2010-\u2015\uff0d–—]\s*', folder_name, maxsplit=1)
-                        if len(parts) > 1:
-                            creator_name, set_title = parts[0].strip(), parts[1].strip()
+                        from app.core.parsing import parse_set_folder_name
+
+                        creator_name, set_title = parse_set_folder_name(dir_path.name)
 
                         # 2. Get/Create Creator
                         from app.crud.creator import get_creator_by_name
@@ -406,7 +400,7 @@ async def resolve_audit_issues(
                             continue
 
                         # Calculate color and aspect label
-                        from app.services.audit_service import calculate_dominant_color
+                        from app.core.image_analysis import calculate_dominant_color
 
                         h_ratio_setting = await get_setting(
                             db, "horizontal_target_ratio"

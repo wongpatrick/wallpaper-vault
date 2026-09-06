@@ -97,11 +97,13 @@ async def batch_import_sets(
     If `dry_run=True`, it only scans the provided paths, attempts to parse creator/set names using the `parsing_template`, and returns a preview of what would be imported. If `dry_run=False`, it launches the actual import process as an asynchronous background task.
     """
     if batch_in.dry_run:
-        return await crud_set.batch_import_sets(db=db, batch_in=batch_in)
+        from app.services import import_processor
+        return await import_processor.batch_import_sets(db=db, batch_in=batch_in)
     
     # Background execution
+    from app.services import import_processor
     task_id = await tasks.create_task(db_session=db, status="accepted", prefix="import")
-    background_tasks.add_task(crud_set.run_batch_import_background, batch_in, task_id)
+    background_tasks.add_task(import_processor.run_batch_import_background, batch_in, task_id)
     
     logger.info("Started batch import background task", task_id=task_id)
     return BatchImportResponse(

@@ -74,7 +74,7 @@ async def log_rotation(
     if image_id is not None:
         # Import locally to avoid circular dependencies
         from app.crud.image import get_image
-        from app.api.images import map_image_to_context_schema
+        from app.api.mappers import map_image_to_context_schema
         
         db_image = await get_image(db, image_id)
         if db_image:

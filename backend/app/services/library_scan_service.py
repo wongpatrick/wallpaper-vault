@@ -2,7 +2,6 @@
 Service for scanning library paths and auto-registering sets and images.
 """
 import os
-import re
 from pathlib import Path
 from typing import Optional
 import cv2
@@ -19,21 +18,13 @@ from app.core import tasks
 from app.core.enums import TaskStatus, ImageRating
 from app.core.crop import load_image
 from app.core.aspect_ratio import get_aspect_ratio_labels
-from app.services.audit_service import calculate_dominant_color
+from app.core.image_analysis import calculate_dominant_color
+from app.core.parsing import parse_set_folder_name
 import structlog
 
 logger = structlog.get_logger(__name__)
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}
-
-def parse_set_folder_name(folder_name: str) -> tuple[str, str]:
-    """Parse folder name into (creator_name, set_title)."""
-    parts = re.split(r'\s+[-\u2010-\u2015\uff0d–—]\s+|\s*[\u2010-\u2015\uff0d–—]\s*', folder_name, maxsplit=1)
-    if len(parts) <= 1:
-        parts = re.split(r'\s*[-\u2010-\u2015\uff0d–—]\s*', folder_name, maxsplit=1)
-    if len(parts) > 1 and parts[0].strip():
-        return parts[0].strip(), parts[1].strip()
-    return "Unknown", folder_name.strip()
 
 async def scan_library_path_background_task(library_path_id: int, task_id: str, db: Optional[AsyncSession] = None) -> None:
     """
