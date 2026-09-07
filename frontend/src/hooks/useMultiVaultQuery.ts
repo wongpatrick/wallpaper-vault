@@ -24,7 +24,6 @@ import type {
     Franchise
 } from '../api/model';
 
-
 const DEFAULT_CLOUD_LIMIT = 50;
 
 export type MultiVaultPage<T extends object> = {
@@ -121,7 +120,6 @@ export function sortItems<T>(items: T[], sortBy?: string, sortDir: 'asc' | 'desc
     });
 }
 
-
 /**
  * Merges paginated responses from multiple vaults.
  */
@@ -152,7 +150,6 @@ export function mergePaginatedResults<T extends object>(
         limit
     };
 }
-
 
 /**
  * Merges dashboard stats across multiple vaults.
@@ -213,455 +210,251 @@ export function mergeTagCloudItems(
     return limit > 0 ? merged.slice(0, limit) : merged;
 }
 
-
 /**
- * Hook for fetching Sets with Multi-Vault support.
+ * Generic query factory for multi-vault data retrieval.
  */
-export function useMultiVaultSets(
-    params: Record<string, unknown> = {},
-    options?: Partial<UseQueryOptions<MultiVaultPage<SetSummary>, Error>>
-): MultiVaultQueryResult<MultiVaultPage<SetSummary>> {
-    const { vaults, onlineVaults, activeVault, isAggregated } = useVault();
-    const offlineVaults = vaults.filter(v => !v.isLocal && v.status !== 'online');
-
-    const skip = Number(params.skip) || 0;
-    const limit = Number(params.limit) || 12;
-    const sortBy = (params.sort_by as string) || 'date_added';
-    const sortDir = ((params.sort_dir as string) || 'desc') as 'asc' | 'desc';
-
-    const queryKey = ['multi-vault', 'sets', isAggregated, isAggregated ? onlineVaults.map(v => v.id) : activeVault.id, params];
-
-    const query = useQuery<MultiVaultPage<SetSummary>, Error>({
-        queryKey,
-        queryFn: async ({ signal }) => {
-            if (!isAggregated) {
-                const res = await fetchFromVault<SetPage>(activeVault, '/api/sets/', params, signal);
-                return {
-                    items: (res.items || []).map(item => decorateWithVault(item, activeVault)),
-                    total: res.total || 0,
-                    skip: res.skip,
-                    limit: res.limit
-                };
-            }
-
-            // In Aggregated mode: query all online vaults in parallel
-            // Fetch up to skip + limit from each vault so we can merge & slice accurately
-            const fetchLimit = skip + limit;
-            const vaultParams = { ...params, skip: 0, limit: fetchLimit };
-
-            const settled = await Promise.allSettled(
-                onlineVaults.map(async vault => {
-                    const data = await fetchFromVault<SetPage>(vault, '/api/sets/', vaultParams, signal);
-                    return { data, vault };
-                })
-            );
-
-            const successful: Array<{ data: { items?: SetSummary[]; total: number; skip?: number; limit?: number }; vault: VaultEntry }> = [];
-            for (const result of settled) {
-                if (result.status === 'fulfilled' && result.value?.data) {
-                    successful.push(result.value);
-                }
-            }
-
-            return mergePaginatedResults<SetSummary>(successful, sortBy, sortDir, skip, limit);
-        },
-        ...options
-    });
-
-    return {
-        data: query.data,
-        isLoading: query.isLoading,
-        isFetching: query.isFetching,
-        error: query.error,
-        refetch: query.refetch,
-        isAggregated,
-        onlineCount: onlineVaults.length,
-        totalVaultsCount: vaults.length,
-        offlineVaults
-    };
+export interface MultiVaultQueryConfig<TParams, TResponse, TMerged> {
+    resource: string | string[];
+    fetchFn: (vault: VaultEntry, params: TParams, signal?: AbortSignal) => Promise<TResponse>;
+    mergeFn: (
+        responses: Array<{ data: TResponse; vault: VaultEntry }>,
+        params: TParams
+    ) => TMerged;
+    transformSingle?: (response: TResponse, vault: VaultEntry, params: TParams) => TMerged;
+    getAggregatedParams?: (params: TParams) => TParams;
 }
 
-/**
- * Hook for fetching Images with Multi-Vault support.
- */
-export function useMultiVaultImages(
-    params: Record<string, unknown> = {},
-    options?: Partial<UseQueryOptions<MultiVaultPage<Image>, Error>>
-): MultiVaultQueryResult<MultiVaultPage<Image>> {
-    const { vaults, onlineVaults, activeVault, isAggregated } = useVault();
-    const offlineVaults = vaults.filter(v => !v.isLocal && v.status !== 'online');
+export function createMultiVaultQuery<
+    TParams = Record<string, unknown>,
+    TResponse = unknown,
+    TMerged = TResponse
+>(config: MultiVaultQueryConfig<TParams, TResponse, TMerged>) {
+    return function useCreatedMultiVaultQuery(
+        params: TParams = {} as TParams,
+        options?: Partial<UseQueryOptions<TMerged, Error>>
+    ): MultiVaultQueryResult<TMerged> {
+        const { vaults, onlineVaults, activeVault, isAggregated } = useVault();
+        const offlineVaults = vaults.filter(v => !v.isLocal && v.status !== 'online');
 
-    const skip = Number(params.skip) || 0;
-    const limit = Number(params.limit) || 100;
-    const sortBy = (params.sort_by as string) || 'date_added';
-    const sortDir = ((params.sort_dir as string) || 'desc') as 'asc' | 'desc';
+        const resourceKey = Array.isArray(config.resource) ? config.resource : [config.resource];
+        const queryKey = [
+            'multi-vault',
+            ...resourceKey,
+            isAggregated,
+            isAggregated ? onlineVaults.map(v => v.id) : activeVault.id,
+            params
+        ];
 
-    const queryKey = ['multi-vault', 'images', isAggregated, isAggregated ? onlineVaults.map(v => v.id) : activeVault.id, params];
-
-    const query = useQuery<MultiVaultPage<Image>, Error>({
-        queryKey,
-        queryFn: async ({ signal }) => {
-            if (!isAggregated) {
-                const res = await fetchFromVault<ImagePage>(activeVault, '/api/images/', params, signal);
-                return {
-                    items: (res.items || []).map(item => decorateWithVault(item, activeVault)),
-                    total: res.total || 0,
-                    skip: res.skip,
-                    limit: res.limit
-                };
-            }
-
-            const fetchLimit = skip + limit;
-            const vaultParams = { ...params, skip: 0, limit: fetchLimit };
-
-            const settled = await Promise.allSettled(
-                onlineVaults.map(async vault => {
-                    const data = await fetchFromVault<ImagePage>(vault, '/api/images/', vaultParams, signal);
-                    return { data, vault };
-                })
-            );
-
-            const successful: Array<{ data: { items?: Image[]; total: number; skip?: number; limit?: number }; vault: VaultEntry }> = [];
-            for (const result of settled) {
-                if (result.status === 'fulfilled' && result.value?.data) {
-                    successful.push(result.value);
-                }
-            }
-
-            return mergePaginatedResults<Image>(successful, sortBy, sortDir, skip, limit);
-        },
-        ...options
-    });
-
-    return {
-        data: query.data,
-        isLoading: query.isLoading,
-        isFetching: query.isFetching,
-        error: query.error,
-        refetch: query.refetch,
-        isAggregated,
-        onlineCount: onlineVaults.length,
-        totalVaultsCount: vaults.length,
-        offlineVaults
-    };
-}
-
-/**
- * Hook for fetching Creators with Multi-Vault support.
- */
-export function useMultiVaultCreators(
-    params: Record<string, unknown> = {},
-    options?: Partial<UseQueryOptions<MultiVaultPage<Creator>, Error>>
-): MultiVaultQueryResult<MultiVaultPage<Creator>> {
-    const { vaults, onlineVaults, activeVault, isAggregated } = useVault();
-    const offlineVaults = vaults.filter(v => !v.isLocal && v.status !== 'online');
-
-    const skip = Number(params.skip) || 0;
-    const limit = Number(params.limit) || 12;
-    const sortBy = (params.sort_by as string) || 'name';
-    const sortDir = ((params.sort_dir as string) || 'asc') as 'asc' | 'desc';
-
-    const queryKey = ['multi-vault', 'creators', isAggregated, isAggregated ? onlineVaults.map(v => v.id) : activeVault.id, params];
-
-    const query = useQuery<MultiVaultPage<Creator>, Error>({
-        queryKey,
-        queryFn: async ({ signal }) => {
-            if (!isAggregated) {
-                const res = await fetchFromVault<CreatorPage>(activeVault, '/api/creators/', params, signal);
-                return {
-                    items: (res.items || []).map(item => decorateWithVault(item, activeVault)),
-                    total: res.total || 0,
-                    skip: res.skip,
-                    limit: res.limit
-                };
-            }
-
-            const fetchLimit = skip + limit;
-            const vaultParams = { ...params, skip: 0, limit: fetchLimit };
-
-            const settled = await Promise.allSettled(
-                onlineVaults.map(async vault => {
-                    const data = await fetchFromVault<CreatorPage>(vault, '/api/creators/', vaultParams, signal);
-                    return { data, vault };
-                })
-            );
-
-            const successful: Array<{ data: { items?: Creator[]; total: number; skip?: number; limit?: number }; vault: VaultEntry }> = [];
-            for (const result of settled) {
-                if (result.status === 'fulfilled' && result.value?.data) {
-                    successful.push(result.value);
-                }
-            }
-
-            return mergePaginatedResults<Creator>(successful, sortBy, sortDir, skip, limit);
-        },
-        ...options
-    });
-
-    return {
-        data: query.data,
-        isLoading: query.isLoading,
-        isFetching: query.isFetching,
-        error: query.error,
-        refetch: query.refetch,
-        isAggregated,
-        onlineCount: onlineVaults.length,
-        totalVaultsCount: vaults.length,
-        offlineVaults
-    };
-}
-
-
-/**
- * Hook for fetching Dashboard data with Multi-Vault support.
- */
-export function useMultiVaultDashboard(
-    options?: Partial<UseQueryOptions<DashboardData, Error>>
-): MultiVaultQueryResult<DashboardData> {
-    const { vaults, onlineVaults, activeVault, isAggregated } = useVault();
-    const offlineVaults = vaults.filter(v => !v.isLocal && v.status !== 'online');
-
-    const queryKey = ['multi-vault', 'dashboard', isAggregated, isAggregated ? onlineVaults.map(v => v.id) : activeVault.id];
-
-    const query = useQuery<DashboardData, Error>({
-        queryKey,
-        queryFn: async ({ signal }) => {
-            if (!isAggregated) {
-                return await fetchFromVault<DashboardData>(activeVault, '/api/dashboard/', undefined, signal);
-            }
-
-            const settled = await Promise.allSettled(
-                onlineVaults.map(async vault => {
-                    const data = await fetchFromVault<DashboardData>(vault, '/api/dashboard/', undefined, signal);
-                    return { data, vault };
-                })
-            );
-
-            const statsList: Array<{ stats: LibraryStats; vault: VaultEntry }> = [];
-            const allAlerts: DashboardData['health_alerts'] = [];
-
-            for (const result of settled) {
-                if (result.status === 'fulfilled' && result.value?.data) {
-                    if (result.value.data.stats) {
-                        statsList.push({ stats: result.value.data.stats, vault: result.value.vault });
+        const query = useQuery<TMerged, Error>({
+            queryKey,
+            queryFn: async ({ signal }) => {
+                if (!isAggregated) {
+                    const raw = await config.fetchFn(activeVault, params, signal);
+                    if (config.transformSingle) {
+                        return config.transformSingle(raw, activeVault, params);
                     }
-                    if (result.value.data.health_alerts) {
-                        allAlerts.push(...result.value.data.health_alerts);
+                    return raw as unknown as TMerged;
+                }
+
+                const vaultParams = config.getAggregatedParams ? config.getAggregatedParams(params) : params;
+                const settled = await Promise.allSettled(
+                    onlineVaults.map(async vault => {
+                        const data = await config.fetchFn(vault, vaultParams, signal);
+                        return { data, vault };
+                    })
+                );
+
+                const successful: Array<{ data: TResponse; vault: VaultEntry }> = [];
+                for (const res of settled) {
+                    if (res.status === 'fulfilled' && res.value?.data) {
+                        successful.push(res.value);
                     }
                 }
-            }
 
-            return {
-                stats: mergeDashboardStats(statsList),
-                health_alerts: allAlerts
-            };
-        },
-        ...options
-    });
+                return config.mergeFn(successful, params);
+            },
+            ...options
+        });
 
-    return {
-        data: query.data,
-        isLoading: query.isLoading,
-        isFetching: query.isFetching,
-        error: query.error,
-        refetch: query.refetch,
-        isAggregated,
-        onlineCount: onlineVaults.length,
-        totalVaultsCount: vaults.length,
-        offlineVaults
+        return {
+            data: query.data,
+            isLoading: query.isLoading,
+            isFetching: query.isFetching,
+            error: query.error,
+            refetch: query.refetch,
+            isAggregated,
+            onlineCount: onlineVaults.length,
+            totalVaultsCount: vaults.length,
+            offlineVaults
+        };
     };
 }
 
-/**
- * Hook for fetching Tag Cloud items with Multi-Vault support.
- */
-export function useMultiVaultTagCloud(
-    params: { limit?: number; scope?: string } = {},
-    options?: Partial<UseQueryOptions<TagCount[], Error>>
-): MultiVaultQueryResult<TagCount[]> {
-    const { vaults, onlineVaults, activeVault, isAggregated } = useVault();
-    const offlineVaults = vaults.filter(v => !v.isLocal && v.status !== 'online');
-
-    const limit = params.limit ?? DEFAULT_CLOUD_LIMIT;
-    const queryKey = ['multi-vault', 'tags', 'cloud', isAggregated, isAggregated ? onlineVaults.map(v => v.id) : activeVault.id, params];
-
-    const query = useQuery<TagCount[], Error>({
-        queryKey,
-        queryFn: async ({ signal }) => {
-            if (!isAggregated) {
-                return await fetchFromVault<TagCount[]>(activeVault, '/api/tags/cloud', params, signal);
-            }
-
-            const settled = await Promise.allSettled(
-                onlineVaults.map(vault =>
-                    fetchFromVault<TagCount[]>(vault, '/api/tags/cloud', params, signal)
-                )
+// ---------------------------------------------------------------------------
+// Paginated Resource Query Factory Helper
+// ---------------------------------------------------------------------------
+function createPaginatedMultiVaultQuery<
+    TItem extends object,
+    TPage extends { items?: TItem[]; total?: number; skip?: number; limit?: number }
+>(resource: string, endpoint: string, defaultLimit: number, defaultSort: string, defaultDir: 'asc' | 'desc') {
+    return createMultiVaultQuery<Record<string, unknown>, TPage, MultiVaultPage<TItem>>({
+        resource,
+        fetchFn: (vault, params, signal) => fetchFromVault<TPage>(vault, endpoint, params, signal),
+        transformSingle: (res, vault) => ({
+            items: (res.items || []).map(item => decorateWithVault(item, vault)),
+            total: res.total || 0,
+            skip: res.skip,
+            limit: res.limit
+        }),
+        getAggregatedParams: (params) => {
+            const skip = Number(params.skip) || 0;
+            const limit = Number(params.limit) || defaultLimit;
+            return { ...params, skip: 0, limit: skip + limit };
+        },
+        mergeFn: (successful, params) => {
+            const skip = Number(params.skip) || 0;
+            const limit = Number(params.limit) || defaultLimit;
+            const sortBy = (params.sort_by as string) || defaultSort;
+            const sortDir = ((params.sort_dir as string) || defaultDir) as 'asc' | 'desc';
+            return mergePaginatedResults<TItem>(
+                successful as Array<{ data: { items?: TItem[]; total: number; skip?: number; limit?: number }; vault: VaultEntry }>,
+                sortBy,
+                sortDir,
+                skip,
+                limit
             );
+        }
+    });
+}
 
-            const tagLists: TagCount[][] = [];
-            for (const res of settled) {
-                if (res.status === 'fulfilled' && Array.isArray(res.value)) {
-                    tagLists.push(res.value);
+/** Hook for fetching Sets with Multi-Vault support. */
+export const useMultiVaultSets = createPaginatedMultiVaultQuery<SetSummary, SetPage>(
+    'sets',
+    '/api/sets/',
+    12,
+    'date_added',
+    'desc'
+);
+
+/** Hook for fetching Images with Multi-Vault support. */
+export const useMultiVaultImages = createPaginatedMultiVaultQuery<Image, ImagePage>(
+    'images',
+    '/api/images/',
+    100,
+    'date_added',
+    'desc'
+);
+
+/** Hook for fetching Creators with Multi-Vault support. */
+export const useMultiVaultCreators = createPaginatedMultiVaultQuery<Creator, CreatorPage>(
+    'creators',
+    '/api/creators/',
+    12,
+    'name',
+    'asc'
+);
+
+/** Hook for fetching Dashboard data with Multi-Vault support. */
+export const useMultiVaultDashboard = createMultiVaultQuery<
+    void | undefined,
+    DashboardData,
+    DashboardData
+>({
+    resource: 'dashboard',
+    fetchFn: (vault, _params, signal) => fetchFromVault<DashboardData>(vault, '/api/dashboard/', undefined, signal),
+    mergeFn: (successful) => {
+        const statsList: Array<{ stats: LibraryStats; vault: VaultEntry }> = [];
+        const allAlerts: DashboardData['health_alerts'] = [];
+
+        for (const res of successful) {
+            if (res.data?.stats) {
+                statsList.push({ stats: res.data.stats, vault: res.vault });
+            }
+            if (res.data?.health_alerts) {
+                allAlerts.push(...res.data.health_alerts);
+            }
+        }
+
+        return {
+            stats: mergeDashboardStats(statsList),
+            health_alerts: allAlerts
+        };
+    }
+});
+
+/** Hook for fetching Tag Cloud items with Multi-Vault support. */
+export const useMultiVaultTagCloud = createMultiVaultQuery<
+    { limit?: number; scope?: string },
+    TagCount[],
+    TagCount[]
+>({
+    resource: ['tags', 'cloud'],
+    fetchFn: (vault, params, signal) => fetchFromVault<TagCount[]>(vault, '/api/tags/cloud', params, signal),
+    mergeFn: (successful, params) => {
+        const tagLists = successful.map(s => s.data).filter(Boolean);
+        const limit = params.limit ?? DEFAULT_CLOUD_LIMIT;
+        return mergeTagCloudItems(tagLists, limit);
+    }
+});
+
+// ---------------------------------------------------------------------------
+// Taxonomy Entity Merger Helper (Characters & Franchises)
+// ---------------------------------------------------------------------------
+function mergeTaxonomyItems<T extends { name: string; image_count?: number; set_count?: number }>(
+    successful: Array<{ data: { items?: T[]; total?: number } }>,
+    limit = DEFAULT_CLOUD_LIMIT
+): { items: T[]; total: number } {
+    const map = new Map<string, T>();
+    let totalCount = 0;
+
+    for (const res of successful) {
+        if (res.data?.items && Array.isArray(res.data.items)) {
+            totalCount += res.data.total || 0;
+            for (const item of res.data.items) {
+                const key = item.name.toLowerCase();
+                if (map.has(key)) {
+                    const existing = map.get(key)!;
+                    existing.image_count = (existing.image_count || 0) + (item.image_count || 0);
+                    existing.set_count = (existing.set_count || 0) + (item.set_count || 0);
+                } else {
+                    map.set(key, { ...item });
                 }
             }
+        }
+    }
 
-            return mergeTagCloudItems(tagLists, limit);
-        },
-        ...options
-    });
-
-
-    return {
-        data: query.data,
-        isLoading: query.isLoading,
-        isFetching: query.isFetching,
-        error: query.error,
-        refetch: query.refetch,
-        isAggregated,
-        onlineCount: onlineVaults.length,
-        totalVaultsCount: vaults.length,
-        offlineVaults
-    };
+    const merged = Array.from(map.values()).sort(
+        (a, b) => ((b.image_count || 0) + (b.set_count || 0)) - ((a.image_count || 0) + (a.set_count || 0))
+    );
+    const items = limit > 0 ? merged.slice(0, limit) : merged;
+    return { items, total: totalCount };
 }
 
-/**
- * Hook for fetching Characters with Multi-Vault support.
- */
-export function useMultiVaultCharacters(
-    params: { limit?: number; scope?: string; search?: string; sort_by?: string; sort_dir?: string } = {},
-    options?: Partial<UseQueryOptions<{ items: Character[]; total: number }, Error>>
-): MultiVaultQueryResult<{ items: Character[]; total: number }> {
-    const { vaults, onlineVaults, activeVault, isAggregated } = useVault();
-    const offlineVaults = vaults.filter(v => !v.isLocal && v.status !== 'online');
+type TaxonomyQueryParams = { limit?: number; scope?: string; search?: string; sort_by?: string; sort_dir?: string };
 
-    const limit = params.limit ?? DEFAULT_CLOUD_LIMIT;
-    const queryKey = ['multi-vault', 'characters', isAggregated, isAggregated ? onlineVaults.map(v => v.id) : activeVault.id, params];
+/** Hook for fetching Characters with Multi-Vault support. */
+export const useMultiVaultCharacters = createMultiVaultQuery<
+    TaxonomyQueryParams,
+    { items: Character[]; total: number },
+    { items: Character[]; total: number }
+>({
+    resource: 'characters',
+    fetchFn: (vault, params, signal) => fetchFromVault<{ items: Character[]; total: number }>(vault, '/api/characters/', params, signal),
+    mergeFn: (successful, params) => mergeTaxonomyItems(successful, params.limit ?? DEFAULT_CLOUD_LIMIT)
+});
 
-    const query = useQuery<{ items: Character[]; total: number }, Error>({
-        queryKey,
-        queryFn: async ({ signal }) => {
-            if (!isAggregated) {
-                return await fetchFromVault<{ items: Character[]; total: number }>(activeVault, '/api/characters/', params, signal);
-            }
+/** Hook for fetching Franchises with Multi-Vault support. */
+export const useMultiVaultFranchises = createMultiVaultQuery<
+    TaxonomyQueryParams,
+    { items: Franchise[]; total: number },
+    { items: Franchise[]; total: number }
+>({
+    resource: 'franchises',
+    fetchFn: (vault, params, signal) => fetchFromVault<{ items: Franchise[]; total: number }>(vault, '/api/franchises/', params, signal),
+    mergeFn: (successful, params) => mergeTaxonomyItems(successful, params.limit ?? DEFAULT_CLOUD_LIMIT)
+});
 
-            const settled = await Promise.allSettled(
-                onlineVaults.map(vault =>
-                    fetchFromVault<{ items: Character[]; total: number }>(vault, '/api/characters/', params, signal)
-                )
-            );
-
-            const map = new Map<string, Character>();
-            let totalCount = 0;
-
-            for (const res of settled) {
-                if (res.status === 'fulfilled' && res.value?.items && Array.isArray(res.value.items)) {
-                    totalCount += res.value.total || 0;
-                    for (const char of res.value.items) {
-                        const key = char.name.toLowerCase();
-                        if (map.has(key)) {
-                            const existing = map.get(key)!;
-                            existing.image_count = (existing.image_count || 0) + (char.image_count || 0);
-                            existing.set_count = (existing.set_count || 0) + (char.set_count || 0);
-                        } else {
-                            map.set(key, { ...char });
-                        }
-                    }
-                }
-            }
-
-            const merged = Array.from(map.values()).sort(
-                (a, b) => ((b.image_count || 0) + (b.set_count || 0)) - ((a.image_count || 0) + (a.set_count || 0))
-            );
-            const items = limit > 0 ? merged.slice(0, limit) : merged;
-            return { items, total: totalCount };
-        },
-        ...options
-    });
-
-    return {
-        data: query.data,
-        isLoading: query.isLoading,
-        isFetching: query.isFetching,
-        error: query.error,
-        refetch: query.refetch,
-        isAggregated,
-        onlineCount: onlineVaults.length,
-        totalVaultsCount: vaults.length,
-        offlineVaults
-    };
-}
-
-/**
- * Hook for fetching Franchises with Multi-Vault support.
- */
-export function useMultiVaultFranchises(
-    params: { limit?: number; scope?: string; search?: string; sort_by?: string; sort_dir?: string } = {},
-    options?: Partial<UseQueryOptions<{ items: Franchise[]; total: number }, Error>>
-): MultiVaultQueryResult<{ items: Franchise[]; total: number }> {
-    const { vaults, onlineVaults, activeVault, isAggregated } = useVault();
-    const offlineVaults = vaults.filter(v => !v.isLocal && v.status !== 'online');
-
-    const limit = params.limit ?? DEFAULT_CLOUD_LIMIT;
-
-    const queryKey = ['multi-vault', 'franchises', isAggregated, isAggregated ? onlineVaults.map(v => v.id) : activeVault.id, params];
-
-    const query = useQuery<{ items: Franchise[]; total: number }, Error>({
-        queryKey,
-        queryFn: async ({ signal }) => {
-            if (!isAggregated) {
-                return await fetchFromVault<{ items: Franchise[]; total: number }>(activeVault, '/api/franchises/', params, signal);
-            }
-
-            const settled = await Promise.allSettled(
-                onlineVaults.map(vault =>
-                    fetchFromVault<{ items: Franchise[]; total: number }>(vault, '/api/franchises/', params, signal)
-                )
-            );
-
-            const map = new Map<string, Franchise>();
-            let totalCount = 0;
-
-            for (const res of settled) {
-                if (res.status === 'fulfilled' && res.value?.items && Array.isArray(res.value.items)) {
-                    totalCount += res.value.total || 0;
-                    for (const f of res.value.items) {
-                        const key = f.name.toLowerCase();
-                        if (map.has(key)) {
-                            const existing = map.get(key)!;
-                            existing.image_count = (existing.image_count || 0) + (f.image_count || 0);
-                            existing.set_count = (existing.set_count || 0) + (f.set_count || 0);
-                        } else {
-                            map.set(key, { ...f });
-                        }
-                    }
-                }
-            }
-
-            const merged = Array.from(map.values()).sort(
-                (a, b) => ((b.image_count || 0) + (b.set_count || 0)) - ((a.image_count || 0) + (a.set_count || 0))
-            );
-            const items = limit > 0 ? merged.slice(0, limit) : merged;
-            return { items, total: totalCount };
-        },
-        ...options
-    });
-
-    return {
-        data: query.data,
-        isLoading: query.isLoading,
-        isFetching: query.isFetching,
-        error: query.error,
-        refetch: query.refetch,
-        isAggregated,
-        onlineCount: onlineVaults.length,
-        totalVaultsCount: vaults.length,
-        offlineVaults
-    };
-}
-
-/**
- * Hook for fetching a random inspiration image with Multi-Vault support.
- */
+/** Hook for fetching a random inspiration image with Multi-Vault support. */
 export function useMultiVaultRandomImage(
     params: { log_rotation?: boolean } = {},
     options?: Partial<UseQueryOptions<Image, Error>>

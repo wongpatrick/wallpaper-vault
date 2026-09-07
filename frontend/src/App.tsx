@@ -3,21 +3,23 @@
  * Main application component.
  * Sets up the router, theme, global state, and background task listeners.
  */
+import { lazy } from 'react'
 import { createHashRouter, RouterProvider } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'
-import Dashboard from './pages/dashboard/dashboard'
-import Creators from './pages/creators/creators'
-import CreatorDetail from './pages/creators/CreatorDetail'
-import Sets from './pages/sets/sets'
-import SetDetail from './pages/sets/SetDetail'
-import Images from './pages/images/images'
-import TaxonomyManagement from './pages/taxonomy/TaxonomyManagement'
-import Tools from './pages/tools/tools'
-import Settings from './pages/settings/settings'
-import Playlists from './pages/playlists/playlists'
-import PlaylistDetail from './pages/playlists/PlaylistDetail'
-import RotationManagement from './pages/rotation/rotation'
 import { createTheme, MantineProvider } from '@mantine/core'
+
+const Dashboard = lazy(() => import('./pages/dashboard/dashboard'))
+const Creators = lazy(() => import('./pages/creators/creators'))
+const CreatorDetail = lazy(() => import('./pages/creators/CreatorDetail'))
+const Sets = lazy(() => import('./pages/sets/sets'))
+const SetDetail = lazy(() => import('./pages/sets/SetDetail'))
+const Images = lazy(() => import('./pages/images/images'))
+const TaxonomyManagement = lazy(() => import('./pages/taxonomy/TaxonomyManagement'))
+const Tools = lazy(() => import('./pages/tools/tools'))
+const Settings = lazy(() => import('./pages/settings/settings'))
+const Playlists = lazy(() => import('./pages/playlists/playlists'))
+const PlaylistDetail = lazy(() => import('./pages/playlists/PlaylistDetail'))
+const RotationManagement = lazy(() => import('./pages/rotation/rotation'))
 import { Notifications } from '@mantine/notifications'
 import { ModalsProvider } from '@mantine/modals'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'

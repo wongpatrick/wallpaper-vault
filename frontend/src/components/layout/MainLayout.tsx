@@ -4,7 +4,7 @@
  * Provides the application shell, including the header, sidebar, and notification center.
  */
 import { Outlet, useLocation, useParams } from "react-router-dom"
-import { AppShell, Title, Box, Button, Group, ActionIcon, Tooltip, Popover, Indicator, Stack, Text, Divider, ScrollArea, ThemeIcon, Burger } from "@mantine/core"
+import { AppShell, Title, Box, Button, Group, ActionIcon, Tooltip, Popover, Indicator, Stack, Text, Divider, ScrollArea, ThemeIcon, Burger, Center, Loader } from "@mantine/core"
 import SideNav from "./SideNav"
 import TitleBarControls from "./TitleBarControls"
 import GlobalSearch from "./GlobalSearch"
@@ -13,7 +13,7 @@ import classes from './Layout.module.css';
 import { useSidebarResizer } from "../../hooks/useSidebarResizer";
 import { IconPackage, IconBell, IconCheck, IconX, IconCloudUpload } from "@tabler/icons-react";
 import { useNotificationHistory } from "../../hooks/useNotificationHistory";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { useDisclosure } from "@mantine/hooks";
 import { GlobalTaskOverlays } from "./GlobalTaskOverlays";
 import { MetadataFormModal } from "../import/MetadataFormModal";
@@ -398,7 +398,9 @@ export default function MainLayout() {
             </AppShell.Navbar>
 
             <AppShell.Main>
-                <Outlet />
+                <Suspense fallback={<Center style={{ height: 'calc(100vh - 120px)' }}><Loader size="lg" /></Center>}>
+                    <Outlet />
+                </Suspense>
                 <GlobalTaskOverlays />
             </AppShell.Main>
         </AppShell>

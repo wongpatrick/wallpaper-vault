@@ -3,12 +3,13 @@
  * Module: Image Bulk Edit Modal
  * Description: Modal component for applying bulk operations (tags, characters, ratings, notes) to multiple selected images.
  */
-import { Modal, Stack, SegmentedControl, Text, Button, Textarea, Group, Alert } from '@mantine/core';
-import { IconAlertTriangle, IconCheck, IconNotes } from '@tabler/icons-react';
+import { Modal, Stack, SegmentedControl, Text, Button, Textarea, Group } from '@mantine/core';
+import { IconCheck, IconNotes } from '@tabler/icons-react';
 import { useState } from 'react';
 import { BulkOperationMode, ImageRating } from '../../types/enums';
 import type { ImageUpdate } from '../../api/model';
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
+import { BulkOperationModeSelector } from '../ui/BulkOperationModeSelector';
 import { CharacterTagsInput } from '../ui/CharacterTagsInput';
 
 const ICON_SIZE = 16;
@@ -65,31 +66,13 @@ export function ImageBulkEditModal({ opened, onClose, onConfirm, loading, select
     return (
         <Modal opened={opened} onClose={handleClose} title={`Bulk Edit ${selectedCount} Images`} size="md" radius="md">
             <Stack gap="md">
-                <Stack gap={4}>
-                    <Text size="xs" fw={500} c="dimmed">Operation Mode (Tags, Characters, Notes)</Text>
-                    <SegmentedControl
-                        fullWidth
-                        value={mode}
-                        onChange={(v) => setMode(v as BulkOperationMode)}
-                        data={[
-                            { label: 'Append', value: BulkOperationMode.APPEND },
-                            { label: 'Replace', value: BulkOperationMode.REPLACE },
-                            { label: 'Remove', value: BulkOperationMode.REMOVE },
-                        ]}
-                    />
-                </Stack>
-
-                {mode === BulkOperationMode.REPLACE && (
-                    <Alert
-                        icon={<IconAlertTriangle size={ICON_SIZE} />}
-                        title="Warning: Replace Mode"
-                        color="orange"
-                        variant="light"
-                        radius="md"
-                    >
-                        Replace mode will overwrite and replace <strong>all existing tags and characters</strong> on all {selectedCount} selected images with the new selections.
-                    </Alert>
-                )}
+                <BulkOperationModeSelector
+                    value={mode}
+                    onChange={setMode}
+                    label="Operation Mode (Tags, Characters, Notes)"
+                    targetDescription="tags and characters"
+                    count={selectedCount}
+                />
 
                 <Stack gap={4}>
                     <Text size="xs" fw={500} c="dimmed">Rating</Text>

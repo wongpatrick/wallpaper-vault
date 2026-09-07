@@ -13,12 +13,13 @@ import { notifications } from '@mantine/notifications';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { ImageBulkEditModal } from '../../components/images/ImageBulkEditModal';
-import { ImageCropModal } from '../../components/images/ImageCropModal';
 import { SetAsWallpaperModal } from '../../components/images/SetAsWallpaperModal';
 import { GalleryFilterBar } from '../../components/images/GalleryFilterBar';
 import { ImageGrid } from '../../components/images/ImageGrid';
 import { ColorExplorer } from './ColorExplorer';
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
+
+const ImageCropModal = lazy(() => import('../../components/images/ImageCropModal').then(m => ({ default: m.ImageCropModal })));
 import { useIntersection, useViewportSize } from '@mantine/hooks';
 
 import { useSearchParams } from 'react-router-dom';
@@ -346,13 +347,15 @@ export default function Images() {
             />
 
             {croppingImage && (
-                <ImageCropModal 
-                    key={croppingImage.id}
-                    image={croppingImage}
-                    opened={!!croppingImage}
-                    onClose={() => setCroppingImage(null)}
-                    onCropSuccess={handleCollectionReset}
-                />
+                <Suspense fallback={null}>
+                    <ImageCropModal 
+                        key={croppingImage.id}
+                        image={croppingImage}
+                        opened={!!croppingImage}
+                        onClose={() => setCroppingImage(null)}
+                        onCropSuccess={handleCollectionReset}
+                    />
+                </Suspense>
             )}
 
             <FloatingSelectionBar
