@@ -3,15 +3,16 @@
  * Module: Tools Page
  * Description: A unified hub providing access to various utility components (Folder Parser, Image Cropper, Batch Importer, etc.) for managing the wallpaper vault.
  */
-import { Title, Text, Container, Stack, SimpleGrid, Paper, Group, ActionIcon, UnstyledButton, rem, ThemeIcon } from '@mantine/core';
+import { Title, Text, Container, Stack, SimpleGrid, Paper, Group, ActionIcon, UnstyledButton, rem, ThemeIcon, Center, Loader } from '@mantine/core';
 import { IconArrowLeft, IconFileSearch, IconChevronRight, IconCrop, IconCloudUpload, IconWallpaper, IconCopy, IconShieldCheck } from '@tabler/icons-react';
-import { useState } from 'react';
-import { FolderParser } from '../../components/tools/FolderParser';
-import { ImageCropper } from '../../components/tools/ImageCropper';
-import { BatchImporter } from '../../components/tools/BatchImporter';
-import { WallpaperLinkGenerator } from '../../components/tools/WallpaperLinkGenerator';
-import { DuplicateManager } from '../../components/tools/DuplicateManager';
-import { LibraryAudit } from '../../components/tools/LibraryAudit';
+import { useState, lazy, Suspense } from 'react';
+
+const FolderParser = lazy(() => import('../../components/tools/FolderParser').then(m => ({ default: m.FolderParser })));
+const ImageCropper = lazy(() => import('../../components/tools/ImageCropper').then(m => ({ default: m.ImageCropper })));
+const BatchImporter = lazy(() => import('../../components/tools/BatchImporter').then(m => ({ default: m.BatchImporter })));
+const WallpaperLinkGenerator = lazy(() => import('../../components/tools/WallpaperLinkGenerator').then(m => ({ default: m.WallpaperLinkGenerator })));
+const DuplicateManager = lazy(() => import('../../components/tools/DuplicateManager').then(m => ({ default: m.DuplicateManager })));
+const LibraryAudit = lazy(() => import('../../components/tools/LibraryAudit').then(m => ({ default: m.LibraryAudit })));
 
 interface Tool {
     id: string;
@@ -141,14 +142,16 @@ export default function Tools() {
                         ))}
                     </SimpleGrid>
                 ) : (
-                    <Stack>
-                        {activeTool === 'folder-parser' && <FolderParser />}
-                        {activeTool === 'image-cropper' && <ImageCropper />}
-                        {activeTool === 'batch-importer' && <BatchImporter />}
-                        {activeTool === 'duplicate-manager' && <DuplicateManager />}
-                        {activeTool === 'library-audit' && <LibraryAudit />}
-                        {activeTool === 'wallpaper-link' && <WallpaperLinkGenerator />}
-                    </Stack>
+                    <Suspense fallback={<Center py="xl"><Loader size="lg" /></Center>}>
+                        <Stack>
+                            {activeTool === 'folder-parser' && <FolderParser />}
+                            {activeTool === 'image-cropper' && <ImageCropper />}
+                            {activeTool === 'batch-importer' && <BatchImporter />}
+                            {activeTool === 'duplicate-manager' && <DuplicateManager />}
+                            {activeTool === 'library-audit' && <LibraryAudit />}
+                            {activeTool === 'wallpaper-link' && <WallpaperLinkGenerator />}
+                        </Stack>
+                    </Suspense>
                 )}
             </Stack>
         </Container>

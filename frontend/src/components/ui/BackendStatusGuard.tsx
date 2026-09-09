@@ -11,38 +11,31 @@ import {
     Text, 
     Title, 
     Button, 
-    Group, 
-    Collapse, 
     Paper, 
     ThemeIcon, 
     Loader, 
-    NumberInput, 
-    Modal,
-    Box,
+    Box, 
     Select
 } from '@mantine/core';
 import { 
     IconAlertTriangle, 
     IconRefresh, 
-    IconFileText, 
-    IconFolder, 
     IconPlug, 
-    IconSettings,
-    IconChevronDown,
-    IconChevronUp,
-    IconServer,
+    IconServer, 
     IconLock
 } from '@tabler/icons-react';
 import { AXIOS_INSTANCE } from '../../api/axios-instance';
 import { useVault } from '../../hooks/useVault';
 import type { BackendStatusInfo } from '../../types/electron';
+import { PortCollisionModal } from './PortCollisionModal';
+import { BackendCrashPanel } from './BackendCrashModal';
 
 const DEFAULT_PORT = 8000;
 const HEALTH_CHECK_INTERVAL_MS = 60000;
 const HEALTH_CHECK_STARTUP_INTERVAL_MS = 5000;
 const RETRY_TIMEOUT_MS = 5000;
-const MIN_PORT = 1024;
-const MAX_PORT = 65535;
+const HTTP_STATUS_OK = 200;
+const HTTP_STATUS_UNAUTHORIZED = 401;
 
 interface BackendStatusGuardProps {
     children: React.ReactNode;
@@ -58,9 +51,7 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
         maxRestarts: 3,
         port: DEFAULT_PORT
     });
-    const [showDiagnostics, setShowDiagnostics] = useState(false);
     const [portModalOpen, setPortModalOpen] = useState(false);
-    const [customPort, setCustomPort] = useState<number>(DEFAULT_PORT);
     const [isRetrying, setIsRetrying] = useState(false);
     const [isSavingPort, setIsSavingPort] = useState(false);
 
@@ -71,13 +62,11 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
             AXIOS_INSTANCE.defaults.baseURL = customUrl;
         } else if (statusInfo.port) {
             AXIOS_INSTANCE.defaults.baseURL = `http://localhost:${statusInfo.port}`;
-            setCustomPort(statusInfo.port);
         }
     }, [statusInfo.port]);
 
     useEffect(() => {
         if (!activeVault.isLocal) {
-            // Active vault is remote; health is tracked by VaultProvider
             return;
         }
 
@@ -86,99 +75,108 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
             const customBackendUrl = localStorage.getItem('backend_url') || '';
             const targetUrl = customBackendUrl || `http://localhost:${DEFAULT_PORT}`;
 
-            // Web fallback / remote URL check
             const checkBrowserHealth = async () => {
                 let isHealthy = false;
                 try {
                     const cleanUrl = targetUrl.replace(/\/+$/, '');
                     const res = await fetch(`${cleanUrl}/`);
-                    // Accept 200 or 401 (401 means the server is online but requires authentication)
-                    // eslint-disable-next-line no-magic-numbers
-                    if (res.status === 200 || res.status === 401) {
+                    if (res.status === HTTP_STATUS_OK || res.status === HTTP_STATUS_UNAUTHORIZED) {
                         setStatusInfo({
                             status: 'running',
                             autoRestartCount: 0,
-                            maxRestarts: 0,
+                            maxRestarts: 3,
                             port: DEFAULT_PORT
                         });
                         isHealthy = true;
                     } else {
-                        throw new Error('Non-healthy response');
+                        setStatusInfo(prev => ({
+                            ...prev,
+                            status: 'error',
+                            errorDetails: `Unexpected status code: ${res.status}`
+                        }));
                     }
                 } catch {
-                    setStatusInfo({
-                        status: 'stopped',
-                        autoRestartCount: 0,
-                        maxRestarts: 0,
-                        port: DEFAULT_PORT,
-                        errorDetails: `Server at ${targetUrl} is not responding. Please make sure the backend is running and accessible.`
-                    });
+                    setStatusInfo(prev => ({
+                        ...prev,
+                        status: 'error',
+                        errorDetails: `Failed to connect to ${targetUrl}. Check that the backend server is running and accessible.`
+                    }));
+                } finally {
+                    const interval = isHealthy ? HEALTH_CHECK_INTERVAL_MS : HEALTH_CHECK_STARTUP_INTERVAL_MS;
+                    timeoutId = setTimeout(checkBrowserHealth, interval);
                 }
-
-                const delay = isHealthy ? HEALTH_CHECK_INTERVAL_MS : HEALTH_CHECK_STARTUP_INTERVAL_MS;
-                timeoutId = setTimeout(checkBrowserHealth, delay);
             };
 
             checkBrowserHealth();
             return () => clearTimeout(timeoutId);
         }
 
-        // Electron local setup
-        const initStatus = async () => {
+        // Electron mode
+        const fetchInitialStatus = async () => {
             try {
-                const status = await window.electron.getBackendStatus();
-                setStatusInfo(status);
+                const info = await window.electron.getBackendStatus();
+                setStatusInfo(info);
             } catch (err) {
-                console.error('Failed to get initial backend status:', err);
+                console.error('Failed to get backend status:', err);
+                setStatusInfo(prev => ({
+                    ...prev,
+                    status: 'error',
+                    errorDetails: 'Unable to communicate with Electron main process.'
+                }));
             }
         };
 
-        initStatus();
-
-        // Listen for updates from Main process
-        const unsubscribe = window.electron.onBackendStatusChange((status: unknown) => {
-            const statusData = status as BackendStatusInfo;
-            setStatusInfo(statusData);
-            if (statusData.status === 'running') {
-                setIsRetrying(false);
-            }
+        fetchInitialStatus();
+        const removeListener = window.electron.onBackendStatusChange((info) => {
+            setStatusInfo(info);
         });
 
         return () => {
-            unsubscribe();
+            removeListener();
         };
-    }, [isElectron, activeVault.isLocal, activeVault.id]);
+    }, [isElectron, activeVault.isLocal]);
 
     const handleRetry = async () => {
         setIsRetrying(true);
         try {
             if (!activeVault.isLocal) {
                 await refreshHealth();
-            } else if (!isElectron) {
-                window.location.reload();
-                return;
-            } else {
+            } else if (isElectron) {
                 await window.electron.restartBackend();
+                const info = await window.electron.getBackendStatus();
+                setStatusInfo(info);
+            } else {
+                const customBackendUrl = localStorage.getItem('backend_url') || '';
+                const targetUrl = customBackendUrl || `http://localhost:${DEFAULT_PORT}`;
+                const cleanUrl = targetUrl.replace(/\/+$/, '');
+                const res = await fetch(`${cleanUrl}/`);
+                if (res.status === HTTP_STATUS_OK || res.status === HTTP_STATUS_UNAUTHORIZED) {
+                    setStatusInfo({
+                        status: 'running',
+                        autoRestartCount: 0,
+                        maxRestarts: 3,
+                        port: DEFAULT_PORT
+                    });
+                }
             }
-            setTimeout(() => setIsRetrying(false), RETRY_TIMEOUT_MS);
         } catch (err) {
             console.error('Retry failed:', err);
-            setIsRetrying(false);
+        } finally {
+            setTimeout(() => setIsRetrying(false), RETRY_TIMEOUT_MS);
         }
     };
 
-    const handleSavePort = async () => {
-        if (!customPort || customPort < MIN_PORT || customPort > MAX_PORT) return;
+    const handleSavePort = async (newPort: number) => {
         setIsSavingPort(true);
         try {
-            await window.electron.setBackendPort(customPort);
-            AXIOS_INSTANCE.defaults.baseURL = `http://localhost:${customPort}`;
-            
-            // Trigger restart immediately
-            await window.electron.restartBackend();
-            setPortModalOpen(false);
+            if (isElectron) {
+                await window.electron.setBackendPort(newPort);
+                const info = await window.electron.getBackendStatus();
+                setStatusInfo(info);
+                setPortModalOpen(false);
+            }
         } catch (err) {
-            console.error('Failed to save port:', err);
+            console.error('Failed to update port:', err);
         } finally {
             setIsSavingPort(false);
         }
@@ -376,95 +374,16 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
                         </Stack>
 
                         {statusInfo.status !== 'starting' && (
-                            <Stack w="100%" gap="sm" mt="md">
-                                <Button 
-                                    onClick={handleRetry} 
-                                    loading={isRetrying}
-                                    leftSection={<IconRefresh size={18} />}
-                                    color={config.color}
-                                    radius="md"
-                                    size="md"
-                                >
-                                    Retry Connection
-                                </Button>
-
-                                <Group justify="center" gap="xs">
-                                    <Button 
-                                        variant="subtle" 
-                                        color="gray" 
-                                        size="xs" 
-                                        leftSection={<IconFileText size={14} />}
-                                        onClick={handleOpenLogs}
-                                    >
-                                        View Logs
-                                    </Button>
-                                    <Button 
-                                        variant="subtle" 
-                                        color="gray" 
-                                        size="xs" 
-                                        leftSection={<IconFolder size={14} />}
-                                        onClick={handleOpenLogsDir}
-                                    >
-                                        Open Logs Folder
-                                    </Button>
-                                    {isElectron && (
-                                        <Button 
-                                            variant="subtle" 
-                                            color="gray" 
-                                            size="xs" 
-                                            leftSection={<IconSettings size={14} />}
-                                            onClick={() => setPortModalOpen(true)}
-                                        >
-                                            Change Port
-                                        </Button>
-                                    )}
-                                </Group>
-
-                                {/* Collapsible Diagnostics */}
-                                <Box mt="md" ta="left">
-                                    <Button
-                                        variant="transparent"
-                                        color="gray"
-                                        size="xs"
-                                        p={0}
-                                        onClick={() => setShowDiagnostics(!showDiagnostics)}
-                                        rightSection={showDiagnostics ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
-                                    >
-                                        Diagnostic Information
-                                    </Button>
-                                    
-                                    <Collapse in={showDiagnostics} mt="xs">
-                                        <Paper 
-                                            p="sm" 
-                                            radius="sm" 
-                                            style={{ 
-                                                backgroundColor: 'rgba(0, 0, 0, 0.3)', 
-                                                border: '1px solid rgba(255, 255, 255, 0.05)',
-                                                fontFamily: 'monospace'
-                                            }}
-                                        >
-                                            <Stack gap="xs">
-                                                <Text size="xs" c="dimmed">
-                                                    <span style={{ color: '#8892b0' }}>Status:</span> {statusInfo.status}
-                                                </Text>
-                                                <Text size="xs" c="dimmed">
-                                                    <span style={{ color: '#8892b0' }}>Running Port:</span> {statusInfo.port}
-                                                </Text>
-                                                {isElectron && (
-                                                    <Text size="xs" c="dimmed">
-                                                        <span style={{ color: '#8892b0' }}>Auto-Restart Count:</span> {statusInfo.autoRestartCount} / {statusInfo.maxRestarts}
-                                                    </Text>
-                                                )}
-                                                {statusInfo.errorDetails && (
-                                                    <Text size="xs" c="red.4" style={{ whiteSpace: 'pre-wrap' }}>
-                                                        <span style={{ color: '#8892b0' }}>Details:</span> {statusInfo.errorDetails}
-                                                    </Text>
-                                                )}
-                                            </Stack>
-                                        </Paper>
-                                    </Collapse>
-                                </Box>
-                            </Stack>
+                            <BackendCrashPanel
+                                statusInfo={statusInfo}
+                                color={config.color}
+                                isRetrying={isRetrying}
+                                isElectron={isElectron}
+                                onRetry={handleRetry}
+                                onOpenLogs={handleOpenLogs}
+                                onOpenLogsDir={handleOpenLogsDir}
+                                onOpenPortModal={() => setPortModalOpen(true)}
+                            />
                         )}
                         
                         {statusInfo.status === 'starting' && (
@@ -477,62 +396,13 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
             </Container>
 
             {/* Change Port Recovery Modal */}
-            <Modal
+            <PortCollisionModal
                 opened={portModalOpen}
                 onClose={() => setPortModalOpen(false)}
-                title="Configure Backend Port"
-                centered
-                radius="md"
-                styles={{
-                    content: {
-                        backgroundColor: '#171a20',
-                        color: '#eceff4',
-                        border: '1px solid rgba(255, 255, 255, 0.08)'
-                    },
-                    header: {
-                        backgroundColor: '#171a20',
-                        color: '#eceff4',
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
-                    }
-                }}
-            >
-                <Stack gap="md">
-                    <Text size="sm" c="dimmed">
-                        If port 8000 is occupied, you can choose another port (e.g. 8080 or 9000). The application will update its settings and restart the backend on the new port.
-                    </Text>
-                    
-                    <NumberInput
-                        label="Custom Port"
-                        description="Enter a port number between 1024 and 65535"
-                        placeholder="8000"
-                        min={MIN_PORT}
-                        max={MAX_PORT}
-                        value={customPort}
-                        onChange={(val) => setCustomPort(Number(val))}
-                        required
-                        radius="md"
-                    />
-
-                    <Group justify="flex-end" mt="md">
-                        <Button 
-                            variant="subtle" 
-                            color="gray" 
-                            onClick={() => setPortModalOpen(false)}
-                            radius="md"
-                        >
-                            Cancel
-                        </Button>
-                        <Button 
-                            color="blue" 
-                            onClick={handleSavePort}
-                            loading={isSavingPort}
-                            radius="md"
-                        >
-                            Update & Retry
-                        </Button>
-                    </Group>
-                </Stack>
-            </Modal>
+                initialPort={statusInfo.port}
+                onSavePort={handleSavePort}
+                isSaving={isSavingPort}
+            />
         </Box>
     );
 }

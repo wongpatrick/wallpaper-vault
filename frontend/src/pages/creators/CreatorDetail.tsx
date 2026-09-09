@@ -8,14 +8,11 @@ import { useSelection } from '../../hooks/useSelection';
 import { 
     Title, Text, Container, SimpleGrid, Group, Badge, Loader, 
     Center, Alert, Stack, ActionIcon, Menu, Button, Card, 
-    TextInput, Select, Textarea, Modal, Paper, SegmentedControl,
-    Input, Box
+    TextInput, Select, Modal, SegmentedControl, Input
 } from '@mantine/core';
 import { 
     IconAlertCircle, IconArrowLeft, IconDotsVertical, IconTrash, 
-    IconEdit, IconDatabase, IconPhoto, IconLayersIntersect, IconAspectRatio,
-    IconCheck, IconSearch, IconBrandX, IconBrandYoutube, IconBrandPatreon, 
-    IconGlobe, IconDeviceTv, IconBrush
+    IconEdit, IconCheck, IconSearch
 } from '@tabler/icons-react';
 import { 
     useReadCreatorApiCreatorsCreatorIdGet, 
@@ -34,38 +31,10 @@ import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
 import { SetBulkOperations } from '../../components/sets/SetBulkOperations';
 import { CreateSetModal } from '../../components/sets/CreateSetModal';
 import { useState, useMemo, useCallback } from 'react';
-import { formatBytes } from '../../utils/fileUtils';
 import type { Set as SetModel, CreatorWithSets } from '../../api/model';
-import { CREATOR_TYPES } from '../../types/enums';
-
-const PLATFORM_OPTIONS = [
-    { value: 'Twitter', label: 'Twitter/X' },
-    { value: 'Pixiv', label: 'Pixiv' },
-    { value: 'Patreon', label: 'Patreon' },
-    { value: 'Fantia', label: 'Fantia' },
-    { value: 'Bilibili', label: 'Bilibili' },
-    { value: 'YouTube', label: 'YouTube' },
-    { value: 'Custom', label: 'Custom/Website' }
-];
-
-const getSocialIcon = (platform: string) => {
-    switch (platform.toLowerCase()) {
-        case 'twitter':
-        case 'x':
-            return <IconBrandX size={12} />;
-        case 'youtube':
-            return <IconBrandYoutube size={12} />;
-        case 'patreon':
-            return <IconBrandPatreon size={12} />;
-        case 'bilibili':
-            return <IconDeviceTv size={12} />;
-        case 'pixiv':
-        case 'fantia':
-            return <IconBrush size={12} />;
-        default:
-            return <IconGlobe size={12} />;
-    }
-};
+import { CreatorStatsCard } from './CreatorStatsCard';
+import { CreatorSocialBadges } from './CreatorSocialBadges';
+import { CreatorEditModal, type CreatorEditFormData } from './CreatorEditModal';
 
 const HTTP_STATUS_CONFLICT = 409;
 const SQUARE_RATIO_TOLERANCE = 0.05;
@@ -88,94 +57,48 @@ export default function CreatorDetail() {
     const updateMutation = useUpdateCreatorApiCreatorsCreatorIdPatch();
     const deleteMutation = useDeleteCreatorApiCreatorsCreatorIdDelete();
     const deleteSetMutation = useDeleteSetApiSetsSetIdDelete();
+    const mergeMutation = useMergeCreatorsApiCreatorsMergePost();
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [createModalOpened, setCreateModalOpened] = useState(false);
-    const [editForm, setEditForm] = useState<{
-        canonical_name: string;
-        type: string;
-        notes: string;
-        socials: { platform: string; url: string }[];
-    }>({
-        canonical_name: '',
-        type: '',
-        notes: '',
-        socials: []
+    const [mergePrompt, setMergePrompt] = useState<{ show: boolean; targetId: number | null; conflictingName?: string }>({ 
+        show: false, 
+        targetId: null 
     });
 
-    const [editNewPlatform, setEditNewPlatform] = useState<string | null>('Twitter');
-    const [editNewUrl, setEditNewUrl] = useState('');
-
-    const handleAddEditSocial = () => {
-        if (!editNewUrl.trim()) return;
-        let formattedUrl = editNewUrl.trim();
-        if (!/^https?:\/\//i.test(formattedUrl)) {
-            formattedUrl = 'https://' + formattedUrl;
-        }
-        setEditForm({
-            ...editForm,
-            socials: [...(editForm.socials || []), { platform: editNewPlatform || 'Custom', url: formattedUrl }]
-        });
-        setEditNewUrl('');
-    };
-
-    const handleRemoveEditSocial = (index: number) => {
-        setEditForm({
-            ...editForm,
-            socials: (editForm.socials || []).filter((_, i) => i !== index)
-        });
-    };
-
-    const isEditFormDirty = useMemo(() => {
-        if (!creator) return false;
-        const socialsChanged = JSON.stringify(editForm.socials || []) !== JSON.stringify(creator.socials || []);
-        return (
-            editForm.canonical_name !== (creator.canonical_name || '') ||
-            editForm.type !== (creator.type || 'Artist') ||
-            editForm.notes !== (creator.notes || '') ||
-            socialsChanged
-        );
-    }, [editForm, creator]);
-
-    const resetEditForm = () => {
-        if (creator) {
-            setEditForm({
-                canonical_name: creator.canonical_name,
-                type: creator.type || 'Artist',
-                notes: creator.notes || '',
-                socials: creator.socials ? [...creator.socials] : []
-            });
-            setEditNewUrl('');
-        }
-    };
-
-    const mergeMutation = useMergeCreatorsApiCreatorsMergePost();
-    const [mergePrompt, setMergePrompt] = useState<{ show: boolean, targetId: number | null }>({ show: false, targetId: null });
-
-    const { selectionMode, setSelectionMode, selectedIds, toggle: toggleSelect, clear: clearSelection, startSelectionWith } = useSelection();
-
+    // Filtering and sorting state for sets
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortBy, setSortBy] = useState<string>('date_added_desc');
     const [orientationFilter, setOrientationFilter] = useState<string>('all');
+    const [sortBy, setSortBy] = useState<string>('date_added_desc');
+
+    // Selection management for bulk operations
+    const {
+        selectionMode,
+        setSelectionMode,
+        selectedIds,
+        toggle: toggleSelect,
+        clear: clearSelection,
+        startSelectionWith
+    } = useSelection<number>();
 
     const processedSets = useMemo(() => {
-        if (!creator || !creator.sets) return [];
+        if (!creator?.sets) return [];
         
         let result = [...creator.sets];
         
-        // 1. Filter by Search Query
+        // Search filter
         if (searchQuery.trim()) {
-            const query = searchQuery.trim().toLowerCase();
+            const query = searchQuery.toLowerCase().trim();
             result = result.filter(set => {
                 const titleMatch = set.title ? set.title.toLowerCase().includes(query) : false;
-                const tagMatch = set.tags ? set.tags.some(tag => tag.toLowerCase().includes(query)) : false;
-                const charMatch = set.characters ? set.characters.some(char => char.toLowerCase().includes(query)) : false;
+                const tagMatch = set.tags?.some(tag => tag.toLowerCase().includes(query));
+                const charMatch = set.characters?.some(char => char.toLowerCase().includes(query));
                 return titleMatch || tagMatch || charMatch;
             });
         }
         
-        // 2. Filter by Orientation
+        // Orientation filter
         if (orientationFilter !== 'all') {
             result = result.filter(set => {
                 if (!set.images || set.images.length === 0) return false;
@@ -185,12 +108,12 @@ export default function CreatorDetail() {
                     if (orientationFilter === 'landscape') return ratio > 1.0;
                     if (orientationFilter === 'portrait') return ratio < 1.0;
                     if (orientationFilter === 'square') return Math.abs(ratio - 1.0) < SQUARE_RATIO_TOLERANCE;
-                    return false;
+                    return true;
                 });
             });
         }
         
-        // 3. Sort
+        // Sorting
         result.sort((a, b) => {
             switch (sortBy) {
                 case 'title_asc':
@@ -222,22 +145,6 @@ export default function CreatorDetail() {
         
         return result;
     }, [creator, searchQuery, orientationFilter, sortBy]);
-
-
-
-
-
-
-
-    const stats = useMemo(() => {
-        if (!creator) return [];
-        return [
-            { label: 'Total Sets', value: creator.stats?.total_sets || 0, icon: IconLayersIntersect, color: 'blue' },
-            { label: 'Total Images', value: creator.stats?.total_images || 0, icon: IconPhoto, color: 'teal' },
-            { label: 'Library Size', value: formatBytes(creator.stats?.total_size_bytes || 0), icon: IconDatabase, color: 'orange' },
-            { label: 'Primary Ratio', value: creator.stats?.primary_aspect_ratio || 'N/A', icon: IconAspectRatio, color: 'grape' },
-        ];
-    }, [creator]);
 
     const handleDeleteSet = useCallback((setId: number) => {
         const targetSet = creator?.sets?.find(s => s.id === setId);
@@ -281,7 +188,6 @@ export default function CreatorDetail() {
         }
     }, [selectionMode, startSelectionWith]);
 
-    // 2. Early returns
     if (isLoading) return <Center h={400}><Loader size="xl" /></Center>;
 
     if (error || !creator) {
@@ -308,12 +214,11 @@ export default function CreatorDetail() {
         );
     }
 
-    // 3. Handlers
-    const handleUpdate = async () => {
+    const handleUpdate = async (formData: CreatorEditFormData) => {
         try {
             await updateMutation.mutateAsync({ 
                 creatorId: Number(creatorId), 
-                data: editForm 
+                data: formData 
             });
             notifications.show({ title: 'Success', message: 'Creator updated', color: 'green' });
             setIsEditModalOpen(false);
@@ -324,7 +229,11 @@ export default function CreatorDetail() {
             const detail = err.response?.data?.detail;
             
             if (err.response?.status === HTTP_STATUS_CONFLICT && detail && typeof detail === 'object' && 'conflicting_id' in detail) {
-                setMergePrompt({ show: true, targetId: detail.conflicting_id as number });
+                setMergePrompt({ 
+                    show: true, 
+                    targetId: detail.conflicting_id as number,
+                    conflictingName: formData.canonical_name 
+                });
                 setIsEditModalOpen(false);
                 return;
             }
@@ -393,25 +302,7 @@ export default function CreatorDetail() {
                             <Group gap="xs" align="center">
                                 <Badge size="lg" variant="light" color="blue">{creator.type || 'Artist'}</Badge>
                             </Group>
-                            {creator.socials && creator.socials.length > 0 && (
-                                <Group gap="xs" mt="xs" wrap="wrap">
-                                    {creator.socials.map((soc, idx) => (
-                                        <Badge 
-                                            key={idx} 
-                                            component="a" 
-                                            href={soc.url} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer" 
-                                            variant="outline" 
-                                            color="gray"
-                                            leftSection={getSocialIcon(soc.platform)}
-                                            style={{ cursor: 'pointer', textTransform: 'none' }}
-                                        >
-                                            {soc.platform}
-                                        </Badge>
-                                    ))}
-                                </Group>
-                            )}
+                            <CreatorSocialBadges socials={creator.socials} />
                         </Stack>
                     </Group>
 
@@ -420,15 +311,7 @@ export default function CreatorDetail() {
                             <Button 
                                 leftSection={<IconEdit size={18} />} 
                                 variant="light" 
-                                onClick={() => {
-                                    setEditForm({
-                                        canonical_name: creator.canonical_name,
-                                        type: creator.type || 'Artist',
-                                        notes: creator.notes || '',
-                                        socials: creator.socials ? [...creator.socials] : []
-                                    });
-                                    setIsEditModalOpen(true);
-                                }}
+                                onClick={() => setIsEditModalOpen(true)}
                             >
                                 Edit Profile
                             </Button>
@@ -457,23 +340,7 @@ export default function CreatorDetail() {
             </Card>
 
             {/* Stats Grid */}
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} mb={40}>
-                {stats.map((stat) => (
-                    <Paper key={stat.label} withBorder p="md" radius="md">
-                        <Group justify="space-between">
-                            <Text size="xs" c="dimmed" fw={700} tt="uppercase">
-                                {stat.label}
-                            </Text>
-                            <stat.icon size={20} color={`var(--mantine-color-${stat.color}-6)`} />
-                        </Group>
-                        <Group align="flex-end" gap="xs" mt={10}>
-                            <Text size="xl" fw={700}>
-                                {stat.value}
-                            </Text>
-                        </Group>
-                    </Paper>
-                ))}
-            </SimpleGrid>
+            <CreatorStatsCard stats={creator.stats} />
 
             {/* Artist's Sets */}
             <Group justify="space-between" align="center" mb="lg">
@@ -566,95 +433,18 @@ export default function CreatorDetail() {
             )}
 
             {/* Edit Modal */}
-            <Modal 
+            <CreatorEditModal 
                 opened={isEditModalOpen} 
-                onClose={() => {
-                    if (isEditFormDirty) {
-                        modals.openConfirmModal({
-                            title: 'Unsaved Changes',
-                            centered: true,
-                            children: (
-                                <Text size="sm">
-                                    You have unsaved changes. Do you want to discard them?
-                                </Text>
-                            ),
-                            labels: { confirm: 'Discard Changes', cancel: 'Keep Editing' },
-                            confirmProps: { color: 'red' },
-                            onConfirm: () => {
-                                setIsEditModalOpen(false);
-                                resetEditForm();
-                            }
-                        });
-                    } else {
-                        setIsEditModalOpen(false);
-                    }
-                }} 
-                title="Edit Creator Profile"
-                radius="md"
-            >
-                <Stack gap="md">
-                    <TextInput 
-                        label="Artist Name" 
-                        value={editForm.canonical_name} 
-                        onChange={(e) => setEditForm({ ...editForm, canonical_name: e.currentTarget.value })}
-                    />
-                    <Select 
-                        label="Creator Type"
-                        data={CREATOR_TYPES as unknown as string[]}
-                        value={editForm.type}
-                        onChange={(v) => setEditForm({ ...editForm, type: v || '' })}
-                    />
-                    <Textarea 
-                        label="Internal Notes"
-                        placeholder="Add links or artist info..."
-                        value={editForm.notes}
-                        onChange={(e) => setEditForm({ ...editForm, notes: e.currentTarget.value })}
-                        minRows={3}
-                    />
-
-                    <Box>
-                        <Text size="sm" fw={500} mb="xs">Social Profiles</Text>
-                        <Stack gap="xs" mb={(editForm.socials || []).length > 0 ? "xs" : 0}>
-                            {(editForm.socials || []).map((soc, idx) => (
-                                <Group key={idx} justify="space-between" wrap="nowrap" style={{ padding: '6px 12px', border: '1px solid var(--mantine-color-gray-3)', borderRadius: '4px' }}>
-                                    <div style={{ minWidth: 0, flex: 1 }}>
-                                        <Text size="xs" fw={700} c="dimmed">{soc.platform}</Text>
-                                        <Text size="sm" truncate style={{ color: 'var(--mantine-color-blue-text)' }}>{soc.url}</Text>
-                                    </div>
-                                    <ActionIcon color="red" variant="subtle" onClick={() => handleRemoveEditSocial(idx)}>
-                                        <IconTrash size={16} />
-                                    </ActionIcon>
-                                </Group>
-                            ))}
-                        </Stack>
-                        
-                        <Group gap="xs" align="flex-end">
-                            <Select
-                                style={{ flex: 1 }}
-                                placeholder="Platform"
-                                data={PLATFORM_OPTIONS}
-                                value={editNewPlatform}
-                                onChange={setEditNewPlatform}
-                            />
-                            <TextInput
-                                style={{ flex: 2 }}
-                                placeholder="Profile URL"
-                                value={editNewUrl}
-                                onChange={(e) => setEditNewUrl(e.currentTarget.value)}
-                            />
-                            <Button 
-                                onClick={handleAddEditSocial} 
-                                disabled={!editNewUrl.trim()}
-                                variant="light"
-                            >
-                                Add
-                            </Button>
-                        </Group>
-                    </Box>
-
-                    <Button fullWidth onClick={handleUpdate} mt="md">Save Changes</Button>
-                </Stack>
-            </Modal>
+                onClose={() => setIsEditModalOpen(false)} 
+                initialData={{
+                    canonical_name: creator.canonical_name,
+                    type: creator.type || 'Artist',
+                    notes: creator.notes || '',
+                    socials: creator.socials ? [...creator.socials] : []
+                }}
+                onSave={handleUpdate}
+                loading={updateMutation.isPending}
+            />
 
             {/* Merge Confirmation Modal */}
             <Modal
@@ -665,7 +455,7 @@ export default function CreatorDetail() {
             >
                 <Stack gap="md">
                     <Alert icon={<IconAlertCircle size="1rem" />} color="yellow">
-                        An artist with the name "{editForm.canonical_name}" already exists. Do you want to merge this artist into the existing one?
+                        An artist with the name "{mergePrompt.conflictingName || creator.canonical_name}" already exists. Do you want to merge this artist into the existing one?
                     </Alert>
                     <Text size="sm" c="dimmed">
                         This will transfer all wallpaper sets to the existing artist and delete this profile.

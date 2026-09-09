@@ -3,15 +3,14 @@
  * Module: Bulk Edit Modal (Sets)
  * Description: Modal component for applying bulk operations (artists, tags, delete) to multiple selected wallpaper sets.
  */
-import { Modal, Stack, MultiSelect, Button, Group, SegmentedControl, Text, Alert } from '@mantine/core';
-import { IconAlertTriangle } from '@tabler/icons-react';
+import { Modal, Stack, MultiSelect, Button, Group, Text } from '@mantine/core';
 import { useState } from 'react';
 import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
 import type { SetUpdate, BulkOperationMode, SetSummary, Set as SetModel } from '../../api/model';
 import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
 import { CharacterTagsInput } from '../../components/ui/CharacterTagsInput';
+import { BulkOperationModeSelector } from '../../components/ui/BulkOperationModeSelector';
 
-const ICON_SIZE = 16;
 const MAX_VISIBLE_SETS_IN_DELETE_CONFIRM = 5;
 
 interface SetBulkEditModalProps {
@@ -58,30 +57,12 @@ export function SetBulkEditModal({ opened, onClose, type, selectedCount, onConfi
                 </Text>
 
                 {type !== 'delete' && (
-                    <>
-                        <Text size="xs" fw={500} mb={-10}>Operation Mode</Text>
-                        <SegmentedControl
-                            fullWidth
-                            value={mode}
-                            onChange={(v) => setMode(v as BulkOperationMode)}
-                            data={[
-                                { label: 'Append', value: 'append' },
-                                { label: 'Replace', value: 'replace' },
-                                { label: 'Remove', value: 'remove' },
-                            ]}
-                        />
-                        {mode === 'replace' && (
-                            <Alert
-                                icon={<IconAlertTriangle size={ICON_SIZE} />}
-                                title="Warning: Replace Mode"
-                                color="orange"
-                                variant="light"
-                                radius="md"
-                            >
-                                Replace mode will overwrite and replace all existing {type === 'artist' ? 'artists' : type} on all {selectedCount} selected sets.
-                            </Alert>
-                        )}
-                    </>
+                    <BulkOperationModeSelector
+                        value={mode}
+                        onChange={(v) => setMode(v as 'append' | 'replace' | 'remove')}
+                        targetDescription={type === 'artist' ? 'artists' : type}
+                        count={selectedCount}
+                    />
                 )}
 
                 {type === 'artist' && (

@@ -125,11 +125,12 @@ export const mergeFranchises = (source_ids: number[], target_id: number) => {
 
 // --- Hooks ---
 
-export const useReadCharacters = (params: TaxonomyQueryParams = {}) => {
+export const useReadCharacters = (params: TaxonomyQueryParams = {}, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ['characters', params],
     queryFn: ({ signal }) => readCharacters(params, signal),
     placeholderData: keepPreviousData,
+    ...options,
   });
 };
 
@@ -174,11 +175,12 @@ export const useMergeCharacters = () => {
   });
 };
 
-export const useReadFranchises = (params: TaxonomyQueryParams = {}) => {
+export const useReadFranchises = (params: TaxonomyQueryParams = {}, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ['franchises', params],
     queryFn: ({ signal }) => readFranchises(params, signal),
     placeholderData: keepPreviousData,
+    ...options,
   });
 };
 

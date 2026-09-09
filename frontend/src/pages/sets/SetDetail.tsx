@@ -3,7 +3,7 @@
  * Module: Set Detail Page
  * Description: Displays detailed information and a gallery view for a specific wallpaper set, supporting selection, bulk editing, and syncing.
  */
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useSelection } from '../../hooks/useSelection';
 import { 
@@ -28,8 +28,9 @@ import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { ImageBulkEditModal } from '../../components/images/ImageBulkEditModal';
 import { ImageMoveModal } from '../../components/images/ImageMoveModal';
 import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
-import { ImageCropModal } from '../../components/images/ImageCropModal';
 import { SetAsWallpaperModal } from '../../components/images/SetAsWallpaperModal';
+
+const ImageCropModal = lazy(() => import('../../components/images/ImageCropModal').then(m => ({ default: m.ImageCropModal })));
 import { CharacterTagsInput } from '../../components/ui/CharacterTagsInput';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
 import { AddToPlaylistModal } from '../../components/playlists/AddToPlaylistModal';
@@ -393,15 +394,17 @@ export default function SetDetail() {
 
             {/* Crop Image Modal */}
             {croppingImage && (
-                <ImageCropModal 
-                    image={croppingImage}
-                    opened={!!croppingImage}
-                    onClose={() => setCroppingImage(null)}
-                    onCropSuccess={() => {
-                        setCroppingImage(null);
-                        refetch();
-                    }}
-                />
+                <Suspense fallback={null}>
+                    <ImageCropModal 
+                        image={croppingImage}
+                        opened={!!croppingImage}
+                        onClose={() => setCroppingImage(null)}
+                        onCropSuccess={() => {
+                            setCroppingImage(null);
+                            refetch();
+                        }}
+                    />
+                </Suspense>
             )}
 
             {/* Move Image Modal */}
