@@ -54,14 +54,28 @@ export class VaultRegistryManager {
     constructor(getLocalPort: () => number) {
         this.getLocalPort = getLocalPort;
         this.registryPath = path.join(app.getPath('userData'), 'vault-registry.json');
-        this.data = this.loadRegistry();
+        const localPort = this.getLocalPort();
+        const localUrl = `http://localhost:${localPort}`;
+        this.data = {
+            activeVaultId: 'local-vault',
+            vaults: [
+                {
+                    id: 'local-vault',
+                    label: 'Local',
+                    url: localUrl,
+                    apiKey: '',
+                    isLocal: true,
+                    status: 'online'
+                }
+            ]
+        };
     }
 
     private getCleanUrl(rawUrl: string): string {
         return rawUrl.trim().replace(/\/+$/, '');
     }
 
-    private loadRegistry(): VaultRegistryData {
+    public async loadRegistry(): Promise<VaultRegistryData> {
         const localPort = this.getLocalPort();
         const localUrl = `http://localhost:${localPort}`;
 
@@ -80,47 +94,47 @@ export class VaultRegistryManager {
         };
 
         try {
-            if (fs.existsSync(this.registryPath)) {
-                const raw = fs.readFileSync(this.registryPath, 'utf-8');
-                const parsed = JSON.parse(raw);
-                if (parsed && Array.isArray(parsed.vaults) && parsed.vaults.length > 0) {
-                    // Ensure local vault exists and is pinned
-                    let localVault = parsed.vaults.find((v: VaultEntry) => v.isLocal);
-                    if (!localVault) {
-                        localVault = {
-                            id: 'local-vault',
-                            label: 'Local',
-                            url: localUrl,
-                            apiKey: '',
-                            isLocal: true,
-                            status: 'online'
-                        };
-                        parsed.vaults.unshift(localVault);
-                    } else {
-                        // Update local vault URL with current port
-                        localVault.url = localUrl;
-                    }
-
-                    const activeExists = parsed.vaults.some((v: VaultEntry) => v.id === parsed.activeVaultId);
-                    if (!activeExists) {
-                        parsed.activeVaultId = localVault.id;
-                    }
-
-                    return parsed;
+            const raw = await fs.promises.readFile(this.registryPath, 'utf-8');
+            const parsed = JSON.parse(raw);
+            if (parsed && Array.isArray(parsed.vaults) && parsed.vaults.length > 0) {
+                // Ensure local vault exists and is pinned
+                let localVault = parsed.vaults.find((v: VaultEntry) => v.isLocal);
+                if (!localVault) {
+                    localVault = {
+                        id: 'local-vault',
+                        label: 'Local',
+                        url: localUrl,
+                        apiKey: '',
+                        isLocal: true,
+                        status: 'online'
+                    };
+                    parsed.vaults.unshift(localVault);
+                } else {
+                    // Update local vault URL with current port
+                    localVault.url = localUrl;
                 }
+
+                const activeExists = parsed.vaults.some((v: VaultEntry) => v.id === parsed.activeVaultId);
+                if (!activeExists) {
+                    parsed.activeVaultId = localVault.id;
+                }
+
+                this.data = parsed;
+                return parsed;
             }
-        } catch (err) {
-            console.error('[VaultRegistry] Failed to load registry file:', err);
+        } catch {
+            // File does not exist yet or failed to parse, use default
         }
 
-        this.saveRegistry(defaultData);
+        this.data = defaultData;
+        await this.saveRegistry(defaultData);
         return defaultData;
     }
 
-    private saveRegistry(data?: VaultRegistryData): void {
+    private async saveRegistry(data?: VaultRegistryData): Promise<void> {
         const toSave = data || this.data;
         try {
-            fs.writeFileSync(this.registryPath, JSON.stringify(toSave, null, 2), 'utf-8');
+            await fs.promises.writeFile(this.registryPath, JSON.stringify(toSave, null, 2), 'utf-8');
         } catch (err) {
             console.error('[VaultRegistry] Failed to save registry file:', err);
         }
@@ -133,7 +147,7 @@ export class VaultRegistryManager {
         const local = this.data.vaults.find(v => v.isLocal);
         if (local && local.url !== localUrl) {
             local.url = localUrl;
-            this.saveRegistry();
+            void this.saveRegistry();
         }
         return this.data;
     }
@@ -144,13 +158,13 @@ export class VaultRegistryManager {
         return active || reg.vaults[0];
     }
 
-    public setActiveVault(vaultId: string): VaultEntry {
+    public async setActiveVault(vaultId: string): Promise<VaultEntry> {
         const vault = this.data.vaults.find(v => v.id === vaultId);
         if (!vault) {
             throw new Error(`Vault with id ${vaultId} not found`);
         }
         this.data.activeVaultId = vault.id;
-        this.saveRegistry();
+        await this.saveRegistry();
         this.notifyUpdate();
         return vault;
     }
@@ -180,8 +194,11 @@ export class VaultRegistryManager {
         }
 
         this.data.vaults.push(newEntry);
-        this.saveRegistry();
+        await this.saveRegistry();
         this.notifyUpdate();
+        if (newEntry.vaultId) {
+            this.pushHealthToBackend();
+        }
         return newEntry;
     }
 
@@ -214,12 +231,15 @@ export class VaultRegistryManager {
             vault.lastSeen = new Date().toISOString();
         }
 
-        this.saveRegistry();
+        await this.saveRegistry();
         this.notifyUpdate();
+        if (vault.vaultId) {
+            this.pushHealthToBackend();
+        }
         return vault;
     }
 
-    public removeVault(id: string): VaultRegistryData {
+    public async removeVault(id: string): Promise<VaultRegistryData> {
         const vault = this.data.vaults.find(v => v.id === id);
         if (!vault) {
             throw new Error(`Vault with id ${id} not found`);
@@ -234,7 +254,7 @@ export class VaultRegistryManager {
             this.data.activeVaultId = local.id;
         }
 
-        this.saveRegistry();
+        await this.saveRegistry();
         this.notifyUpdate();
         return this.data;
     }
@@ -336,34 +356,48 @@ export class VaultRegistryManager {
             clearInterval(this.healthTimer);
         }
 
+        let isInitialRun = true;
         const runCheck = async () => {
+            const results = await Promise.allSettled(
+                this.data.vaults.map(async (vault) => {
+                    const res = await this.testConnection(vault.url, vault.apiKey);
+                    return { vault, res };
+                })
+            );
+
             let changed = false;
-            for (const vault of this.data.vaults) {
-                const res = await this.testConnection(vault.url, vault.apiKey);
-                const oldStatus = vault.status;
-                vault.status = res.status;
-                if (res.success) {
-                    vault.vaultId = res.vaultId;
-                    vault.vaultName = res.vaultName;
-                    vault.version = res.version;
-                    vault.lastSeen = new Date().toISOString();
-                }
-                if (oldStatus !== vault.status) {
-                    changed = true;
+            for (const result of results) {
+                if (result.status === 'fulfilled') {
+                    const { vault, res } = result.value;
+                    const oldStatus = vault.status;
+                    vault.status = res.status;
+                    if (res.success) {
+                        vault.vaultId = res.vaultId;
+                        vault.vaultName = res.vaultName;
+                        vault.version = res.version;
+                        vault.lastSeen = new Date().toISOString();
+                    }
+                    if (oldStatus !== vault.status) {
+                        changed = true;
+                    }
                 }
             }
 
-            if (changed) {
-                this.saveRegistry();
-                this.notifyUpdate();
+            if (changed || isInitialRun) {
+                if (changed) {
+                    await this.saveRegistry();
+                    this.notifyUpdate();
+                }
+                // Push remote vault health status to local backend on initial startup or when status changes
+                this.pushHealthToBackend();
+                isInitialRun = false;
             }
-
-            // Push remote vault health status to local backend
-            this.pushHealthToBackend();
         };
 
-        runCheck();
-        this.healthTimer = setInterval(runCheck, HEALTH_CHECK_INTERVAL_MS);
+        void runCheck();
+        this.healthTimer = setInterval(() => {
+            void runCheck();
+        }, HEALTH_CHECK_INTERVAL_MS);
     }
 
     private pushHealthToBackend(): void {
