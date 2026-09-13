@@ -5,6 +5,7 @@
  */
 import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSelection } from '../../hooks/useSelection';
 import { 
     Container, Loader, Center, Alert, Button, Modal,
@@ -46,6 +47,7 @@ export default function SetDetail() {
     const { setId } = useParams<{ setId: string }>();
     const navigate = useNavigate();
     const location = useLocation();
+    const queryClient = useQueryClient();
 
     // Queries & Mutations
     const { data: set, isLoading, error, refetch } = useReadSetApiSetsSetIdGet(Number(setId));
@@ -221,8 +223,23 @@ export default function SetDetail() {
             onConfirm: async () => {
                 try {
                     await deleteMutation.mutateAsync({ setId: Number(setId) });
+                    queryClient.invalidateQueries({
+                        predicate: (query) => {
+                            const key0 = query.queryKey[0];
+                            const key1 = query.queryKey[1];
+                            return key0 === 'sets' || key0 === '/api/sets/' ||
+                                (key0 === 'multi-vault' && (key1 === 'sets' || key1 === '/api/sets/'));
+                        }
+                    });
+                    queryClient.removeQueries({
+                        queryKey: [`/api/sets/${Number(setId)}`]
+                    });
                     notifications.show({ title: 'Set deleted', message: 'Set removed from vault', color: 'blue' });
-                    navigate('/sets');
+                    if (location.state?.from) {
+                        navigate(-1);
+                    } else {
+                        navigate('/sets');
+                    }
                 } catch (err) {
                     const axiosError = err as { response?: { data?: { detail?: string } } };
                     const message = axiosError.response?.data?.detail || 'Could not delete set';

@@ -14,7 +14,8 @@ import { modals } from '@mantine/modals';
 import { SetCard } from '../../components/sets/SetCard';
 import { CreateSetModal } from '../../components/sets/CreateSetModal';
 import { CREATOR_TYPES } from '../../types/enums';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { getLabelFromPath } from '../../utils/navigationUtils';
 import { getThumbnailUrl, FALLBACK_IMAGE } from '../../utils/fileUtils';
 import { useUrlSearch } from '../../hooks/useUrlSearch';
 import { useUrlPagination } from '../../hooks/useUrlPagination';
@@ -36,6 +37,7 @@ const PADDING_SELECTION_MODE_PX = 100;
 
 export default function Sets() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
     const { search, localSearch, setLocalSearch } = useUrlSearch(SEARCH_DEBOUNCE_MS);
     const { page, setPage, totalPages: getTotalPages } = useUrlPagination(PAGE_SIZE);
@@ -334,7 +336,12 @@ export default function Sets() {
                                                                 if (isAggregated && multiSet._vaultId) {
                                                                     await switchVault(multiSet._vaultId);
                                                                 }
-                                                                navigate(`/sets/${set.id}`);
+                                                                navigate(`/sets/${set.id}`, {
+                                                                    state: {
+                                                                        from: location.pathname,
+                                                                        fromLabel: getLabelFromPath(location.pathname)
+                                                                    }
+                                                                });
                                                             }}
                                                             style={{ cursor: 'pointer', backgroundColor: selectedIds.has(set.id) ? 'var(--mantine-color-blue-light)' : undefined }}
                                                         >
