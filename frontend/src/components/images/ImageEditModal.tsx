@@ -6,7 +6,8 @@
 import { Modal, Stack, TextInput, Textarea, Button, NumberInput, SegmentedControl, Text, ColorInput, Center, Box, Group } from '@mantine/core';
 import { useState, useMemo, useEffect } from 'react';
 import { IconAlertTriangle, IconExclamationCircle, IconShieldCheck, IconTrash } from '@tabler/icons-react';
-import { useUpdateImageApiImagesImageIdPatch, useDeleteImageApiImagesImageIdDelete, useReadImageApiImagesImageIdGet } from '../../api/generated/images/images';
+import { useUpdateImageApiImagesImageIdPatch, useReadImageApiImagesImageIdGet } from '../../api/generated/images/images';
+import { useDeleteImage } from '../../hooks/useDeleteImage';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import type { Image as ImageModel, ImageUpdate, ImageDetail } from '../../api/model';
@@ -19,15 +20,16 @@ interface ImageEditModalProps {
     opened: boolean;
     onClose: () => void;
     onUpdated: () => void;
+    onDelete?: (imageId: number) => void;
     zIndex?: number;
 }
 
 const MODAL_Z_INDEX = 3000;
 const CONFIRM_MODAL_Z_INDEX_OFFSET = 10;
 
-export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MODAL_Z_INDEX }: ImageEditModalProps) {
+export function ImageEditModal({ image, opened, onClose, onUpdated, onDelete, zIndex = MODAL_Z_INDEX }: ImageEditModalProps) {
     const updateMutation = useUpdateImageApiImagesImageIdPatch();
-    const deleteMutation = useDeleteImageApiImagesImageIdDelete();
+    const { deleteImage, isDeleting } = useDeleteImage();
 
     const { data: imageDetail } = useReadImageApiImagesImageIdGet(
         image?.id || 0,
@@ -153,6 +155,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
 
     const handleDelete = () => {
         if (!image) return;
+        const deletedId = image.id;
         
         modals.openConfirmModal({
             title: 'Delete Image',
@@ -167,9 +170,13 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
             confirmProps: { color: 'red' },
             onConfirm: async () => {
                 try {
-                    await deleteMutation.mutateAsync({ imageId: image.id });
+                    await deleteImage(image);
                     notifications.show({ title: 'Image deleted', message: 'The image has been permanently removed.', color: 'blue' });
-                    onUpdated();
+                    if (onDelete) {
+                        onDelete(deletedId);
+                    } else {
+                        onUpdated();
+                    }
                     onClose();
                 } catch {
                     notifications.show({ title: 'Error', message: 'Could not delete image', color: 'red' });
@@ -272,7 +279,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, zIndex = MOD
                         color="red" 
                         leftSection={<IconTrash size={16} />} 
                         onClick={handleDelete}
-                        loading={deleteMutation.isPending}
+                        loading={isDeleting}
                     >
                         Delete Image
                     </Button>
