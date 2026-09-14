@@ -8,7 +8,8 @@ import { IconWallpaper, IconX, IconChevronLeft, IconChevronRight, IconEdit, Icon
 import { getImageUrl, getThumbnailUrl } from '../../utils/fileUtils';
 import type { Image as ImageModel } from '../../api/model';
 import type { WithMultiVault } from '../../types/vault';
-import { useDeleteImageApiImagesImageIdDelete, useReadImageApiImagesImageIdGet, useUpdateImageApiImagesImageIdPatch } from '../../api/generated/images/images';
+import { useReadImageApiImagesImageIdGet, useUpdateImageApiImagesImageIdPatch } from '../../api/generated/images/images';
+import { useDeleteImage } from '../../hooks/useDeleteImage';
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
 import { CharacterTagsInput } from '../ui/CharacterTagsInput';
 import { SetAsWallpaperModal } from './SetAsWallpaperModal';
@@ -26,7 +27,7 @@ interface ImageLightboxProps {
     onClose: () => void;
     onSelectIndex: (index: number) => void;
     onEdit: (image: ImageModel) => void;
-    onDelete?: () => void;
+    onDelete?: (imageId: number) => void;
     onUpdated?: () => void;
     totalCount?: number;
     disableActions?: boolean;
@@ -48,7 +49,7 @@ const ARROW_OFFSET_WITH_SIDEBAR = SIDEBAR_WIDTH + ARROW_OFFSET_DEFAULT;
 
 export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit, onDelete, onUpdated, totalCount, disableActions, onCrop }: ImageLightboxProps) {
     const { isAggregated, activeVault, switchVault } = useVault();
-    const deleteMutation = useDeleteImageApiImagesImageIdDelete();
+    const { deleteImage, isDeleting } = useDeleteImage();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -175,7 +176,10 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
     };
 
     const handleDelete = () => {
-        if (!currentImage) return;
+        if (!currentImage || selectedIndex === null) return;
+        const deletedId = currentImage.id;
+        const currentIndex = selectedIndex;
+        const currentLength = images.length;
         
         modals.openConfirmModal({
             title: 'Delete Image',
@@ -189,19 +193,23 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
             confirmProps: { color: 'red' },
             onConfirm: async () => {
                 try {
-                    const multiImage = currentImage as WithMultiVault<ImageModel>;
-                    if (isAggregated && multiImage._vaultId && activeVault.id !== multiImage._vaultId) {
-                        await switchVault(multiImage._vaultId);
-                    }
-                    await deleteMutation.mutateAsync({ imageId: currentImage.id });
+                    await deleteImage(currentImage);
                     notifications.show({ title: 'Image deleted', message: 'The image has been permanently removed.', color: 'blue' });
-                    onDelete?.();
-                    onClose();
+                    if (onDelete) {
+                        onDelete(deletedId);
+                    } else {
+                        onUpdated?.();
+                    }
+
+                    if (currentLength <= 1) {
+                        onClose();
+                    } else if (currentIndex >= currentLength - 1) {
+                        onSelectIndex(currentIndex - 1);
+                    }
                 } catch {
                     notifications.show({ title: 'Error', message: 'Could not delete image', color: 'red' });
                 }
             },
-
         });
     };
 
@@ -318,7 +326,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                                 color="red" 
                                 size="lg"
                                 onClick={handleDelete}
-                                loading={deleteMutation.isPending}
+                                loading={isDeleting}
                                 disabled={disableActions}
                             >
                                 <IconTrash size={20} />
