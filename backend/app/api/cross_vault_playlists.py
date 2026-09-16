@@ -1,4 +1,4 @@
-﻿"""
+"""
 API router for Cross-Vault Playlist endpoints and remote proxying.
 """
 
@@ -37,7 +37,7 @@ async def _proxy_remote_image_file(
     db: AsyncSession,
     aspect_ratio: Optional[str] = None,
     target_monitor: Optional[str] = "all",
-    log_rot: bool = True,
+    log_rot: bool = False,
 ) -> Response:
     """Fetch and proxy image bytes from a remote vault instance."""
     vault_url = get_vault_url(vault_id)
@@ -226,7 +226,7 @@ async def read_cross_vault_random_image_ref(
 async def read_cross_vault_random_image_file(
     playlist_id: int,
     target_monitor: Optional[str] = Query("all"),
-    log_rotation: bool = Query(True),
+    log_rotation: bool = Query(False),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     """Fetch and proxy a random image file from a cross-vault playlist."""
@@ -264,7 +264,7 @@ async def read_cross_vault_random_image_file_path(
     playlist_id: int,
     ratio: str,
     target_monitor: Optional[str] = Query("all"),
-    log_rotation: bool = Query(True),
+    log_rotation: bool = Query(False),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     """Fetch and proxy a random image file from a cross-vault playlist (DisplayFusion compatible)."""

@@ -48,6 +48,7 @@ export class RotationCoordinator {
     private activeMonitorWallpapers: Map<string, { title: string; author: string }> = new Map();
     private recentlyAppliedManualWallpapers: Map<string, number> = new Map();
     private rotationNotificationsEnabled = true;
+    private pendingTriggerMonitors: Set<number> = new Set();
 
     private globalRotationConfig: GlobalRotationConfig = {
         mode: 'displayfusion',
@@ -293,6 +294,11 @@ export class RotationCoordinator {
     }
 
     public async triggerNativeRotation(port: number, monitorIndex: number): Promise<void> {
+        if (monitorIndex !== -1 && this.pendingTriggerMonitors.has(monitorIndex)) {
+            console.log(`[Rotation Coordinator] Rotation already pending for Monitor ${monitorIndex + 1}. Skipping trigger.`);
+            return;
+        }
+
         try {
             const isFullscreenRaw = await psDaemon.run('[FullscreenHelper]::IsFullscreen()');
             if (isFullscreenRaw.trim().toLowerCase() === 'true') {
@@ -315,12 +321,13 @@ export class RotationCoordinator {
 
         const config = this.monitorConfigs.get(monitorIndex) || this.globalRotationConfig;
 
-        let randomUrl = `/api/images/random`;
+        let randomUrl = `/api/images/random/file`;
         if (config.source === 'playlist' && config.playlistId) {
-            randomUrl = `/api/playlists/${config.playlistId}/random`;
+            randomUrl = `/api/playlists/${config.playlistId}/random/file`;
         }
 
         const params = new URLSearchParams();
+        params.append('log_rotation', 'true');
         if (config.favoriteProbability !== undefined) {
             params.append('favorite_probability', String(config.favoriteProbability));
         }
@@ -335,11 +342,75 @@ export class RotationCoordinator {
             console.log(`[Rotation Coordinator] Auto-detected orientation for Monitor ${monitorIndex + 1}: ${orientation} (${width}x${height})`);
         }
 
+        this.pendingTriggerMonitors.add(monitorIndex);
+
+        const tempDir = app.getPath('temp');
+        const filename = `wallpaper-vault-active-monitor-${monitorIndex}-rot-${Date.now()}.jpg`;
+        const tempPath = path.join(tempDir, filename);
+
+        try {
+            const files = await fs.promises.readdir(tempDir);
+            const prefix = `wallpaper-vault-active-monitor-${monitorIndex}-`;
+            await Promise.all(
+                files.map(async (file) => {
+                    if (file.startsWith(prefix) && file !== filename) {
+                        try {
+                            await fs.promises.unlink(path.join(tempDir, file));
+                        } catch {
+                            // ignore cleanup error
+                        }
+                    }
+                })
+            );
+        } catch (err) {
+            console.warn('[Rotation Coordinator] Failed to clean up old temp files:', err);
+        }
+
+        const safeCleanupTempFile = (stream: fs.WriteStream, filePath: string) => {
+            stream.destroy();
+            stream.once('close', () => {
+                void fs.promises.unlink(filePath).catch(() => {});
+            });
+        };
+
+        const style = config.style || 'fill';
+        const fileStream = fs.createWriteStream(tempPath);
+        fileStream.on('error', (err) => {
+            console.error('[Rotation Coordinator] File write stream error:', err);
+            this.pendingTriggerMonitors.delete(monitorIndex);
+        });
+
         const url = `http://127.0.0.1:${port}${randomUrl}?${params.toString()}`;
-        http.get(url, (res) => {
-            res.resume();
-        }).on('error', (err) => {
+        const req = http.get(url, (res) => {
+            if (res.statusCode !== HTTP_STATUS_OK) {
+                console.error(`[Rotation Coordinator] Failed to fetch random wallpaper file. HTTP status: ${res.statusCode}`);
+                res.resume();
+                safeCleanupTempFile(fileStream, tempPath);
+                this.pendingTriggerMonitors.delete(monitorIndex);
+                return;
+            }
+
+            res.pipe(fileStream);
+            res.on('error', (err) => {
+                console.error('[Rotation Coordinator] Response stream error:', err);
+                safeCleanupTempFile(fileStream, tempPath);
+                this.pendingTriggerMonitors.delete(monitorIndex);
+            });
+            fileStream.on('finish', () => {
+                fileStream.close();
+                void setWallpaperNatively(tempPath, monitorIndex, style)
+                    .catch((err) => {
+                        console.error(`[Rotation Coordinator] Native wallpaper apply failed for Monitor ${monitorIndex + 1}:`, err);
+                    })
+                    .finally(() => {
+                        this.pendingTriggerMonitors.delete(monitorIndex);
+                    });
+            });
+        });
+        req.on('error', (err) => {
             console.error('[Rotation Coordinator] Failed to trigger rotation:', err);
+            safeCleanupTempFile(fileStream, tempPath);
+            this.pendingTriggerMonitors.delete(monitorIndex);
         });
     }
 
@@ -398,13 +469,35 @@ export class RotationCoordinator {
         });
     }
 
-    public handleRotationEvent(port: number, image: any, targetMonitor: string): void {
-        console.log(`[Rotation Coordinator] Rotation event for image ID ${image?.id} on target monitor: ${targetMonitor}`);
+    public handleRotationEvent(port: number, image: any, targetMonitor: string, eventData?: any): void {
+        console.log(`[Rotation Coordinator] Rotation event for image ID ${image?.id || eventData?.vault_image_id || 'remote'} on target monitor: ${targetMonitor}`);
 
         if (image) {
             const title = image.set_title || image.filename || 'Wallpaper';
             const creators = image.creator_names || [];
             const author = Array.isArray(creators) && creators.length > 0 ? creators.join(', ') : 'Unknown Creator';
+
+            if (targetMonitor === 'all') {
+                this.activeMonitorWallpapers.set('global', { title, author });
+                if (this.activeMonitorWallpapers.size > 1) {
+                    Array.from(this.activeMonitorWallpapers.keys()).forEach((k) => {
+                        if (k !== 'global') {
+                            this.activeMonitorWallpapers.set(k, { title, author });
+                        }
+                    });
+                }
+            } else {
+                this.activeMonitorWallpapers.set(targetMonitor, { title, author });
+            }
+
+            this.onMenuUpdateCallback?.();
+
+            if (this.rotationNotificationsEnabled) {
+                this.showWallpaperNotification();
+            }
+        } else if (eventData?.is_cross_vault) {
+            const title = `Remote Wallpaper (${eventData.vault_id})`;
+            const author = `Vault Image #${eventData.vault_image_id}`;
 
             if (targetMonitor === 'all') {
                 this.activeMonitorWallpapers.set('global', { title, author });
@@ -432,16 +525,20 @@ export class RotationCoordinator {
             return;
         }
 
+        const monitorIdx = targetMonitor === 'all' ? -1 : parseInt(targetMonitor, 10);
+        if (!image || this.pendingTriggerMonitors.has(monitorIdx)) {
+            return;
+        }
+
         if (targetMonitor === 'all') {
             if (this.globalRotationConfig.mode === 'native') {
                 void this.applyNativeWallpaper(port, image, -1);
             }
         } else {
-            const index = parseInt(targetMonitor, 10);
-            const config = this.monitorConfigs.get(index) || this.globalRotationConfig;
+            const config = this.monitorConfigs.get(monitorIdx) || this.globalRotationConfig;
 
             if (config.mode === 'native') {
-                void this.applyNativeWallpaper(port, image, index);
+                void this.applyNativeWallpaper(port, image, monitorIdx);
             }
         }
     }
@@ -475,21 +572,40 @@ export class RotationCoordinator {
         const config = monitorIndex === -1 ? this.globalRotationConfig : (this.monitorConfigs.get(monitorIndex) || this.globalRotationConfig);
         const style = config.style || 'fill';
 
+        const safeCleanupTempFile = (stream: fs.WriteStream, filePath: string) => {
+            stream.destroy();
+            stream.once('close', () => {
+                void fs.promises.unlink(filePath).catch(() => {});
+            });
+        };
+
         const fileStream = fs.createWriteStream(tempPath);
         fileStream.on('error', (err) => {
             console.error('[Rotation Coordinator] File write stream error:', err);
         });
-        http.get(fileUrl, (res) => {
+        const req = http.get(fileUrl, (res) => {
+            if (res.statusCode !== HTTP_STATUS_OK) {
+                console.error(`[Rotation Coordinator] Failed to download active image. HTTP status: ${res.statusCode}`);
+                res.resume();
+                safeCleanupTempFile(fileStream, tempPath);
+                return;
+            }
+
             res.pipe(fileStream);
+            res.on('error', (err) => {
+                console.error('[Rotation Coordinator] Image download response error:', err);
+                safeCleanupTempFile(fileStream, tempPath);
+            });
             fileStream.on('finish', () => {
                 fileStream.close();
                 void setWallpaperNatively(tempPath, monitorIndex, style).catch((err) => {
                     console.error('[Rotation Coordinator] Native wallpaper apply failed:', err);
                 });
             });
-        }).on('error', (err) => {
+        });
+        req.on('error', (err) => {
             console.error('[Rotation Coordinator] File download error:', err);
-            fileStream.close();
+            safeCleanupTempFile(fileStream, tempPath);
         });
     }
 
@@ -545,7 +661,7 @@ export class RotationCoordinator {
                                 if (data.event === 'skip') {
                                     this.handleSkipEvent(port, data.target_monitor || 'all');
                                 } else if (data.event === 'rotation') {
-                                    this.handleRotationEvent(port, data.image, data.target_monitor || 'all');
+                                    this.handleRotationEvent(port, data.image, data.target_monitor || 'all', data);
                                 } else if (data.event === 'ping') {
                                     void this.fetchRotationSettings(port).then((okVal) => {
                                         if (okVal) void this.setupNativeTimers(port);
