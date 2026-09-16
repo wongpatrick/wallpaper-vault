@@ -386,6 +386,13 @@ export default function SetDetail() {
                     onSelectIndex={(idx) => setSelectedImageIndex(idx)}
                     onEdit={(img) => setEditingImage(img)}
                     onCrop={(img) => setCroppingImage(img)}
+                    onDelete={(deletedId) => {
+                        queryClient.setQueryData<SetModel>([`/api/sets/${Number(setId)}`], (old) => {
+                            if (!old?.images) return old;
+                            return { ...old, images: old.images.filter(img => img.id !== deletedId) };
+                        });
+                        refetch();
+                    }}
                     onUpdated={refetch}
                 />
             )}
@@ -404,6 +411,15 @@ export default function SetDetail() {
                     onClose={() => setEditingImage(null)}
                     onUpdated={() => {
                         setEditingImage(null);
+                        refetch();
+                    }}
+                    onDelete={(deletedId) => {
+                        setEditingImage(null);
+                        setSelectedImageIndex(null);
+                        queryClient.setQueryData<SetModel>([`/api/sets/${Number(setId)}`], (old) => {
+                            if (!old?.images) return old;
+                            return { ...old, images: old.images.filter(img => img.id !== deletedId) };
+                        });
                         refetch();
                     }}
                 />

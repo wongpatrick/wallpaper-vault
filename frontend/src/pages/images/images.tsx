@@ -325,7 +325,12 @@ export default function Images() {
                 onSelectIndex={setSelectedImageIndex}
                 onEdit={(img) => setEditingImage(img)}
                 totalCount={pageData?.total}
-                onDelete={handleCollectionReset}
+                onDelete={(deletedId) => {
+                    setAllImages(prev => prev.filter(img => img.id !== deletedId));
+                    if (selectedImageIds.has(deletedId)) {
+                        toggleImageSelect(deletedId);
+                    }
+                }}
                 onUpdated={handleCollectionReset}
                 onCrop={(img) => setCroppingImage(img)}
             />
@@ -343,6 +348,14 @@ export default function Images() {
                 onUpdated={() => {
                     setEditingImage(null);
                     refetch();
+                }}
+                onDelete={(deletedId) => {
+                    setEditingImage(null);
+                    setSelectedImageIndex(null);
+                    setAllImages(prev => prev.filter(img => img.id !== deletedId));
+                    if (selectedImageIds.has(deletedId)) {
+                        toggleImageSelect(deletedId);
+                    }
                 }}
             />
 
