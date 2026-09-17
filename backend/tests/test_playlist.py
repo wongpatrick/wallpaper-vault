@@ -205,12 +205,12 @@ async def test_playlist_random_endpoints(client: AsyncClient, sample_data):
     assert resp.json()["id"] == img1_id
 
     # Test path-based random file endpoint (exists in DB, missing on disk)
-    resp = await client.get(f"/api/playlists/{playlist_id}/random/file/16:9/image.jpg")
+    resp = await client.get(f"/api/playlists/{playlist_id}/random/file/16:9/image.jpg?log_rotation=false")
     assert resp.status_code == 404
     assert "Image file not found on disk" in resp.json()["detail"]
 
     # Test robust aspect ratio matching in path (16x9 matches 16:9 image, missing on disk)
-    resp = await client.get(f"/api/playlists/{playlist_id}/random/file/16x9/image.jpg")
+    resp = await client.get(f"/api/playlists/{playlist_id}/random/file/16x9/image.jpg?log_rotation=false")
     assert resp.status_code == 404
     assert "Image file not found on disk" in resp.json()["detail"]
 
@@ -225,9 +225,52 @@ async def test_playlist_random_endpoints(client: AsyncClient, sample_data):
     assert resp.json()["id"] == img1_id
 
     # Test path-based random file endpoint (no match in DB)
-    resp = await client.get(f"/api/playlists/{playlist_id}/random/file/21:9/image.jpg")
+    resp = await client.get(f"/api/playlists/{playlist_id}/random/file/21:9/image.jpg?log_rotation=false")
     assert resp.status_code == 404
     assert "No images found matching criteria" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_playlist_random_log_rotation_flag(client: AsyncClient, sample_data, db_session: AsyncSession):
+    """Test that log_rotation defaults to False, and only logs rotation when explicitly set to True."""
+    from app.models.rotation_history import RotationHistory
+    from sqlalchemy import select, func
+
+    images = sample_data["images"]
+    resp = await client.post("/api/playlists", json={"name": "Rotation Playlist"})
+    playlist_id = resp.json()["id"]
+    await client.post(f"/api/playlists/{playlist_id}/images", json={"image_ids": [images[0].id]})
+
+    async def get_rotation_count() -> int:
+        res = await db_session.execute(select(func.count()).select_from(RotationHistory))
+        return res.scalar_one()
+
+    initial_count = await get_rotation_count()
+
+    # 1. Calling random endpoint without log_rotation param defaults to False
+    resp = await client.get(f"/api/playlists/{playlist_id}/random")
+    assert resp.status_code == 200
+    assert await get_rotation_count() == initial_count
+
+    # 2. Calling with log_rotation=false does not log
+    resp = await client.get(f"/api/playlists/{playlist_id}/random?log_rotation=false")
+    assert resp.status_code == 200
+    assert await get_rotation_count() == initial_count
+
+    # 3. Calling with log_rotation=true DOES log
+    resp = await client.get(f"/api/playlists/{playlist_id}/random?log_rotation=true")
+    assert resp.status_code == 200
+    assert await get_rotation_count() == initial_count + 1
+
+    # 4. Images random endpoint defaults to False
+    resp = await client.get("/api/images/random")
+    assert resp.status_code == 200
+    assert await get_rotation_count() == initial_count + 1
+
+    # 5. Images random endpoint with log_rotation=true DOES log
+    resp = await client.get("/api/images/random?log_rotation=true")
+    assert resp.status_code == 200
+    assert await get_rotation_count() == initial_count + 2
 
 
 @pytest.mark.asyncio

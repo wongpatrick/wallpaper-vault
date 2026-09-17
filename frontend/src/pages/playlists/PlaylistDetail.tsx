@@ -38,7 +38,7 @@ export default function PlaylistDetail() {
 
     const removeMutation = useRemoveImagesApiPlaylistsPlaylistIdImagesDelete();
     const reorderMutation = useReorderImagesApiPlaylistsPlaylistIdImagesReorderPut();
-    const randomImageQuery = useReadPlaylistRandomImageApiPlaylistsPlaylistIdRandomGet(numericId, undefined, {
+    const randomImageQuery = useReadPlaylistRandomImageApiPlaylistsPlaylistIdRandomGet(numericId, { log_rotation: false }, {
         query: { enabled: false }
     });
 

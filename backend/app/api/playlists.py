@@ -196,7 +196,7 @@ async def read_playlist_random_image(
     favorite_probability: Optional[float] = Query(None),
     target_monitor: Optional[str] = Query("all"),
     orientation: Optional[str] = Query(None),
-    log_rotation: bool = Query(True),
+    log_rotation: bool = Query(False),
     db: AsyncSession = Depends(get_db)
 ) -> ImageSchema:
     """Get a random image from a playlist, with optional filters."""
@@ -240,7 +240,7 @@ async def read_playlist_random_image_file(
     favorite_probability: Optional[float] = Query(None),
     target_monitor: Optional[str] = Query("all"),
     orientation: Optional[str] = Query(None),
-    log_rotation: bool = Query(True),
+    log_rotation: bool = Query(False),
     db: AsyncSession = Depends(get_db)
 ) -> Response:
     """Get a random image file from a playlist, with optional filters (DisplayFusion compatible)."""
@@ -295,7 +295,7 @@ async def read_playlist_random_image_file(
 async def read_playlist_random_image_file_path(
     playlist_id: int,
     ratio: str,
-    log_rotation: bool = Query(True),
+    log_rotation: bool = Query(False),
     target_monitor: Optional[str] = Query("all"),
     db: AsyncSession = Depends(get_db)
 ) -> Response:
@@ -345,7 +345,7 @@ async def read_playlist_random_image_file_path_tags(
     playlist_id: int,
     ratio: str,
     tags: str,
-    log_rotation: bool = Query(True),
+    log_rotation: bool = Query(False),
     target_monitor: Optional[str] = Query("all"),
     db: AsyncSession = Depends(get_db)
 ) -> Response:

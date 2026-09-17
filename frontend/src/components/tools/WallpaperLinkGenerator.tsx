@@ -27,12 +27,12 @@ export function WallpaperLinkGenerator() {
         .join('/');
 
     // Path-based URL for better compatibility with DisplayFusion
-    const pathUrl = cleanTagsPath 
+    const pathUrl = (cleanTagsPath 
         ? `${baseUrl}/file/${ratio || '16x9'}/tags/${cleanTagsPath}/image.jpg`
-        : `${baseUrl}/file/${ratio || '16x9'}/image.jpg`;
+        : `${baseUrl}/file/${ratio || '16x9'}/image.jpg`) + '?log_rotation=true';
     
     // Query-based URL for more complex filters (tags, etc)
-    const queryUrl = `${baseUrl}/file?aspect_ratio_label=${ratio || '16x9'}${tags ? `&tags=${tags}` : ''}`;
+    const queryUrl = `${baseUrl}/file?aspect_ratio_label=${ratio || '16x9'}&log_rotation=true${tags ? `&tags=${tags}` : ''}`;
 
     return (
         <Paper withBorder p="xl" radius="md">

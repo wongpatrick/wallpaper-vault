@@ -88,8 +88,15 @@ export function PlaylistRotationUrlModal({ opened, onClose, playlistId, playlist
         return `${url}${separator}${param}=${encodeURIComponent(value)}`;
     };
 
-    const finalPathUrl = targetMonitor !== 'all' ? appendQueryParam(pathUrl, 'target_monitor', targetMonitor) : pathUrl;
-    const finalQueryUrl = targetMonitor !== 'all' ? appendQueryParam(queryUrl, 'target_monitor', targetMonitor) : queryUrl;
+    let finalPathUrl = appendQueryParam(pathUrl, 'log_rotation', 'true');
+    if (targetMonitor !== 'all') {
+        finalPathUrl = appendQueryParam(finalPathUrl, 'target_monitor', targetMonitor);
+    }
+
+    let finalQueryUrl = appendQueryParam(queryUrl, 'log_rotation', 'true');
+    if (targetMonitor !== 'all') {
+        finalQueryUrl = appendQueryParam(finalQueryUrl, 'target_monitor', targetMonitor);
+    }
 
     return (
         <Modal

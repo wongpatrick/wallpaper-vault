@@ -1,10 +1,11 @@
 import pytest
 from httpx import AsyncClient, Response
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.vault_health import update_vault_health_entries, VaultHealthUpdate
 
 @pytest.mark.asyncio
-async def test_cross_vault_playlist_lifecycle(client: AsyncClient):
+async def test_cross_vault_playlist_lifecycle(client: AsyncClient, db_session: AsyncSession):
     # 1. Create a cross-vault playlist
     resp = await client.post("/api/playlists", json={
         "name": "Cross Vault Favorites",
@@ -94,7 +95,7 @@ async def test_cross_vault_playlist_lifecycle(client: AsyncClient):
     assert resp.status_code == 200
 
 @pytest.mark.asyncio
-async def test_vault_health_and_cross_vault_rotation(client: AsyncClient):
+async def test_vault_health_and_cross_vault_rotation(client: AsyncClient, db_session: AsyncSession):
     # Register vault health status
     update_vault_health_entries([
         VaultHealthUpdate(
@@ -143,23 +144,53 @@ async def test_vault_health_and_cross_vault_rotation(client: AsyncClient):
     assert rand_ref["image_id"] == 55
 
     # Mock proxying remote image bytes
+    from app.models.rotation_history import RotationHistory
+    from sqlalchemy import select, func
+
+    async def get_rotation_count() -> int:
+        res = await db_session.execute(select(func.count()).select_from(RotationHistory))
+        return res.scalar_one()
+
+    initial_rotations = await get_rotation_count()
+
     mock_resp = Response(
         status_code=200,
         content=b"FAKE_IMAGE_BYTES",
         headers={"content-type": "image/jpeg"}
     )
-    with patch("httpx.AsyncClient.get", return_value=mock_resp):
+    mock_client_instance = AsyncMock()
+    mock_client_instance.get.return_value = mock_resp
+    mock_client_instance.__aenter__.return_value = mock_client_instance
+    mock_client_instance.__aexit__.return_value = None
+
+    with patch("app.api.cross_vault_playlists.httpx.AsyncClient", return_value=mock_client_instance):
+        # 1. Calling cross-vault random file without log_rotation param defaults to False
         file_resp = await client.get(f"/api/playlists/{pl_id}/cross-vault/random/file")
         assert file_resp.status_code == 200
         assert file_resp.content == b"FAKE_IMAGE_BYTES"
         assert file_resp.headers["content-type"] == "image/jpeg"
+        assert await get_rotation_count() == initial_rotations
 
-        # Also test via standard random file route
-        std_file_resp = await client.get(f"/api/playlists/{pl_id}/random/file")
+        # 2. Also test via standard random file route with explicit log_rotation=false
+        std_file_resp = await client.get(f"/api/playlists/{pl_id}/random/file?log_rotation=false")
         assert std_file_resp.status_code == 200
         assert std_file_resp.content == b"FAKE_IMAGE_BYTES"
+        assert await get_rotation_count() == initial_rotations
 
-        # Also test DisplayFusion path route
-        df_resp = await client.get(f"/api/playlists/{pl_id}/cross-vault/random/file/16:9/image.jpg")
+        # 3. Also test DisplayFusion path route with explicit log_rotation=false
+        df_resp = await client.get(f"/api/playlists/{pl_id}/cross-vault/random/file/16:9/image.jpg?log_rotation=false")
         assert df_resp.status_code == 200
         assert df_resp.content == b"FAKE_IMAGE_BYTES"
+        assert await get_rotation_count() == initial_rotations
+
+        # 4. Calling cross-vault random file with log_rotation=true DOES log rotation with remote vault details
+        rot_resp = await client.get(f"/api/playlists/{pl_id}/cross-vault/random/file?log_rotation=true")
+        assert rot_resp.status_code == 200
+        assert await get_rotation_count() == initial_rotations + 1
+
+        history_stmt = select(RotationHistory).order_by(RotationHistory.id.desc()).limit(1)
+        history_res = await db_session.execute(history_stmt)
+        latest_entry = history_res.scalar_one()
+        assert latest_entry.vault_id == "v-online"
+        assert latest_entry.vault_image_id == 55
+        assert latest_entry.image_id is None

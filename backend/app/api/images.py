@@ -159,7 +159,7 @@ async def resolve_duplicates(
 async def read_random_image_file_path_tags(
     ratio: str,
     tags: str,
-    log_rotation: bool = Query(True),
+    log_rotation: bool = Query(False),
     target_monitor: Optional[str] = Query("all"),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
@@ -192,7 +192,7 @@ async def read_random_image_file_path_tags(
 @router.get("/random/file/{ratio}/image.jpg")
 async def read_random_image_file_path(
     ratio: str,
-    log_rotation: bool = Query(True),
+    log_rotation: bool = Query(False),
     target_monitor: Optional[str] = Query("all"),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
@@ -232,7 +232,7 @@ async def read_random_image(
     favorite_probability: Optional[float] = Query(None),
     target_monitor: Optional[str] = Query("all"),
     orientation: Optional[str] = Query(None),
-    log_rotation: bool = Query(True),
+    log_rotation: bool = Query(False),
     db: AsyncSession = Depends(get_db)
 ) -> Image:
     """
@@ -271,7 +271,7 @@ async def read_random_image_file(
     favorite_probability: Optional[float] = Query(None),
     target_monitor: Optional[str] = Query("all"),
     orientation: Optional[str] = Query(None),
-    log_rotation: bool = Query(True),
+    log_rotation: bool = Query(False),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponse:
     """
