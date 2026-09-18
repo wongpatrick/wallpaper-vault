@@ -1,12 +1,16 @@
 /**
  * @file
- * Tests for VaultProvider and useVault hook.
+ * Tests for VaultProvider, useVault, useVaultState, useVaultActions, and VaultEventContext.
  */
+import { useEffect } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act } from '../test/test-utils';
 import { VaultProvider } from './VaultProvider';
-import { useVault } from '../hooks/useVault';
+import { useVault, useVaultState, useVaultActions } from '../hooks/useVault';
+import { useVaultEvent } from './VaultEventContext';
 import { AXIOS_INSTANCE } from '../api/axios-instance';
+import type { VaultStorageAdapter } from './adapters/VaultStorageAdapter';
+import type { VaultRegistryData } from '../types/electron';
 
 function TestConsumer() {
     const { vaults, activeVault, switchVault, addVault, removeVault, isAggregated, setAggregated, onlineVaults } = useVault();
@@ -46,6 +50,23 @@ function TestConsumer() {
                 onClick={() => vaults[1] && removeVault(vaults[1].id)}
             >
                 Remove Second
+            </button>
+        </div>
+    );
+}
+
+function SeparateContextConsumer() {
+    const { activeVault, vaults } = useVaultState();
+    const { switchVault } = useVaultActions();
+
+    return (
+        <div>
+            <div data-testid="split-active">{activeVault.label}</div>
+            <button
+                data-testid="split-switch"
+                onClick={() => vaults[1] && switchVault(vaults[1].id)}
+            >
+                Split Switch
             </button>
         </div>
     );
@@ -146,5 +167,74 @@ describe('VaultProvider & useVault', () => {
         expect(screen.getByTestId('vault-count').textContent).toBe('1');
         expect(screen.getByTestId('active-vault').textContent).toBe('Local');
     });
-});
 
+    it('supports useVaultState and useVaultActions separately', async () => {
+        const mockRegistry: VaultRegistryData = {
+            activeVaultId: 'v1',
+            vaults: [
+                { id: 'v1', label: 'Vault 1', url: 'http://v1:8000', isLocal: true, status: 'online' },
+                { id: 'v2', label: 'Vault 2', url: 'http://v2:8000', isLocal: false, status: 'online' }
+            ]
+        };
+
+        const mockAdapter: VaultStorageAdapter = {
+            loadRegistrySync: () => mockRegistry,
+            loadRegistry: vi.fn().mockResolvedValue(mockRegistry),
+            setActiveVault: vi.fn().mockImplementation((id) => Promise.resolve({ ...mockRegistry, activeVaultId: id })),
+            addVault: vi.fn(),
+            updateVault: vi.fn(),
+            removeVault: vi.fn(),
+            testConnection: vi.fn(),
+            refreshHealth: vi.fn().mockResolvedValue(mockRegistry)
+        };
+
+        render(
+            <VaultProvider adapter={mockAdapter}>
+                <SeparateContextConsumer />
+            </VaultProvider>
+        );
+
+        expect(screen.getByTestId('split-active').textContent).toBe('Vault 1');
+
+        await act(async () => {
+            screen.getByTestId('split-switch').click();
+        });
+
+        expect(mockAdapter.setActiveVault).toHaveBeenCalledWith('v2', expect.any(Object));
+        expect(screen.getByTestId('split-active').textContent).toBe('Vault 2');
+    });
+
+    it('notifies onVaultSwitch listeners when switching vaults', async () => {
+        const listener = vi.fn();
+
+        function EventConsumer() {
+            const { onVaultSwitch } = useVaultEvent();
+            const { switchVault } = useVaultActions();
+
+            useEffect(() => {
+                return onVaultSwitch(listener);
+            }, [onVaultSwitch]);
+
+            return (
+                <button
+                    data-testid="event-switch"
+                    onClick={() => switchVault('local-vault')}
+                >
+                    Trigger Event
+                </button>
+            );
+        }
+
+        render(
+            <VaultProvider>
+                <EventConsumer />
+            </VaultProvider>
+        );
+
+        await act(async () => {
+            screen.getByTestId('event-switch').click();
+        });
+
+        expect(listener).toHaveBeenCalledWith(expect.objectContaining({ id: 'local-vault' }));
+    });
+});
