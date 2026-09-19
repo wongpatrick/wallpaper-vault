@@ -12,6 +12,7 @@ import { AXIOS_INSTANCE } from '../api/axios-instance';
 import { TaskStatus } from '../types/enums';
 import { TaskContext, type TaskInfo } from './TaskContext';
 import { TaskActionsContext } from './TaskActionsContext';
+import { useVaultEvent } from './VaultEventContext';
 
 const CLEANUP_DELAY_MS = 5000;
 const INITIAL_RETRY_DELAY_MS = 1000;
@@ -31,6 +32,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
     }, [tasks]);
 
     const { showNotification } = useNotificationHistory();
+    const { onVaultSwitch } = useVaultEvent();
     const queryClient = useQueryClient();
 
     // Helper to invalidate queries upon task completion scoped by task domain to prevent refetch storms
@@ -276,15 +278,15 @@ export function TaskProvider({ children }: TaskProviderProps) {
             connect();
         };
 
-        window.addEventListener('vault-switched', handleVaultSwitched);
+        const unsubscribeVaultSwitch = onVaultSwitch(handleVaultSwitched);
 
         return () => {
             isUnmounted = true;
-            window.removeEventListener('vault-switched', handleVaultSwitched);
+            unsubscribeVaultSwitch();
             if (retryTimeout) clearTimeout(retryTimeout);
             if (eventSource) eventSource.close();
         };
-    }, [handleTaskCompletion, handleTaskFailure]);
+    }, [handleTaskCompletion, handleTaskFailure, onVaultSwitch]);
 
     // Check if any background task is currently active
     const isTaskRunning = useMemo(() => {
