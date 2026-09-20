@@ -73,6 +73,32 @@ describe('AggregatedVaultBanner', () => {
         expect(screen.getAllByText(/Backup NAS/).length).toBeGreaterThan(0);
         expect(screen.getByText(/Manage Vaults/i)).toBeInTheDocument();
     });
+
+    it('renders partial vault query error warning when partialErrors are provided', () => {
+        const partialErrors = [
+            {
+                vaultId: 'remote-1',
+                vaultLabel: 'Remote Server',
+                error: new Error('Request timed out')
+            }
+        ];
+
+        render(
+            <MemoryRouter>
+                <AggregatedVaultBanner
+                    isAggregated={true}
+                    onlineCount={2}
+                    totalVaultsCount={2}
+                    offlineVaults={[]}
+                    partialErrors={partialErrors}
+                />
+            </MemoryRouter>
+        );
+
+        expect(screen.getByTestId('partial-vault-errors-banner')).toBeInTheDocument();
+        expect(screen.getByText(/Failed to retrieve data from Remote Server/i)).toBeInTheDocument();
+        expect(screen.getByText(/Remote Server: Request timed out/i)).toBeInTheDocument();
+    });
 });
 
 

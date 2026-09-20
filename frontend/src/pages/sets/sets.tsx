@@ -66,7 +66,8 @@ export default function Sets() {
         isAggregated,
         onlineCount,
         totalVaultsCount,
-        offlineVaults
+        offlineVaults,
+        partialErrors
     } = useMultiVaultSets({
 
         skip: (page - 1) * PAGE_SIZE,
@@ -193,6 +194,7 @@ export default function Sets() {
                 onlineCount={onlineCount}
                 totalVaultsCount={totalVaultsCount}
                 offlineVaults={offlineVaults}
+                partialErrors={partialErrors}
             />
 
             <Group justify="space-between" align="flex-start" mb="xs">

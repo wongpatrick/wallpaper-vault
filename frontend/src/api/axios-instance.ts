@@ -21,8 +21,7 @@ setMutatorAxiosInstance(AXIOS_INSTANCE);
 
 // Request interceptor to append API key header
 AXIOS_INSTANCE.interceptors.request.use((config) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const shouldSkipAuth = (config as any)?.skipAuthInterceptor;
+    const shouldSkipAuth = config.skipAuthInterceptor;
     if (shouldSkipAuth) {
         return config;
     }
@@ -40,8 +39,7 @@ AXIOS_INSTANCE.interceptors.request.use((config) => {
 AXIOS_INSTANCE.interceptors.response.use((response) => {
     return response;
 }, (error) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, no-magic-numbers
-    const shouldSkipAuth = (error.config as any)?.skipAuthInterceptor;
+    const shouldSkipAuth = error.config?.skipAuthInterceptor;
     // eslint-disable-next-line no-magic-numbers
     if (!shouldSkipAuth && error.response && error.response.status === 401) {
         window.dispatchEvent(new Event('unauthorized-api-call'));

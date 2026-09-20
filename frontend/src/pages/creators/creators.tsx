@@ -82,7 +82,8 @@ export default function Creators() {
         isAggregated,
         onlineCount,
         totalVaultsCount,
-        offlineVaults
+        offlineVaults,
+        partialErrors
     } = useMultiVaultCreators({
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
@@ -195,6 +196,7 @@ export default function Creators() {
                 onlineCount={onlineCount}
                 totalVaultsCount={totalVaultsCount}
                 offlineVaults={offlineVaults}
+                partialErrors={partialErrors}
             />
 
             <Group justify="space-between" mb="xs">
