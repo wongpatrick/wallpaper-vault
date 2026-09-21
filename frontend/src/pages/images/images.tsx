@@ -116,7 +116,8 @@ export default function Images() {
         isAggregated,
         onlineCount,
         totalVaultsCount,
-        offlineVaults
+        offlineVaults,
+        partialErrors
     } = useMultiVaultImages({
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
@@ -249,6 +250,7 @@ export default function Images() {
                 onlineCount={onlineCount}
                 totalVaultsCount={totalVaultsCount}
                 offlineVaults={offlineVaults}
+                partialErrors={partialErrors}
             />
 
             <Group justify="space-between" align="flex-start" mb="xl">

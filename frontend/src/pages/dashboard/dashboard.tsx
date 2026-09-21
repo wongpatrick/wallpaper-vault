@@ -64,7 +64,8 @@ export default function Dashboard() {
         isAggregated,
         onlineCount,
         totalVaultsCount,
-        offlineVaults
+        offlineVaults,
+        partialErrors
     } = useMultiVaultDashboard();
     
     // 2. Fetch Recent Sets
@@ -171,6 +172,7 @@ export default function Dashboard() {
                 onlineCount={onlineCount}
                 totalVaultsCount={totalVaultsCount}
                 offlineVaults={offlineVaults}
+                partialErrors={partialErrors}
             />
 
             <Stack gap="xl">
