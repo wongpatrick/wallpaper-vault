@@ -9,7 +9,7 @@ import {
 } from '@mantine/core';
 import { RotationRulesCalendar } from './RotationRulesCalendar';
 import { IconPlus, IconClock } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../hooks/useAppNotifications';
 import { AXIOS_INSTANCE } from '../api/axios-instance';
 import { RuleCardItem } from './RuleCardItem';
 import { RuleEditModal } from './RuleEditModal';
@@ -18,6 +18,7 @@ import type { RotationRule, PlaylistOption, RuleFormData } from '../types/rotati
 const PRIORITY_STEP = 10;
 
 export function RotationRulesManager() {
+    const { showNotification } = useAppNotifications();
     const [rules, setRules] = useState<RotationRule[]>([]);
     const [playlists, setPlaylists] = useState<PlaylistOption[]>([]);
     const [activeRule, setActiveRule] = useState<RotationRule | null>(null);
@@ -40,7 +41,7 @@ export function RotationRulesManager() {
             setActiveRule(activeRes.data);
         } catch (error) {
             console.error('Failed to load rotation rules', error);
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'Failed to load rotation rules and playlists',
                 color: 'red'
@@ -64,7 +65,7 @@ export function RotationRulesManager() {
                 }
             } catch (error) {
                 console.error('Failed to load rotation rules', error);
-                notifications.show({
+                showNotification({
                     title: 'Error',
                     message: 'Failed to load rotation rules and playlists',
                     color: 'red'
@@ -75,7 +76,7 @@ export function RotationRulesManager() {
         return () => {
             active = false;
         };
-    }, []);
+    }, [showNotification]);
 
     const openCreateModal = () => {
         setEditingRule(null);
@@ -101,7 +102,7 @@ export function RotationRulesManager() {
         try {
             if (editingRule) {
                 await AXIOS_INSTANCE.patch(`/api/rotation-rules/${editingRule.id}`, formData);
-                notifications.show({
+                showNotification({
                     title: 'Success',
                     message: 'Rule updated successfully',
                     color: 'green'
@@ -112,7 +113,7 @@ export function RotationRulesManager() {
                     ...formData,
                     priority: maxPriority + PRIORITY_STEP
                 });
-                notifications.show({
+                showNotification({
                     title: 'Success',
                     message: 'Rule created successfully',
                     color: 'green'
@@ -122,7 +123,7 @@ export function RotationRulesManager() {
             loadData();
         } catch (error) {
             console.error('Failed to save rule', error);
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'Failed to save rule',
                 color: 'red'
@@ -133,7 +134,7 @@ export function RotationRulesManager() {
     const handleDeleteRule = async (ruleId: number) => {
         try {
             await AXIOS_INSTANCE.delete(`/api/rotation-rules/${ruleId}`);
-            notifications.show({
+            showNotification({
                 title: 'Success',
                 message: 'Rule deleted successfully',
                 color: 'green'
@@ -141,7 +142,7 @@ export function RotationRulesManager() {
             loadData();
         } catch (error) {
             console.error('Failed to delete rule', error);
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'Failed to delete rule',
                 color: 'red'
@@ -159,7 +160,7 @@ export function RotationRulesManager() {
             setActiveRule(activeRes.data);
         } catch (error) {
             console.error('Failed to toggle rule', error);
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'Failed to toggle rule state',
                 color: 'red'
@@ -178,7 +179,7 @@ export function RotationRulesManager() {
             loadData();
         } catch (error) {
             console.error('Failed to update rule priorities', error);
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'Failed to update rule order',
                 color: 'red'

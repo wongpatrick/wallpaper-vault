@@ -34,6 +34,13 @@ export default defineConfig([
         'ignoreArrayIndexes': true,
         'enforceConst': true,
         'detectObjects': false
+      }],
+      'no-restricted-imports': ['error', {
+        paths: [{
+          name: '@mantine/notifications',
+          importNames: ['notifications'],
+          message: 'Use useAppNotifications() hook instead of importing notifications directly. See hooks/useAppNotifications.ts.',
+        }],
       }]
     }
   },

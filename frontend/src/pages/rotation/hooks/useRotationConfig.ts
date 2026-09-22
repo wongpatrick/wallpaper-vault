@@ -3,7 +3,7 @@
  */
 /* eslint-disable no-magic-numbers */
 import { useState, useEffect } from 'react';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../../hooks/useAppNotifications';
 import { useReadSettingsApiSettingsGet, useUpdateSettingApiSettingsKeyPut } from '../../../api/generated/settings/settings';
 import { useReadPlaylistsApiPlaylistsGet } from '../../../api/generated/playlists/playlists';
 import {
@@ -27,6 +27,7 @@ export interface ConfigState {
 }
 
 export function useRotationConfig(monitors: MonitorInfo[]) {
+    const { showNotification } = useAppNotifications();
     const { data: playlists } = useReadPlaylistsApiPlaylistsGet();
     const { data: dbSettings, refetch: refetchSettings } = useReadSettingsApiSettingsGet();
 
@@ -107,7 +108,7 @@ export function useRotationConfig(monitors: MonitorInfo[]) {
                 key: 'wallpaper_rotation_paused',
                 data: { value: String(nextPaused), description: 'Global wallpaper rotation paused status' }
             });
-            notifications.show({
+            showNotification({
                 title: 'Success',
                 message: nextPaused ? 'Wallpaper rotation paused' : 'Wallpaper rotation resumed',
                 color: nextPaused ? 'orange' : 'green'
@@ -124,7 +125,7 @@ export function useRotationConfig(monitors: MonitorInfo[]) {
             }
             refetchSettings();
         } catch {
-            notifications.show({ title: 'Error', message: 'Failed to update pause state', color: 'red' });
+            showNotification({ title: 'Error', message: 'Failed to update pause state', color: 'red' });
             setGlobalConfig(prev => ({ ...prev, paused: !nextPaused }));
         }
     };
@@ -159,7 +160,7 @@ export function useRotationConfig(monitors: MonitorInfo[]) {
             });
 
             await Promise.all(promises);
-            notifications.show({ title: 'Success', message: 'All rotation settings saved successfully', color: 'green' });
+            showNotification({ title: 'Success', message: 'All rotation settings saved successfully', color: 'green' });
             
             try {
                 await skipMutation.mutateAsync({
@@ -171,7 +172,7 @@ export function useRotationConfig(monitors: MonitorInfo[]) {
 
             refetchSettings();
         } catch {
-            notifications.show({ title: 'Error', message: 'Failed to save settings', color: 'red' });
+            showNotification({ title: 'Error', message: 'Failed to save settings', color: 'red' });
         } finally {
             setSaving(false);
         }
@@ -180,7 +181,7 @@ export function useRotationConfig(monitors: MonitorInfo[]) {
     const handleSaveProfile = async () => {
         const nameClean = newProfileName.trim();
         if (!nameClean) {
-            notifications.show({ title: 'Error', message: 'Profile name cannot be empty', color: 'red' });
+            showNotification({ title: 'Error', message: 'Profile name cannot be empty', color: 'red' });
             return;
         }
 
@@ -189,14 +190,14 @@ export function useRotationConfig(monitors: MonitorInfo[]) {
             await saveProfileMutation.mutateAsync({
                 data: { name: nameClean }
             });
-            notifications.show({ title: 'Success', message: `Profile '${nameClean}' saved successfully`, color: 'green' });
+            showNotification({ title: 'Success', message: `Profile '${nameClean}' saved successfully`, color: 'green' });
             setSaveModalOpen(false);
             setNewProfileName('');
             refetchProfiles();
         } catch (err) {
             const error = err as { response?: { data?: { detail?: string } } };
             const msg = error.response?.data?.detail || 'Failed to save profile';
-            notifications.show({ title: 'Error', message: msg, color: 'red' });
+            showNotification({ title: 'Error', message: msg, color: 'red' });
         } finally {
             setSavingProfile(false);
         }
@@ -204,7 +205,7 @@ export function useRotationConfig(monitors: MonitorInfo[]) {
 
     const handleApplyProfile = async () => {
         if (!selectedProfileId) {
-            notifications.show({ title: 'Warning', message: 'Please select a profile to apply', color: 'yellow' });
+            showNotification({ title: 'Warning', message: 'Please select a profile to apply', color: 'yellow' });
             return;
         }
 
@@ -213,7 +214,7 @@ export function useRotationConfig(monitors: MonitorInfo[]) {
             await applyProfileMutation.mutateAsync({
                 id: parseInt(selectedProfileId, 10)
             });
-            notifications.show({ title: 'Success', message: 'Profile settings applied successfully', color: 'green' });
+            showNotification({ title: 'Success', message: 'Profile settings applied successfully', color: 'green' });
             refetchSettings();
             
             try {
@@ -226,7 +227,7 @@ export function useRotationConfig(monitors: MonitorInfo[]) {
         } catch (err) {
             const error = err as { response?: { data?: { detail?: string } } };
             const msg = error.response?.data?.detail || 'Failed to apply profile';
-            notifications.show({ title: 'Error', message: msg, color: 'red' });
+            showNotification({ title: 'Error', message: msg, color: 'red' });
         } finally {
             setApplyingProfile(false);
         }
@@ -240,13 +241,13 @@ export function useRotationConfig(monitors: MonitorInfo[]) {
             await deleteProfileMutation.mutateAsync({
                 id: parseInt(selectedProfileId, 10)
             });
-            notifications.show({ title: 'Success', message: 'Profile deleted successfully', color: 'green' });
+            showNotification({ title: 'Success', message: 'Profile deleted successfully', color: 'green' });
             setSelectedProfileId(null);
             refetchProfiles();
         } catch (err) {
             const error = err as { response?: { data?: { detail?: string } } };
             const msg = error.response?.data?.detail || 'Failed to delete profile';
-            notifications.show({ title: 'Error', message: msg, color: 'red' });
+            showNotification({ title: 'Error', message: msg, color: 'red' });
         } finally {
             setDeletingProfile(false);
         }

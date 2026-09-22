@@ -3,6 +3,7 @@
  * Hook for guarding actions in read-only demo mode and displaying user feedback notifications.
  */
 import { useCallback } from 'react';
+// eslint-disable-next-line no-restricted-imports -- Standalone exported function used outside component trees
 import { notifications } from '@mantine/notifications';
 import { IS_DEMO_MODE } from '../config';
 

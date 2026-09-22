@@ -8,7 +8,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { IconAlertTriangle, IconExclamationCircle, IconShieldCheck, IconTrash } from '@tabler/icons-react';
 import { useUpdateImageApiImagesImageIdPatch, useReadImageApiImagesImageIdGet } from '../../api/generated/images/images';
 import { useDeleteImage } from '../../hooks/useDeleteImage';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { modals } from '@mantine/modals';
 import type { Image as ImageModel, ImageUpdate, ImageDetail } from '../../api/model';
 import { ImageRating } from '../../types/enums';
@@ -28,6 +28,7 @@ const MODAL_Z_INDEX = 3000;
 const CONFIRM_MODAL_Z_INDEX_OFFSET = 10;
 
 export function ImageEditModal({ image, opened, onClose, onUpdated, onDelete, zIndex = MODAL_Z_INDEX }: ImageEditModalProps) {
+    const { showNotification } = useAppNotifications();
     const updateMutation = useUpdateImageApiImagesImageIdPatch();
     const { deleteImage, isDeleting } = useDeleteImage();
 
@@ -145,11 +146,11 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, onDelete, zI
                 imageId: image.id,
                 data: form
             });
-            notifications.show({ title: 'Success', message: 'Image updated', color: 'green' });
+            showNotification({ title: 'Success', message: 'Image updated', color: 'green' });
             onUpdated();
             onClose();
         } catch {
-            notifications.show({ title: 'Error', message: 'Could not update image', color: 'red' });
+            showNotification({ title: 'Error', message: 'Could not update image', color: 'red' });
         }
     };
 
@@ -171,7 +172,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, onDelete, zI
             onConfirm: async () => {
                 try {
                     await deleteImage(image);
-                    notifications.show({ title: 'Image deleted', message: 'The image has been permanently removed.', color: 'blue' });
+                    showNotification({ title: 'Image deleted', message: 'The image has been permanently removed.', color: 'blue' });
                     if (onDelete) {
                         onDelete(deletedId);
                     } else {
@@ -179,7 +180,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, onDelete, zI
                     }
                     onClose();
                 } catch {
-                    notifications.show({ title: 'Error', message: 'Could not delete image', color: 'red' });
+                    showNotification({ title: 'Error', message: 'Could not delete image', color: 'red' });
                 }
             },
         });

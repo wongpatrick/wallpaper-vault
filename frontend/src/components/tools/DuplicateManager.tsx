@@ -30,7 +30,7 @@ import {
     IconColumns,
     IconFolderOpen
 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { 
     useReadDuplicateGroupsApiImagesDuplicatesGroupsGet,
     useResolveDuplicatesApiImagesDuplicatesResolvePost,
@@ -45,6 +45,7 @@ const BYTES_PER_KB = 1024;
 const THRESHOLD_MB = 1000;
 
 export function DuplicateManager() {
+    const { showNotification } = useAppNotifications();
     const { 
         data: groups, 
         isLoading, 
@@ -80,7 +81,7 @@ export function DuplicateManager() {
                     remove_image_ids: removeIds
                 }
             });
-            notifications.show({
+            showNotification({
                 title: 'Success',
                 message: `Resolved duplicate group. Removed ${removeIds.length} redundant images.`,
                 color: 'green',
@@ -88,7 +89,7 @@ export function DuplicateManager() {
             });
             refetch();
         } catch {
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'Failed to resolve duplicates.',
                 color: 'red',
@@ -239,13 +240,14 @@ interface VariantCardProps {
 }
 
 function ImageVariantCard({ image, isKeep, isRecommended, onSelect }: VariantCardProps) {
+    const { showNotification } = useAppNotifications();
     const revealMutation = useRevealImageApiImagesImageIdRevealPost();
 
     const handleReveal = (e: React.MouseEvent) => {
         e.stopPropagation();
         revealMutation.mutate({ imageId: image.id }, {
             onSuccess: () => {
-                notifications.show({
+                showNotification({
                     title: 'Success',
                     message: 'Opened folder in explorer',
                     color: 'green',
@@ -253,7 +255,7 @@ function ImageVariantCard({ image, isKeep, isRecommended, onSelect }: VariantCar
                 });
             },
             onError: () => {
-                notifications.show({
+                showNotification({
                     title: 'Error',
                     message: 'Failed to open folder',
                     color: 'red',

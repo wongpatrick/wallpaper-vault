@@ -22,7 +22,7 @@ import {
     Loader
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../../hooks/useAppNotifications';
 import {
     IconFolderPlus,
     IconTrash,
@@ -47,6 +47,7 @@ import { PathInput } from '../../../components/ui/PathInput';
 import type { LibraryPath } from '../../../api/model';
 
 export function LibraryPathsSection() {
+    const { showNotification } = useAppNotifications();
     const queryClient = useQueryClient();
     const { data: pathsData, isLoading } = useListLibraryPathsApiLibraryPathsGet();
 
@@ -69,7 +70,7 @@ export function LibraryPathsSection() {
 
     const handleCreate = async () => {
         if (!newPath.trim()) {
-            notifications.show({
+            showNotification({
                 title: 'Path Required',
                 message: 'Please specify a valid folder path.',
                 color: 'red'
@@ -87,7 +88,7 @@ export function LibraryPathsSection() {
                 }
             });
 
-            notifications.show({
+            showNotification({
                 title: 'Library Path Added',
                 message: newScanExisting
                     ? 'Path added successfully. Background scan initiated.'
@@ -104,7 +105,7 @@ export function LibraryPathsSection() {
             queryClient.invalidateQueries({ queryKey: getListLibraryPathsApiLibraryPathsGetQueryKey() });
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Failed to add library path';
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message,
                 color: 'red'
@@ -118,7 +119,7 @@ export function LibraryPathsSection() {
                 pathId: path.id,
                 data: { is_default: true }
             });
-            notifications.show({
+            showNotification({
                 title: 'Default Path Updated',
                 message: `"${path.label || path.path}" is now the default library path.`,
                 color: 'teal',
@@ -127,7 +128,7 @@ export function LibraryPathsSection() {
             queryClient.invalidateQueries({ queryKey: getListLibraryPathsApiLibraryPathsGetQueryKey() });
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Failed to update default path';
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message,
                 color: 'red'
@@ -143,7 +144,7 @@ export function LibraryPathsSection() {
                 pathId: selectedPath.id,
                 data: { label: editLabel.trim() || undefined }
             });
-            notifications.show({
+            showNotification({
                 title: 'Label Updated',
                 message: 'Library path label was updated.',
                 color: 'teal',
@@ -153,7 +154,7 @@ export function LibraryPathsSection() {
             queryClient.invalidateQueries({ queryKey: getListLibraryPathsApiLibraryPathsGetQueryKey() });
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Failed to update label';
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message,
                 color: 'red'
@@ -168,7 +169,7 @@ export function LibraryPathsSection() {
             await deleteMutation.mutateAsync({
                 pathId: selectedPath.id
             });
-            notifications.show({
+            showNotification({
                 title: 'Library Path Removed',
                 message: 'The path was removed and associated sets have been unlinked.',
                 color: 'teal',
@@ -178,7 +179,7 @@ export function LibraryPathsSection() {
             queryClient.invalidateQueries({ queryKey: getListLibraryPathsApiLibraryPathsGetQueryKey() });
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Failed to delete library path';
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message,
                 color: 'red'
@@ -191,14 +192,14 @@ export function LibraryPathsSection() {
             await scanMutation.mutateAsync({
                 pathId: path.id
             });
-            notifications.show({
+            showNotification({
                 title: 'Scan Started',
                 message: `Scanning folders in "${path.label || path.path}"...`,
                 color: 'blue'
             });
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Failed to trigger scan';
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message,
                 color: 'red'

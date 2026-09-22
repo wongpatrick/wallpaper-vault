@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { TextInput, Select, Textarea, Button, Stack, Group, ActionIcon, Text, Box } from '@mantine/core';
 import { useCreateCreatorApiCreatorsPost } from '../../api/generated/creators/creators';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { IconCheck, IconAlertCircle, IconTrash } from '@tabler/icons-react';
 import type { CreatorType } from '../../api/model';
 import { CREATOR_TYPES } from '../../types/enums';
@@ -26,6 +26,7 @@ const PLATFORM_OPTIONS = [
 ];
 
 export function CreatorCreateForm({ onSuccess }: CreatorCreateFormProps) {
+    const { showNotification } = useAppNotifications();
     const [name, setName] = useState('');
     const [type, setType] = useState<string | null>('Artist');
     const [notes, setNotes] = useState('');
@@ -65,7 +66,7 @@ export function CreatorCreateForm({ onSuccess }: CreatorCreateFormProps) {
                 }
             });
 
-            notifications.show({
+            showNotification({
                 title: 'Success',
                 message: `Artist "${name}" created successfully.`,
                 color: 'green',
@@ -86,7 +87,7 @@ export function CreatorCreateForm({ onSuccess }: CreatorCreateFormProps) {
                 }
             }
 
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: errorMsg,
                 color: 'red',

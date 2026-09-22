@@ -22,7 +22,7 @@ import {
 
 import { useBulkUpdateImagesApiImagesBulkUpdatePost } from '../../api/generated/images/images';
 import { useReadCreatorsApiCreatorsGet, useCreateCreatorApiCreatorsPost } from '../../api/generated/creators/creators';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { modals } from '@mantine/modals';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { ImageEditModal } from '../../components/images/ImageEditModal';
@@ -44,6 +44,7 @@ import { SetImageGallery } from './components/SetImageGallery';
 type ActiveModalState = 'editSet' | 'bulkEdit' | 'move' | 'addToPlaylist' | null;
 
 export default function SetDetail() {
+    const { showNotification } = useAppNotifications();
     const { setId } = useParams<{ setId: string }>();
     const navigate = useNavigate();
     const location = useLocation();
@@ -200,12 +201,12 @@ export default function SetDetail() {
                 setId: Number(setId),
                 data: updateData
             });
-            notifications.show({ title: 'Success', message: 'Set metadata updated', color: 'green' });
+            showNotification({ title: 'Success', message: 'Set metadata updated', color: 'green' });
             setActiveModal(null);
             setEnablePathEdit(false);
             refetch();
         } catch {
-            notifications.show({ title: 'Error', message: 'Could not update set', color: 'red' });
+            showNotification({ title: 'Error', message: 'Could not update set', color: 'red' });
         }
     };
 
@@ -234,7 +235,7 @@ export default function SetDetail() {
                     queryClient.removeQueries({
                         queryKey: [`/api/sets/${Number(setId)}`]
                     });
-                    notifications.show({ title: 'Set deleted', message: 'Set removed from vault', color: 'blue' });
+                    showNotification({ title: 'Set deleted', message: 'Set removed from vault', color: 'blue' });
                     if (location.state?.from) {
                         navigate(-1);
                     } else {
@@ -243,7 +244,7 @@ export default function SetDetail() {
                 } catch (err) {
                     const axiosError = err as { response?: { data?: { detail?: string } } };
                     const message = axiosError.response?.data?.detail || 'Could not delete set';
-                    notifications.show({
+                    showNotification({
                         title: 'Error',
                         message: typeof message === 'string' ? message : 'Could not delete set',
                         color: 'red',
@@ -256,11 +257,11 @@ export default function SetDetail() {
 
     const handleOpenFolder = async () => {
         if (!set?.local_path) {
-            notifications.show({ title: 'Error', message: 'No local path recorded.', color: 'red' });
+            showNotification({ title: 'Error', message: 'No local path recorded.', color: 'red' });
             return;
         }
         if (!window.electron?.openPath) {
-            notifications.show({
+            showNotification({
                 title: 'Browser Mode',
                 message: 'Opening local folders is only supported in the desktop application.',
                 color: 'yellow'
@@ -270,17 +271,17 @@ export default function SetDetail() {
         try {
             const result = await window.electron.openPath(set.local_path);
             if (result && result.error) {
-                notifications.show({ title: 'Folder not found', message: result.error, color: 'red' });
+                showNotification({ title: 'Folder not found', message: result.error, color: 'red' });
             }
         } catch {
-            notifications.show({ title: 'Native Error', message: 'Could not open folder.', color: 'red' });
+            showNotification({ title: 'Native Error', message: 'Could not open folder.', color: 'red' });
         }
     };
 
     const handleResync = async () => {
         try {
             await resyncMutation.mutateAsync({ setId: Number(setId) });
-            notifications.show({
+            showNotification({
                 title: 'Resync Complete',
                 message: 'Successfully synced database with folder contents.',
                 color: 'green',
@@ -288,7 +289,7 @@ export default function SetDetail() {
             refetch();
         } catch (err) {
             console.error('Resync failed:', err);
-            notifications.show({
+            showNotification({
                 title: 'Resync Failed',
                 message: 'Could not sync folder. Ensure the path is correct and accessible.',
                 color: 'red',
@@ -301,7 +302,7 @@ export default function SetDetail() {
             await autoTagMutation.mutateAsync({ setId: Number(setId) });
         } catch (err) {
             console.error('Auto tagging failed:', err);
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'Failed to start AI auto-tagging.',
                 color: 'red',
@@ -323,7 +324,7 @@ export default function SetDetail() {
                     operation_mode: mode
                 }
             });
-            notifications.show({
+            showNotification({
                 title: 'Success',
                 message: `Successfully updated ${selectedImageIds.size} images.`,
                 color: 'green',
@@ -333,7 +334,7 @@ export default function SetDetail() {
             refetch();
         } catch (err) {
             console.error('Bulk update failed:', err);
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'Failed to update images in bulk.',
                 color: 'red',

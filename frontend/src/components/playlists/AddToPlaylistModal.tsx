@@ -5,7 +5,7 @@
  */
 import { useState, useEffect } from 'react';
 import { Modal, Stack, Button, Checkbox, TextInput, Text, Group, ScrollArea, Divider } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { IconPlus } from '@tabler/icons-react';
 import {
     useReadPlaylistsApiPlaylistsGet,
@@ -21,6 +21,7 @@ interface AddToPlaylistModalProps {
 }
 
 export function AddToPlaylistModal({ opened, onClose, imageIds, onSuccess }: AddToPlaylistModalProps) {
+    const { showNotification } = useAppNotifications();
     const { data: playlists = [], refetch } = useReadPlaylistsApiPlaylistsGet();
     const createPlaylistMutation = useCreatePlaylistEndpointApiPlaylistsPost();
     const addImagesMutation = useAddImagesApiPlaylistsPlaylistIdImagesPost();
@@ -42,7 +43,7 @@ export function AddToPlaylistModal({ opened, onClose, imageIds, onSuccess }: Add
 
     const handleCreatePlaylist = async () => {
         if (!newPlaylistName.trim()) {
-            notifications.show({
+            showNotification({
                 title: 'Name required',
                 message: 'Please enter a name for the new playlist.',
                 color: 'red'
@@ -55,7 +56,7 @@ export function AddToPlaylistModal({ opened, onClose, imageIds, onSuccess }: Add
             const newPlaylist = await createPlaylistMutation.mutateAsync({
                 data: { name: newPlaylistName.trim() }
             });
-            notifications.show({
+            showNotification({
                 title: 'Playlist Created',
                 message: `Playlist "${newPlaylist.name}" created successfully.`,
                 color: 'green'
@@ -67,7 +68,7 @@ export function AddToPlaylistModal({ opened, onClose, imageIds, onSuccess }: Add
         } catch (err: unknown) {
             const errorResponse = err as { response?: { data?: { detail?: string } } };
             const detail = errorResponse.response?.data?.detail || 'Could not create playlist.';
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: detail,
                 color: 'red'
@@ -85,7 +86,7 @@ export function AddToPlaylistModal({ opened, onClose, imageIds, onSuccess }: Add
 
     const handleAdd = async () => {
         if (selectedPlaylistIds.length === 0) {
-            notifications.show({
+            showNotification({
                 title: 'No playlist selected',
                 message: 'Please select or create at least one playlist.',
                 color: 'red'
@@ -105,7 +106,7 @@ export function AddToPlaylistModal({ opened, onClose, imageIds, onSuccess }: Add
                 )
             );
 
-            notifications.show({
+            showNotification({
                 title: 'Added successfully',
                 message: `Added ${imageIds.length} ${imageIds.length === 1 ? 'wallpaper' : 'wallpapers'} to selected playlists.`,
                 color: 'green'
@@ -114,7 +115,7 @@ export function AddToPlaylistModal({ opened, onClose, imageIds, onSuccess }: Add
             onSuccess?.();
             onClose();
         } catch {
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'Could not add wallpapers to playlists.',
                 color: 'red'

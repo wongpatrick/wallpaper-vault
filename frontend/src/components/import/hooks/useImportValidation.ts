@@ -2,7 +2,7 @@
  * @file Import validation and scanning custom hook.
  */
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../../hooks/useAppNotifications';
 import { 
     useValidateImportPathsApiImagesImportValidatePost, 
     useValidateImportUploadedFilesApiImagesImportValidateFilesPost,
@@ -48,6 +48,7 @@ export function useImportValidation({
     suggestedFolder,
     preselectedSetId
 }: UseImportValidationProps) {
+    const { showNotification } = useAppNotifications();
     const validatePathsMutation = useValidateImportPathsApiImagesImportValidatePost();
     const validateFilesMutation = useValidateImportUploadedFilesApiImagesImportValidateFilesPost();
     const importImagesMutation = useImportImagesApiImagesImportPost();
@@ -247,7 +248,7 @@ export function useImportValidation({
                 setTimeout(() => setIsValidating(false), PROGRESS_FINAL_DELAY_MS);
             } catch (err) {
                 console.error('[Import Modal] Validation failed:', err);
-                notifications.show({
+                showNotification({
                     title: 'Validation Error',
                     message: 'Failed to inspect files for import.',
                     color: 'red'

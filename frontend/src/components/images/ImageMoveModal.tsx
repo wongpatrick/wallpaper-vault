@@ -10,7 +10,7 @@ import { IconFolderPlus } from '@tabler/icons-react';
 import { useReadSetsApiSetsGet } from '../../api/generated/sets/sets';
 import { useBulkMoveImagesApiImagesBulkMovePost } from '../../api/generated/images/images';
 import { CreateSetModal } from '../sets/CreateSetModal';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import type { Set } from '../../api/model';
 
 interface ImageMoveModalProps {
@@ -23,6 +23,7 @@ interface ImageMoveModalProps {
 const SEARCH_DEBOUNCE_MS = 300;
 
 export function ImageMoveModal({ opened, onClose, selectedImageIds, onSuccess }: ImageMoveModalProps) {
+    const { showNotification } = useAppNotifications();
     const [targetSetId, setTargetSetId] = useState<string | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [searchValue, setSearchValue] = useState('');
@@ -71,7 +72,7 @@ export function ImageMoveModal({ opened, onClose, selectedImageIds, onSuccess }:
                 }
             });
             
-            notifications.show({
+            showNotification({
                 title: 'Move Successful',
                 message: `Successfully moved ${count} images to the selected set.`,
                 color: 'green'
@@ -82,7 +83,7 @@ export function ImageMoveModal({ opened, onClose, selectedImageIds, onSuccess }:
             onClose();
         } catch (error) {
             console.error('Error moving images:', error);
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'Failed to move images. Ensure the files are not locked by another process.',
                 color: 'red'

@@ -8,7 +8,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Container, Title, Text, Stack, Group, Button, SimpleGrid, Card, Badge, ActionIcon, Center, Loader, Alert
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { modals } from '@mantine/modals';
 import {
     IconAlertCircle, IconPlus, IconTrash, IconEdit, IconListDetails, IconPlaylist
@@ -23,6 +23,7 @@ import type { Playlist } from '../../api/model';
 const COLUMNS_RESPONSIVE = { base: 1, sm: 2, md: 3, lg: 4 };
 
 export default function Playlists() {
+    const { showNotification } = useAppNotifications();
     const navigate = useNavigate();
     const location = useLocation();
     const { data: playlists = [], isLoading, error, refetch } = useReadPlaylistsApiPlaylistsGet();
@@ -56,14 +57,14 @@ export default function Playlists() {
             onConfirm: async () => {
                 try {
                     await deleteMutation.mutateAsync({ playlistId: playlist.id });
-                    notifications.show({
+                    showNotification({
                         title: 'Deleted',
                         message: 'Playlist deleted successfully.',
                         color: 'blue'
                     });
                     refetch();
                 } catch {
-                    notifications.show({
+                    showNotification({
                         title: 'Error',
                         message: 'Could not delete playlist.',
                         color: 'red'

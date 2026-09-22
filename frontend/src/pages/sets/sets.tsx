@@ -9,7 +9,7 @@ import { IconAlertCircle, IconSearch, IconFilter, IconCheck, IconList, IconLayou
 import { useDeleteSetApiSetsSetIdDelete } from '../../api/generated/sets/sets';
 import { useMultiVaultSets } from '../../hooks/useMultiVaultQuery';
 import { AggregatedVaultBanner } from '../../components/vault/AggregatedVaultBanner';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { modals } from '@mantine/modals';
 import { SetCard } from '../../components/sets/SetCard';
 import { CreateSetModal } from '../../components/sets/CreateSetModal';
@@ -36,6 +36,7 @@ const PADDING_DEFAULT_PX = 40;
 const PADDING_SELECTION_MODE_PX = 100;
 
 export default function Sets() {
+    const { showNotification } = useAppNotifications();
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -154,7 +155,7 @@ export default function Sets() {
                         await switchVault(multiSet._vaultId);
                     }
                     await deleteMutation.mutateAsync({ setId });
-                    notifications.show({
+                    showNotification({
                         title: 'Set deleted',
                         message: 'The set has been removed from your library.',
                         color: 'blue',
@@ -163,7 +164,7 @@ export default function Sets() {
                 } catch (err) {
                     const axiosError = err as { response?: { data?: { detail?: string } } };
                     const message = axiosError.response?.data?.detail || 'Could not delete the set.';
-                    notifications.show({
+                    showNotification({
                         title: 'Error',
                         message: typeof message === 'string' ? message : 'Could not delete the set.',
                         color: 'red',
@@ -172,7 +173,7 @@ export default function Sets() {
                 }
             },
         });
-    }, [sets, isAggregated, activeVault.id, switchVault, deleteMutation, refetch]);
+    }, [sets, isAggregated, activeVault.id, switchVault, deleteMutation, refetch, showNotification]);
 
     const handleLongPress = useCallback((id: number) => {
         if (!selectionMode) {

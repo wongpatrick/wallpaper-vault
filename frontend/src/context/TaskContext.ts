@@ -10,7 +10,7 @@ export interface TaskInfo {
     status: 'accepted' | 'processing' | 'completed' | 'error';
     progress: number;
     total: number;
-    error_message?: string;
+    error_message?: string | null;
     updated_at?: string;
 }
 

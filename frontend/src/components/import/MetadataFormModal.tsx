@@ -11,7 +11,7 @@ import {
     TagsInput, Alert, Card, Progress
 } from '@mantine/core';
 import { IconAlertTriangle, IconCheck, IconTrash, IconFolder, IconPhoto } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
 import { useTaskActions } from '../../hooks/useTaskActions';
 import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/creators';
@@ -41,6 +41,7 @@ export function MetadataFormModal({
     suggestedFolder,
     preselectedSetId
 }: ImportModalProps) {
+    const { showNotification } = useAppNotifications();
     const { data: creatorsData } = useReadCreatorsApiCreatorsGet({ limit: 1000 });
     const { data: setsData } = useReadSetsApiSetsGet({ limit: 1000 });
     const { data: settingsData } = useReadSettingsApiSettingsGet();
@@ -114,7 +115,7 @@ export function MetadataFormModal({
     const handleImport = async () => {
         const selectedItems = validation.selectedQueueItems;
         if (selectedItems.length === 0) {
-            notifications.show({
+            showNotification({
                 title: 'No Files Selected',
                 message: 'Please select at least one file to import.',
                 color: 'red'
@@ -173,7 +174,7 @@ export function MetadataFormModal({
                     });
                 }
 
-                notifications.show({
+                showNotification({
                     title: `Import Started: ${validation.getFolderGroupName(groupKey)}`,
                     message: `Importing ${groupItems.length} items. Task ID: ${responseTaskId}`,
                     color: 'blue'
@@ -183,7 +184,7 @@ export function MetadataFormModal({
             onClose();
         } catch (error) {
             console.error('Import error:', error);
-            notifications.show({
+            showNotification({
                 title: 'Import Failed',
                 message: 'An error occurred while starting the import task.',
                 color: 'red'

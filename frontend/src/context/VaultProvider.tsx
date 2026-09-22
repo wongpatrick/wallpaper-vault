@@ -7,7 +7,7 @@
  */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../hooks/useAppNotifications';
 import { AXIOS_INSTANCE } from '../api/axios-instance';
 import {
     VaultContext,
@@ -40,6 +40,7 @@ export function VaultProvider({ children, adapter: propAdapter }: VaultProviderP
     }, [propAdapter]);
 
     const queryClient = useQueryClient();
+    const { showNotification } = useAppNotifications();
 
     const [registry, setRegistry] = useState<VaultRegistryData>(() => {
         return adapter.loadRegistrySync?.() ?? DEFAULT_REGISTRY;
@@ -138,7 +139,7 @@ export function VaultProvider({ children, adapter: propAdapter }: VaultProviderP
             setIsAggregatedState(true);
             localStorage.setItem('vault_aggregated_mode', 'true');
             queryClient.clear();
-            notifications.show({
+            showNotification({
                 title: 'Aggregated View',
                 message: 'Viewing aggregated library across all online vaults.',
                 color: 'blue'
@@ -182,12 +183,12 @@ export function VaultProvider({ children, adapter: propAdapter }: VaultProviderP
             }
         });
 
-        notifications.show({
+        showNotification({
             title: 'Switched Vault',
             message: `Active vault context changed to "${targetVault.label}".`,
             color: 'blue'
         });
-    }, [adapter, applyVaultConnection, queryClient]);
+    }, [adapter, applyVaultConnection, queryClient, showNotification]);
 
     const testConnection = useCallback(async (url: string, apiKey?: string): Promise<TestConnectionResult> => {
         return await adapter.testConnection(url, apiKey);

@@ -1,67 +1,58 @@
 /**
  * @file
  * Notification Provider component.
+ * Manages notification history and actions without monkey-patching globals.
  */
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
+// eslint-disable-next-line no-restricted-imports
 import { notifications } from '@mantine/notifications';
 import type { NotificationData } from '@mantine/notifications';
-import { NotificationContext } from './NotificationContext';
+import { NotificationHistoryContext } from './NotificationContext';
+import { NotificationActionsContext } from './NotificationActionsContext';
 import type { NotificationHistoryItem } from './NotificationContext';
+import { generateNotificationId } from '../utils/notificationUtils';
 
-const BASE_36 = 36;
-const ID_START_INDEX = 2;
-const ID_END_INDEX = 9;
 const MAX_HISTORY_LENGTH = 50;
+
+function computeStatus(data: NotificationData & { status?: NotificationHistoryItem['status'] }): NotificationHistoryItem['status'] {
+  if (data.status) return data.status;
+  if (data.color === 'red') return 'error';
+  if (data.color === 'green') return 'success';
+  if (data.color === 'orange' || data.color === 'yellow') return 'warning';
+  return 'info';
+}
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<NotificationHistoryItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const showNotification = useCallback((data: NotificationData & { status?: NotificationHistoryItem['status'] }) => {
-    // Calling notifications.show will trigger the monkey-patched version below
-    notifications.show(data);
-  }, []);
+    const id = data.id || generateNotificationId();
+    
+    // Call Mantine directly
+    notifications.show({ ...data, id });
 
-  // Sync all notifications.show calls (including direct @mantine/notifications usage) into Notification Center history
-  useEffect(() => {
-    const originalShow = notifications.show;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (notifications as any).show = (data: NotificationData & { status?: NotificationHistoryItem['status'] }) => {
-      const id = data.id || Math.random().toString(BASE_36).substring(ID_START_INDEX, ID_END_INDEX);
-      const res = originalShow({ ...data, id });
+    // Record in history
+    setHistory(prev => {
+      const filtered = prev.filter(item => item.id !== id);
+      const computed = computeStatus(data);
+      return [
+        {
+          id,
+          title: data.title,
+          message: data.message,
+          color: data.color,
+          timestamp: new Date(),
+          status: computed,
+        },
+        ...filtered,
+      ].slice(0, MAX_HISTORY_LENGTH);
+    });
 
-      setHistory(prev => {
-        const filtered = prev.filter(item => item.id !== id);
-        let computedStatus = data.status;
-        if (!computedStatus) {
-          if (data.color === 'red') computedStatus = 'error';
-          else if (data.color === 'green') computedStatus = 'success';
-          else if (data.color === 'orange' || data.color === 'yellow') computedStatus = 'warning';
-          else computedStatus = 'info';
-        }
-        return [
-          {
-            id,
-            title: data.title,
-            message: data.message,
-            color: data.color,
-            timestamp: new Date(),
-            status: computedStatus,
-          },
-          ...filtered,
-        ].slice(0, MAX_HISTORY_LENGTH);
-      });
+    setUnreadCount(prev => Math.min(prev + 1, MAX_HISTORY_LENGTH));
 
-      setUnreadCount(prev => prev + 1);
-
-      return res;
-    };
-
-    return () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (notifications as any).show = originalShow;
-    };
+    return id;
   }, []);
 
   const clearHistory = useCallback(() => {
@@ -73,18 +64,22 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setUnreadCount(0);
   }, []);
 
-  // Memoize value to prevent unnecessary re-renders of consumers
-  const value = useMemo(() => ({
+  const historyValue = useMemo(() => ({
     history,
+    unreadCount,
+  }), [history, unreadCount]);
+
+  const actionsValue = useMemo(() => ({
     showNotification,
     clearHistory,
     markAllAsRead,
-    unreadCount
-  }), [history, showNotification, clearHistory, markAllAsRead, unreadCount]);
+  }), [showNotification, clearHistory, markAllAsRead]);
 
   return (
-    <NotificationContext.Provider value={value}>
-      {children}
-    </NotificationContext.Provider>
+    <NotificationActionsContext.Provider value={actionsValue}>
+      <NotificationHistoryContext.Provider value={historyValue}>
+        {children}
+      </NotificationHistoryContext.Provider>
+    </NotificationActionsContext.Provider>
   );
 }

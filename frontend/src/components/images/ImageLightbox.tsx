@@ -13,7 +13,7 @@ import { useDeleteImage } from '../../hooks/useDeleteImage';
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
 import { CharacterTagsInput } from '../ui/CharacterTagsInput';
 import { SetAsWallpaperModal } from './SetAsWallpaperModal';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { modals } from '@mantine/modals';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useVault } from '../../hooks/useVault';
@@ -48,6 +48,7 @@ const ARROW_OFFSET_DEFAULT = 20;
 const ARROW_OFFSET_WITH_SIDEBAR = SIDEBAR_WIDTH + ARROW_OFFSET_DEFAULT;
 
 export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, onEdit, onDelete, onUpdated, totalCount, disableActions, onCrop }: ImageLightboxProps) {
+    const { showNotification } = useAppNotifications();
     const { isAggregated, activeVault, switchVault } = useVault();
     const { deleteImage, isDeleting } = useDeleteImage();
     const navigate = useNavigate();
@@ -91,11 +92,11 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                 imageId: currentImage.id,
                 data: { tags: newTags }
             });
-            notifications.show({ title: 'Tags Updated', message: 'Tags saved successfully', color: 'green', autoClose: 1500 });
+            showNotification({ title: 'Tags Updated', message: 'Tags saved successfully', color: 'green', autoClose: 1500 });
             refetchImageDetail();
             onUpdated?.();
         } catch {
-            notifications.show({ title: 'Error', message: 'Failed to update tags', color: 'red' });
+            showNotification({ title: 'Error', message: 'Failed to update tags', color: 'red' });
         }
     };
 
@@ -110,11 +111,11 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                 imageId: currentImage.id,
                 data: { characters: newCharacters }
             });
-            notifications.show({ title: 'Characters Updated', message: 'Characters saved successfully', color: 'green', autoClose: 1500 });
+            showNotification({ title: 'Characters Updated', message: 'Characters saved successfully', color: 'green', autoClose: 1500 });
             refetchImageDetail();
             onUpdated?.();
         } catch {
-            notifications.show({ title: 'Error', message: 'Failed to update characters', color: 'red' });
+            showNotification({ title: 'Error', message: 'Failed to update characters', color: 'red' });
         }
     };
 
@@ -194,7 +195,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
             onConfirm: async () => {
                 try {
                     await deleteImage(currentImage);
-                    notifications.show({ title: 'Image deleted', message: 'The image has been permanently removed.', color: 'blue' });
+                    showNotification({ title: 'Image deleted', message: 'The image has been permanently removed.', color: 'blue' });
                     if (onDelete) {
                         onDelete(deletedId);
                     } else {
@@ -207,7 +208,7 @@ export function ImageLightbox({ images, selectedIndex, onClose, onSelectIndex, o
                         onSelectIndex(currentIndex - 1);
                     }
                 } catch {
-                    notifications.show({ title: 'Error', message: 'Could not delete image', color: 'red' });
+                    showNotification({ title: 'Error', message: 'Could not delete image', color: 'red' });
                 }
             },
         });
