@@ -50,9 +50,9 @@ describe('useSSETaskStream hook lifecycle', () => {
   class MockEventSource {
     url: string;
     close = vi.fn();
-    onopen: ((this: EventSource, ev: Event) => unknown) | null = null;
-    onerror: ((this: EventSource, ev: Event) => unknown) | null = null;
-    onmessage: ((this: EventSource, ev: { data: string }) => unknown) | null = null;
+    onopen: ((ev: Event) => unknown) | null = null;
+    onerror: ((ev: Event) => unknown) | null = null;
+    onmessage: ((ev: { data: string }) => unknown) | null = null;
 
     constructor(url: string) {
       this.url = url;
@@ -108,7 +108,7 @@ describe('useSSETaskStream hook lifecycle', () => {
     const es = mockEventSourceInstances[0];
 
     // Simulate incoming active task
-    es.onmessage({
+    es.onmessage?.({
       data: JSON.stringify({
         'import-123': {
           status: TaskStatus.PROCESSING,
@@ -129,7 +129,7 @@ describe('useSSETaskStream hook lifecycle', () => {
     expect(onTaskCompleted).not.toHaveBeenCalled();
 
     // Transition to completed
-    es.onmessage({
+    es.onmessage?.({
       data: JSON.stringify({
         'import-123': {
           status: TaskStatus.COMPLETED,
