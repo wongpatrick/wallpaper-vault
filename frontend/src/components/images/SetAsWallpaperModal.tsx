@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { Modal, Stack, Group, Text, Button, SegmentedControl, Paper, Box, Image, Badge, SimpleGrid, Tooltip } from '@mantine/core';
 import { IconWallpaper, IconDeviceDesktop, IconCheck, IconStack } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { useMonitors } from '../../pages/rotation/hooks/useMonitors';
 import { getImageUrl } from '../../utils/fileUtils';
 import { useSetActiveWallpaperApiRotationHistorySetWallpaperPost } from '../../api/generated/rotation-history/rotation-history';
@@ -25,6 +25,7 @@ const DEFAULT_PREVIEW_WIDTH = 1920;
 const DEFAULT_PREVIEW_HEIGHT = 1080;
 
 export function SetAsWallpaperModal({ opened, onClose, image }: SetAsWallpaperModalProps) {
+    const { showNotification } = useAppNotifications();
     const { monitors } = useMonitors();
     const setWallpaperMutation = useSetActiveWallpaperApiRotationHistorySetWallpaperPost();
     const [isApplying, setIsApplying] = useState(false);
@@ -105,7 +106,7 @@ export function SetAsWallpaperModal({ opened, onClose, image }: SetAsWallpaperMo
 
             localStorage.setItem(FIT_STYLE_STORAGE_PREFIX + targetMonitor, fitStyle);
 
-            notifications.show({
+            showNotification({
                 title: 'Wallpaper Applied',
                 message: `Set "${image.filename}" on ${targetLabel} (${fitStyle})`,
                 color: 'green',
@@ -116,7 +117,7 @@ export function SetAsWallpaperModal({ opened, onClose, image }: SetAsWallpaperMo
             onClose();
         } catch (err: unknown) {
             const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-            notifications.show({
+            showNotification({
                 title: 'Failed to Set Wallpaper',
                 message: errorMsg,
                 color: 'red',

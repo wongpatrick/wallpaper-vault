@@ -19,7 +19,7 @@ import {
     Box
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../../hooks/useAppNotifications';
 import {
     IconPlus,
     IconTrash,
@@ -34,6 +34,7 @@ import { AddVaultModal } from '../../../components/vault/AddVaultModal';
 import type { VaultEntry } from '../../../types/electron';
 
 export function ConnectedVaultsSection() {
+    const { showNotification } = useAppNotifications();
     const { vaults, activeVault, switchVault, removeVault, testConnection, refreshHealth } = useVault();
 
     const [addModalOpened, { open: openAddModal, close: closeAddModal }] = useDisclosure(false);
@@ -71,14 +72,14 @@ export function ConnectedVaultsSection() {
         try {
             const res = await testConnection(vault.url, vault.apiKey);
             if (res.success) {
-                notifications.show({
+                showNotification({
                     title: 'Connection Successful',
                     message: `Connected to ${res.vaultName || vault.label} (v${res.version || '0.1.0'})`,
                     color: 'teal',
                     icon: <IconCheck size={16} />
                 });
             } else {
-                notifications.show({
+                showNotification({
                     title: res.status === 'unauthorized' ? 'Authentication Failed' : 'Connection Failed',
                     message: res.error || 'Server did not respond',
                     color: res.status === 'unauthorized' ? 'yellow' : 'red'
@@ -87,7 +88,7 @@ export function ConnectedVaultsSection() {
             await refreshHealth();
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : 'Test failed';
-            notifications.show({
+            showNotification({
                 title: 'Test Failed',
                 message: msg,
                 color: 'red'
@@ -106,7 +107,7 @@ export function ConnectedVaultsSection() {
         if (!vaultToDelete) return;
         try {
             await removeVault(vaultToDelete.id);
-            notifications.show({
+            showNotification({
                 title: 'Vault Removed',
                 message: `Removed connection to "${vaultToDelete.label}".`,
                 color: 'gray'
@@ -115,7 +116,7 @@ export function ConnectedVaultsSection() {
             setVaultToDelete(null);
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : 'Failed to remove vault';
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: msg,
                 color: 'red'

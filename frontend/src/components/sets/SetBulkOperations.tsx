@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { Button } from '@mantine/core';
 import { IconGitMerge, IconUserEdit, IconTag, IconTrash } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { FloatingSelectionBar } from '../ui/FloatingSelectionBar';
 import { SetBulkEditModal } from './SetBulkEditModal';
 import { MergeSetsModal } from './MergeSetsModal';
@@ -32,6 +32,7 @@ export function SetBulkOperations({
     refetch, 
     selectedSets 
 }: SetBulkOperationsProps) {
+    const { showNotification } = useAppNotifications();
     const [modalType, setModalType] = useState<'artist' | 'tags' | 'delete' | null>(null);
     const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
 
@@ -44,7 +45,7 @@ export function SetBulkOperations({
         try {
             if (modalType === 'delete') {
                 await bulkDeleteMutation.mutateAsync({ data: ids });
-                notifications.show({
+                showNotification({
                     title: 'Success',
                     message: `Successfully deleted ${ids.length} sets.`,
                     color: 'blue',
@@ -57,7 +58,7 @@ export function SetBulkOperations({
                         operation_mode: mode
                     }
                 });
-                notifications.show({
+                showNotification({
                     title: 'Success',
                     message: `Successfully updated ${ids.length} sets.`,
                     color: 'blue',
@@ -70,7 +71,7 @@ export function SetBulkOperations({
             console.error('Bulk operation failed:', err);
             const axiosError = err as { response?: { data?: { detail?: string } } };
             const message = axiosError.response?.data?.detail || 'Bulk operation failed. Please try again.';
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: typeof message === 'string' ? message : 'Bulk operation failed. Please try again.',
                 color: 'red',
@@ -88,7 +89,7 @@ export function SetBulkOperations({
                     target_id: targetId
                 }
             });
-            notifications.show({
+            showNotification({
                 title: 'Merge Success',
                 message: `Successfully merged ${sourceIds.length + 1} sets into one.`,
                 color: 'green',
@@ -98,7 +99,7 @@ export function SetBulkOperations({
             refetch();
         } catch (err) {
             console.error('Merge failed:', err);
-            notifications.show({
+            showNotification({
                 title: 'Merge Error',
                 message: 'Failed to merge sets. Check if files are in use or on different drives.',
                 color: 'red',

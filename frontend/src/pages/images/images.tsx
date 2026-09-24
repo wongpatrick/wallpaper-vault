@@ -9,7 +9,7 @@ import { useBulkUpdateImagesApiImagesBulkUpdatePost } from '../../api/generated/
 import { useMultiVaultImages } from '../../hooks/useMultiVaultQuery';
 import { AggregatedVaultBanner } from '../../components/vault/AggregatedVaultBanner';
 
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { ImageLightbox } from '../../components/images/ImageLightbox';
 import { ImageEditModal } from '../../components/images/ImageEditModal';
 import { ImageBulkEditModal } from '../../components/images/ImageBulkEditModal';
@@ -41,6 +41,7 @@ const COLOR_DEBOUNCE_MS = 500;
 const DEFAULT_TOLERANCE = 30;
 
 export default function Images() {
+    const { showNotification } = useAppNotifications();
     const [searchParams, setSearchParams] = useSearchParams();
     const { search, localSearch, setLocalSearch } = useUrlSearch(SEARCH_DEBOUNCE_MS);
 
@@ -178,7 +179,7 @@ export default function Images() {
 
     const handleBulkEditConfirm = async (data: Partial<ImageUpdate>, mode: BulkOperationMode) => {
         if (isAggregated) {
-            notifications.show({
+            showNotification({
                 title: 'Operation Not Supported',
                 message: 'Bulk editing across multiple vaults is not supported. Please switch to a specific vault first.',
                 color: 'yellow'
@@ -194,7 +195,7 @@ export default function Images() {
                     operation_mode: mode,
                 },
             });
-            notifications.show({
+            showNotification({
                 title: 'Success',
                 message: `Successfully updated ${selectedImageIds.size} images.`,
                 color: 'green',
@@ -204,7 +205,7 @@ export default function Images() {
             handleCollectionReset();
         } catch (err) {
             console.error('Bulk update failed:', err);
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'Failed to update images in bulk.',
                 color: 'red',

@@ -3,7 +3,7 @@
  */
 /* eslint-disable no-magic-numbers */
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../../hooks/useAppNotifications';
 import {
     useReadCurrentWallpaperApiRotationHistoryCurrentGet,
     useReadWallpaperHistoryApiRotationHistoryHistoryGet,
@@ -17,6 +17,7 @@ import type { ImageDetail } from '../../../api/model';
 import type { MonitorInfo } from './useMonitors';
 
 export function useActiveWallpaper(monitors: MonitorInfo[], activeMonitorPreview: string) {
+    const { showNotification } = useAppNotifications();
     const { data: currentImage, isLoading: currentLoading, refetch: refetchCurrent } = 
         useReadCurrentWallpaperApiRotationHistoryCurrentGet(undefined, {
             query: { retry: false }
@@ -209,9 +210,9 @@ export function useActiveWallpaper(monitors: MonitorInfo[], activeMonitorPreview
             await skipMutation.mutateAsync({
                 params: { target_monitor: activeMonitorPreview }
             });
-            notifications.show({ title: 'Success', message: 'Skip command sent successfully', color: 'green' });
+            showNotification({ title: 'Success', message: 'Skip command sent successfully', color: 'green' });
         } catch {
-            notifications.show({ title: 'Error', message: 'Failed to send skip command', color: 'red' });
+            showNotification({ title: 'Error', message: 'Failed to send skip command', color: 'red' });
         }
     };
 
@@ -223,7 +224,7 @@ export function useActiveWallpaper(monitors: MonitorInfo[], activeMonitorPreview
                 imageId: focusedImage.id,
                 data: { is_favorite: nextFav }
             });
-            notifications.show({ 
+            showNotification({ 
                 title: 'Success', 
                 message: nextFav ? 'Marked as Favorite' : 'Removed from Favorites', 
                 color: 'green' 
@@ -231,7 +232,7 @@ export function useActiveWallpaper(monitors: MonitorInfo[], activeMonitorPreview
             refetchCurrent();
             refetchHistory();
         } catch {
-            notifications.show({ title: 'Error', message: 'Failed to update image details', color: 'red' });
+            showNotification({ title: 'Error', message: 'Failed to update image details', color: 'red' });
         }
     };
 
@@ -242,7 +243,7 @@ export function useActiveWallpaper(monitors: MonitorInfo[], activeMonitorPreview
                 imageId: focusedImage.id,
                 data: { is_blacklisted: true }
             });
-            notifications.show({ 
+            showNotification({ 
                 title: 'Success', 
                 message: 'Wallpaper blacklisted (excluded from future rotations)', 
                 color: 'orange' 
@@ -251,7 +252,7 @@ export function useActiveWallpaper(monitors: MonitorInfo[], activeMonitorPreview
             refetchCurrent();
             refetchHistory();
         } catch {
-            notifications.show({ title: 'Error', message: 'Failed to blacklist image', color: 'red' });
+            showNotification({ title: 'Error', message: 'Failed to blacklist image', color: 'red' });
         }
     };
 

@@ -10,7 +10,7 @@ import { useReadCreatorsApiCreatorsGet, useCreateCreatorApiCreatorsPost } from '
 import { useListLibraryPathsApiLibraryPathsGet } from '../../api/generated/library-paths/library-paths';
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
 import { CharacterTagsInput } from '../ui/CharacterTagsInput';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { modals } from '@mantine/modals';
 import { Text } from '@mantine/core';
 import type { Set } from '../../api/model';
@@ -24,6 +24,7 @@ interface CreateSetModalProps {
 }
 
 export function CreateSetModal({ opened, onClose, onSuccess, initialCreatorNames }: CreateSetModalProps) {
+    const { showNotification } = useAppNotifications();
     const { guardAction } = useDemoGuard();
     const { data: creatorsData } = useReadCreatorsApiCreatorsGet({ limit: 1000 });
     const { data: libraryPathsData } = useListLibraryPathsApiLibraryPathsGet();
@@ -102,7 +103,7 @@ export function CreateSetModal({ opened, onClose, onSuccess, initialCreatorNames
 
     const handleCreate = async () => {
         if (!title.trim()) {
-            notifications.show({
+            showNotification({
                 title: 'Required Field Missing',
                 message: 'Please provide a title for the new set.',
                 color: 'red'
@@ -144,7 +145,7 @@ export function CreateSetModal({ opened, onClose, onSuccess, initialCreatorNames
                 }
             });
             
-            notifications.show({
+            showNotification({
                 title: 'Set Created',
                 message: `Successfully created "${newSet.title}"`,
                 color: 'green'
@@ -163,7 +164,7 @@ export function CreateSetModal({ opened, onClose, onSuccess, initialCreatorNames
             console.error('Error creating set:', error);
             const axiosError = error as { response?: { data?: { detail?: string } } };
             const detailMessage = axiosError.response?.data?.detail || 'Failed to create the new set.';
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: typeof detailMessage === 'string' ? detailMessage : 'Failed to create the new set.',
                 color: 'red'

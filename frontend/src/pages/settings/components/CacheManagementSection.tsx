@@ -16,7 +16,7 @@ import {
     Card
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../../hooks/useAppNotifications';
 import {
     IconBrain,
     IconPhoto,
@@ -34,6 +34,7 @@ import {
 import { SettingsSection } from './SettingsSection';
 
 export function CacheManagementSection() {
+    const { showNotification } = useAppNotifications();
     const queryClient = useQueryClient();
     const { data: cacheStats, isLoading, isRefetching, refetch } = useReadCacheStatsApiSettingsCacheGet();
     const clearAiMutation = useClearAiModelsCacheApiSettingsCacheAiModelsDelete();
@@ -53,7 +54,7 @@ export function CacheManagementSection() {
             onConfirm: async () => {
                 try {
                     const res = await clearAiMutation.mutateAsync({});
-                    notifications.show({
+                    showNotification({
                         title: 'AI Cache Cleared',
                         message: res.message || `Freed ${res.human_freed_size}`,
                         color: 'teal',
@@ -62,7 +63,7 @@ export function CacheManagementSection() {
                     queryClient.invalidateQueries({ queryKey: getReadCacheStatsApiSettingsCacheGetQueryKey() });
                 } catch (err: unknown) {
                     const message = err instanceof Error ? err.message : 'Failed to clear AI model cache';
-                    notifications.show({
+                    showNotification({
                         title: 'Error',
                         message,
                         color: 'red'
@@ -86,7 +87,7 @@ export function CacheManagementSection() {
             onConfirm: async () => {
                 try {
                     const res = await clearThumbsMutation.mutateAsync({});
-                    notifications.show({
+                    showNotification({
                         title: 'Thumbnail Cache Cleared',
                         message: res.message || `Freed ${res.human_freed_size}`,
                         color: 'teal',
@@ -95,7 +96,7 @@ export function CacheManagementSection() {
                     queryClient.invalidateQueries({ queryKey: getReadCacheStatsApiSettingsCacheGetQueryKey() });
                 } catch (err: unknown) {
                     const message = err instanceof Error ? err.message : 'Failed to clear thumbnail cache';
-                    notifications.show({
+                    showNotification({
                         title: 'Error',
                         message,
                         color: 'red'

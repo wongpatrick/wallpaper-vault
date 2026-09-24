@@ -1,7 +1,7 @@
 /**
  * @file
- * Module: Notification Context
- * Description: Manages the state and history of application notifications, integrating with Mantine's toast system to provide persistent notification records.
+ * Module: Notification Context (Read State)
+ * Description: Manages read-only state of application notifications history and unread count.
  */
 import { createContext } from 'react';
 import type { ReactNode } from 'react';
@@ -16,13 +16,21 @@ export interface NotificationHistoryItem {
   status?: 'completed' | 'error' | 'info' | 'success' | 'warning';
 }
 
-interface NotificationContextType {
+export interface NotificationHistoryContextType {
   history: NotificationHistoryItem[];
-  showNotification: (data: NotificationData & { status?: NotificationHistoryItem['status'] }) => void;
-  clearHistory: () => void;
-  markAllAsRead: () => void;
   unreadCount: number;
 }
 
-export const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
+/**
+ * Legacy combined interface for backward compatibility with existing useNotificationHistory consumers.
+ */
+export interface NotificationContextType extends NotificationHistoryContextType {
+  showNotification: (data: NotificationData & { status?: NotificationHistoryItem['status'] }) => string;
+  clearHistory: () => void;
+  markAllAsRead: () => void;
+}
 
+export const NotificationHistoryContext = createContext<NotificationHistoryContextType | undefined>(undefined);
+
+// Export alias for backward compatibility
+export const NotificationContext = NotificationHistoryContext;

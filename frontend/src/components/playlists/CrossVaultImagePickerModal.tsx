@@ -23,7 +23,7 @@ import {
     Box,
 } from '@mantine/core';
 import { IconSearch, IconAlertCircle, IconCheck } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { useVault } from '../../hooks/useVault';
 import { AXIOS_INSTANCE } from '../../api/axios-instance';
 import type { Image as ImageModel } from '../../api/model';
@@ -56,6 +56,7 @@ export function CrossVaultImagePickerModal({
     playlistId,
     onSuccess,
 }: CrossVaultImagePickerModalProps) {
+    const { showNotification } = useAppNotifications();
     const { vaults } = useVault();
 
     // Default to the first available online vault, or the first vault
@@ -165,7 +166,7 @@ export function CrossVaultImagePickerModal({
 
             await AXIOS_INSTANCE.post(`/api/playlists/${playlistId}/cross-vault-images`, payload);
 
-            notifications.show({
+            showNotification({
                 title: 'Success',
                 message: `Added ${selectedIds.size} wallpapers to playlist.`,
                 color: 'green',
@@ -177,7 +178,7 @@ export function CrossVaultImagePickerModal({
         } catch (err: unknown) {
             const errorResponse = err as { response?: { data?: { detail?: string } } };
             const detail = errorResponse.response?.data?.detail || 'Failed to add wallpapers to playlist.';
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: detail,
                 color: 'red',

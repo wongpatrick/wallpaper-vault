@@ -6,7 +6,7 @@
 import { useForm } from '@mantine/form';
 import { useState, useEffect } from 'react';
 import { useReadSettingsApiSettingsGet, useUpdateSettingApiSettingsKeyPut } from '../../../api/generated/settings/settings';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../../hooks/useAppNotifications';
 import { AXIOS_INSTANCE } from '../../../api/axios-instance';
 import { API_BASE_URL } from '../../../config';
 
@@ -101,6 +101,7 @@ const SETTINGS_METADATA: SettingConfig[] = [
 ];
 
 export function useSettingsForm() {
+    const { showNotification } = useAppNotifications();
     const { data: settings, isLoading } = useReadSettingsApiSettingsGet();
     const updateSetting = useUpdateSettingApiSettingsKeyPut();
     const [isSaving, setIsSaving] = useState(false);
@@ -210,10 +211,10 @@ export function useSettingsForm() {
             await Promise.all(promises);
             
             form.resetDirty();
-            notifications.show({ title: 'Success', message: 'Settings saved successfully', color: 'green' });
+            showNotification({ title: 'Success', message: 'Settings saved successfully', color: 'green' });
         } catch (error) {
             console.error('Save failed:', error);
-            notifications.show({ title: 'Error', message: 'Failed to save settings', color: 'red' });
+            showNotification({ title: 'Error', message: 'Failed to save settings', color: 'red' });
         } finally {
             setIsSaving(false);
         }

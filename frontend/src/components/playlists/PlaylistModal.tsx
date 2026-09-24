@@ -8,7 +8,7 @@ import {
     Modal, Stack, TextInput, Textarea, SegmentedControl, MultiSelect, Select, Group, Button, Switch, Alert
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import {
     useCreatePlaylistEndpointApiPlaylistsPost,
     useUpdatePlaylistEndpointApiPlaylistsPlaylistIdPut
@@ -36,6 +36,7 @@ interface PlaylistModalFormProps {
 }
 
 function PlaylistModalForm({ playlist, onClose, onSuccess }: PlaylistModalFormProps) {
+    const { showNotification } = useAppNotifications();
     const { vaults } = useVault();
     const hasRemoteVaults = vaults.some(v => !v.isLocal);
 
@@ -71,7 +72,7 @@ function PlaylistModalForm({ playlist, onClose, onSuccess }: PlaylistModalFormPr
 
     const handleSave = async () => {
         if (!formName.trim()) {
-            notifications.show({
+            showNotification({
                 title: 'Required Field',
                 message: 'Playlist name cannot be empty.',
                 color: 'red'
@@ -101,7 +102,7 @@ function PlaylistModalForm({ playlist, onClose, onSuccess }: PlaylistModalFormPr
                         rules: rulesPayload
                     }
                 });
-                notifications.show({
+                showNotification({
                     title: 'Success',
                     message: 'Playlist updated successfully.',
                     color: 'green'
@@ -116,7 +117,7 @@ function PlaylistModalForm({ playlist, onClose, onSuccess }: PlaylistModalFormPr
                         rules: rulesPayload
                     }
                 });
-                notifications.show({
+                showNotification({
                     title: 'Success',
                     message: 'Playlist created successfully.',
                     color: 'green'
@@ -127,7 +128,7 @@ function PlaylistModalForm({ playlist, onClose, onSuccess }: PlaylistModalFormPr
         } catch (err: unknown) {
             const errorResponse = err as { response?: { data?: { detail?: string } } };
             const detail = errorResponse.response?.data?.detail || 'Could not save playlist.';
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: detail,
                 color: 'red'

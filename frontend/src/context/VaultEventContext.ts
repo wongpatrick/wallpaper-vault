@@ -10,14 +10,16 @@ export interface VaultEventContextType {
     onVaultSwitch: (callback: (vault: VaultEntry) => void) => () => void;
 }
 
+const NOOP_VAULT_EVENT: VaultEventContextType = {
+    onVaultSwitch: () => () => {}
+};
+
 export const VaultEventContext = createContext<VaultEventContextType | undefined>(undefined);
 
 export function useVaultEvent(): VaultEventContextType {
     const context = useContext(VaultEventContext);
     if (!context) {
-        return {
-            onVaultSwitch: () => () => {}
-        };
+        return NOOP_VAULT_EVENT;
     }
     return context;
 }

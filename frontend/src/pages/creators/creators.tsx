@@ -12,7 +12,7 @@ import { AggregatedVaultBanner } from '../../components/vault/AggregatedVaultBan
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { CREATOR_TYPES } from '../../types/enums';
 import { useState, useMemo } from 'react';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
 import { CreatorCreateForm } from '../../components/creators/CreatorCreateForm';
 import { CreatorCard } from '../../components/creators/CreatorCard';
@@ -28,6 +28,7 @@ const PAGE_SIZE = 12;
 const SEARCH_DEBOUNCE_MS = 500;
 
 export default function Creators() {
+    const { showNotification } = useAppNotifications();
     const { switchVault } = useVault();
     const navigate = useNavigate();
     const location = useLocation();
@@ -132,13 +133,13 @@ export default function Creators() {
                     target_id: Number(targetCreatorId) 
                 } 
             });
-            notifications.show({ title: 'Success', message: 'Artists merged successfully', color: 'green' });
+            showNotification({ title: 'Success', message: 'Artists merged successfully', color: 'green' });
             setIsMergeModalOpen(false);
             setSourceCreatorIds([]);
             setTargetCreatorId(null);
             refetch();
         } catch {
-            notifications.show({ title: 'Error', message: 'Could not merge artists', color: 'red' });
+            showNotification({ title: 'Error', message: 'Could not merge artists', color: 'red' });
         }
     };
 

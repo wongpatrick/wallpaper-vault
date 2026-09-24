@@ -20,7 +20,7 @@ import {
     Badge,
     Loader
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import {
     IconDeviceFloppy,
     IconCheck,
@@ -42,6 +42,7 @@ import {
 } from '../../api/generated/settings/settings';
 
 export default function Settings() {
+    const { showNotification } = useAppNotifications();
     const { form, isLoading, isSaving, handleSave } = useSettingsForm();
     const queryClient = useQueryClient();
 
@@ -79,7 +80,7 @@ export default function Settings() {
                     custom_path: customPath
                 }
             });
-            notifications.show({
+            showNotification({
                 title: 'Model Downloaded',
                 message: res.message || `Successfully downloaded ${res.model_name} (${res.human_size})`,
                 color: 'teal',
@@ -89,7 +90,7 @@ export default function Settings() {
             queryClient.invalidateQueries({ queryKey: getReadCacheStatsApiSettingsCacheGetQueryKey() });
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Failed to download model';
-            notifications.show({
+            showNotification({
                 title: 'Download Failed',
                 message,
                 color: 'red'

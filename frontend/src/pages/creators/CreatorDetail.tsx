@@ -24,7 +24,7 @@ import {
 } from '../../api/generated/creators/creators';
 import { useDeleteSetApiSetsSetIdDelete, getReadSetsApiSetsGetQueryKey } from '../../api/generated/sets/sets';
 import { useQueryClient } from '@tanstack/react-query';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { modals } from '@mantine/modals';
 import { SetCard } from '../../components/sets/SetCard';
 import { CreatorAvatar } from '../../components/creators/CreatorAvatar';
@@ -40,6 +40,7 @@ const HTTP_STATUS_CONFLICT = 409;
 const SQUARE_RATIO_TOLERANCE = 0.05;
 
 export default function CreatorDetail() {
+    const { showNotification } = useAppNotifications();
     const { creatorId } = useParams<{ creatorId: string }>();
     const navigate = useNavigate();
     const location = useLocation();
@@ -161,7 +162,7 @@ export default function CreatorDetail() {
             onConfirm: async () => {
                 try {
                     await deleteSetMutation.mutateAsync({ setId });
-                    notifications.show({
+                    showNotification({
                         title: 'Set deleted',
                         message: 'The set has been removed from your library.',
                         color: 'blue',
@@ -171,7 +172,7 @@ export default function CreatorDetail() {
                 } catch (err) {
                     const axiosError = err as { response?: { data?: { detail?: string } } };
                     const message = axiosError.response?.data?.detail || 'Could not delete the set.';
-                    notifications.show({
+                    showNotification({
                         title: 'Error',
                         message: typeof message === 'string' ? message : 'Could not delete the set.',
                         color: 'red',
@@ -180,7 +181,7 @@ export default function CreatorDetail() {
                 }
             },
         });
-    }, [creator, deleteSetMutation, queryClient, refetch]);
+    }, [creator, deleteSetMutation, queryClient, refetch, showNotification]);
 
     const handleLongPress = useCallback((id: number) => {
         if (!selectionMode) {
@@ -220,7 +221,7 @@ export default function CreatorDetail() {
                 creatorId: Number(creatorId), 
                 data: formData 
             });
-            notifications.show({ title: 'Success', message: 'Creator updated', color: 'green' });
+            showNotification({ title: 'Success', message: 'Creator updated', color: 'green' });
             setIsEditModalOpen(false);
             queryClient.invalidateQueries({ queryKey: getReadCreatorsApiCreatorsGetQueryKey() });
             refetch();
@@ -239,7 +240,7 @@ export default function CreatorDetail() {
             }
 
             const message = typeof detail === 'string' ? detail : ((detail?.message as string) || 'Could not update creator');
-            notifications.show({ title: 'Error', message, color: 'red' });
+            showNotification({ title: 'Error', message, color: 'red' });
         }
     };
 
@@ -252,25 +253,25 @@ export default function CreatorDetail() {
                     target_id: mergePrompt.targetId
                 }
             });
-            notifications.show({ title: 'Success', message: 'Artists merged successfully', color: 'green' });
+            showNotification({ title: 'Success', message: 'Artists merged successfully', color: 'green' });
             setMergePrompt({ show: false, targetId: null });
             queryClient.invalidateQueries({ queryKey: getReadCreatorsApiCreatorsGetQueryKey() });
             queryClient.invalidateQueries({ queryKey: getReadCreatorApiCreatorsCreatorIdGetQueryKey(mergePrompt.targetId) });
             navigate(`/creators/${mergePrompt.targetId}`);
         } catch {
-            notifications.show({ title: 'Error', message: 'Could not merge artists', color: 'red' });
+            showNotification({ title: 'Error', message: 'Could not merge artists', color: 'red' });
         }
     };
 
     const confirmDelete = async () => {
         try {
             await deleteMutation.mutateAsync({ creatorId: Number(creatorId) });
-            notifications.show({ title: 'Creator deleted', message: 'Artist removed from database', color: 'blue' });
+            showNotification({ title: 'Creator deleted', message: 'Artist removed from database', color: 'blue' });
             setIsDeleteModalOpen(false);
             queryClient.invalidateQueries({ queryKey: getReadCreatorsApiCreatorsGetQueryKey() });
             navigate('/creators');
         } catch {
-            notifications.show({ title: 'Error', message: 'Could not delete creator', color: 'red' });
+            showNotification({ title: 'Error', message: 'Could not delete creator', color: 'red' });
         }
     };
 

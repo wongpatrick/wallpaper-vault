@@ -30,7 +30,7 @@ import {
     IconFolder,
     IconPlus
 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { 
     useStartAuditApiAuditStartPost,
     useGetAuditResultsApiAuditResultsGet,
@@ -44,6 +44,7 @@ const ITEM_HEIGHT_PX = 35;
 const MAX_SCROLL_HEIGHT_PX = 150;
 
 export function LibraryAudit() {
+    const { showNotification } = useAppNotifications();
     const { tasks } = useTasks();
     const auditTask = Object.values(tasks).find(
         (t) => t.id.startsWith('audit-') && t.status !== 'completed' && t.status !== 'error'
@@ -90,7 +91,7 @@ export function LibraryAudit() {
         try {
             await startMutation.mutateAsync({ data: { deep_scan: false } });
         } catch {
-            notifications.show({ title: 'Error', message: 'Failed to start audit.', color: 'red' });
+            showNotification({ title: 'Error', message: 'Failed to start audit.', color: 'red' });
         }
     };
 
@@ -111,10 +112,10 @@ export function LibraryAudit() {
                     action: action
                 }
             });
-            notifications.show({ title: 'Success', message: `Action '${action}' executed.`, color: 'green' });
+            showNotification({ title: 'Success', message: `Action '${action}' executed.`, color: 'green' });
             refetch();
         } catch {
-            notifications.show({ title: 'Error', message: 'Failed to execute resolution.', color: 'red' });
+            showNotification({ title: 'Error', message: 'Failed to execute resolution.', color: 'red' });
         }
     };
 

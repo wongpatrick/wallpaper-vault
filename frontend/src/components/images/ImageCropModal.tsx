@@ -11,7 +11,7 @@ import type { ComboboxProps } from '@mantine/core';
 import { IconX, IconCrop } from '@tabler/icons-react';
 import { getImageUrl } from '../../utils/fileUtils';
 import { useCropImageApiImagesImageIdCropPost } from '../../api/generated/images/images';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import type { Image as ImageModel } from '../../api/model';
 
 interface ImageCropModalProps {
@@ -32,6 +32,7 @@ const DEFAULT_ASPECT_RATIO_DENOMINATOR = 9;
 const DEFAULT_CUSTOM_CROP_OFFSET_RATIO = 0.1;
 
 export function ImageCropModal({ image, opened, onClose, onCropSuccess, zIndex = MODAL_Z_INDEX }: ImageCropModalProps) {
+    const { showNotification } = useAppNotifications();
     const { mutateAsync, isPending } = useCropImageApiImagesImageIdCropPost();
     
     const [aspectRatio, setAspectRatio] = useState<string>("16:9");
@@ -227,7 +228,7 @@ export function ImageCropModal({ image, opened, onClose, onCropSuccess, zIndex =
                 }
             });
             
-            notifications.show({
+            showNotification({
                 title: 'Success',
                 message: saveMode === 'replace' ? 'Original image successfully replaced.' : 'Cropped image saved as new wallpaper.',
                 color: 'green'
@@ -238,7 +239,7 @@ export function ImageCropModal({ image, opened, onClose, onCropSuccess, zIndex =
             }
             onClose();
         } catch (err) {
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'Failed to crop image. Please check backend logs.',
                 color: 'red'

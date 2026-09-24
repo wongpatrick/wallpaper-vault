@@ -7,7 +7,7 @@ import { Text, Card, TextInput, Group, Stack, Table, Badge, ActionIcon, Tooltip,
 import { IconSettings, IconCheck, IconX, IconCloudUpload, IconCrop, IconSearch, IconRefresh } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useBatchImportSetsApiSetsBatchImportPost } from '../../api/generated/sets/sets';
-import { useNotificationHistory } from '../../hooks/useNotificationHistory';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import type { BatchImportItem } from '../../api/model';
 
 const OPACITY_DIMMED = 0.6;
@@ -21,7 +21,7 @@ export function BatchImporter() {
     const [globalDeleteSource, setGlobalDeleteSource] = useState(true);
 
     const { mutateAsync: batchImportApi } = useBatchImportSetsApiSetsBatchImportPost();
-    const { showNotification } = useNotificationHistory();
+    const { showNotification } = useAppNotifications();
 
     const handleResultChange = (index: number, field: keyof BatchImportItem, value: string | boolean) => {
 // ... rest of code unchanged ...

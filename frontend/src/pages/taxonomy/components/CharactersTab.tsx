@@ -8,7 +8,7 @@ import {
     Table, Text, Badge, Group, ActionIcon, Tooltip, Checkbox, Modal, Stack, TextInput, Autocomplete, Button, Select, Alert
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../../hooks/useAppNotifications';
 import { IconEdit, IconTrash, IconAlertCircle } from '@tabler/icons-react';
 import {
     useReadCharacters, useCreateCharacter, useUpdateCharacter, useDeleteCharacter, useMergeCharacters, useBulkDeleteCharacters,
@@ -20,6 +20,7 @@ import { useTaxonomyCRUD } from '../hooks/useTaxonomyCRUD';
 import { TaxonomyTable, SortableHeader } from './TaxonomyTable';
 
 export function CharactersTab() {
+    const { showNotification } = useAppNotifications();
     const navigate = useNavigate();
     const filterSort = useTaxonomyFilterSort(25);
     const { search, setSearch, sortBy, setSortBy, page, setPage, getTotalPages, queryParams } = filterSort;
@@ -135,10 +136,10 @@ export function CharactersTab() {
 
             if (editingId) {
                 await updateMutation.mutateAsync({ id: editingId, data: payload });
-                notifications.show({ title: 'Success', message: 'Character updated successfully', color: 'green' });
+                showNotification({ title: 'Success', message: 'Character updated successfully', color: 'green' });
             } else {
                 await createMutation.mutateAsync(payload);
-                notifications.show({ title: 'Success', message: 'Character created successfully', color: 'green' });
+                showNotification({ title: 'Success', message: 'Character created successfully', color: 'green' });
             }
 
             setName('');

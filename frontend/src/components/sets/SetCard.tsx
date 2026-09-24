@@ -7,7 +7,7 @@ import { useState, useEffect, memo } from 'react';
 import { Card, Image, Group, Stack, Text, Menu, ActionIcon, Badge, rem, Checkbox, Box, Overlay } from '@mantine/core';
 import { IconDotsVertical, IconExternalLink, IconFolder, IconTrash } from '@tabler/icons-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { getThumbnailUrl, FALLBACK_IMAGE } from '../../utils/fileUtils';
 import { useLongPress } from '../../hooks/useLongPress';
 import { useVault } from '../../hooks/useVault';
@@ -30,6 +30,7 @@ const HOVER_SLIDESHOW_MAX_IMAGES = 5;
 const DEFAULT_FOCAL_POINT = 50;
 
 export const SetCard = memo(function SetCard({ set, onDelete, selectionMode, selected, onToggleSelect, onLongPress }: SetCardProps) {
+    const { showNotification } = useAppNotifications();
     const { isAggregated, switchVault } = useVault();
     const navigate = useNavigate();
     const location = useLocation();
@@ -80,7 +81,7 @@ export const SetCard = memo(function SetCard({ set, onDelete, selectionMode, sel
     const handleOpenFolder = async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!set.local_path) {
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'No local path recorded for this set.',
                 color: 'red'
@@ -89,7 +90,7 @@ export const SetCard = memo(function SetCard({ set, onDelete, selectionMode, sel
         }
 
         if (!window.electron?.openPath) {
-            notifications.show({
+            showNotification({
                 title: 'Browser Mode',
                 message: 'Opening local folders is only supported in the desktop application.',
                 color: 'yellow'
@@ -100,7 +101,7 @@ export const SetCard = memo(function SetCard({ set, onDelete, selectionMode, sel
         try {
             const result = await window.electron.openPath(set.local_path);
             if (result && result.error) {
-                notifications.show({
+                showNotification({
                     title: 'Folder not found',
                     message: `Could not open folder: ${result.error}`,
                     color: 'red'
@@ -108,7 +109,7 @@ export const SetCard = memo(function SetCard({ set, onDelete, selectionMode, sel
             }
         } catch (err) {
             console.error('Failed to call openPath:', err);
-            notifications.show({
+            showNotification({
                 title: 'Native Error',
                 message: 'Could not communicate with the desktop process.',
                 color: 'red'

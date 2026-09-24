@@ -6,7 +6,7 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Container, Text, Button, Center, Loader, Alert } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
+import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { IconAlertCircle, IconArrowLeft, IconPlaylist, IconPlus } from '@tabler/icons-react';
 import {
     useReadPlaylistApiPlaylistsPlaylistIdGet,
@@ -24,6 +24,7 @@ import { PlaylistImageList } from './PlaylistImageList';
 import { PlaylistEditModal } from './PlaylistEditModal';
 
 export default function PlaylistDetail() {
+    const { showNotification } = useAppNotifications();
     const { playlistId } = useParams<{ playlistId: string }>();
     const navigate = useNavigate();
     const location = useLocation();
@@ -80,7 +81,7 @@ export default function PlaylistDetail() {
                 if (idx !== -1) {
                     setLightboxImageIndex(idx);
                 } else {
-                    notifications.show({
+                    showNotification({
                         title: 'Random Image',
                         message: `Fetched: ${result.data.filename}`,
                         color: 'blue'
@@ -88,7 +89,7 @@ export default function PlaylistDetail() {
                 }
             }
         } catch {
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'Could not fetch a random image.',
                 color: 'red'
@@ -102,14 +103,14 @@ export default function PlaylistDetail() {
                 playlistId: numericId,
                 data: { image_ids: [imgId] }
             });
-            notifications.show({
+            showNotification({
                 title: 'Removed',
                 message: 'Wallpaper removed from playlist.',
                 color: 'blue'
             });
             refetch();
         } catch {
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'Could not remove image.',
                 color: 'red'
@@ -122,14 +123,14 @@ export default function PlaylistDetail() {
             await AXIOS_INSTANCE.delete(`/api/playlists/${numericId}/cross-vault-images`, {
                 data: { images: [{ vault_id: vaultId, image_id: imageId }] }
             });
-            notifications.show({
+            showNotification({
                 title: 'Removed',
                 message: 'Wallpaper removed from cross-vault playlist.',
                 color: 'blue'
             });
             refetch();
         } catch {
-            notifications.show({
+            showNotification({
                 title: 'Error',
                 message: 'Could not remove cross-vault image.',
                 color: 'red'
@@ -146,7 +147,7 @@ export default function PlaylistDetail() {
             });
             refetch();
         } catch {
-            notifications.show({
+            showNotification({
                 title: 'Reorder Failed',
                 message: 'Could not save new order to database.',
                 color: 'red'
@@ -161,7 +162,7 @@ export default function PlaylistDetail() {
             });
             refetch();
         } catch {
-            notifications.show({
+            showNotification({
                 title: 'Reorder Failed',
                 message: 'Could not save new cross-vault order to database.',
                 color: 'red'
