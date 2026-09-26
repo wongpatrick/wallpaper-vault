@@ -3,80 +3,39 @@
  * Component: Rotation Rules Manager
  * Description: Interface to create, edit, reorder, and configure scheduled override rules.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-    Stack, Group, Text, Button, Paper, Alert, SegmentedControl
+    Stack, Group, Text, Button, Paper, Alert, SegmentedControl, LoadingOverlay
 } from '@mantine/core';
 import { RotationRulesCalendar } from './RotationRulesCalendar';
-import { IconPlus, IconClock } from '@tabler/icons-react';
+import { IconPlus, IconClock, IconAlertCircle } from '@tabler/icons-react';
 import { useAppNotifications } from '../hooks/useAppNotifications';
-import { AXIOS_INSTANCE } from '../api/axios-instance';
 import { RuleCardItem } from './RuleCardItem';
 import { RuleEditModal } from './RuleEditModal';
-import type { RotationRule, PlaylistOption, RuleFormData } from '../types/rotation';
-
-const PRIORITY_STEP = 10;
+import { useRotationRules } from './useRotationRules';
+import type { RotationRule } from '../api/model/rotationRule';
+import type { RuleFormData } from '../types/rotation';
 
 export function RotationRulesManager() {
     const { showNotification } = useAppNotifications();
-    const [rules, setRules] = useState<RotationRule[]>([]);
-    const [playlists, setPlaylists] = useState<PlaylistOption[]>([]);
-    const [activeRule, setActiveRule] = useState<RotationRule | null>(null);
+    const {
+        rules,
+        activeRule,
+        playlists,
+        isLoading,
+        error,
+        createRule,
+        updateRule,
+        deleteRule,
+        toggleRule,
+        reorderRules
+    } = useRotationRules();
 
     const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
     const [modalOpen, setModalOpen] = useState(false);
     const [editingRule, setEditingRule] = useState<RotationRule | null>(null);
     const [initialDatePreset, setInitialDatePreset] = useState<string | null>(null);
     const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-
-    const loadData = async () => {
-        try {
-            const [rulesRes, playlistsRes, activeRes] = await Promise.all([
-                AXIOS_INSTANCE.get<RotationRule[]>('/api/rotation-rules/'),
-                AXIOS_INSTANCE.get<PlaylistOption[]>('/api/playlists'),
-                AXIOS_INSTANCE.get<RotationRule | null>('/api/rotation-rules/active')
-            ]);
-            setRules(rulesRes.data);
-            setPlaylists(playlistsRes.data);
-            setActiveRule(activeRes.data);
-        } catch (error) {
-            console.error('Failed to load rotation rules', error);
-            showNotification({
-                title: 'Error',
-                message: 'Failed to load rotation rules and playlists',
-                color: 'red'
-            });
-        }
-    };
-
-    useEffect(() => {
-        let active = true;
-        const fetchRules = async () => {
-            try {
-                const [rulesRes, playlistsRes, activeRes] = await Promise.all([
-                    AXIOS_INSTANCE.get<RotationRule[]>('/api/rotation-rules/'),
-                    AXIOS_INSTANCE.get<PlaylistOption[]>('/api/playlists'),
-                    AXIOS_INSTANCE.get<RotationRule | null>('/api/rotation-rules/active')
-                ]);
-                if (active) {
-                    setRules(rulesRes.data);
-                    setPlaylists(playlistsRes.data);
-                    setActiveRule(activeRes.data);
-                }
-            } catch (error) {
-                console.error('Failed to load rotation rules', error);
-                showNotification({
-                    title: 'Error',
-                    message: 'Failed to load rotation rules and playlists',
-                    color: 'red'
-                });
-            }
-        };
-        fetchRules();
-        return () => {
-            active = false;
-        };
-    }, [showNotification]);
 
     const openCreateModal = () => {
         setEditingRule(null);
@@ -101,18 +60,14 @@ export function RotationRulesManager() {
     const handleSaveRule = async (formData: RuleFormData) => {
         try {
             if (editingRule) {
-                await AXIOS_INSTANCE.patch(`/api/rotation-rules/${editingRule.id}`, formData);
+                await updateRule(editingRule.id, formData);
                 showNotification({
                     title: 'Success',
                     message: 'Rule updated successfully',
                     color: 'green'
                 });
             } else {
-                const maxPriority = rules.length > 0 ? Math.max(...rules.map(r => r.priority)) : 0;
-                await AXIOS_INSTANCE.post('/api/rotation-rules/', {
-                    ...formData,
-                    priority: maxPriority + PRIORITY_STEP
-                });
+                await createRule(formData);
                 showNotification({
                     title: 'Success',
                     message: 'Rule created successfully',
@@ -120,9 +75,8 @@ export function RotationRulesManager() {
                 });
             }
             setModalOpen(false);
-            loadData();
-        } catch (error) {
-            console.error('Failed to save rule', error);
+        } catch (err) {
+            console.error('Failed to save rule', err);
             showNotification({
                 title: 'Error',
                 message: 'Failed to save rule',
@@ -133,15 +87,14 @@ export function RotationRulesManager() {
 
     const handleDeleteRule = async (ruleId: number) => {
         try {
-            await AXIOS_INSTANCE.delete(`/api/rotation-rules/${ruleId}`);
+            await deleteRule(ruleId);
             showNotification({
                 title: 'Success',
                 message: 'Rule deleted successfully',
                 color: 'green'
             });
-            loadData();
-        } catch (error) {
-            console.error('Failed to delete rule', error);
+        } catch (err) {
+            console.error('Failed to delete rule', err);
             showNotification({
                 title: 'Error',
                 message: 'Failed to delete rule',
@@ -152,36 +105,12 @@ export function RotationRulesManager() {
 
     const handleToggleEnabled = async (rule: RotationRule, checked: boolean) => {
         try {
-            await AXIOS_INSTANCE.patch(`/api/rotation-rules/${rule.id}`, {
-                enabled: checked ? 1 : 0
-            });
-            setRules(rules.map(r => r.id === rule.id ? { ...r, enabled: checked ? 1 : 0 } : r));
-            const activeRes = await AXIOS_INSTANCE.get<RotationRule | null>('/api/rotation-rules/active');
-            setActiveRule(activeRes.data);
-        } catch (error) {
-            console.error('Failed to toggle rule', error);
+            await toggleRule(rule, checked);
+        } catch (err) {
+            console.error('Failed to toggle rule', err);
             showNotification({
                 title: 'Error',
                 message: 'Failed to toggle rule state',
-                color: 'red'
-            });
-        }
-    };
-
-    const updatePriorities = async (reorderedRules: RotationRule[]) => {
-        try {
-            const count = reorderedRules.length;
-            const updates = reorderedRules.map((r, idx) => ({
-                id: r.id,
-                priority: (count - idx) * PRIORITY_STEP
-            }));
-            await AXIOS_INSTANCE.put('/api/rotation-rules/priorities', updates);
-            loadData();
-        } catch (error) {
-            console.error('Failed to update rule priorities', error);
-            showNotification({
-                title: 'Error',
-                message: 'Failed to update rule order',
                 color: 'red'
             });
         }
@@ -196,7 +125,11 @@ export function RotationRulesManager() {
         setDragOverIndex(index);
     };
 
-    const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    const handleDragEnd = () => {
+        setDragOverIndex(null);
+    };
+
+    const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
         e.preventDefault();
         setDragOverIndex(null);
         const dragIndexStr = e.dataTransfer.getData('text/plain');
@@ -207,25 +140,43 @@ export function RotationRulesManager() {
         const newRules = [...rules];
         const [draggedRule] = newRules.splice(dragIndex, 1);
         newRules.splice(dropIndex, 0, draggedRule);
-        
-        setRules(newRules);
-        updatePriorities(newRules);
+
+        try {
+            await reorderRules(newRules);
+        } catch (err) {
+            console.error('Failed to update rule priorities', err);
+            showNotification({
+                title: 'Error',
+                message: 'Failed to update rule order',
+                color: 'red'
+            });
+        }
     };
 
-    const moveRule = (index: number, direction: 'up' | 'down') => {
+    const moveRule = async (index: number, direction: 'up' | 'down') => {
         const targetIndex = direction === 'up' ? index - 1 : index + 1;
         if (targetIndex < 0 || targetIndex >= rules.length) return;
 
         const newRules = [...rules];
         const [movedRule] = newRules.splice(index, 1);
         newRules.splice(targetIndex, 0, movedRule);
-        
-        setRules(newRules);
-        updatePriorities(newRules);
+
+        try {
+            await reorderRules(newRules);
+        } catch (err) {
+            console.error('Failed to update rule priorities', err);
+            showNotification({
+                title: 'Error',
+                message: 'Failed to update rule order',
+                color: 'red'
+            });
+        }
     };
 
     return (
-        <Stack gap="md">
+        <Stack gap="md" pos="relative">
+            <LoadingOverlay visible={isLoading && rules.length === 0} overlayProps={{ blur: 1 }} />
+
             <Group justify="space-between">
                 <Text size="sm" c="dimmed">
                     Define scheduled rules to override the global rotation source, playlist, and wallpaper fit style during specific dates, days, or time windows. Rules are evaluated in descending priority order.
@@ -244,6 +195,12 @@ export function RotationRulesManager() {
                     </Button>
                 </Group>
             </Group>
+
+            {error && (
+                <Alert icon={<IconAlertCircle size="1rem" />} title="Error" color="red">
+                    Failed to load rotation rules or playlists.
+                </Alert>
+            )}
 
             {activeRule && (
                 <Alert icon={<IconClock size="1rem" />} title="Currently Active Override Rule" color="green" variant="light">
@@ -271,6 +228,7 @@ export function RotationRulesManager() {
                             isLast={index === rules.length - 1}
                             onDragStart={handleDragStart}
                             onDragOver={handleDragOver}
+                            onDragEnd={handleDragEnd}
                             onDrop={handleDrop}
                             onToggleEnabled={handleToggleEnabled}
                             onEdit={openEditModal}
