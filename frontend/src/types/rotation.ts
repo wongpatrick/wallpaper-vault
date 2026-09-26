@@ -3,21 +3,11 @@
  * Module: Rotation Rule Types and Constants
  * Description: Type definitions and constants for wallpaper rotation rules and scheduling.
  */
+import type { RotationRule } from '../api/model/rotationRule';
+export type { RotationRule };
 
-export interface RotationRule {
-    id: number;
-    name: string;
-    priority: number;
-    enabled: number;
-    start_date?: string; // MM-DD
-    end_date?: string;   // MM-DD
-    days_of_week?: string; // Comma separated (e.g. "1,2,3")
-    start_time?: string; // HH:MM
-    end_time?: string;   // HH:MM
-    source: string; // "entire_library" or "playlist"
-    playlist_id?: number;
-    style?: string; // "fill", "fit", "stretch", "center", "span"
-}
+export type RuleSource = 'entire_library' | 'playlist';
+export type WallpaperStyle = 'fill' | 'fit' | 'stretch' | 'center' | 'span';
 
 export const DAYS = [
     { label: 'Monday', value: '1' },
@@ -38,7 +28,7 @@ export const MONTHS = [
     { label: 'Nov', value: '11' }, { label: 'Dec', value: '12' }
 ];
 
-export function formatDays(daysCsv?: string): string {
+export function formatDays(daysCsv?: string | null): string {
     if (!daysCsv) return 'Every Day';
     const indices = daysCsv.split(',');
     const labels = indices.map(idx => DAYS.find(d => d.value === idx)?.label.slice(0, 3));
@@ -53,12 +43,12 @@ export interface PlaylistOption {
 export type RuleFormData = {
     name: string;
     enabled: number;
-    source: string;
-    playlist_id?: number;
-    style?: string;
-    start_date?: string;
-    end_date?: string;
-    days_of_week?: string;
-    start_time?: string;
-    end_time?: string;
+    source: RuleSource;
+    playlist_id?: number | null;
+    style?: WallpaperStyle | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    days_of_week?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
 };

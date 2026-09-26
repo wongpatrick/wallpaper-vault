@@ -8,7 +8,8 @@ import { Card, Group, Stack, Text, Badge, Divider, Switch, ActionIcon } from '@m
 import {
     IconGripVertical, IconPencil, IconTrash, IconArrowUp, IconArrowDown
 } from '@tabler/icons-react';
-import { type RotationRule, formatDays } from '../types/rotation';
+import type { RotationRule } from '../api/model/rotationRule';
+import { formatDays } from '../types/rotation';
 
 interface RuleCardItemProps {
     rule: RotationRule;
@@ -20,6 +21,8 @@ interface RuleCardItemProps {
     isLast: boolean;
     onDragStart: (e: React.DragEvent, index: number) => void;
     onDragOver: (e: React.DragEvent, index: number) => void;
+    onDragLeave?: (e: React.DragEvent) => void;
+    onDragEnd?: (e: React.DragEvent) => void;
     onDrop: (e: React.DragEvent, index: number) => void;
     onToggleEnabled: (rule: RotationRule, checked: boolean) => void;
     onEdit: (rule: RotationRule) => void;
@@ -37,6 +40,8 @@ export function RuleCardItem({
     isLast,
     onDragStart,
     onDragOver,
+    onDragLeave,
+    onDragEnd,
     onDrop,
     onToggleEnabled,
     onEdit,
@@ -52,6 +57,8 @@ export function RuleCardItem({
             draggable
             onDragStart={(e) => onDragStart(e, index)}
             onDragOver={(e) => onDragOver(e, index)}
+            onDragLeave={onDragLeave}
+            onDragEnd={onDragEnd}
             onDrop={(e) => onDrop(e, index)}
             style={{
                 borderStyle: isDraggingOver ? 'dashed' : 'solid',

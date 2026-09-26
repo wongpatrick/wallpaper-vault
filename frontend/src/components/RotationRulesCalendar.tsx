@@ -1,5 +1,7 @@
 /**
- * @file Component for rendering a monthly scheduled rules calendar grid.
+ * @file
+ * Component: RotationRulesCalendar
+ * Description: Monthly scheduled rules calendar grid with day-level detail modals.
  */
 import { useState } from 'react';
 import {
@@ -20,42 +22,21 @@ import {
     IconChevronRight,
     IconPlus
 } from '@tabler/icons-react';
-
-interface Playlist {
-    id: number;
-    name: string;
-}
-
-interface RotationRule {
-    id: number;
-    name: string;
-    priority: number;
-    enabled: number;
-    start_date?: string; // MM-DD
-    end_date?: string;   // MM-DD
-    days_of_week?: string; // Comma separated, e.g. "1,2,3"
-    start_time?: string; // HH:MM
-    end_time?: string;   // HH:MM
-    source: string;
-    playlist_id?: number;
-    style?: string;
-}
+import type { RotationRule } from '../api/model/rotationRule';
+import type { PlaylistOption } from '../types/rotation';
+import {
+    MONTH_LABELS,
+    WEEKDAY_LABELS,
+    SUNDAY_INDEX,
+    getRulesForDate
+} from './rotationRulesUtils';
 
 interface RotationRulesCalendarProps {
     rules: RotationRule[];
-    playlists: Playlist[];
+    playlists: PlaylistOption[];
     onAddRuleForDate?: (date: Date) => void;
 }
 
-const MONTH_LABELS = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-];
-
-const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-const SUNDAY_INDEX = 6;
-const SUNDAY_ISO_VAL = 7;
 const FW_BOLD = 700;
 const FW_MEDIUM = 500;
 
@@ -90,49 +71,6 @@ export function RotationRulesCalendar({ rules, playlists, onAddRuleForDate }: Ro
         setCurrentDate(new Date(year, month + 1, 1));
     };
 
-    // Helper to evaluate if a rule matches a specific date (ignoring current time)
-    const getRulesForDate = (date: Date): { rule: RotationRule; timeWindow: string }[] => {
-        const enabledRules = rules.filter(r => r.enabled === 1);
-        const dayOfWeekStr = String(date.getDay() === 0 ? SUNDAY_ISO_VAL : date.getDay());
-        const monthPart = String(date.getMonth() + 1).padStart(2, '0');
-        const datePart = String(date.getDate()).padStart(2, '0');
-        const currentMd = `${monthPart}-${datePart}`;
-
-        const matched: { rule: RotationRule; timeWindow: string }[] = [];
-
-        for (const rule of enabledRules) {
-            // 1. Day of week match
-            if (rule.days_of_week) {
-                const allowedDays = rule.days_of_week.split(',').map(d => d.trim());
-                if (!allowedDays.includes(dayOfWeekStr)) {
-                    continue;
-                }
-            }
-
-            // 2. Date range match (MM-DD)
-            if (rule.start_date && rule.end_date) {
-                const start = rule.start_date;
-                const end = rule.end_date;
-                if (start <= end) {
-                    if (currentMd < start || currentMd > end) continue;
-                } else {
-                    // Crosses new year
-                    if (currentMd < start && currentMd > end) continue;
-                }
-            }
-
-            // If it matches date/day, append it. We list its active time window if defined.
-            const timeWindow = rule.start_time && rule.end_time
-                ? `${rule.start_time} - ${rule.end_time}`
-                : 'All Day';
-
-            matched.push({ rule, timeWindow });
-        }
-
-        // Sort matched rules by priority descending
-        return matched.sort((a, b) => b.rule.priority - a.rule.priority);
-    };
-
     return (
         <Stack gap="md">
             <Group justify="space-between" mb="xs">
@@ -140,13 +78,13 @@ export function RotationRulesCalendar({ rules, playlists, onAddRuleForDate }: Ro
                     Visualizing all active scheduled rules for the current month. Days show matching rules and their time windows in priority order. Click a cell to view day details or schedule a new rule.
                 </Text>
                 <Group gap="xs">
-                    <ActionIcon variant="outline" onClick={handlePrevMonth}>
+                    <ActionIcon variant="outline" onClick={handlePrevMonth} aria-label="Previous month">
                         <IconChevronLeft size="1rem" />
                     </ActionIcon>
                     <Text fw={600} size="md" w={120} style={{ textAlign: 'center' }}>
                         {MONTH_LABELS[month]} {year}
                     </Text>
-                    <ActionIcon variant="outline" onClick={handleNextMonth}>
+                    <ActionIcon variant="outline" onClick={handleNextMonth} aria-label="Next month">
                         <IconChevronRight size="1rem" />
                     </ActionIcon>
                 </Group>
@@ -165,7 +103,7 @@ export function RotationRulesCalendar({ rules, playlists, onAddRuleForDate }: Ro
                     }
 
                     const isToday = new Date().toDateString() === date.toDateString();
-                    const matchedRules = getRulesForDate(date);
+                    const matchedRules = getRulesForDate(date, rules);
 
                     return (
                         <Paper
@@ -209,7 +147,7 @@ export function RotationRulesCalendar({ rules, playlists, onAddRuleForDate }: Ro
                                         ? playlists.find(p => p.id === rule.playlist_id)?.name || 'Playlist'
                                         : 'Library';
                                     const label = `Rule: ${rule.name}\nSource: ${playlistName}\nTime: ${timeWindow}\nFit: ${rule.style || 'fill'}`;
-                                    
+
                                     return (
                                         <Tooltip key={rule.id} label={label} multiline withArrow>
                                             <Badge
@@ -244,7 +182,7 @@ export function RotationRulesCalendar({ rules, playlists, onAddRuleForDate }: Ro
                 size="md"
             >
                 {selectedDate && (() => {
-                    const matchedRules = getRulesForDate(selectedDate);
+                    const matchedRules = getRulesForDate(selectedDate, rules);
                     return (
                         <Stack gap="md">
                             {matchedRules.length === 0 ? (
@@ -273,7 +211,7 @@ export function RotationRulesCalendar({ rules, playlists, onAddRuleForDate }: Ro
                                     })}
                                 </Stack>
                             )}
-                            
+
                             {onAddRuleForDate && (
                                 <Button
                                     leftSection={<IconPlus size="1rem" />}
@@ -295,5 +233,3 @@ export function RotationRulesCalendar({ rules, playlists, onAddRuleForDate }: Ro
         </Stack>
     );
 }
-
-
