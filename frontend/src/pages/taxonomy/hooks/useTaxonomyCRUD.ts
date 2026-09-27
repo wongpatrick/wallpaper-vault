@@ -1,13 +1,10 @@
 /**
  * @file Generic Taxonomy CRUD Hook
  */
-/* eslint-disable no-magic-numbers */
 import { useState } from 'react';
-import { Text } from '@mantine/core';
 import { modals } from '@mantine/modals';
 
 export interface UseTaxonomyCRUDProps<T extends { id: number; name: string }> {
-    items: T[] | undefined;
     sortedItems: T[];
     deleteEntity: (id: number) => Promise<unknown>;
     mergeEntities: (sourceIds: number[], targetId: number) => Promise<unknown>;
@@ -49,16 +46,20 @@ export function useTaxonomyCRUD<T extends { id: number; name: string }>({
         modals.openConfirmModal({
             title: deleteTitle,
             centered: true,
-            children: <Text size="sm">{deleteMessage}</Text>,
+            children: deleteMessage,
             labels: { confirm: 'Delete', cancel: 'Cancel' },
             confirmProps: { color: 'red' },
             onConfirm: async () => {
-                await deleteEntity(id);
-                setSelectedIds(prev => {
-                    const next = new Set(prev);
-                    next.delete(id);
-                    return next;
-                });
+                try {
+                    await deleteEntity(id);
+                    setSelectedIds(prev => {
+                        const next = new Set(prev);
+                        next.delete(id);
+                        return next;
+                    });
+                } catch {
+                    // Handled by deleteEntity callback
+                }
             },
         });
     };
@@ -69,9 +70,14 @@ export function useTaxonomyCRUD<T extends { id: number; name: string }>({
         const sourceIds = Array.from(selectedIds).filter(id => id !== target);
         if (sourceIds.length === 0) return;
 
-        await mergeEntities(sourceIds, target);
-        setMergeModalOpen(false);
-        setSelectedIds(new Set());
+        try {
+            await mergeEntities(sourceIds, target);
+            setMergeModalOpen(false);
+            setTargetId(null);
+            setSelectedIds(new Set());
+        } catch {
+            // Handled by mergeEntities callback
+        }
     };
 
     const handleBulkDelete = () => {
@@ -79,16 +85,16 @@ export function useTaxonomyCRUD<T extends { id: number; name: string }>({
         modals.openConfirmModal({
             title: 'Delete Selected Items?',
             centered: true,
-            children: (
-                <Text size="sm">
-                    Are you sure you want to permanently delete {selectedIds.size} selected items? This will remove links from all associated wallpapers and sets. This action cannot be undone.
-                </Text>
-            ),
+            children: `Are you sure you want to permanently delete ${selectedIds.size} selected items? This will remove links from all associated wallpapers and sets. This action cannot be undone.`,
             labels: { confirm: 'Delete Selected', cancel: 'Cancel' },
             confirmProps: { color: 'red' },
             onConfirm: async () => {
-                await bulkDeleteEntities(Array.from(selectedIds));
-                setSelectedIds(new Set());
+                try {
+                    await bulkDeleteEntities(Array.from(selectedIds));
+                    setSelectedIds(new Set());
+                } catch {
+                    // Handled by bulkDeleteEntities callback
+                }
             },
         });
     };
@@ -96,7 +102,6 @@ export function useTaxonomyCRUD<T extends { id: number; name: string }>({
     const isAllSelected = sortedItems.length > 0 && sortedItems.every(item => selectedIds.has(item.id));
     const selectedCountInCurrentView = sortedItems.filter(item => selectedIds.has(item.id)).length;
     const isIndeterminate = selectedCountInCurrentView > 0 && !isAllSelected;
-
 
     return {
         selectedIds,

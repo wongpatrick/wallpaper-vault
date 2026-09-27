@@ -6,7 +6,9 @@
 import { useMemo } from 'react';
 import { Select } from '@mantine/core';
 import type { SelectProps, ComboboxProps } from '@mantine/core';
-import { useReadCharacters, useReadFranchises } from '../../api/taxonomy';
+import type { Character, Franchise } from '../../api/model';
+import { useReadCharactersApiCharactersGet } from '../../api/generated/characters/characters';
+import { useReadFranchisesApiFranchisesGet } from '../../api/generated/franchises/franchises';
 
 export type TaxonomyType = 'character' | 'franchise';
 
@@ -18,20 +20,20 @@ export function TaxonomyAutocompleteInput({ taxonomyType, ...props }: TaxonomyAu
     const isChar = taxonomyType === 'character';
     const isFranchise = taxonomyType === 'franchise';
 
-    const { data: charData } = useReadCharacters(
+    const { data: charData } = useReadCharactersApiCharactersGet(
         { skip: 0, limit: 500 },
-        { enabled: isChar }
+        { query: { enabled: isChar } }
     );
-    const { data: franchiseData } = useReadFranchises(
+    const { data: franchiseData } = useReadFranchisesApiFranchisesGet(
         { skip: 0, limit: 500 },
-        { enabled: isFranchise }
+        { query: { enabled: isFranchise } }
     );
 
     const items = isChar ? charData?.items : franchiseData?.items;
 
     const data = useMemo(() => {
         if (!items) return [];
-        return Array.from(new Set(items.map((i: { name: string }) => i.name)));
+        return Array.from(new Set(items.map((i: Character | Franchise) => i.name)));
     }, [items]);
 
     return (
