@@ -2,13 +2,13 @@
 import { useMemo } from 'react';
 import { TagsInput } from '@mantine/core';
 import type { TagsInputProps, ComboboxProps } from '@mantine/core';
-import { useReadCharacters } from '../../api/taxonomy';
+import { useReadCharactersApiCharactersGet } from '../../api/generated/characters/characters';
 
 export type CharacterTagsInputProps = Omit<TagsInputProps, 'data'>;
 
 export function CharacterTagsInput(props: CharacterTagsInputProps) {
     // Fetch characters for tags input (max 500 allowed by backend pagination limit).
-    const { data: charData } = useReadCharacters({ skip: 0, limit: 500 });
+    const { data: charData } = useReadCharactersApiCharactersGet({ skip: 0, limit: 500 });
 
 
     const characters = charData?.items;

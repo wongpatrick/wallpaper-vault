@@ -3,7 +3,14 @@
  */
 /* eslint-disable no-magic-numbers */
 import { useState, useMemo, useEffect } from 'react';
-import type { TaxonomyQueryParams } from '../api/taxonomy';
+
+export interface TaxonomyQueryParams {
+    search?: string;
+    sort_by?: string;
+    sort_dir?: string;
+    skip?: number;
+    limit?: number;
+}
 
 const DEBOUNCE_MS = 300;
 
