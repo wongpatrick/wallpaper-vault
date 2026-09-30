@@ -1,165 +1,19 @@
 /**
  * @file
- * Main application component.
- * Sets up the router, theme, global state, and background task listeners.
+ * Main application root component.
+ * Sets up global providers and router.
  */
-import { lazy } from 'react'
-import { createHashRouter, RouterProvider } from 'react-router-dom'
-import MainLayout from './components/layout/MainLayout'
-import { createTheme, MantineProvider } from '@mantine/core'
+import { RouterProvider } from 'react-router-dom';
+import { AppProviders } from './AppProviders';
+import { router } from './router';
 
-const Dashboard = lazy(() => import('./pages/dashboard/dashboard'))
-const Creators = lazy(() => import('./pages/creators/creators'))
-const CreatorDetail = lazy(() => import('./pages/creators/CreatorDetail'))
-const Sets = lazy(() => import('./pages/sets/sets'))
-const SetDetail = lazy(() => import('./pages/sets/SetDetail'))
-const Images = lazy(() => import('./pages/images/images'))
-const TaxonomyManagement = lazy(() => import('./pages/taxonomy/TaxonomyManagement'))
-const Tools = lazy(() => import('./pages/tools/tools'))
-const Settings = lazy(() => import('./pages/settings/settings'))
-const Playlists = lazy(() => import('./pages/playlists/playlists'))
-const PlaylistDetail = lazy(() => import('./pages/playlists/PlaylistDetail'))
-const RotationManagement = lazy(() => import('./pages/rotation/rotation'))
-import { Notifications } from '@mantine/notifications'
-import { ModalsProvider } from '@mantine/modals'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { NotificationProvider } from './context/NotificationProvider'
-import { VaultProvider } from './context/VaultProvider'
-import { TaskProvider } from './context/TaskProvider'
-import BackendStatusGuard from './components/ui/BackendStatusGuard'
-import ApiKeyModal from './components/ui/ApiKeyModal'
-import { isElectron } from './config'
-
-import '@mantine/core/styles.css'
-import '@mantine/notifications/styles.css'
-
-const theme = createTheme({
-  primaryColor: 'blue',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-  defaultRadius: 'md',
-    colors: {
-     'ocean': ['#E3F2FD', '#BBDEFB', '#90CAF9', '#64B5F6', '#42A5F5', '#2196F3', '#1E88E5', '#1976D2', '#1565C0',
-      '#0D47A1'],
-    },
-    components: {
-       Container: {
-         defaultProps: {
-           size: 'xl',
-         },
-       },
-       Title: {
-         styles: {
-           root: { 
-             color: 'light-dark(var(--mantine-color-black), var(--mantine-color-white))', 
-             letterSpacing: '-0.5px' 
-           },
-         },
-       },
-       AppShell: {
-         styles: {
-           header: {
-             backgroundColor: 'light-dark(var(--mantine-color-white), var(--mantine-color-dark-7))',
-             borderBottom: '1px solid light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-3))',
-           },
-           navbar: {
-             backgroundColor: 'light-dark(var(--mantine-color-white), var(--mantine-color-dark-7))',
-             borderRight: '1px solid light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-3))',
-             transition: 'width 0.2s ease',
-           },
-           main: {
-             backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))',
-             minHeight: '100vh',
-           },
-         },
-       },
-     },
-});
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 60_000, // Keep data fresh for 60 seconds to prevent unnecessary refetches
-      refetchOnWindowFocus: !isElectron,
-    },
-  },
-});
-
-const router = createHashRouter([
-  {
-    element: <MainLayout />,
-    children: [
-      {
-        path: "/",
-        element: <Dashboard />,
-      },
-      {
-        path: "/creators",
-        element: <Creators />,
-      },
-      {
-        path: "/creators/:creatorId",
-        element: <CreatorDetail />,
-      },
-      {
-        path: "/sets",
-        element: <Sets />,
-      },
-      {
-        path: "/sets/:setId",
-        element: <SetDetail />,
-      },
-      {
-        path: "/playlists",
-        element: <Playlists />,
-      },
-      {
-        path: "/playlists/:playlistId",
-        element: <PlaylistDetail />,
-      },
-      {
-        path: "/images",
-        element: <Images />,
-      },
-      {
-        path: "/taxonomy",
-        element: <TaxonomyManagement />,
-      },
-      {
-        path: "/tools",
-        element: <Tools />,
-      },
-      {
-        path: "/settings",
-        element: <Settings />,
-      },
-      {
-        path: "/rotation",
-        element: <RotationManagement />,
-      },
-    ],
-  },
-]);
-
-function App() {
+/**
+ * Root application component mounting providers and router.
+ */
+export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <MantineProvider theme={theme} defaultColorScheme="auto">
-        <ModalsProvider>
-          <NotificationProvider>
-            <Notifications position="top-right" />
-            <ApiKeyModal />
-            <VaultProvider>
-              <TaskProvider>
-                <BackendStatusGuard>
-                  <RouterProvider router={router} />
-                </BackendStatusGuard>
-              </TaskProvider>
-            </VaultProvider>
-          </NotificationProvider>
-        </ModalsProvider>
-      </MantineProvider>
-    </QueryClientProvider>
-  )
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>
+  );
 }
-
-export default App
