@@ -3,74 +3,63 @@
  * Module: Set Detail Page
  * Description: Displays detailed information and a gallery view for a specific wallpaper set, supporting selection, bulk editing, and syncing.
  */
-import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import { useSelection } from '../../hooks/useSelection';
-import { 
-    Container, Loader, Center, Alert, Button, Modal,
-    TextInput, Textarea, Stack, Group, Switch, TagsInput
-} from '@mantine/core';
-import { IconAlertCircle, IconArrowLeft, IconLock, IconLockOpen } from '@tabler/icons-react';
-import { 
-    useReadSetApiSetsSetIdGet, 
-    useDeleteSetApiSetsSetIdDelete,
-    useUpdateSetApiSetsSetIdPatch,
-    useResyncSetApiSetsSetIdResyncPost,
-    useAutoTagSetApiSetsSetIdAutoTagPost
-} from '../../api/generated/sets/sets';
-
-import { useBulkUpdateImagesApiImagesBulkUpdatePost } from '../../api/generated/images/images';
-import { useReadCreatorsApiCreatorsGet, useCreateCreatorApiCreatorsPost } from '../../api/generated/creators/creators';
-import { useAppNotifications } from '../../hooks/useAppNotifications';
-import { modals } from '@mantine/modals';
-import { ImageLightbox } from '../../components/images/ImageLightbox';
-import { ImageEditModal } from '../../components/images/ImageEditModal';
-import { ImageBulkEditModal } from '../../components/images/ImageBulkEditModal';
-import { ImageMoveModal } from '../../components/images/ImageMoveModal';
-import { TagAutocompleteInput } from '../../components/ui/TagAutocompleteInput';
-import { SetAsWallpaperModal } from '../../components/images/SetAsWallpaperModal';
-
-const ImageCropModal = lazy(() => import('../../components/images/ImageCropModal').then(m => ({ default: m.ImageCropModal })));
-import { CharacterTagsInput } from '../../components/ui/CharacterTagsInput';
+import { Container, Loader, Center, Alert, Button } from '@mantine/core';
+import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
+import { useReadSetApiSetsSetIdGet } from '../../api/generated/sets/sets';
 import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
-import { AddToPlaylistModal } from '../../components/playlists/AddToPlaylistModal';
 import { useTasks } from '../../hooks/useTasks';
-import type { Image as ImageModel, BulkOperationMode, SetUpdate, Set as SetModel, ImageUpdate } from '../../api/model';
-
 import { SetHeader } from './components/SetHeader';
 import { SetImageGallery } from './components/SetImageGallery';
-
-type ActiveModalState = 'editSet' | 'bulkEdit' | 'move' | 'addToPlaylist' | null;
+import { SetDetailModals } from './components/SetDetailModals';
+import { useSetModals } from './hooks/useSetModals';
+import { useSetMutations } from './hooks/useSetMutations';
 
 export default function SetDetail() {
-    const { showNotification } = useAppNotifications();
     const { setId } = useParams<{ setId: string }>();
     const navigate = useNavigate();
     const location = useLocation();
-    const queryClient = useQueryClient();
 
-    // Queries & Mutations
+    // Queries
     const { data: set, isLoading, error, refetch } = useReadSetApiSetsSetIdGet(Number(setId));
-    const { data: creatorsData } = useReadCreatorsApiCreatorsGet({ limit: 1000 });
-    const deleteMutation = useDeleteSetApiSetsSetIdDelete();
-    const updateMutation = useUpdateSetApiSetsSetIdPatch();
-    const resyncMutation = useResyncSetApiSetsSetIdResyncPost();
-    const autoTagMutation = useAutoTagSetApiSetsSetIdAutoTagPost();
-    const bulkUpdateMutation = useBulkUpdateImagesApiImagesBulkUpdatePost();
-    const createCreatorMutation = useCreateCreatorApiCreatorsPost();
 
-    const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
-    const [activeModal, setActiveModal] = useState<ActiveModalState>(null);
-    const [enablePathEdit, setEnablePathEdit] = useState(false);
-    const [editingImage, setEditingImage] = useState<ImageModel | null>(null);
-    const [croppingImage, setCroppingImage] = useState<ImageModel | null>(null);
-    const [movingSingleImage, setMovingSingleImage] = useState<ImageModel | null>(null);
-    const [wallpaperImage, setWallpaperImage] = useState<ImageModel | null>(null);
+    // Selection State
+    const { 
+        selectionMode, 
+        setSelectionMode, 
+        selectedIds: selectedImageIds, 
+        toggle: toggleImageSelect, 
+        selectAll, 
+        clear: clearSelection 
+    } = useSelection();
 
-    const handleImageClick = useCallback((index: number) => setSelectedImageIndex(index), []);
-    const handleSetWallpaper = useCallback((img: ImageModel) => setWallpaperImage(img), []);
+    // Modals & Active Image State
+    const modals = useSetModals();
 
+    // Mutations & Actions
+    const {
+        handleDelete,
+        handleOpenFolder,
+        handleResync,
+        handleAutoTag,
+        handleBulkEditConfirm,
+        handleMoveSuccess,
+        resyncPending,
+        autoTagPending,
+        bulkUpdatePending
+    } = useSetMutations({
+        set,
+        setId,
+        refetch,
+        selectedImageIds,
+        clearSelection,
+        closeModal: modals.closeModal,
+        setMovingSingleImage: modals.setMovingSingleImage
+    });
+
+    // Background Tasks
     const { getTaskForSet, tasks } = useTasks();
     const activeTask = getTaskForSet(Number(setId));
     const isLocalTaggingActive = activeTask?.status === 'accepted' || activeTask?.status === 'processing';
@@ -80,59 +69,10 @@ export default function SetDetail() {
         );
     }, [tasks]);
 
-    // Selection State
-    const { selectionMode, setSelectionMode, selectedIds: selectedImageIds, toggle: toggleImageSelect, selectAll, clear: clearSelection } = useSelection();
-
-    const [editForm, setEditForm] = useState({
-        title: '',
-        notes: '',
-        source_url: '',
-        local_path: '',
-        creator_names: [] as string[],
-        tags: [] as string[],
-        characters: [] as string[]
-    });
-
-    const [prevSet, setPrevSet] = useState<SetModel | null>(null);
-    if (set && set !== prevSet) {
-        setPrevSet(set);
-        if (activeModal !== 'editSet') {
-            setEditForm({
-                title: set.title || '',
-                notes: set.notes || '',
-                source_url: set.source_url || '',
-                local_path: set.local_path || '',
-                creator_names: set.creators?.map(c => c.canonical_name) || [],
-                tags: Array.from(new Set(set.tags || [])),
-                characters: Array.from(new Set(set.characters || []))
-            });
-        }
-    }
-
-    const taskStatus = activeTask?.status;
-
-    useEffect(() => {
-        if (taskStatus === 'completed') {
-            refetch().then((result) => {
-                if (result.data) {
-                    setEditForm({
-                        title: result.data.title || '',
-                        notes: result.data.notes || '',
-                        source_url: result.data.source_url || '',
-                        local_path: result.data.local_path || '',
-                        creator_names: result.data.creators?.map(c => c.canonical_name) || [],
-                        tags: Array.from(new Set(result.data.tags || [])),
-                        characters: Array.from(new Set(result.data.characters || []))
-                    });
-                }
-            });
-        }
-    }, [taskStatus, refetch]);
-
-    const creatorOptions = useMemo(() => {
-        const uniqueNames = new Set(creatorsData?.items?.map(c => c.canonical_name) || []);
-        return Array.from(uniqueNames).sort((a, b) => a.localeCompare(b));
-    }, [creatorsData]);
+    const handleSelectAll = () => {
+        if (!set?.images) return;
+        selectAll(set.images.map(img => img.id));
+    };
 
     if (isLoading) {
         return <Center h={400}><Loader size="xl" /></Center>;
@@ -156,198 +96,11 @@ export default function SetDetail() {
                     }} 
                     mt="md"
                 >
-                    Back to {location.state?.fromLabel || "Sets"}
+                    Back to {location.state?.fromLabel || "Library"}
                 </Button>
             </Container>
         );
     }
-
-    const handleUpdate = async () => {
-        try {
-            const { local_path, creator_names, ...otherFields } = editForm;
-            
-            const finalCreatorIds: number[] = [];
-            for (const name of creator_names) {
-                const trimmedName = name.trim();
-                if (!trimmedName) continue;
-                
-                const existing = creatorsData?.items?.find(
-                    c => c.canonical_name.toLowerCase() === trimmedName.toLowerCase()
-                );
-                
-                if (existing) {
-                    finalCreatorIds.push(existing.id);
-                } else {
-                    const newCreator = await createCreatorMutation.mutateAsync({
-                        data: { canonical_name: trimmedName }
-                    });
-                    finalCreatorIds.push(newCreator.id);
-                }
-            }
-
-            const updateData: SetUpdate = {
-                title: otherFields.title,
-                notes: otherFields.notes || undefined,
-                source_url: otherFields.source_url || undefined,
-                creator_ids: finalCreatorIds,
-                tags: editForm.tags,
-                characters: editForm.characters
-            };
-            if (enablePathEdit) {
-                updateData.local_path = local_path;
-            }
-
-            await updateMutation.mutateAsync({
-                setId: Number(setId),
-                data: updateData
-            });
-            showNotification({ title: 'Success', message: 'Set metadata updated', color: 'green' });
-            setActiveModal(null);
-            setEnablePathEdit(false);
-            refetch();
-        } catch {
-            showNotification({ title: 'Error', message: 'Could not update set', color: 'red' });
-        }
-    };
-
-    const handleDelete = () => {
-        modals.openConfirmModal({
-            title: 'Delete Set',
-            centered: true,
-            children: (
-                <Alert color="red" title="Warning">
-                    Are you sure you want to delete the set <b>"{set?.title}"</b> ({set?.images?.length || 0} images)? This will permanently remove all images in this set from your computer. This action cannot be undone.
-                </Alert>
-            ),
-            labels: { confirm: 'Delete permanently', cancel: 'Cancel' },
-            confirmProps: { color: 'red' },
-            onConfirm: async () => {
-                try {
-                    await deleteMutation.mutateAsync({ setId: Number(setId) });
-                    queryClient.invalidateQueries({
-                        predicate: (query) => {
-                            const key0 = query.queryKey[0];
-                            const key1 = query.queryKey[1];
-                            return key0 === 'sets' || key0 === '/api/sets/' ||
-                                (key0 === 'multi-vault' && (key1 === 'sets' || key1 === '/api/sets/'));
-                        }
-                    });
-                    queryClient.removeQueries({
-                        queryKey: [`/api/sets/${Number(setId)}`]
-                    });
-                    showNotification({ title: 'Set deleted', message: 'Set removed from vault', color: 'blue' });
-                    if (location.state?.from) {
-                        navigate(-1);
-                    } else {
-                        navigate('/sets');
-                    }
-                } catch (err) {
-                    const axiosError = err as { response?: { data?: { detail?: string } } };
-                    const message = axiosError.response?.data?.detail || 'Could not delete set';
-                    showNotification({
-                        title: 'Error',
-                        message: typeof message === 'string' ? message : 'Could not delete set',
-                        color: 'red',
-                        autoClose: 10000
-                    });
-                }
-            },
-        });
-    };
-
-    const handleOpenFolder = async () => {
-        if (!set?.local_path) {
-            showNotification({ title: 'Error', message: 'No local path recorded.', color: 'red' });
-            return;
-        }
-        if (!window.electron?.openPath) {
-            showNotification({
-                title: 'Browser Mode',
-                message: 'Opening local folders is only supported in the desktop application.',
-                color: 'yellow'
-            });
-            return;
-        }
-        try {
-            const result = await window.electron.openPath(set.local_path);
-            if (result && result.error) {
-                showNotification({ title: 'Folder not found', message: result.error, color: 'red' });
-            }
-        } catch {
-            showNotification({ title: 'Native Error', message: 'Could not open folder.', color: 'red' });
-        }
-    };
-
-    const handleResync = async () => {
-        try {
-            await resyncMutation.mutateAsync({ setId: Number(setId) });
-            showNotification({
-                title: 'Resync Complete',
-                message: 'Successfully synced database with folder contents.',
-                color: 'green',
-            });
-            refetch();
-        } catch (err) {
-            console.error('Resync failed:', err);
-            showNotification({
-                title: 'Resync Failed',
-                message: 'Could not sync folder. Ensure the path is correct and accessible.',
-                color: 'red',
-            });
-        }
-    };
-
-    const handleAutoTag = async () => {
-        try {
-            await autoTagMutation.mutateAsync({ setId: Number(setId) });
-        } catch (err) {
-            console.error('Auto tagging failed:', err);
-            showNotification({
-                title: 'Error',
-                message: 'Failed to start AI auto-tagging.',
-                color: 'red',
-            });
-        }
-    };
-
-    const handleSelectAll = () => {
-        if (!set?.images) return;
-        selectAll(set.images.map(img => img.id));
-    };
-
-    const handleBulkEditConfirm = async (data: Partial<ImageUpdate>, mode: BulkOperationMode) => {
-        try {
-            await bulkUpdateMutation.mutateAsync({
-                data: {
-                    image_ids: Array.from(selectedImageIds),
-                    update_data: data,
-                    operation_mode: mode
-                }
-            });
-            showNotification({
-                title: 'Success',
-                message: `Successfully updated ${selectedImageIds.size} images.`,
-                color: 'green',
-            });
-            setActiveModal(null);
-            clearSelection();
-            refetch();
-        } catch (err) {
-            console.error('Bulk update failed:', err);
-            showNotification({
-                title: 'Error',
-                message: 'Failed to update images in bulk.',
-                color: 'red',
-            });
-        }
-    };
-
-    const handleMoveSuccess = () => {
-        clearSelection();
-        setMovingSingleImage(null);
-        setActiveModal(null);
-        refetch();
-    };
 
     return (
         <Container fluid px="xl" pb={selectionMode ? 100 : "xl"} pos="relative">
@@ -360,11 +113,11 @@ export default function SetDetail() {
                 handleSelectAll={handleSelectAll}
                 handleResync={handleResync}
                 handleOpenFolder={handleOpenFolder}
-                onOpenEditModal={() => setActiveModal('editSet')}
+                onOpenEditModal={() => modals.openModal('editSet')}
                 handleAutoTag={handleAutoTag}
                 handleDelete={handleDelete}
-                resyncPending={resyncMutation.isPending}
-                autoTagPending={autoTagMutation.isPending}
+                resyncPending={resyncPending}
+                autoTagPending={autoTagPending}
                 isLocalTaggingActive={isLocalTaggingActive}
                 isAnyTaggingActive={isAnyTaggingActive}
             />
@@ -374,102 +127,20 @@ export default function SetDetail() {
                 selectionMode={selectionMode}
                 selectedImageIds={selectedImageIds}
                 toggleImageSelect={toggleImageSelect}
-                onImageClick={handleImageClick}
-                onSetWallpaper={handleSetWallpaper}
+                onImageClick={modals.handleImageClick}
+                onSetWallpaper={modals.handleSetWallpaper}
             />
 
-            {/* Lightbox for full size preview */}
-            {selectedImageIndex !== null && set.images && (
-                <ImageLightbox 
-                    images={set.images}
-                    selectedIndex={selectedImageIndex}
-                    onClose={() => setSelectedImageIndex(null)}
-                    onSelectIndex={(idx) => setSelectedImageIndex(idx)}
-                    onEdit={(img) => setEditingImage(img)}
-                    onCrop={(img) => setCroppingImage(img)}
-                    onDelete={(deletedId) => {
-                        queryClient.setQueryData<SetModel>([`/api/sets/${Number(setId)}`], (old) => {
-                            if (!old?.images) return old;
-                            return { ...old, images: old.images.filter(img => img.id !== deletedId) };
-                        });
-                        refetch();
-                    }}
-                    onUpdated={refetch}
-                />
-            )}
-
-            <SetAsWallpaperModal
-                opened={wallpaperImage !== null}
-                onClose={() => setWallpaperImage(null)}
-                image={wallpaperImage}
-            />
-
-            {/* Edit Image Modal */}
-            {editingImage && (
-                <ImageEditModal 
-                    image={editingImage}
-                    opened={!!editingImage}
-                    onClose={() => setEditingImage(null)}
-                    onUpdated={() => {
-                        setEditingImage(null);
-                        refetch();
-                    }}
-                    onDelete={(deletedId) => {
-                        setEditingImage(null);
-                        setSelectedImageIndex(null);
-                        queryClient.setQueryData<SetModel>([`/api/sets/${Number(setId)}`], (old) => {
-                            if (!old?.images) return old;
-                            return { ...old, images: old.images.filter(img => img.id !== deletedId) };
-                        });
-                        refetch();
-                    }}
-                />
-            )}
-
-            {/* Crop Image Modal */}
-            {croppingImage && (
-                <Suspense fallback={null}>
-                    <ImageCropModal 
-                        image={croppingImage}
-                        opened={!!croppingImage}
-                        onClose={() => setCroppingImage(null)}
-                        onCropSuccess={() => {
-                            setCroppingImage(null);
-                            refetch();
-                        }}
-                    />
-                </Suspense>
-            )}
-
-            {/* Move Image Modal */}
-            <ImageMoveModal 
-                selectedImageIds={movingSingleImage ? [movingSingleImage.id] : Array.from(selectedImageIds)}
-                opened={activeModal === 'move' || !!movingSingleImage}
-                onClose={() => {
-                    setActiveModal(null);
-                    setMovingSingleImage(null);
-                }}
-                onSuccess={handleMoveSuccess}
-            />
-
-            {/* Bulk Edit Modal */}
-            <ImageBulkEditModal 
-                opened={activeModal === 'bulkEdit'}
-                onClose={() => setActiveModal(null)}
-                selectedCount={selectedImageIds.size}
-                onConfirm={handleBulkEditConfirm}
-                loading={bulkUpdateMutation.isPending}
-            />
-
-            {/* Add to Playlist Modal */}
-            <AddToPlaylistModal 
-                opened={activeModal === 'addToPlaylist'}
-                onClose={() => setActiveModal(null)}
-                imageIds={Array.from(selectedImageIds)}
-                onSuccess={() => {
-                    clearSelection();
-                    refetch();
-                }}
+            <SetDetailModals 
+                set={set}
+                setId={setId}
+                modals={modals}
+                bulkUpdatePending={bulkUpdatePending}
+                onBulkEditConfirm={handleBulkEditConfirm}
+                onMoveSuccess={handleMoveSuccess}
+                selectedImageIds={selectedImageIds}
+                clearSelection={clearSelection}
+                refetch={refetch}
             />
 
             {/* Floating Selection Bar */}
@@ -478,89 +149,10 @@ export default function SetDetail() {
                 selectedCount={selectedImageIds.size}
                 onClear={clearSelection}
             >
-                <Button variant="light" size="xs" onClick={() => setActiveModal('bulkEdit')}>Bulk Edit</Button>
-                <Button variant="light" size="xs" onClick={() => setActiveModal('move')}>Move</Button>
-                <Button variant="light" size="xs" onClick={() => setActiveModal('addToPlaylist')}>Add to Playlist</Button>
+                <Button variant="light" size="xs" disabled={selectedImageIds.size === 0} onClick={() => modals.openModal('bulkEdit')}>Bulk Edit</Button>
+                <Button variant="light" size="xs" disabled={selectedImageIds.size === 0} onClick={() => modals.openModal('move')}>Move</Button>
+                <Button variant="light" size="xs" disabled={selectedImageIds.size === 0} onClick={() => modals.openModal('addToPlaylist')}>Add to Playlist</Button>
             </FloatingSelectionBar>
-
-            {/* Edit Set Modal */}
-            <Modal 
-                opened={activeModal === 'editSet'} 
-                onClose={() => setActiveModal(null)} 
-                title="Edit Set Details"
-                size="lg"
-            >
-                <Stack gap="md">
-                    <TextInput 
-                        label="Set Title" 
-                        value={editForm.title} 
-                        onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                        required
-                    />
-                    
-                    <TagsInput 
-                        label="Creators / Authors"
-                        placeholder="Type creator name and press Enter"
-                        data={creatorOptions}
-                        value={editForm.creator_names}
-                        onChange={(val) => setEditForm({ ...editForm, creator_names: val })}
-                        description="Add one or more creators who produced this wallpaper set."
-                    />
-
-                    <TextInput 
-                        label="Source URL" 
-                        placeholder="https://..."
-                        value={editForm.source_url} 
-                        onChange={(e) => setEditForm({ ...editForm, source_url: e.target.value })}
-                    />
-
-                    <Textarea 
-                        label="Notes" 
-                        placeholder="Additional notes about this set..."
-                        value={editForm.notes} 
-                        onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                        rows={3}
-                    />
-
-                    <CharacterTagsInput 
-                        value={editForm.characters}
-                        onChange={(val) => setEditForm({ ...editForm, characters: val })}
-                    />
-
-                    <TagAutocompleteInput 
-                        label="Tags"
-                        value={editForm.tags}
-                        onChange={(val) => setEditForm({ ...editForm, tags: val })}
-                    />
-
-                    <Switch 
-                        label="Enable local folder path editing" 
-                        checked={enablePathEdit} 
-                        onChange={(e) => setEnablePathEdit(e.currentTarget.checked)} 
-                        thumbIcon={
-                            enablePathEdit ? (
-                                <IconLockOpen size="0.8rem" color="var(--mantine-color-blue-6)" />
-                            ) : (
-                                <IconLock size="0.8rem" color="var(--mantine-color-gray-6)" />
-                            )
-                        }
-                    />
-
-                    {enablePathEdit && (
-                        <TextInput 
-                            label="Local Path" 
-                            value={editForm.local_path} 
-                            onChange={(e) => setEditForm({ ...editForm, local_path: e.target.value })}
-                            description="Warning: Changing local path without moving the actual folder on disk might cause missing files."
-                        />
-                    )}
-
-                    <Group justify="flex-end" mt="md">
-                        <Button variant="outline" onClick={() => setActiveModal(null)}>Cancel</Button>
-                        <Button onClick={handleUpdate} loading={updateMutation.isPending}>Save Changes</Button>
-                    </Group>
-                </Stack>
-            </Modal>
         </Container>
     );
 }
