@@ -13,6 +13,7 @@ import { RotationHeader } from './components/RotationHeader';
 import { ActiveWallpaperPreview } from './components/ActiveWallpaperPreview';
 import { MonitorGrid } from './components/MonitorGrid';
 import { GlobalConfigForm } from './components/GlobalConfigForm';
+import { RotationFormProvider } from './context/RotationFormProvider';
 
 export default function RotationManagement() {
     const { monitors, refreshMonitors, isRefreshing } = useMonitors();
@@ -96,31 +97,14 @@ export default function RotationManagement() {
                     {/* RIGHT COLUMN: Configuration overrides panel */}
                     <Stack gap="md">
                         <Title order={3}>Configuration Profiles</Title>
-                        <GlobalConfigForm 
-                            monitors={monitors}
-                            profiles={configHook.profiles}
-                            selectedProfileId={configHook.selectedProfileId}
-                            setSelectedProfileId={configHook.setSelectedProfileId}
-                            saveModalOpen={configHook.saveModalOpen}
-                            setSaveModalOpen={configHook.setSaveModalOpen}
-                            newProfileName={configHook.newProfileName}
-                            setNewProfileName={configHook.setNewProfileName}
-                            savingProfile={configHook.savingProfile}
-                            applyingProfile={configHook.applyingProfile}
-                            deletingProfile={configHook.deletingProfile}
-                            handleSaveProfile={configHook.handleSaveProfile}
-                            handleApplyProfile={configHook.handleApplyProfile}
-                            handleDeleteProfile={configHook.handleDeleteProfile}
-                            activeConfigTab={activeConfigTab}
-                            setActiveConfigTab={setActiveConfigTab}
-                            globalConfig={configHook.globalConfig}
-                            setGlobalConfig={configHook.setGlobalConfig}
-                            monitorConfigs={configHook.monitorConfigs}
-                            setMonitorConfigs={configHook.setMonitorConfigs}
-                            playlists={configHook.playlists}
-                            saving={configHook.saving}
-                            handleSaveSettings={configHook.handleSaveSettings}
-                        />
+                        <RotationFormProvider value={{
+                            monitors,
+                            activeConfigTab,
+                            setActiveConfigTab,
+                            ...configHook
+                        }}>
+                            <GlobalConfigForm />
+                        </RotationFormProvider>
                     </Stack>
                 </SimpleGrid>
             </Stack>
