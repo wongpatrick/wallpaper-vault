@@ -1,7 +1,6 @@
 /**
  * @file Header banner component for SetDetail page.
  */
-/* eslint-disable no-magic-numbers */
 import { Title, Text, Group, Badge, Button, Menu, ActionIcon, Stack } from '@mantine/core';
 import {
     IconArrowLeft, IconCheck, IconRefresh, IconFolder, IconSettings,

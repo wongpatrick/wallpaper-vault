@@ -4,31 +4,23 @@
  * Description: Lists all wallpaper sets with search, filtering, pagination, and bulk management capabilities.
  */
 import { useState, useCallback, useMemo } from 'react';
-import { Title, Text, Container, Loader, Center, Alert, Stack, TextInput, Group, Select, Box, Overlay, Button, SegmentedControl, Table, Image, Checkbox, Badge } from '@mantine/core';
-import { IconAlertCircle, IconSearch, IconFilter, IconCheck, IconList, IconLayoutGrid } from '@tabler/icons-react';
-import { useDeleteSetApiSetsSetIdDelete } from '../../api/generated/sets/sets';
+import { Title, Text, Container, Loader, Center, Alert, Stack, Group, Box, Overlay, Button } from '@mantine/core';
+import { IconAlertCircle, IconCheck } from '@tabler/icons-react';
 import { useMultiVaultSets } from '../../hooks/useMultiVaultQuery';
 import { AggregatedVaultBanner } from '../../components/vault/AggregatedVaultBanner';
-import { useAppNotifications } from '../../hooks/useAppNotifications';
-import { modals } from '@mantine/modals';
-import { SetCard } from '../../components/sets/SetCard';
 import { CreateSetModal } from '../../components/sets/CreateSetModal';
-import { CREATOR_TYPES } from '../../types/enums';
-import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { getLabelFromPath } from '../../utils/navigationUtils';
-import { getThumbnailUrl, FALLBACK_IMAGE } from '../../utils/fileUtils';
+import { useLocation } from 'react-router-dom';
 import { useUrlSearch } from '../../hooks/useUrlSearch';
 import { useUrlPagination } from '../../hooks/useUrlPagination';
 import { useSelection } from '../../hooks/useSelection';
 import { SetBulkOperations } from '../../components/sets/SetBulkOperations';
 import { PaginationWithSkip } from '../../components/ui/PaginationWithSkip';
-import { SortControl } from '../../components/ui/SortControl';
-import { CharacterAutocompleteInput } from '../../components/ui/CharacterAutocompleteInput';
-import { FranchiseAutocompleteInput } from '../../components/ui/FranchiseAutocompleteInput';
 import { useVault } from '../../hooks/useVault';
-import type { SetSummary as SetModel } from '../../api/model';
-import type { WithMultiVault } from '../../types/vault';
-
+import { SetsFilterBar } from './components/SetsFilterBar';
+import { SetsTableView } from './components/SetsTableView';
+import { SetsGridView } from './components/SetsGridView';
+import { useSetDeletion } from './hooks/useSetDeletion';
+import { useSetFilters } from './hooks/useSetFilters';
 
 const PAGE_SIZE = 12;
 const SEARCH_DEBOUNCE_MS = 500;
@@ -36,27 +28,36 @@ const PADDING_DEFAULT_PX = 40;
 const PADDING_SELECTION_MODE_PX = 100;
 
 export default function Sets() {
-    const { showNotification } = useAppNotifications();
-    const navigate = useNavigate();
     const location = useLocation();
-    const [searchParams, setSearchParams] = useSearchParams();
     const { search, localSearch, setLocalSearch } = useUrlSearch(SEARCH_DEBOUNCE_MS);
     const { page, setPage, totalPages: getTotalPages } = useUrlPagination(PAGE_SIZE);
     const [createModalOpened, setCreateModalOpened] = useState(false);
-    const { activeVault, switchVault } = useVault();
+    const { switchVault } = useVault();
 
-    // View state
-    const view = searchParams.get('view') || 'card';
-
-    // URL State (Source of Truth for API)
-    const typeFilter = searchParams.get('type') || null;
-    const characterFilter = searchParams.get('character') || undefined;
-    const franchiseFilter = searchParams.get('franchise') || undefined;
-    const sortBy = searchParams.get('sort_by') || 'date_added';
-    const sortDir = (searchParams.get('sort_dir') as 'asc' | 'desc') || 'desc';
-    
     // Selection State
-    const { selectionMode, setSelectionMode, selectedIds, toggle: toggleSelect, selectAll, clear: clearSelection, startSelectionWith } = useSelection();
+    const { 
+        selectionMode, 
+        setSelectionMode, 
+        selectedIds, 
+        toggle: toggleSelect, 
+        selectAll, 
+        clear: clearSelection, 
+        startSelectionWith 
+    } = useSelection();
+
+    // URL Filter State
+    const {
+        view,
+        typeFilter,
+        characterFilter,
+        franchiseFilter,
+        sortBy,
+        sortDir,
+        handleViewChange,
+        handleTypeChange,
+        handleCharacterChange,
+        handleFranchiseChange
+    } = useSetFilters(clearSelection);
 
     const { 
         data: pageData, 
@@ -70,7 +71,6 @@ export default function Sets() {
         offlineVaults,
         partialErrors
     } = useMultiVaultSets({
-
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
         search: search || undefined,
@@ -81,110 +81,22 @@ export default function Sets() {
         sort_dir: sortDir
     });
 
-
     const sets = useMemo(() => pageData?.items || [], [pageData?.items]);
     const totalCount = pageData?.total || 0;
     const totalPages = getTotalPages(totalCount);
 
-    const deleteMutation = useDeleteSetApiSetsSetIdDelete();
-
-    // Handlers
-    const handleViewChange = (val: string) => {
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev);
-            if (val === 'card') next.delete('view'); // default
-            else next.set('view', val);
-            return next;
-        }, { replace: true });
-    };
+    const { handleDelete } = useSetDeletion(sets, isAggregated, refetch);
 
     const handleSearchChange = (val: string) => {
         setLocalSearch(val);
         clearSelection();
     };
 
-    const handleTypeChange = (val: string | null) => {
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev);
-            if (!val) next.delete('type');
-            else next.set('type', val);
-            next.delete('page');
-            return next;
-        }, { replace: true });
-        clearSelection();
-    };
-
-    const handleCharacterChange = (val: string | null) => {
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev);
-            if (val) next.set('character', val);
-            else next.delete('character');
-            next.delete('page');
-            return next;
-        }, { replace: true });
-        clearSelection();
-    };
-
-    const handleFranchiseChange = (val: string | null) => {
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev);
-            if (val) next.set('franchise', val);
-            else next.delete('franchise');
-            next.delete('page');
-            return next;
-        }, { replace: true });
-        clearSelection();
-    };
-
-    const handleDelete = useCallback((setId: number) => {
-        const targetSet = sets.find(s => s.id === setId);
-        modals.openConfirmModal({
-            title: 'Delete Set',
-            centered: true,
-            children: (
-                <Text size="sm">
-                    Are you sure you want to delete the set <b>"{targetSet?.title || `Set #${setId}`}"</b> ({targetSet?.image_count ?? 0} images)? This will permanently remove all images in this set from your computer. This action cannot be undone.
-                </Text>
-            ),
-            labels: { confirm: 'Delete permanently', cancel: 'Cancel' },
-            confirmProps: { color: 'red' },
-            onConfirm: async () => {
-                try {
-                    const multiSet = targetSet as WithMultiVault<SetModel>;
-                    if (isAggregated && multiSet?._vaultId && activeVault.id !== multiSet._vaultId) {
-                        await switchVault(multiSet._vaultId);
-                    }
-                    await deleteMutation.mutateAsync({ setId });
-                    showNotification({
-                        title: 'Set deleted',
-                        message: 'The set has been removed from your library.',
-                        color: 'blue',
-                    });
-                    refetch();
-                } catch (err) {
-                    const axiosError = err as { response?: { data?: { detail?: string } } };
-                    const message = axiosError.response?.data?.detail || 'Could not delete the set.';
-                    showNotification({
-                        title: 'Error',
-                        message: typeof message === 'string' ? message : 'Could not delete the set.',
-                        color: 'red',
-                        autoClose: 10000
-                    });
-                }
-            },
-        });
-    }, [sets, isAggregated, activeVault.id, switchVault, deleteMutation, refetch, showNotification]);
-
     const handleLongPress = useCallback((id: number) => {
         if (!selectionMode) {
             startSelectionWith(id);
         }
     }, [selectionMode, startSelectionWith]);
-
-
-
-
-
 
     const selectedSets = sets.filter(s => selectedIds.has(s.id));
 
@@ -222,63 +134,18 @@ export default function Sets() {
                 </Group>
             </Group>
 
-
-            <Group mb="xl" align="flex-end" style={{ flexWrap: 'wrap', gap: 'var(--mantine-spacing-md)' }}>
-                <Stack gap={4} style={{ flex: 1, minWidth: 220, maxWidth: 400 }}>
-                    <Text size="xs" fw={700} c="dimmed" ml={4}>Search</Text>
-                    <TextInput
-                        placeholder="Search titles, tags, or artists..."
-                        leftSection={<IconSearch size={16} />}
-                        value={localSearch}
-                        onChange={(e) => handleSearchChange(e.currentTarget.value)}
-                    />
-                </Stack>
-                <Stack gap={4} w={180}>
-                    <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Character</Text>
-                    <CharacterAutocompleteInput
-                        placeholder="Character"
-                        value={characterFilter || null}
-                        onChange={handleCharacterChange}
-                    />
-                </Stack>
-                <Stack gap={4} w={180}>
-                    <Text size="xs" fw={700} c="dimmed" ml={4}>Filter by Franchise</Text>
-                    <FranchiseAutocompleteInput
-                        placeholder="Franchise"
-                        value={franchiseFilter || null}
-                        onChange={handleFranchiseChange}
-                    />
-                </Stack>
-                <Stack gap={4} w={160}>
-                    <Text size="xs" fw={700} c="dimmed" ml={4}>Artist type</Text>
-                    <Select
-                        placeholder="All types"
-                        leftSection={<IconFilter size={16} />}
-                        data={CREATOR_TYPES as unknown as string[]}
-                        clearable
-                        value={typeFilter}
-                        onChange={handleTypeChange}
-                    />
-                </Stack>
-                <Group gap="xs">
-                    <SortControl 
-                        options={[
-                            { label: 'Date Added', value: 'date_added' },
-                            { label: 'Title (A-Z)', value: 'title' },
-                            { label: 'Image Count', value: 'image_count' }
-                        ]}
-                        defaultSortBy="date_added"
-                    />
-                    <SegmentedControl
-                        value={view}
-                        onChange={handleViewChange}
-                        data={[
-                            { label: <Center><IconList size={16} /></Center>, value: 'list' },
-                            { label: <Center><IconLayoutGrid size={16} /></Center>, value: 'card' },
-                        ]}
-                    />
-                </Group>
-            </Group>
+            <SetsFilterBar 
+                localSearch={localSearch}
+                onSearchChange={handleSearchChange}
+                characterFilter={characterFilter}
+                onCharacterChange={handleCharacterChange}
+                franchiseFilter={franchiseFilter}
+                onFranchiseChange={handleFranchiseChange}
+                typeFilter={typeFilter}
+                onTypeChange={handleTypeChange}
+                view={view}
+                onViewChange={handleViewChange}
+            />
             
             <Box style={{ position: 'relative', minHeight: 400 }}>
                  {/* Initial Loading */}
@@ -310,97 +177,27 @@ export default function Sets() {
                                 </Group>
 
                                 {view === 'list' ? (
-                                    <Table.ScrollContainer minWidth={800} mb="xl">
-                                        <Table verticalSpacing="sm" highlightOnHover>
-                                            <Table.Thead>
-                                                <Table.Tr>
-                                                    <Table.Th w={40}></Table.Th>
-                                                    <Table.Th w={100}>Preview</Table.Th>
-                                                    <Table.Th>Title</Table.Th>
-                                                    <Table.Th>Creator(s)</Table.Th>
-                                                    <Table.Th>Images</Table.Th>
-                                                    <Table.Th>Date Added</Table.Th>
-                                                </Table.Tr>
-                                            </Table.Thead>
-                                            <Table.Tbody>
-                                                {sets.map(set => {
-                                                    const multiSet = set as WithMultiVault<SetModel>;
-                                                    const itemKey = `${multiSet._vaultId || 'local'}-${set.id}`;
-                                                    const coverUrl = set.preview_image_id 
-                                                        ? getThumbnailUrl(set.preview_image_id, 'sm', undefined, multiSet._vaultUrl, multiSet._vaultApiKey) 
-                                                        : FALLBACK_IMAGE;
-                                                    const creatorNames = set.creators?.map(c => c.canonical_name).join(', ') || '-';
-                                                    const dateAdded = new Date(set.date_added).toLocaleDateString();
-
-                                                    return (
-                                                        <Table.Tr 
-                                                            key={itemKey}
-                                                            onClick={async () => {
-                                                                if (isAggregated && multiSet._vaultId) {
-                                                                    await switchVault(multiSet._vaultId);
-                                                                }
-                                                                navigate(`/sets/${set.id}`, {
-                                                                    state: {
-                                                                        from: location.pathname,
-                                                                        fromLabel: getLabelFromPath(location.pathname)
-                                                                    }
-                                                                });
-                                                            }}
-                                                            style={{ cursor: 'pointer', backgroundColor: selectedIds.has(set.id) ? 'var(--mantine-color-blue-light)' : undefined }}
-                                                        >
-                                                            <Table.Td onClick={(e) => e.stopPropagation()}>
-                                                                <Checkbox 
-                                                                    checked={selectedIds.has(set.id)}
-                                                                    onChange={() => {
-                                                                        if (!selectionMode) startSelectionWith(set.id);
-                                                                        else toggleSelect(set.id);
-                                                                    }}
-                                                                />
-                                                            </Table.Td>
-                                                            <Table.Td>
-                                                                <Image src={coverUrl} w={80} h={60} radius="sm" fit="cover" />
-                                                            </Table.Td>
-                                                            <Table.Td fw={500}>
-                                                                <Group gap="xs">
-                                                                    {set.title || 'Untitled Set'}
-                                                                    {isAggregated && multiSet._vaultLabel && (
-                                                                        <Badge size="xs" variant="dot" color="teal">
-                                                                            {multiSet._vaultLabel}
-                                                                        </Badge>
-                                                                    )}
-                                                                </Group>
-                                                            </Table.Td>
-                                                            <Table.Td>{creatorNames}</Table.Td>
-                                                            <Table.Td>{set.image_count ?? 0}</Table.Td>
-                                                            <Table.Td c="dimmed">{dateAdded}</Table.Td>
-                                                        </Table.Tr>
-                                                    );
-                                                })}
-                                            </Table.Tbody>
-                                        </Table>
-                                    </Table.ScrollContainer>
+                                    <SetsTableView 
+                                        sets={sets}
+                                        isAggregated={isAggregated}
+                                        selectedIds={selectedIds}
+                                        selectionMode={selectionMode}
+                                        toggleSelect={toggleSelect}
+                                        startSelectionWith={startSelectionWith}
+                                        switchVault={switchVault}
+                                        locationPathname={location.pathname}
+                                    />
                                 ) : (
-                                    <Box style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 'var(--mantine-spacing-lg)' }}>
-                                        {sets.map((set) => {
-                                            const multiSet = set as WithMultiVault<SetModel>;
-                                            const itemKey = `${multiSet._vaultId || 'local'}-${set.id}`;
-
-                                            return (
-                                                <SetCard 
-                                                    key={itemKey} 
-                                                    set={set} 
-                                                    onDelete={handleDelete}
-                                                    selectionMode={selectionMode}
-                                                    selected={selectedIds.has(set.id)}
-                                                    onToggleSelect={toggleSelect}
-                                                    onLongPress={handleLongPress}
-                                                />
-                                            );
-                                        })}
-                                    </Box>
+                                    <SetsGridView 
+                                        sets={sets}
+                                        handleDelete={handleDelete}
+                                        selectionMode={selectionMode}
+                                        selectedIds={selectedIds}
+                                        toggleSelect={toggleSelect}
+                                        handleLongPress={handleLongPress}
+                                    />
                                 )}
 
-                                
                                 {sets.length === 0 && !isFetching && (
                                     <Stack align="center" py={100} gap="md">
                                         <Text size="xl" fw={500} c="dimmed">No sets match your filters</Text>
@@ -410,7 +207,7 @@ export default function Sets() {
                             </>
                         )}
                     </>
-                )}
+                 )}
             </Box>
 
             {totalPages > 1 && (

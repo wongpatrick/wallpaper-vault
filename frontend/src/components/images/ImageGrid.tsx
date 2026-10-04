@@ -10,19 +10,27 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { ImageGridItem } from './ImageGridItem';
 import type { Image as ImageModel } from '../../api/model';
 
-export interface ImageGridProps {
-    allImages: ImageModel[];
-    columns: { originalIdx: number; image: ImageModel }[][];
-    columnCount: number;
+export interface ImageGridSelection {
+    mode: boolean;
+    selectedIds: Set<number>;
+    onToggle: (id: number) => void;
+}
+
+export interface ImageGridPaginationStatus {
     isLoading: boolean;
     isFetching: boolean;
     hasMore: boolean;
     page: number;
     error: unknown;
+}
+
+export interface ImageGridProps {
+    allImages: ImageModel[];
+    columns: { originalIdx: number; image: ImageModel }[][];
+    columnCount: number;
     sentinelRef: (element: HTMLElement | null) => void;
-    selectionMode: boolean;
-    selectedImageIds: Set<number>;
-    onToggleSelect: (id: number) => void;
+    selection: ImageGridSelection;
+    status: ImageGridPaginationStatus;
     onImageClick: (originalIdx: number) => void;
     onSetWallpaper?: (image: ImageModel) => void;
     isAggregated?: boolean;
@@ -31,10 +39,8 @@ export interface ImageGridProps {
 interface VirtualColumnProps {
     items: { originalIdx: number; image: ImageModel }[];
     parentOffsetTop: number;
+    selection: ImageGridSelection;
     onImageClick: (originalIdx: number) => void;
-    selectionMode: boolean;
-    selectedImageIds: Set<number>;
-    onToggleSelect: (id: number) => void;
     onSetWallpaper?: (image: ImageModel) => void;
     isAggregated?: boolean;
 }
@@ -42,14 +48,15 @@ interface VirtualColumnProps {
 const ESTIMATED_ITEM_HEIGHT = 260;
 const ITEM_PADDING_BOTTOM_PX = 16;
 const DEFAULT_COLUMN_WIDTH_PX = 300;
+const SENTINEL_HEIGHT_PX = 100;
+const LOADING_CENTER_PY = 100;
+const VIRTUALIZER_OVERSCAN = 5;
 
 const VirtualColumn = React.memo(function VirtualColumn({
     items,
     parentOffsetTop,
+    selection,
     onImageClick,
-    selectionMode,
-    selectedImageIds,
-    onToggleSelect,
     onSetWallpaper,
     isAggregated,
 }: VirtualColumnProps) {
@@ -62,7 +69,7 @@ const VirtualColumn = React.memo(function VirtualColumn({
             }
             return ESTIMATED_ITEM_HEIGHT;
         },
-        overscan: 5,
+        overscan: VIRTUALIZER_OVERSCAN,
         scrollMargin: parentOffsetTop,
         getItemKey: (index) => items[index]?.image.id ?? index,
     });
@@ -96,9 +103,9 @@ const VirtualColumn = React.memo(function VirtualColumn({
                             image={item.image}
                             originalIndex={item.originalIdx}
                             onClick={onImageClick}
-                            selectionMode={selectionMode}
-                            selected={selectedImageIds.has(item.image.id)}
-                            onToggleSelect={onToggleSelect}
+                            selectionMode={selection.mode}
+                            selected={selection.selectedIds.has(item.image.id)}
+                            onToggleSelect={selection.onToggle}
                             onSetWallpaper={onSetWallpaper}
                             isAggregated={isAggregated}
                         />
@@ -113,21 +120,16 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
     allImages,
     columns,
     columnCount,
-    isLoading,
-    isFetching,
-    hasMore,
-    page,
-    error,
     sentinelRef,
-    selectionMode,
-    selectedImageIds,
-    onToggleSelect,
+    selection,
+    status,
     onImageClick,
     onSetWallpaper,
     isAggregated,
 }) => {
     const gridRef = useRef<HTMLDivElement>(null);
     const [parentOffsetTop, setParentOffsetTop] = useState(0);
+    const { isLoading, isFetching, hasMore, page, error } = status;
 
     useEffect(() => {
         const updateOffset = () => {
@@ -144,7 +146,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
     return (
         <Box ref={gridRef} style={{ position: 'relative', minHeight: '60vh' }}>
             {isLoading && page === 1 ? (
-                <Center py={100}><Loader size="xl" /></Center>
+                <Center py={LOADING_CENTER_PY}><Loader size="xl" /></Center>
             ) : (
                 <>
                     {error ? (
@@ -160,10 +162,8 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
                                             key={`col-${colIdx}`}
                                             items={col}
                                             parentOffsetTop={parentOffsetTop}
+                                            selection={selection}
                                             onImageClick={onImageClick}
-                                            selectionMode={selectionMode}
-                                            selectedImageIds={selectedImageIds}
-                                            onToggleSelect={onToggleSelect}
                                             onSetWallpaper={onSetWallpaper}
                                             isAggregated={isAggregated}
                                         />
@@ -171,7 +171,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
                                 </SimpleGrid>
                             ) : (
                                 !isFetching && (
-                                    <Stack align="center" py={100} gap="md">
+                                    <Stack align="center" py={LOADING_CENTER_PY} gap="md">
                                         <Text size="xl" fw={500} c="dimmed">No images match your search</Text>
                                         <Text c="dimmed">Try different keywords or clear the search box.</Text>
                                     </Stack>
@@ -183,7 +183,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
             )}
 
             {/* Sentinel for infinite scroll */}
-            <div ref={sentinelRef} style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div ref={sentinelRef} style={{ height: SENTINEL_HEIGHT_PX, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {isFetching && hasMore && (
                     <Loader size="lg" variant="dots" color="blue" />
                 )}

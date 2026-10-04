@@ -3,109 +3,49 @@
  * Module: Images Directory Page
  * Description: Provides an infinite-scrolling gallery of all individual wallpapers with search, filtering, and lightbox viewing capabilities.
  */
-import { Title, Text, Container, Group, Tabs, Button, Stack } from '@mantine/core';
-import { IconGridDots, IconPalette, IconCheck, IconPlaylist, IconEdit } from '@tabler/icons-react';
-import { useBulkUpdateImagesApiImagesBulkUpdatePost } from '../../api/generated/images/images';
+import { useCallback, useEffect, useRef } from 'react';
+import { Container, Tabs } from '@mantine/core';
+import { IconGridDots, IconPalette } from '@tabler/icons-react';
 import { useMultiVaultImages } from '../../hooks/useMultiVaultQuery';
 import { AggregatedVaultBanner } from '../../components/vault/AggregatedVaultBanner';
-
-import { useAppNotifications } from '../../hooks/useAppNotifications';
-import { ImageLightbox } from '../../components/images/ImageLightbox';
-import { ImageEditModal } from '../../components/images/ImageEditModal';
-import { ImageBulkEditModal } from '../../components/images/ImageBulkEditModal';
-import { SetAsWallpaperModal } from '../../components/images/SetAsWallpaperModal';
 import { GalleryFilterBar } from '../../components/images/GalleryFilterBar';
 import { ImageGrid } from '../../components/images/ImageGrid';
 import { ColorExplorer } from './ColorExplorer';
-import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
-
-const ImageCropModal = lazy(() => import('../../components/images/ImageCropModal').then(m => ({ default: m.ImageCropModal })));
-import { useIntersection, useViewportSize } from '@mantine/hooks';
-
-import { useSearchParams } from 'react-router-dom';
-import { useUrlSearch } from '../../hooks/useUrlSearch';
 import { useUrlPagination } from '../../hooks/useUrlPagination';
 import { useSelection } from '../../hooks/useSelection';
-import { FloatingSelectionBar } from '../../components/ui/FloatingSelectionBar';
-import { AddToPlaylistModal } from '../../components/playlists/AddToPlaylistModal';
-import type { Image as ImageModel, BulkOperationMode, ImageUpdate } from '../../api/model';
-import type { WithMultiVault } from '../../types/vault';
-
+import { useGalleryFilterState } from './hooks/useGalleryFilterState';
+import { useGalleryModals } from './hooks/useGalleryModals';
+import { useGalleryStream } from './hooks/useGalleryStream';
+import { useGalleryBulkEdit } from './hooks/useGalleryBulkEdit';
+import { GalleryHeader } from './components/GalleryHeader';
+import { GallerySelectionBar } from './components/GallerySelectionBar';
+import { GalleryModals } from './components/GalleryModals';
 
 const PAGE_SIZE = 100;
-const SEARCH_DEBOUNCE_MS = 500;
-const BREAKPOINT_SM = 600;
-const BREAKPOINT_MD = 900;
-const BREAKPOINT_LG = 1200;
-const COLOR_DEBOUNCE_MS = 500;
-const DEFAULT_TOLERANCE = 30;
+const TAB_ICON_SIZE = 16;
 
 export default function Images() {
-    const { showNotification } = useAppNotifications();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const { search, localSearch, setLocalSearch } = useUrlSearch(SEARCH_DEBOUNCE_MS);
-
-    // URL State (Source of Truth for API)
-    const ratingFilter = searchParams.get('rating') || 'all';
-    const tagFilter = searchParams.get('tag') || undefined;
-    const colorFilter = searchParams.get('color') || undefined;
-    const colorTolerance = parseInt(searchParams.get('tolerance') || '30', 10);
-    const characterFilter = searchParams.get('character') || undefined;
-    const franchiseFilter = searchParams.get('franchise') || undefined;
     const { page, setPage } = useUrlPagination(PAGE_SIZE);
-    const sortBy = searchParams.get('sort_by') || 'date_added';
-    const sortDir = (searchParams.get('sort_dir') as 'asc' | 'desc') || 'desc';
-    const activeTab = searchParams.get('tab') || 'gallery';
 
-    const handleTabChange = (value: string | null) => {
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev);
-            if (value === 'gallery') next.delete('tab');
-            else if (value) next.set('tab', value);
-            return next;
-        }, { replace: true });
-    };
-
-    // Accumulate all images for infinite scroll
-    const [allImages, setAllImages] = useState<ImageModel[]>([]);
-    const [hasMore, setHasMore] = useState(true);
-
-    const { width } = useViewportSize();
-
-    // Responsive column count & image distribution
-    const columnCount = useMemo(() => {
-        if (width < BREAKPOINT_SM) return 1;
-        if (width < BREAKPOINT_MD) return 2;
-        if (width < BREAKPOINT_LG) return 3;
-        return 4;
-    }, [width]);
-
-    const columns = useMemo(() => {
-        const cols: { originalIdx: number; image: ImageModel }[][] = Array.from({ length: columnCount }, () => []);
-        allImages.forEach((img, idx) => {
-            cols[idx % columnCount].push({ originalIdx: idx, image: img });
-        });
-        return cols;
-    }, [allImages, columnCount]);
-
-    // Sentinel for infinite scroll
-    const { ref: sentinelRef, entry } = useIntersection({
-        threshold: 0,
-        rootMargin: '1200px',
-    });
-
-    // Lightbox & Modal states
-    const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
-    const [editingImage, setEditingImage] = useState<ImageModel | null>(null);
-    const [croppingImage, setCroppingImage] = useState<ImageModel | null>(null);
+    // Modals state
+    const modals = useGalleryModals();
 
     // Selection state
-    const { selectionMode, setSelectionMode, selectedIds: selectedImageIds, toggle: toggleImageSelect, clear: clearSelection } = useSelection();
-    const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
-    const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
-    const [wallpaperImage, setWallpaperImage] = useState<ImageModel | null>(null);
+    const { 
+        selectionMode, 
+        setSelectionMode, 
+        selectedIds: selectedImageIds, 
+        toggle: toggleImageSelect, 
+        clear: clearSelection 
+    } = useSelection();
 
-    const bulkUpdateMutation = useBulkUpdateImagesApiImagesBulkUpdatePost();
+    // Stream state & filter reset bridging
+    const filterResetRef = useRef<() => void>(() => {});
+    const handleFilterReset = useCallback(() => {
+        filterResetRef.current();
+    }, []);
+
+    const filters = useGalleryFilterState(handleFilterReset);
 
     // Fetch data
     const { 
@@ -122,127 +62,65 @@ export default function Images() {
     } = useMultiVaultImages({
         skip: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
-        search: search || undefined,
-        rating: ratingFilter === 'all' ? undefined : ratingFilter,
-        tag: tagFilter,
-        color: colorFilter,
-        color_tolerance: colorTolerance,
-        character: characterFilter ? [characterFilter] : undefined,
-        franchise: franchiseFilter ? [franchiseFilter] : undefined,
-        sort_by: sortBy,
-        sort_dir: sortDir
+        search: filters.search || undefined,
+        rating: filters.ratingFilter === 'all' ? undefined : filters.ratingFilter,
+        tag: filters.tagFilter,
+        color: filters.colorFilter,
+        color_tolerance: filters.colorTolerance,
+        character: filters.characterFilter ? [filters.characterFilter] : undefined,
+        franchise: filters.franchiseFilter ? [filters.franchiseFilter] : undefined,
+        sort_by: filters.sortBy,
+        sort_dir: filters.sortDir
     });
 
+    const handleImageRemoved = useCallback((deletedId: number) => {
+        if (selectedImageIds.has(deletedId)) {
+            toggleImageSelect(deletedId);
+        }
+    }, [selectedImageIds, toggleImageSelect]);
 
-    // Unified helper to update search params and reset collection pagination
-    const updateFilterParam = useCallback((key: string, value: string | null) => {
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev);
-            if (value) next.set(key, value);
-            else next.delete(key);
-            next.delete('page');
-            return next;
-        }, { replace: true });
-        setAllImages([]);
-        setHasMore(true);
-    }, [setSearchParams]);
+    const {
+        allImages,
+        columns,
+        columnCount,
+        hasMore,
+        sentinelRef,
+        handleFilterReset: resetStream,
+        handleCollectionReset,
+        handleDeleteImage,
+    } = useGalleryStream({
+        page,
+        setPage,
+        pageData,
+        isLoading,
+        isFetching,
+        onImageRemoved: handleImageRemoved,
+    });
 
-    // Filter Handlers
-    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => setLocalSearch(e.currentTarget.value);
-    const handleRatingChange = (val: string) => updateFilterParam('rating', val === 'all' ? null : val);
-    const handleColorChange = useCallback((hex: string) => updateFilterParam('color', hex), [updateFilterParam]);
-    const handleClearColor = () => updateFilterParam('color', null);
-    const handleClearTag = () => updateFilterParam('tag', null);
-    const handleCharacterChange = (val: string | null) => updateFilterParam('character', val);
-    const handleFranchiseChange = (val: string | null) => updateFilterParam('franchise', val);
-    const handleToleranceChange = useCallback((val: number) => {
-        updateFilterParam('tolerance', val === DEFAULT_TOLERANCE ? null : val.toString());
-    }, [updateFilterParam]);
+    useEffect(() => {
+        filterResetRef.current = resetStream;
+    }, [resetStream]);
 
-    // Debounced color picker handler
-    const colorDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const handleColorPickerChange = useCallback((hex: string) => {
-        if (colorDebounceRef.current) clearTimeout(colorDebounceRef.current);
-        colorDebounceRef.current = setTimeout(() => handleColorChange(hex), COLOR_DEBOUNCE_MS);
-    }, [handleColorChange]);
-
-    const handleImageClick = useCallback((originalIdx: number) => setSelectedImageIndex(originalIdx), []);
-    const handleToggleSelect = useCallback((id: number) => toggleImageSelect(id), [toggleImageSelect]);
-    const handleSetWallpaper = useCallback((img: ImageModel) => setWallpaperImage(img), []);
-
-    // Reset/Refetch helper for image modifications
-    const handleCollectionReset = () => {
-        setAllImages([]);
-        setPage(1);
+    const handleResetAndRefetch = useCallback(() => {
+        handleCollectionReset();
         refetch();
-    };
+    }, [handleCollectionReset, refetch]);
 
-    const handleBulkEditConfirm = async (data: Partial<ImageUpdate>, mode: BulkOperationMode) => {
-        if (isAggregated) {
-            showNotification({
-                title: 'Operation Not Supported',
-                message: 'Bulk editing across multiple vaults is not supported. Please switch to a specific vault first.',
-                color: 'yellow'
-            });
-            return;
-        }
+    const { handleBulkEditConfirm, isPending: bulkUpdatePending } = useGalleryBulkEdit({
+        selectedImageIds,
+        clearSelection,
+        isAggregated,
+        onSuccess: handleResetAndRefetch,
+        onCloseModal: modals.closeBulkEdit,
+    });
 
-        try {
-            await bulkUpdateMutation.mutateAsync({
-                data: {
-                    image_ids: Array.from(selectedImageIds),
-                    update_data: data,
-                    operation_mode: mode,
-                },
-            });
-            showNotification({
-                title: 'Success',
-                message: `Successfully updated ${selectedImageIds.size} images.`,
-                color: 'green',
-            });
-            setIsBulkEditOpen(false);
+    const handleToggleSelectionMode = useCallback(() => {
+        if (selectionMode) {
             clearSelection();
-            handleCollectionReset();
-        } catch (err) {
-            console.error('Bulk update failed:', err);
-            showNotification({
-                title: 'Error',
-                message: 'Failed to update images in bulk.',
-                color: 'red',
-            });
+        } else {
+            setSelectionMode(true);
         }
-    };
-
-    // Accumulate results & page updates
-    useEffect(() => {
-        if (pageData?.items) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setAllImages(prev => {
-                if (page === 1) return pageData.items!;
-                const next = [...prev];
-                pageData.items!.forEach(newItem => {
-                    const newMulti = newItem as WithMultiVault<ImageModel>;
-                    const newKey = `${newMulti._vaultId || 'local'}-${newMulti.id}`;
-                    const idx = next.findIndex(img => {
-                        const imgMulti = img as WithMultiVault<ImageModel>;
-                        return `${imgMulti._vaultId || 'local'}-${imgMulti.id}` === newKey;
-                    });
-                    if (idx !== -1) next[idx] = newItem;
-                    else next.push(newItem);
-                });
-                return next;
-            });
-            setHasMore(pageData.items.length === PAGE_SIZE);
-        }
-    }, [pageData, page]);
-
-
-    // Trigger next page when sentinel is visible
-    useEffect(() => {
-        if (entry?.isIntersecting && hasMore && !isFetching && !isLoading && allImages.length > 0) {
-            setPage(prev => prev + 1);
-        }
-    }, [entry?.isIntersecting, hasMore, isFetching, isLoading, allImages.length, setPage]);
+    }, [selectionMode, clearSelection, setSelectionMode]);
 
     return (
         <Container fluid px="xl">
@@ -254,51 +132,40 @@ export default function Images() {
                 partialErrors={partialErrors}
             />
 
-            <Group justify="space-between" align="flex-start" mb="xl">
-                <Stack gap={0}>
-                    <Title order={1} fw={800} style={{ letterSpacing: '-1px' }}>🖼️ Individual Wallpapers</Title>
+            <GalleryHeader
+                selectionMode={selectionMode}
+                onToggleSelectionMode={handleToggleSelectionMode}
+            />
 
-                    <Text c="dimmed" size="lg">Continuous stream of your entire library.</Text>
-                </Stack>
-                <Button 
-                    variant={selectionMode ? "filled" : "light"} 
-                    color={selectionMode ? "blue" : "gray"}
-                    leftSection={selectionMode ? <IconCheck size={16} /> : null}
-                    onClick={() => selectionMode ? clearSelection() : setSelectionMode(true)}
-                >
-                    {selectionMode ? "Finish Selecting" : "Select Items"}
-                </Button>
-            </Group>
-
-            <Tabs value={activeTab} onChange={handleTabChange} mb="xl">
+            <Tabs value={filters.activeTab} onChange={filters.handleTabChange} mb="xl">
                 <Tabs.List mb="md">
-                    <Tabs.Tab value="gallery" leftSection={<IconGridDots size={16} />}>Gallery Filters</Tabs.Tab>
-                    <Tabs.Tab value="explorer" leftSection={<IconPalette size={16} />}>Color Explorer</Tabs.Tab>
+                    <Tabs.Tab value="gallery" leftSection={<IconGridDots size={TAB_ICON_SIZE} />}>Gallery Filters</Tabs.Tab>
+                    <Tabs.Tab value="explorer" leftSection={<IconPalette size={TAB_ICON_SIZE} />}>Color Explorer</Tabs.Tab>
                 </Tabs.List>
 
                 <Tabs.Panel value="gallery">
                     <GalleryFilterBar
-                        localSearch={localSearch}
-                        onSearchChange={handleSearchChange}
-                        tagFilter={tagFilter}
-                        onClearTag={handleClearTag}
-                        characterFilter={characterFilter || null}
-                        onCharacterChange={handleCharacterChange}
-                        franchiseFilter={franchiseFilter || null}
-                        onFranchiseChange={handleFranchiseChange}
-                        ratingFilter={ratingFilter}
-                        onRatingChange={handleRatingChange}
+                        localSearch={filters.localSearch}
+                        onSearchChange={filters.handleSearchChange}
+                        tagFilter={filters.tagFilter}
+                        onClearTag={filters.handleClearTag}
+                        characterFilter={filters.characterFilter || null}
+                        onCharacterChange={filters.handleCharacterChange}
+                        franchiseFilter={filters.franchiseFilter || null}
+                        onFranchiseChange={filters.handleFranchiseChange}
+                        ratingFilter={filters.ratingFilter}
+                        onRatingChange={filters.handleRatingChange}
                     />
                 </Tabs.Panel>
                 
                 <Tabs.Panel value="explorer">
                     <ColorExplorer 
-                        activeColor={colorFilter || undefined} 
-                        onColorSelect={handleColorChange}
-                        onColorPickerChange={handleColorPickerChange}
-                        onClearColor={handleClearColor}
-                        tolerance={colorTolerance}
-                        onToleranceChange={handleToleranceChange}
+                        activeColor={filters.colorFilter || undefined} 
+                        onColorSelect={filters.handleColorChange}
+                        onColorPickerChange={filters.handleColorPickerChange}
+                        onClearColor={filters.handleClearColor}
+                        tolerance={filters.colorTolerance}
+                        onToleranceChange={filters.handleToleranceChange}
                     />
                 </Tabs.Panel>
             </Tabs>
@@ -307,118 +174,43 @@ export default function Images() {
                 allImages={allImages}
                 columns={columns}
                 columnCount={columnCount}
-                isLoading={isLoading}
-                isFetching={isFetching}
-                hasMore={hasMore}
-                page={page}
-                error={error}
                 sentinelRef={sentinelRef}
-                selectionMode={selectionMode}
-                selectedImageIds={selectedImageIds}
-                onToggleSelect={handleToggleSelect}
-                onImageClick={handleImageClick}
-                onSetWallpaper={handleSetWallpaper}
+                selection={{
+                    mode: selectionMode,
+                    selectedIds: selectedImageIds,
+                    onToggle: toggleImageSelect,
+                }}
+                status={{
+                    isLoading,
+                    isFetching,
+                    hasMore,
+                    page,
+                    error,
+                }}
+                onImageClick={modals.handleImageClick}
+                onSetWallpaper={modals.handleSetWallpaper}
                 isAggregated={isAggregated}
             />
 
-            <ImageLightbox
-                images={allImages}
-                selectedIndex={selectedImageIndex}
-                onClose={() => setSelectedImageIndex(null)}
-                onSelectIndex={setSelectedImageIndex}
-                onEdit={(img) => setEditingImage(img)}
+            <GalleryModals 
+                allImages={allImages}
+                modals={modals}
                 totalCount={pageData?.total}
-                onDelete={(deletedId) => {
-                    setAllImages(prev => prev.filter(img => img.id !== deletedId));
-                    if (selectedImageIds.has(deletedId)) {
-                        toggleImageSelect(deletedId);
-                    }
-                }}
-                onUpdated={handleCollectionReset}
-                onCrop={(img) => setCroppingImage(img)}
+                selectedImageIds={selectedImageIds}
+                clearSelection={clearSelection}
+                handleCollectionReset={handleResetAndRefetch}
+                refetch={refetch}
+                onDeleteImage={handleDeleteImage}
+                onBulkEditConfirm={handleBulkEditConfirm}
+                bulkUpdatePending={bulkUpdatePending}
             />
 
-            <SetAsWallpaperModal
-                opened={wallpaperImage !== null}
-                onClose={() => setWallpaperImage(null)}
-                image={wallpaperImage}
-            />
-
-            <ImageEditModal
-                image={editingImage}
-                opened={editingImage !== null}
-                onClose={() => setEditingImage(null)}
-                onUpdated={() => {
-                    setEditingImage(null);
-                    refetch();
-                }}
-                onDelete={(deletedId) => {
-                    setEditingImage(null);
-                    setSelectedImageIndex(null);
-                    setAllImages(prev => prev.filter(img => img.id !== deletedId));
-                    if (selectedImageIds.has(deletedId)) {
-                        toggleImageSelect(deletedId);
-                    }
-                }}
-            />
-
-            {croppingImage && (
-                <Suspense fallback={null}>
-                    <ImageCropModal 
-                        key={croppingImage.id}
-                        image={croppingImage}
-                        opened={!!croppingImage}
-                        onClose={() => setCroppingImage(null)}
-                        onCropSuccess={handleCollectionReset}
-                    />
-                </Suspense>
-            )}
-
-            <FloatingSelectionBar
-                mounted={selectionMode && selectedImageIds.size > 0}
+            <GallerySelectionBar
+                selectionMode={selectionMode}
                 selectedCount={selectedImageIds.size}
                 onClear={clearSelection}
-                itemLabel="images"
-                minWidth={300}
-            >
-                <Button
-                    size="xs"
-                    variant="light"
-                    color="blue"
-                    leftSection={<IconEdit size={14} />}
-                    radius="xl"
-                    onClick={() => setIsBulkEditOpen(true)}
-                >
-                    Bulk Edit
-                </Button>
-                <Button
-                    size="xs"
-                    variant="light"
-                    color="violet"
-                    leftSection={<IconPlaylist size={14} />}
-                    radius="xl"
-                    onClick={() => setIsAddToPlaylistOpen(true)}
-                >
-                    Add to Playlist
-                </Button>
-            </FloatingSelectionBar>
-
-            <ImageBulkEditModal
-                opened={isBulkEditOpen}
-                onClose={() => setIsBulkEditOpen(false)}
-                onConfirm={handleBulkEditConfirm}
-                loading={bulkUpdateMutation.isPending}
-                selectedCount={selectedImageIds.size}
-            />
-
-            <AddToPlaylistModal
-                opened={isAddToPlaylistOpen}
-                onClose={() => setIsAddToPlaylistOpen(false)}
-                imageIds={Array.from(selectedImageIds)}
-                onSuccess={() => {
-                    clearSelection();
-                    refetch();
-                }}
+                onOpenBulkEdit={modals.openBulkEdit}
+                onOpenAddToPlaylist={modals.openAddToPlaylist}
             />
         </Container>
     );
