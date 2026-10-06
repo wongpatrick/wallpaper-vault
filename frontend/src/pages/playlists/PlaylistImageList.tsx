@@ -14,6 +14,7 @@ import { getThumbnailUrl } from '../../utils/fileUtils';
 import { VaultBadge } from '../../components/playlists/VaultBadge';
 import type { VaultEntry } from '../../types/electron';
 import type { Image as ImageModel } from '../../api/model';
+import classes from './PlaylistImageList.module.css';
 
 const OPACITY_DRAG = 0.4;
 const OPACITY_OFFLINE = 0.6;
@@ -30,16 +31,20 @@ interface LocalImageItem {
     sort_order: number;
 }
 
+export interface DragAndDropHandlers {
+    draggedIndex: number | null;
+    onDragStart: (idx: number) => void;
+    onDragOver: (e: React.DragEvent, idx: number) => void;
+    onDrop: (e: React.DragEvent, idx: number) => void;
+}
+
 interface PlaylistImageListProps {
     isCrossVault: boolean;
     isSmart?: boolean;
     crossVaultImages: CrossVaultItem[];
     imagesWithOrder: LocalImageItem[];
     vaults: VaultEntry[];
-    draggedIndex: number | null;
-    onDragStart: (idx: number) => void;
-    onDragOver: (e: React.DragEvent, idx: number) => void;
-    onDrop: (e: React.DragEvent, idx: number) => void;
+    dragAndDrop: DragAndDropHandlers;
     onMove: (idx: number, direction: 'up' | 'down') => void;
     onRemoveLocalImage: (imageId: number) => void;
     onRemoveCrossVaultImage: (vaultId: string, imageId: number) => void;
@@ -52,15 +57,13 @@ export function PlaylistImageList({
     crossVaultImages,
     imagesWithOrder,
     vaults,
-    draggedIndex,
-    onDragStart,
-    onDragOver,
-    onDrop,
+    dragAndDrop,
     onMove,
     onRemoveLocalImage,
     onRemoveCrossVaultImage,
     onImageClick
 }: PlaylistImageListProps) {
+    const { draggedIndex, onDragStart, onDragOver, onDrop } = dragAndDrop;
     if (isCrossVault) {
         return (
             <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
@@ -89,7 +92,7 @@ export function PlaylistImageList({
                                 opacity: draggedIndex === idx ? OPACITY_DRAG : (isOnline ? 1 : OPACITY_OFFLINE),
                                 cursor: 'grab',
                             }}
-                            className="playlist-item-card"
+                            className={classes.card}
                         >
                             <Box style={{ position: 'relative', height: 180, overflow: 'hidden', backgroundColor: 'var(--mantine-color-dark-7)' }}>
                                 {isOnline ? (
@@ -228,7 +231,7 @@ export function PlaylistImageList({
                             opacity: draggedIndex === idx ? OPACITY_DRAG : 1,
                             cursor: isSmart ? 'default' : 'grab'
                         }}
-                        className="playlist-item-card"
+                        className={classes.card}
                     >
                         <Box style={{ position: 'relative', height: 180, overflow: 'hidden' }}>
                             <Image
