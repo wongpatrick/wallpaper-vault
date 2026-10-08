@@ -51,6 +51,7 @@ export function GalleryModals({
                 onDelete={onDeleteImage}
                 onUpdated={handleCollectionReset}
                 onCrop={(img) => modals.setCroppingImage(img)}
+                onSetWallpaper={(img) => modals.setWallpaperImage(img)}
             />
 
             <SetAsWallpaperModal

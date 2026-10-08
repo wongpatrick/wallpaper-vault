@@ -4,6 +4,11 @@
  * Handles drag, resize, and cropping operations.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import {
+    parseAspectRatio,
+    computeInitialCropBox,
+    clampCropPosition
+} from '../../../utils/cropGeometry';
 
 export type AspectRatio = 'free' | '16:9' | '16:10' | '9:16' | '4:3' | '1:1' | 'custom';
 
@@ -57,10 +62,7 @@ export function useImageCropper() {
     };
 
     const getRatio = useCallback(() => {
-        if (aspectRatio === 'free') return 1;
-        if (aspectRatio === 'custom') return (customRatio.w || 1) / (customRatio.h || 1);
-        const [w, h] = aspectRatio.split(':').map(Number);
-        return w / (h || 1);
+        return parseAspectRatio(aspectRatio, customRatio);
     }, [aspectRatio, customRatio]);
 
     const handleImageLoad = useCallback(() => {
@@ -73,24 +75,14 @@ export function useImageCropper() {
 
         setImageDimensions({ width: containerWidth, height: containerHeight });
 
-        let width = containerWidth * INITIAL_CROP_RATIO;
-        let height = containerHeight * INITIAL_CROP_RATIO;
+        const initialBox = computeInitialCropBox(
+            containerWidth,
+            containerHeight,
+            aspectRatio === 'free' ? 'free' : getRatio(),
+            INITIAL_CROP_RATIO
+        );
 
-        const ratio = getRatio();
-        if (aspectRatio !== 'free') {
-            if (width / height > ratio) {
-                width = height * ratio;
-            } else {
-                height = width / ratio;
-            }
-        }
-
-        setCrop({
-            x: (containerWidth - width) / 2,
-            y: (containerHeight - height) / 2,
-            width,
-            height
-        });
+        setCrop(initialBox);
     }, [aspectRatio, getRatio]);
 
     useEffect(() => {
@@ -114,11 +106,21 @@ export function useImageCropper() {
         const img = imageRef.current;
 
         if (isDragging) {
-            setCrop(prev => ({
-                ...prev,
-                x: Math.max(0, Math.min(img.clientWidth - prev.width, initialCrop.x + deltaX)),
-                y: Math.max(0, Math.min(img.clientHeight - prev.height, initialCrop.y + deltaY))
-            }));
+            setCrop(prev => {
+                const clamped = clampCropPosition(
+                    initialCrop.x + deltaX,
+                    initialCrop.y + deltaY,
+                    prev.width,
+                    prev.height,
+                    img.clientWidth,
+                    img.clientHeight
+                );
+                return {
+                    ...prev,
+                    x: clamped.x,
+                    y: clamped.y
+                };
+            });
         } else if (isResizing) {
             let newWidth = Math.max(MIN_CROP_SIZE, initialCrop.width + deltaX);
             let newHeight = Math.max(MIN_CROP_SIZE, initialCrop.height + deltaY);

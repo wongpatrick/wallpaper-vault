@@ -5,6 +5,7 @@
  */
 import { Box } from '@mantine/core';
 import type { CropState } from './useImageCropper';
+import { CropOverlayGrid } from '../../ui/CropOverlayGrid';
 
 interface CropperAreaProps {
     image: string;
@@ -66,10 +67,7 @@ export function CropperArea({ image, crop, imageRef, imageWidth, imageHeight, on
                         pointerEvents: 'none'
                     }} />
                     
-                    <div style={{ position: 'absolute', top: '33.33%', left: 0, right: 0, height: '1px', background: 'rgba(255,255,255,0.3)' }} />
-                    <div style={{ position: 'absolute', top: '66.66%', left: 0, right: 0, height: '1px', background: 'rgba(255,255,255,0.3)' }} />
-                    <div style={{ position: 'absolute', left: '33.33%', top: 0, bottom: 0, width: '1px', background: 'rgba(255,255,255,0.3)' }} />
-                    <div style={{ position: 'absolute', left: '66.66%', top: 0, bottom: 0, width: '1px', background: 'rgba(255,255,255,0.3)' }} />
+                    <CropOverlayGrid color="rgba(255,255,255,0.3)" lineStyle="solid" />
 
                     <div 
                         style={{
