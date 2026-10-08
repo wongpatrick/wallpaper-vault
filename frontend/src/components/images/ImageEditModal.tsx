@@ -4,16 +4,15 @@
  * Description: Modal component for editing metadata (rating, tags, notes, etc.) of a single image and handling its deletion.
  */
 import { Modal, Stack, TextInput, Textarea, Button, NumberInput, SegmentedControl, Text, ColorInput, Center, Box, Group } from '@mantine/core';
-import { useState, useMemo, useEffect } from 'react';
 import { IconAlertTriangle, IconExclamationCircle, IconShieldCheck, IconTrash } from '@tabler/icons-react';
-import { useUpdateImageApiImagesImageIdPatch, useReadImageApiImagesImageIdGet } from '../../api/generated/images/images';
 import { useDeleteImage } from '../../hooks/useDeleteImage';
 import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { modals } from '@mantine/modals';
-import type { Image as ImageModel, ImageUpdate, ImageDetail } from '../../api/model';
+import type { Image as ImageModel } from '../../api/model';
 import { ImageRating } from '../../types/enums';
 import { TagAutocompleteInput } from '../ui/TagAutocompleteInput';
 import { CharacterTagsInput } from '../ui/CharacterTagsInput';
+import { useImageEditForm } from './hooks/useImageEditForm';
 
 interface ImageEditModalProps {
     image: ImageModel | null;
@@ -29,135 +28,26 @@ const CONFIRM_MODAL_Z_INDEX_OFFSET = 10;
 
 export function ImageEditModal({ image, opened, onClose, onUpdated, onDelete, zIndex = MODAL_Z_INDEX }: ImageEditModalProps) {
     const { showNotification } = useAppNotifications();
-    const updateMutation = useUpdateImageApiImagesImageIdPatch();
     const { deleteImage, isDeleting } = useDeleteImage();
 
-    const { data: imageDetail } = useReadImageApiImagesImageIdGet(
-        image?.id || 0,
-        undefined,
-        { query: { enabled: !!image?.id } }
-    );
-    
-    const [form, setForm] = useState<ImageUpdate>({
-        filename: '',
-        notes: '',
-        sort_order: 0,
-        aspect_ratio_label: '',
-        rating: ImageRating.SAFE,
-        dominant_color: '',
-        tags: [],
-        characters: []
+    const {
+        form,
+        setField,
+        isSaving,
+        handleClose,
+        handleSave
+    } = useImageEditForm({
+        image,
+        opened,
+        onClose,
+        onUpdated,
+        zIndex
     });
-
-    const [prevImageId, setPrevImageId] = useState<number | null>(null);
-    if (image && image.id !== prevImageId) {
-        setPrevImageId(image.id);
-        setForm({
-            filename: image.filename || '',
-            notes: image.notes || '',
-            sort_order: image.sort_order || 0,
-            aspect_ratio_label: image.aspect_ratio_label || '',
-            rating: image.rating || ImageRating.SAFE,
-            dominant_color: image.dominant_color || '',
-            tags: (image as ImageDetail).tags || [],
-            characters: (image as ImageDetail).characters || []
-        });
-    }
-
-    // Update tags and characters form fields once detailed image metadata is loaded
-    useEffect(() => {
-        if (imageDetail) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setForm(prev => ({
-                ...prev,
-                tags: imageDetail.tags || [],
-                characters: imageDetail.characters || []
-            }));
-        }
-    }, [imageDetail]);
-
-
-    const isFormDirty = useMemo(() => {
-        if (!image) return false;
-        const originalTags = (image as ImageDetail).tags || [];
-        const originalCharacters = (image as ImageDetail).characters || [];
-        
-        const arraysEqual = (a: string[], b: string[]) => {
-            if (a.length !== b.length) return false;
-            const sortedA = [...a].sort();
-            const sortedB = [...b].sort();
-            return sortedA.every((val, idx) => val === sortedB[idx]);
-        };
-
-        return (
-            form.filename !== (image.filename || '') ||
-            form.notes !== (image.notes || '') ||
-            form.sort_order !== (image.sort_order || 0) ||
-            form.aspect_ratio_label !== (image.aspect_ratio_label || '') ||
-            form.rating !== (image.rating || ImageRating.SAFE) ||
-            form.dominant_color !== (image.dominant_color || '') ||
-            !arraysEqual(form.tags || [], originalTags) ||
-            !arraysEqual(form.characters || [], originalCharacters)
-        );
-    }, [form, image]);
-
-    const resetForm = () => {
-        if (image) {
-            setForm({
-                filename: image.filename || '',
-                notes: image.notes || '',
-                sort_order: image.sort_order || 0,
-                aspect_ratio_label: image.aspect_ratio_label || '',
-                rating: image.rating || ImageRating.SAFE,
-                dominant_color: image.dominant_color || '',
-                tags: (image as ImageDetail).tags || [],
-                characters: (image as ImageDetail).characters || []
-            });
-        }
-    };
-
-    const handleClose = () => {
-        if (isFormDirty) {
-            modals.openConfirmModal({
-                title: 'Unsaved Changes',
-                centered: true,
-                zIndex: zIndex + CONFIRM_MODAL_Z_INDEX_OFFSET,
-                children: (
-                    <Text size="sm">
-                        You have unsaved changes. Do you want to discard them?
-                    </Text>
-                ),
-                labels: { confirm: 'Discard Changes', cancel: 'Keep Editing' },
-                confirmProps: { color: 'red' },
-                onConfirm: () => {
-                    resetForm();
-                    onClose();
-                }
-            });
-        } else {
-            onClose();
-        }
-    };
-
-    const handleSave = async () => {
-        if (!image) return;
-        try {
-            await updateMutation.mutateAsync({
-                imageId: image.id,
-                data: form
-            });
-            showNotification({ title: 'Success', message: 'Image updated', color: 'green' });
-            onUpdated();
-            onClose();
-        } catch {
-            showNotification({ title: 'Error', message: 'Could not update image', color: 'red' });
-        }
-    };
 
     const handleDelete = () => {
         if (!image) return;
         const deletedId = image.id;
-        
+
         modals.openConfirmModal({
             title: 'Delete Image',
             centered: true,
@@ -186,20 +76,19 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, onDelete, zI
         });
     };
 
-
     return (
         <Modal opened={opened} onClose={handleClose} title="Edit Image Metadata" radius="md" zIndex={zIndex}>
             <Stack gap="md">
                 <TextInput 
                     label="Filename" 
                     value={form.filename || ''} 
-                    onChange={(e) => setForm({ ...form, filename: e.currentTarget.value })}
+                    onChange={(e) => setField('filename', e.currentTarget.value)}
                 />
-                
+
                 <Text size="sm" fw={500} mb={-10}>Content Rating</Text>
                 <SegmentedControl
                     value={form.rating || ImageRating.SAFE}
-                    onChange={(v) => setForm({ ...form, rating: v })}
+                    onChange={(v) => setField('rating', v as ImageRating)}
                     data={[
                         { 
                             label: (
@@ -235,45 +124,45 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, onDelete, zI
                     label="Dominant Color" 
                     placeholder="Hex code (e.g. #FF0055)"
                     value={form.dominant_color || ''} 
-                    onChange={(v) => setForm({ ...form, dominant_color: v })}
+                    onChange={(v) => setField('dominant_color', v)}
                     format="hex"
                 />
 
                 <TagAutocompleteInput 
-                    label="Tags"
-                    placeholder="Add tags..."
-                    value={form.tags || []}
-                    onChange={(tags) => setForm({ ...form, tags })}
+                    label="Tags" 
+                    placeholder="Add tags..." 
+                    value={form.tags || []} 
+                    onChange={(tags) => setField('tags', tags)}
                 />
 
                 <CharacterTagsInput 
-                    label="Characters"
-                    placeholder="Add characters..."
-                    value={form.characters || []}
-                    onChange={(characters) => setForm({ ...form, characters })}
+                    label="Characters" 
+                    placeholder="Add characters..." 
+                    value={form.characters || []} 
+                    onChange={(characters) => setField('characters', characters)}
                 />
 
                 <TextInput 
                     label="Aspect Ratio Label" 
-                    placeholder="e.g. 16:9, Mobile"
+                    placeholder="e.g. 16:9, Mobile" 
                     value={form.aspect_ratio_label || ''} 
-                    onChange={(e) => setForm({ ...form, aspect_ratio_label: e.currentTarget.value })}
+                    onChange={(e) => setField('aspect_ratio_label', e.currentTarget.value)}
                 />
-                
+
                 <NumberInput 
                     label="Sort Order" 
                     value={form.sort_order || 0} 
-                    onChange={(v) => setForm({ ...form, sort_order: Number(v) })}
+                    onChange={(v) => setField('sort_order', Number(v))}
                 />
-                
+
                 <Textarea 
                     label="Notes" 
-                    placeholder="Specific notes for this image..."
+                    placeholder="Specific notes for this image..." 
                     value={form.notes || ''} 
-                    onChange={(e) => setForm({ ...form, notes: e.currentTarget.value })}
+                    onChange={(e) => setField('notes', e.currentTarget.value)}
                     minRows={3}
                 />
-                
+
                 <Group grow mt="md">
                     <Button 
                         variant="light" 
@@ -284,7 +173,7 @@ export function ImageEditModal({ image, opened, onClose, onUpdated, onDelete, zI
                     >
                         Delete Image
                     </Button>
-                    <Button onClick={handleSave} loading={updateMutation.isPending}>Save Changes</Button>
+                    <Button onClick={handleSave} loading={isSaving}>Save Changes</Button>
                 </Group>
             </Stack>
         </Modal>

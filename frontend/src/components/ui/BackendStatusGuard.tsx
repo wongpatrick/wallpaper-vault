@@ -4,7 +4,7 @@
  * Restricts app access while the active backend (local or remote) is starting, crashed, offline, or experiencing port collisions, providing recovery modals.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
     Container, 
     Stack, 
@@ -24,174 +24,33 @@ import {
     IconServer, 
     IconLock
 } from '@tabler/icons-react';
-import { AXIOS_INSTANCE } from '../../api/axios-instance';
 import { useVault } from '../../hooks/useVault';
-import type { BackendStatusInfo } from '../../types/electron';
+import { useBackendHealthWatchdog } from '../../hooks/useBackendHealthWatchdog';
 import { PortCollisionModal } from './PortCollisionModal';
 import { BackendCrashPanel } from './BackendCrashModal';
-
-const DEFAULT_PORT = 8000;
-const HEALTH_CHECK_INTERVAL_MS = 60000;
-const HEALTH_CHECK_STARTUP_INTERVAL_MS = 5000;
-const RETRY_TIMEOUT_MS = 5000;
-const HTTP_STATUS_OK = 200;
-const HTTP_STATUS_UNAUTHORIZED = 401;
 
 interface BackendStatusGuardProps {
     children: React.ReactNode;
 }
 
 export default function BackendStatusGuard({ children }: BackendStatusGuardProps) {
-    const isElectron = typeof window !== 'undefined' && 'electron' in window;
-    const { activeVault, vaults, switchVault, refreshHealth } = useVault();
-    
-    const [statusInfo, setStatusInfo] = useState<BackendStatusInfo>({
-        status: isElectron ? 'starting' : 'running',
-        autoRestartCount: 0,
-        maxRestarts: 3,
-        port: DEFAULT_PORT
-    });
+    const { activeVault, vaults, switchVault } = useVault();
+    const {
+        statusInfo,
+        isElectron,
+        isRetrying,
+        isSavingPort,
+        handleRetry,
+        handleSavePort,
+        handleOpenLogs,
+        handleOpenLogsDir
+    } = useBackendHealthWatchdog();
+
     const [portModalOpen, setPortModalOpen] = useState(false);
-    const [isRetrying, setIsRetrying] = useState(false);
-    const [isSavingPort, setIsSavingPort] = useState(false);
 
-    // Sync Axios base URL when status info port/url updates
-    useEffect(() => {
-        const customUrl = localStorage.getItem('backend_url') || '';
-        if (customUrl) {
-            AXIOS_INSTANCE.defaults.baseURL = customUrl;
-        } else if (statusInfo.port) {
-            AXIOS_INSTANCE.defaults.baseURL = `http://localhost:${statusInfo.port}`;
-        }
-    }, [statusInfo.port]);
-
-    useEffect(() => {
-        if (!activeVault.isLocal) {
-            return;
-        }
-
-        if (!isElectron) {
-            let timeoutId: ReturnType<typeof setTimeout>;
-            const customBackendUrl = localStorage.getItem('backend_url') || '';
-            const targetUrl = customBackendUrl || `http://localhost:${DEFAULT_PORT}`;
-
-            const checkBrowserHealth = async () => {
-                let isHealthy = false;
-                try {
-                    const cleanUrl = targetUrl.replace(/\/+$/, '');
-                    const res = await fetch(`${cleanUrl}/`);
-                    if (res.status === HTTP_STATUS_OK || res.status === HTTP_STATUS_UNAUTHORIZED) {
-                        setStatusInfo({
-                            status: 'running',
-                            autoRestartCount: 0,
-                            maxRestarts: 3,
-                            port: DEFAULT_PORT
-                        });
-                        isHealthy = true;
-                    } else {
-                        setStatusInfo(prev => ({
-                            ...prev,
-                            status: 'error',
-                            errorDetails: `Unexpected status code: ${res.status}`
-                        }));
-                    }
-                } catch {
-                    setStatusInfo(prev => ({
-                        ...prev,
-                        status: 'error',
-                        errorDetails: `Failed to connect to ${targetUrl}. Check that the backend server is running and accessible.`
-                    }));
-                } finally {
-                    const interval = isHealthy ? HEALTH_CHECK_INTERVAL_MS : HEALTH_CHECK_STARTUP_INTERVAL_MS;
-                    timeoutId = setTimeout(checkBrowserHealth, interval);
-                }
-            };
-
-            checkBrowserHealth();
-            return () => clearTimeout(timeoutId);
-        }
-
-        // Electron mode
-        const fetchInitialStatus = async () => {
-            try {
-                const info = await window.electron.getBackendStatus();
-                setStatusInfo(info);
-            } catch (err) {
-                console.error('Failed to get backend status:', err);
-                setStatusInfo(prev => ({
-                    ...prev,
-                    status: 'error',
-                    errorDetails: 'Unable to communicate with Electron main process.'
-                }));
-            }
-        };
-
-        fetchInitialStatus();
-        const removeListener = window.electron.onBackendStatusChange((info) => {
-            setStatusInfo(info);
-        });
-
-        return () => {
-            removeListener();
-        };
-    }, [isElectron, activeVault.isLocal]);
-
-    const handleRetry = async () => {
-        setIsRetrying(true);
-        try {
-            if (!activeVault.isLocal) {
-                await refreshHealth();
-            } else if (isElectron) {
-                await window.electron.restartBackend();
-                const info = await window.electron.getBackendStatus();
-                setStatusInfo(info);
-            } else {
-                const customBackendUrl = localStorage.getItem('backend_url') || '';
-                const targetUrl = customBackendUrl || `http://localhost:${DEFAULT_PORT}`;
-                const cleanUrl = targetUrl.replace(/\/+$/, '');
-                const res = await fetch(`${cleanUrl}/`);
-                if (res.status === HTTP_STATUS_OK || res.status === HTTP_STATUS_UNAUTHORIZED) {
-                    setStatusInfo({
-                        status: 'running',
-                        autoRestartCount: 0,
-                        maxRestarts: 3,
-                        port: DEFAULT_PORT
-                    });
-                }
-            }
-        } catch (err) {
-            console.error('Retry failed:', err);
-        } finally {
-            setTimeout(() => setIsRetrying(false), RETRY_TIMEOUT_MS);
-        }
-    };
-
-    const handleSavePort = async (newPort: number) => {
-        setIsSavingPort(true);
-        try {
-            if (isElectron) {
-                await window.electron.setBackendPort(newPort);
-                const info = await window.electron.getBackendStatus();
-                setStatusInfo(info);
-                setPortModalOpen(false);
-            }
-        } catch (err) {
-            console.error('Failed to update port:', err);
-        } finally {
-            setIsSavingPort(false);
-        }
-    };
-
-    const handleOpenLogs = async () => {
-        if (isElectron) {
-            await window.electron.openBackendLogs();
-        }
-    };
-
-    const handleOpenLogsDir = async () => {
-        if (isElectron) {
-            await window.electron.openLogsDirectory();
-        }
+    const onSavePort = async (newPort: number) => {
+        await handleSavePort(newPort);
+        setPortModalOpen(false);
     };
 
     const handleSwitchToLocal = () => {
@@ -400,7 +259,7 @@ export default function BackendStatusGuard({ children }: BackendStatusGuardProps
                 opened={portModalOpen}
                 onClose={() => setPortModalOpen(false)}
                 initialPort={statusInfo.port}
-                onSavePort={handleSavePort}
+                onSavePort={onSavePort}
                 isSaving={isSavingPort}
             />
         </Box>

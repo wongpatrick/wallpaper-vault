@@ -65,6 +65,7 @@ export function SetDetailModals({
                     onCrop={(img) => modals.setCroppingImage(img)}
                     onDelete={handleOptimisticImageDelete}
                     onUpdated={refetch}
+                    onSetWallpaper={(img) => modals.setWallpaperImage(img)}
                 />
             )}
 
