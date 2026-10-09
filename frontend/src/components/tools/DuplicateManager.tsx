@@ -3,7 +3,7 @@
  * Tool for resolving duplicate images in the library.
  * Allows comparing identical images side-by-side and selecting which to keep based on resolution/size.
  */
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
     Stack, 
     Text, 
@@ -32,11 +32,10 @@ import {
 } from '@tabler/icons-react';
 import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { 
-    useReadDuplicateGroupsApiImagesDuplicatesGroupsGet,
-    useResolveDuplicatesApiImagesDuplicatesResolvePost,
     useRevealImageApiImagesImageIdRevealPost
 } from '../../api/generated/images/images';
 import type { DuplicateGroup, ImageWithContext } from '../../api/model';
+import { useDuplicateScanner } from './hooks/useDuplicateScanner';
 import { API_BASE_URL } from '../../config';
 
 const API_BASE = `${API_BASE_URL}/api`;
@@ -45,60 +44,20 @@ const BYTES_PER_KB = 1024;
 const THRESHOLD_MB = 1000;
 
 export function DuplicateManager() {
-    const { showNotification } = useAppNotifications();
-    const { 
-        data: groups, 
-        isLoading, 
-        isError, 
-        refetch 
-    } = useReadDuplicateGroupsApiImagesDuplicatesGroupsGet({});
-    
-    const resolveMutation = useResolveDuplicatesApiImagesDuplicatesResolvePost();
-
-    const [resolving, setResolving] = useState<string | null>(null);
-    const [viewMode, setViewMode] = useState<'grid' | 'columns'>('grid');
-    const [page, setPage] = useState(1);
-    
-    const ITEMS_PER_PAGE = 10;
-    const totalPages = groups ? Math.ceil(groups.length / ITEMS_PER_PAGE) : 0;
-
-    useEffect(() => {
-        if (groups && page > totalPages && totalPages > 0) {
-            setPage(totalPages);
-        }
-    }, [groups, page, totalPages]);
-
-    const handleResolve = async (group: DuplicateGroup, keepId: number) => {
-        const removeIds = group.images
-            .map(img => img.id)
-            .filter(id => id !== keepId);
-
-        setResolving(group.phash);
-        try {
-            await resolveMutation.mutateAsync({
-                data: {
-                    keep_image_id: keepId,
-                    remove_image_ids: removeIds
-                }
-            });
-            showNotification({
-                title: 'Success',
-                message: `Resolved duplicate group. Removed ${removeIds.length} redundant images.`,
-                color: 'green',
-                icon: <IconCheck size={16} />
-            });
-            refetch();
-        } catch {
-            showNotification({
-                title: 'Error',
-                message: 'Failed to resolve duplicates.',
-                color: 'red',
-                icon: <IconAlertCircle size={16} />
-            });
-        } finally {
-            setResolving(null);
-        }
-    };
+    const {
+        groups,
+        isLoading,
+        isError,
+        refetch,
+        resolving,
+        viewMode,
+        setViewMode,
+        page,
+        setPage,
+        totalPages,
+        ITEMS_PER_PAGE,
+        handleResolve
+    } = useDuplicateScanner();
 
     if (isLoading) {
         return (

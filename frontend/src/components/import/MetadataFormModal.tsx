@@ -18,7 +18,10 @@ import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/crea
 import { useReadSetsApiSetsGet } from '../../api/generated/sets/sets';
 import { useReadSettingsApiSettingsGet } from '../../api/generated/settings/settings';
 import { useListLibraryPathsApiLibraryPathsGet } from '../../api/generated/library-paths/library-paths';
-import { useImportValidation } from './hooks/useImportValidation';
+import { useImportImagesApiImagesImportPost } from '../../api/generated/images/images';
+import { useImportQueue } from './hooks/useImportQueue';
+import { useImportScanner } from './hooks/useImportScanner';
+import { useImportFolderGroups } from './hooks/useImportFolderGroups';
 
 const OPACITY_DESELECTED = 0.6;
 
@@ -48,6 +51,10 @@ export function MetadataFormModal({
     const { data: libraryPathsData } = useListLibraryPathsApiLibraryPathsGet();
 
     const [selectedLibraryPathId, setSelectedLibraryPathId] = useState<string | null>(null);
+    const [globalTags, setGlobalTags] = useState<string[]>([]);
+    const [globalRating, setGlobalRating] = useState<string>('questionable');
+    const [deleteSource, setDeleteSource] = useState(false);
+    const importImagesMutation = useImportImagesApiImagesImportPost();
 
     const libraryPaths = useMemo(() => libraryPathsData?.items || [], [libraryPathsData]);
 
@@ -58,14 +65,44 @@ export function MetadataFormModal({
                 // eslint-disable-next-line react-hooks/set-state-in-effect
                 setSelectedLibraryPathId(defaultLp.id.toString());
             }
+            setGlobalTags([]);
+            setGlobalRating('questionable');
+            setDeleteSource(false);
         }
     }, [opened, libraryPaths]);
 
-    const validation = useImportValidation({
+    const {
+        queue,
+        setQueue,
+        selectedQueueItems,
+        toggleItemSelect,
+        updateItemFilename,
+        removeItem
+    } = useImportQueue({ opened });
+
+    const {
+        isValidating,
+        validationProgress,
+        validationCount,
+        validationTotal
+    } = useImportScanner({
         opened,
-        onClose,
         initialLocalPaths,
         initialFiles,
+        isElectron,
+        onValidated: setQueue
+    });
+
+    const {
+        groupsMetadata,
+        updateGroupMetadata,
+        groupedQueue,
+        getFolderGroupKey,
+        getFolderGroupName
+    } = useImportFolderGroups({
+        opened,
+        queue,
+        initialLocalPaths,
         isElectron,
         suggestedFolder,
         preselectedSetId
@@ -113,7 +150,7 @@ export function MetadataFormModal({
     };
 
     const handleImport = async () => {
-        const selectedItems = validation.selectedQueueItems;
+        const selectedItems = selectedQueueItems;
         if (selectedItems.length === 0) {
             showNotification({
                 title: 'No Files Selected',
@@ -125,7 +162,7 @@ export function MetadataFormModal({
 
         const itemsByGroup: Record<string, typeof selectedItems> = {};
         selectedItems.forEach(item => {
-            const key = validation.getFolderGroupKey(item.local_path);
+            const key = getFolderGroupKey(item.local_path);
             if (!itemsByGroup[key]) {
                 itemsByGroup[key] = [];
             }
@@ -134,7 +171,7 @@ export function MetadataFormModal({
 
         try {
             for (const [groupKey, groupItems] of Object.entries(itemsByGroup)) {
-                const meta = validation.groupsMetadata[groupKey] || { creatorNames: [], setIdOrTitle: '', searchQuery: '' };
+                const meta = groupsMetadata[groupKey] || { creatorNames: [], setIdOrTitle: '', searchQuery: '' };
                 const creatorStr = meta.creatorNames.join(' & ');
                 let targetSetId: number | undefined;
                 let targetSetTitle: string | undefined;
@@ -147,7 +184,7 @@ export function MetadataFormModal({
                     }
                 }
 
-                const responseTaskId = await validation.importImagesMutation.mutateAsync({
+                const responseTaskId = await importImagesMutation.mutateAsync({
                     data: {
                         items: groupItems.map(item => ({
                             local_path: item.local_path,
@@ -159,9 +196,9 @@ export function MetadataFormModal({
                         set_title: targetSetTitle || undefined,
                         set_id: targetSetId || undefined,
                         library_path_id: selectedLibraryPathId ? Number(selectedLibraryPathId) : undefined,
-                        tags: validation.globalTags.length > 0 ? validation.globalTags : undefined,
-                        rating: validation.globalRating,
-                        delete_source: isSourceInVault ? false : validation.deleteSource
+                        tags: globalTags.length > 0 ? globalTags : undefined,
+                        rating: globalRating,
+                        delete_source: isSourceInVault ? false : deleteSource
                     }
                 });
 
@@ -175,7 +212,7 @@ export function MetadataFormModal({
                 }
 
                 showNotification({
-                    title: `Import Started: ${validation.getFolderGroupName(groupKey)}`,
+                    title: `Import Started: ${getFolderGroupName(groupKey)}`,
                     message: `Importing ${groupItems.length} items. Task ID: ${responseTaskId}`,
                     color: 'blue'
                 });
@@ -192,20 +229,20 @@ export function MetadataFormModal({
         }
     };
 
-    const duplicateCount = useMemo(() => validation.queue.filter(item => item.selected && item.is_duplicate).length, [validation.queue]);
+    const duplicateCount = useMemo(() => queue.filter(item => item.selected && item.is_duplicate).length, [queue]);
 
     const totalItemsCount = useMemo(() => {
-        if (validation.isValidating) {
-            return validation.validationTotal > 0 ? validation.validationTotal : (isElectron ? initialLocalPaths.length : initialFiles.length);
+        if (isValidating) {
+            return validationTotal > 0 ? validationTotal : (isElectron ? initialLocalPaths.length : initialFiles.length);
         }
-        return validation.queue.length;
-    }, [validation.isValidating, validation.validationTotal, validation.queue.length, isElectron, initialLocalPaths.length, initialFiles.length]);
+        return queue.length;
+    }, [isValidating, validationTotal, queue.length, isElectron, initialLocalPaths.length, initialFiles.length]);
 
     const activeGroupKeys = useMemo(() => {
-        const keysFromQueue = Object.keys(validation.groupedQueue);
-        const keysFromMetadata = Object.keys(validation.groupsMetadata);
+        const keysFromQueue = Object.keys(groupedQueue);
+        const keysFromMetadata = Object.keys(groupsMetadata);
         return Array.from(new Set([...keysFromQueue, ...keysFromMetadata]));
-    }, [validation.groupedQueue, validation.groupsMetadata]);
+    }, [groupedQueue, groupsMetadata]);
 
     return (
         <Modal
@@ -213,7 +250,7 @@ export function MetadataFormModal({
             onClose={onClose}
             title={
                 <Text fw={700} size="lg">
-                    📥 Drag-and-Drop Import Manager ({totalItemsCount} items{validation.isValidating ? ', scanning...' : ''})
+                    📥 Drag-and-Drop Import Manager ({totalItemsCount} items{isValidating ? ', scanning...' : ''})
                 </Text>
             }
             size="xl"
@@ -221,7 +258,7 @@ export function MetadataFormModal({
             closeOnClickOutside={false}
         >
             <Stack gap="md" style={{ position: 'relative', minHeight: 300 }}>
-                {validation.isValidating && (
+                {isValidating && (
                     <div style={{
                         position: 'absolute',
                         top: 0,
@@ -238,28 +275,28 @@ export function MetadataFormModal({
                     }}>
                         <Stack align="center" gap="sm" style={{ width: '80%', maxWidth: 400 }}>
                             <Text fw={600} size="sm">
-                                {validation.validationTotal > 0 
-                                    ? `Validating item ${validation.validationCount} of ${validation.validationTotal}...` 
+                                {validationTotal > 0 
+                                    ? `Validating item ${validationCount} of ${validationTotal}...` 
                                     : 'Initializing validation...'}
                             </Text>
                             <Progress 
-                                value={validation.validationProgress} 
+                                value={validationProgress} 
                                 size="sm" 
                                 radius="xl" 
-                                animated={validation.validationProgress < 100} 
+                                animated={validationProgress < 100} 
                                 color="blue" 
                                 style={{ width: '100%' }}
                             />
                             <Text size="xs" c="dimmed">
-                                {validation.validationTotal > 0 
-                                    ? `${validation.validationCount} of ${validation.validationTotal} items (${Math.round(validation.validationProgress)}%)` 
-                                    : `${Math.round(validation.validationProgress)}% complete`}
+                                {validationTotal > 0 
+                                    ? `${validationCount} of ${validationTotal} items (${Math.round(validationProgress)}%)` 
+                                    : `${Math.round(validationProgress)}% complete`}
                             </Text>
                         </Stack>
                     </div>
                 )}
 
-                {!validation.isValidating && (
+                {!isValidating && (
                     <>
                         <Card withBorder radius="md" p="md" bg="light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-7))">
                             <Stack gap="xs">
@@ -268,8 +305,8 @@ export function MetadataFormModal({
                                     <TagAutocompleteInput
                                         label="Global Tags"
                                         placeholder="Add tags to all files..."
-                                        value={validation.globalTags}
-                                        onChange={validation.setGlobalTags}
+                                        value={globalTags}
+                                        onChange={setGlobalTags}
                                     />
                                     <Select
                                         label="Global Content Rating"
@@ -278,8 +315,8 @@ export function MetadataFormModal({
                                             { value: 'questionable', label: 'Questionable' },
                                             { value: 'explicit', label: 'Explicit' }
                                         ]}
-                                        value={validation.globalRating}
-                                        onChange={(val) => validation.setGlobalRating(val || 'questionable')}
+                                        value={globalRating}
+                                        onChange={(val) => setGlobalRating(val || 'questionable')}
                                     />
                                 </Group>
 
@@ -302,8 +339,8 @@ export function MetadataFormModal({
                                 >
                                     <Checkbox
                                         label="Delete source files after successful import"
-                                        checked={isSourceInVault ? false : validation.deleteSource}
-                                        onChange={(e) => validation.setDeleteSource(e.currentTarget.checked)}
+                                        checked={isSourceInVault ? false : deleteSource}
+                                        onChange={(e) => setDeleteSource(e.currentTarget.checked)}
                                         disabled={isSourceInVault}
                                         color="red"
                                         mt="xs"
@@ -315,12 +352,12 @@ export function MetadataFormModal({
                         <Stack gap="xs">
                             <Text fw={600} size="sm">Set Configurations</Text>
                             {activeGroupKeys.map((groupKey) => {
-                                const meta = validation.groupsMetadata[groupKey] || { creatorNames: [], setIdOrTitle: '', searchQuery: '' };
+                                const meta = groupsMetadata[groupKey] || { creatorNames: [], setIdOrTitle: '', searchQuery: '' };
                                 return (
                                     <Card key={groupKey} withBorder radius="md" p="sm" bg="light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6))">
                                         <Stack gap="xs">
                                             <Text fw={700} size="xs" c="blue" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <IconFolder size={16} /> {validation.getFolderGroupName(groupKey)}
+                                                <IconFolder size={16} /> {getFolderGroupName(groupKey)}
                                             </Text>
                                             <Group grow gap="md">
                                                 <TagsInput
@@ -328,7 +365,7 @@ export function MetadataFormModal({
                                                     placeholder="Type & Enter to add"
                                                     data={creatorOptions}
                                                     value={meta.creatorNames}
-                                                    onChange={(val) => validation.updateGroupMetadata(groupKey, 'creatorNames', val)}
+                                                    onChange={(val) => updateGroupMetadata(groupKey, 'creatorNames', val)}
                                                     clearable
                                                 />
                                                 <Select
@@ -336,10 +373,10 @@ export function MetadataFormModal({
                                                     placeholder="Select Set or search/create (fallback: Imports)"
                                                     data={getSetOptionsForGroup(meta.searchQuery)}
                                                     value={meta.setIdOrTitle}
-                                                    onChange={(val) => validation.updateGroupMetadata(groupKey, 'setIdOrTitle', val || '')}
+                                                    onChange={(val) => updateGroupMetadata(groupKey, 'setIdOrTitle', val || '')}
                                                     searchable
                                                     searchValue={meta.searchQuery}
-                                                    onSearchChange={(val) => validation.updateGroupMetadata(groupKey, 'searchQuery', val)}
+                                                    onSearchChange={(val) => updateGroupMetadata(groupKey, 'searchQuery', val)}
                                                     clearable
                                                 />
                                             </Group>
@@ -369,11 +406,11 @@ export function MetadataFormModal({
                                     <Table.Tr>
                                         <Table.Th style={{ width: 40 }}>
                                             <Checkbox
-                                                checked={validation.queue.some(i => i.is_valid) && validation.queue.filter(i => i.is_valid).every(i => i.selected)}
-                                                indeterminate={validation.queue.some(i => i.selected) && !validation.queue.filter(i => i.is_valid).every(i => i.selected)}
+                                                checked={queue.some(i => i.is_valid) && queue.filter(i => i.is_valid).every(i => i.selected)}
+                                                indeterminate={queue.some(i => i.selected) && !queue.filter(i => i.is_valid).every(i => i.selected)}
                                                 onChange={(evt) => {
                                                     const val = evt.currentTarget.checked;
-                                                    validation.setQueue(prev => prev.map(item => ({
+                                                    setQueue(prev => prev.map(item => ({
                                                         ...item,
                                                         selected: item.is_valid ? val : false
                                                     })));
@@ -387,13 +424,13 @@ export function MetadataFormModal({
                                     </Table.Tr>
                                 </Table.Thead>
                                 <Table.Tbody>
-                                    {Object.entries(validation.groupedQueue).map(([groupKey, items]) => (
+                                    {Object.entries(groupedQueue).map(([groupKey, items]) => (
                                         <Fragment key={groupKey}>
-                                            {Object.keys(validation.groupedQueue).length > 1 && (
+                                            {Object.keys(groupedQueue).length > 1 && (
                                                 <Table.Tr bg="light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6))">
                                                     <Table.Td colSpan={5} style={{ padding: '8px 12px' }}>
                                                         <Text fw={700} size="xs" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                            <IconFolder size={14} /> {validation.getFolderGroupName(groupKey)} ({items.length} items)
+                                                            <IconFolder size={14} /> {getFolderGroupName(groupKey)} ({items.length} items)
                                                         </Text>
                                                     </Table.Td>
                                                 </Table.Tr>
@@ -404,7 +441,7 @@ export function MetadataFormModal({
                                                         <Checkbox
                                                             checked={item.selected}
                                                             disabled={!item.is_valid}
-                                                            onChange={() => validation.toggleItemSelect(item.id)}
+                                                            onChange={() => toggleItemSelect(item.id)}
                                                         />
                                                     </Table.Td>
                                                     <Table.Td>
@@ -429,7 +466,7 @@ export function MetadataFormModal({
                                                             <TextInput
                                                                 size="xs"
                                                                 value={item.filenameOverride}
-                                                                onChange={(e) => validation.updateItemFilename(item.id, e.currentTarget.value)}
+                                                                onChange={(e) => updateItemFilename(item.id, e.currentTarget.value)}
                                                                 disabled={!item.selected}
                                                             />
                                                             <Text size="10px" c="dimmed" lineClamp={1}>
@@ -458,7 +495,7 @@ export function MetadataFormModal({
                                                         <ActionIcon
                                                             variant="subtle"
                                                             color="red"
-                                                            onClick={() => validation.removeItem(item.id)}
+                                                            onClick={() => removeItem(item.id)}
                                                         >
                                                             <IconTrash size={16} />
                                                         </ActionIcon>
@@ -467,7 +504,7 @@ export function MetadataFormModal({
                                             ))}
                                         </Fragment>
                                     ))}
-                                    {validation.queue.length === 0 && (
+                                    {queue.length === 0 && (
                                         <Table.Tr>
                                             <Table.Td colSpan={5}>
                                                 <Text ta="center" c="dimmed" py="xl">
@@ -486,8 +523,8 @@ export function MetadataFormModal({
                             </Button>
                             <Button
                                 onClick={handleImport}
-                                disabled={validation.selectedQueueItems.length === 0}
-                                loading={validation.importImagesMutation.isPending}
+                                disabled={selectedQueueItems.length === 0}
+                                loading={importImagesMutation.isPending}
                             >
                                 Import Selected
                             </Button>

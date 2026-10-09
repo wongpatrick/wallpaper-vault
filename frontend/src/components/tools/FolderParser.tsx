@@ -9,6 +9,11 @@ import { useState, useCallback, useEffect } from 'react';
 import { useImportSetApiSetsImportPost } from '../../api/generated/sets/sets';
 import { getAllFiles } from '../../utils/fileUtils';
 import { useDebouncedValue } from '@mantine/hooks';
+import {
+    parseFolderNameWithPattern,
+    templateToRegex,
+    regexToTemplate
+} from '../../utils/folderParserUtils';
 
 
 interface ParseResult {
@@ -33,56 +38,13 @@ export function FolderParser() {
     const { mutateAsync: importSet } = useImportSetApiSetsImportPost();
 
     const parseFolderName = useCallback((folder: {name: string, path: string, files: string[]}, pattern: string, advanced: boolean): ParseResult => {
-        try {
-            let regex: RegExp;
-            if (advanced) {
-                regex = new RegExp(pattern);
-            } else {
-                const regexPattern = pattern
-                    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-                    .replace(/\\ -\\ /g, '(?:\\s+[-—–\\u2010-\\u2015\\uff0d]\\s+|\\s*[—–\\u2010-\\u2015\\uff0d]\\s*)')
-                    .replace(/\\\[Creator\\\]/g, '(?<creator>.+?)')
-                    .replace(/\\\[Set\\\]/g, '(?<set>.+)');
-                regex = new RegExp(`^${regexPattern}$`);
-            }
-
-            const match = folder.name.match(regex);
-            if (match && match.groups) {
-                return {
-                    original: folder.name,
-                    path: folder.path,
-                    creator: match.groups.creator || 'Unknown',
-                    set: match.groups.set || 'Unknown',
-                    isValid: true,
-                    files: folder.files
-                };
-            }
-        } catch (e) {
-            console.error("Regex error:", e);
-        }
-
-        // Fallback simple dash split if regex pattern didn't match
-        let parts = folder.name.split(/\s+[-–—\u2010-\u2015\uff0d]\s+|\s*[–—\u2010-\u2015\uff0d]\s*/);
-        if (parts.length <= 1) {
-            parts = folder.name.split(/\s*[-–—\u2010-\u2015\uff0d]\s*/);
-        }
-        if (parts.length > 1) {
-            return {
-                original: folder.name,
-                path: folder.path,
-                creator: parts[0].trim() || 'Unknown',
-                set: parts.slice(1).join(' - ').trim() || 'Unknown',
-                isValid: true,
-                files: folder.files
-            };
-        }
-
+        const parsed = parseFolderNameWithPattern(folder.name, pattern, advanced);
         return {
             original: folder.name,
             path: folder.path,
-            creator: 'Unknown',
-            set: 'Unknown',
-            isValid: false,
+            creator: parsed.creator,
+            set: parsed.set,
+            isValid: parsed.isValid,
             files: folder.files
         };
     }, []);
@@ -98,22 +60,6 @@ export function FolderParser() {
             next[index] = { ...next[index], [field]: value };
             return next;
         });
-    };
-
-    const templateToRegex = (t: string) => {
-        return t
-            .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-            .replace(/\\\[Creator\\\]/g, '(?<creator>.+)')
-            .replace(/\\\[Set\\\]/g, '(?<set>.+)');
-    };
-
-    const regexToTemplate = (r: string) => {
-        return r
-            .replace(/^\^/, '')
-            .replace(/\$$/, '')
-            .replace(/\(\?<creator>.*?\)/g, '[Creator]')
-            .replace(/\(\?<set>.*?\)/g, '[Set]')
-            .replace(/\\(.)/g, '$1');
     };
 
     const handleToggleAdvanced = (checked: boolean) => {
