@@ -7,7 +7,7 @@ import { useMemo, useEffect, useState, useCallback } from 'react';
 import { Modal, Box, Text } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getImageUrl } from '../../../utils/fileUtils';
+import { getImageUrl } from '../../../utils/imageUrl';
 import { getLabelFromPath } from '../../../utils/navigationUtils';
 import { useDeleteImage } from '../../../hooks/useDeleteImage';
 import { useAppNotifications } from '../../../hooks/useAppNotifications';

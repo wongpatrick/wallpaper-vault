@@ -6,7 +6,7 @@
 import { useMemo } from 'react';
 import { SimpleGrid, Paper, Group, Text } from '@mantine/core';
 import { IconLayersIntersect, IconPhoto, IconDatabase, IconAspectRatio } from '@tabler/icons-react';
-import { formatBytes } from '../../utils/fileUtils';
+import { formatBytes } from '../../utils/formatBytes';
 import type { CreatorStats } from '../../api/model';
 
 interface CreatorStatsCardProps {

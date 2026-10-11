@@ -5,7 +5,7 @@
  */
 import { Table, Image, Checkbox, Group, Badge } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
-import { getThumbnailUrl, FALLBACK_IMAGE } from '../../../utils/fileUtils';
+import { getThumbnailUrl, FALLBACK_IMAGE } from '../../../utils/imageUrl';
 import { getLabelFromPath } from '../../../utils/navigationUtils';
 import type { SetSummary as SetModel } from '../../../api/model';
 import type { WithMultiVault } from '../../../types/vault';

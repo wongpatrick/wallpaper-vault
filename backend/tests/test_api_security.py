@@ -44,13 +44,26 @@ async def test_auth_enabled(client: AsyncClient, monkeypatch):
     response = await client.get("/api/settings/", params={"api_key": "wrong-token"})
     assert response.status_code == 401
     assert "Invalid API Key" in response.json()["detail"]
-    
+
+    # 4b. API route should return 401 with incorrect Bearer authorization header
+    response = await client.get("/api/settings/", headers={"Authorization": "Bearer wrong-token"})
+    assert response.status_code == 401
+    assert "Invalid API Key" in response.json()["detail"]
+
     # 5. API route should return 200 with correct X-API-Key header
     response = await client.get("/api/settings/", headers={"X-API-Key": "test-secret-token"})
     assert response.status_code == 200
-    
+
+    # 5b. API route should return 200 with correct Authorization Bearer header
+    response = await client.get("/api/settings/", headers={"Authorization": "Bearer test-secret-token"})
+    assert response.status_code == 200
+
     # 6. API route should return 200 with correct api_key query parameter
     response = await client.get("/api/settings/", params={"api_key": "test-secret-token"})
+    assert response.status_code == 200
+
+    # 6b. API route should return 200 with correct token query parameter
+    response = await client.get("/api/settings/", params={"token": "test-secret-token"})
     assert response.status_code == 200
 
 

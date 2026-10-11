@@ -3,7 +3,7 @@
  * Unit tests for AXIOS_INSTANCE interceptors.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
+import type { InternalAxiosRequestConfig, AxiosResponse, AxiosError, AxiosHeaders } from 'axios';
 import { AXIOS_INSTANCE } from './axios-instance';
 
 describe('AXIOS_INSTANCE interceptors', () => {
@@ -14,24 +14,23 @@ describe('AXIOS_INSTANCE interceptors', () => {
 
     describe('request interceptor', () => {
         // Find the registered request interceptor handler
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const getRequestHandler = (): ((config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const handlers = (AXIOS_INSTANCE.interceptors.request as any).handlers;
-            return handlers[handlers.length - 1].fulfilled;
+            const interceptorManager = AXIOS_INSTANCE.interceptors.request as unknown as {
+                handlers: Array<{ fulfilled: (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig }>;
+            };
+            return interceptorManager.handlers[interceptorManager.handlers.length - 1].fulfilled;
         };
 
-        it('injects api_key from localStorage if no X-API-Key header is present', () => {
+        it('injects Bearer token into Authorization header from localStorage if not present', () => {
             localStorage.setItem('api_key', 'test-local-api-key');
             const handler = getRequestHandler();
 
             const config = {
-                headers: {}
-            } as unknown as InternalAxiosRequestConfig;
+                headers: {} as AxiosHeaders
+            } as InternalAxiosRequestConfig;
 
             const result = handler(config);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            expect((result.headers as any)['X-API-Key']).toBe('test-local-api-key');
+            expect(result.headers['Authorization']).toBe('Bearer test-local-api-key');
         });
 
         it('skips API key injection when skipAuthInterceptor is true', () => {
@@ -39,37 +38,51 @@ describe('AXIOS_INSTANCE interceptors', () => {
             const handler = getRequestHandler();
 
             const config = {
-                headers: {},
+                headers: {} as AxiosHeaders,
                 skipAuthInterceptor: true
-            } as unknown as InternalAxiosRequestConfig;
+            } as InternalAxiosRequestConfig;
 
             const result = handler(config);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            expect((result.headers as any)?.['X-API-Key']).toBeUndefined();
+            expect(result.headers['Authorization']).toBeUndefined();
+            expect(result.headers['X-API-Key']).toBeUndefined();
         });
 
-        it('preserves existing X-API-Key even if localStorage has a different key', () => {
+        it('preserves existing Authorization header even if localStorage has a different key', () => {
+            localStorage.setItem('api_key', 'test-local-api-key');
+            const handler = getRequestHandler();
+
+            const config = {
+                headers: {
+                    'Authorization': 'Bearer remote-vault-key'
+                } as unknown as AxiosHeaders
+            } as InternalAxiosRequestConfig;
+
+            const result = handler(config);
+            expect(result.headers['Authorization']).toBe('Bearer remote-vault-key');
+        });
+
+        it('preserves existing X-API-Key header even if localStorage has a different key', () => {
             localStorage.setItem('api_key', 'test-local-api-key');
             const handler = getRequestHandler();
 
             const config = {
                 headers: {
                     'X-API-Key': 'remote-vault-key'
-                }
-            } as unknown as InternalAxiosRequestConfig;
+                } as unknown as AxiosHeaders
+            } as InternalAxiosRequestConfig;
 
             const result = handler(config);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            expect((result.headers as any)['X-API-Key']).toBe('remote-vault-key');
+            expect(result.headers['X-API-Key']).toBe('remote-vault-key');
+            expect(result.headers['Authorization']).toBeUndefined();
         });
     });
 
     describe('response interceptor', () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const getResponseErrorHandler = (): ((error: AxiosError) => Promise<never>) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const handlers = (AXIOS_INSTANCE.interceptors.response as any).handlers;
-            return handlers[handlers.length - 1].rejected;
+            const interceptorManager = AXIOS_INSTANCE.interceptors.response as unknown as {
+                handlers: Array<{ rejected: (error: AxiosError) => Promise<never> }>;
+            };
+            return interceptorManager.handlers[interceptorManager.handlers.length - 1].rejected;
         };
 
         it('dispatches unauthorized-api-call on 401 when skipAuthInterceptor is not set', async () => {
@@ -90,8 +103,7 @@ describe('AXIOS_INSTANCE interceptors', () => {
             const errorHandler = getResponseErrorHandler();
 
             const error = {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                config: { skipAuthInterceptor: true } as any,
+                config: { skipAuthInterceptor: true },
                 response: { status: 401 } as AxiosResponse
             } as AxiosError;
 
