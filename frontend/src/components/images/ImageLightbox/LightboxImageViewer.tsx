@@ -5,7 +5,7 @@
  */
 import { Center, Image, ActionIcon } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
-import { getImageUrl } from '../../../utils/fileUtils';
+import { getImageUrl } from '../../../utils/imageUrl';
 import type { Image as ImageModel } from '../../../api/model';
 import type { WithMultiVault } from '../../../types/vault';
 import { ImageRating } from '../../../types/enums';

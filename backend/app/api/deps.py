@@ -8,19 +8,25 @@ from app.core.config import settings
 
 
 async def verify_api_key(
+    authorization: str | None = Header(None),
     x_api_key: str | None = Header(None, alias="X-API-Key"),
+    token: str | None = Query(None),
     api_key: str | None = Query(None)
 ) -> None:
     """
     Dependency to verify incoming requests against the configured API_KEY.
     If settings.API_KEY is not set (empty/None), authentication checks are skipped.
-    Supports API keys passed via the X-API-Key header or api_key query parameter.
+    Supports API keys passed via Authorization (Bearer), X-API-Key header, or token/api_key query parameter.
     """
     if not settings.API_KEY:
         # API security is disabled for local-only setups
         return
 
-    provided_key = x_api_key or api_key
+    bearer_key = None
+    if authorization and authorization.lower().startswith("bearer "):
+        bearer_key = authorization[7:].strip()
+
+    provided_key = bearer_key or x_api_key or token or api_key
 
     if not provided_key:
         raise HTTPException(
@@ -28,7 +34,7 @@ async def verify_api_key(
             detail="Unauthorized: Missing API Key"
         )
 
-# Use constant-time comparison to prevent timing attacks
+    # Use constant-time comparison to prevent timing attacks
     if not secrets.compare_digest(provided_key, settings.API_KEY):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

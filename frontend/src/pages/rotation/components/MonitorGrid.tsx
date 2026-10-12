@@ -5,7 +5,7 @@
 import { useMemo } from 'react';
 import { Box, Text, Tooltip } from '@mantine/core';
 import { IconLink } from '@tabler/icons-react';
-import { getImageUrl } from '../../../utils/fileUtils';
+import { getImageUrl } from '../../../utils/imageUrl';
 import type { MonitorInfo } from '../hooks/useMonitors';
 import type { ConfigState } from '../hooks/useRotationConfig';
 import type { ImageDetail } from '../../../api/model';

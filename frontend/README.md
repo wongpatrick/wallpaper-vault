@@ -20,7 +20,7 @@ The frontend is organized for maximum modularity and reusability:
 *   **`src/api/`**: Axios instance and generated React Query hooks.
 *   **`src/pages/`**: High-level page orchestrators (Library, Artists, Tools).
 *   **`src/pages/sets/components/`**: Modular library components like `SetCard`, `ImageGridItem`, and `Lightbox`.
-*   **`src/utils/`**: Centralized utilities (e.g., `fileUtils.ts` for path and URL handling).
+*   **`src/utils/`**: Centralized utilities (e.g., `imageUrl.ts` for URL handling, `fileDrop.ts` for folder drag-and-drop, `formatBytes.ts` for size formatting).
 *   **`electron/`**: Main process and preload scripts for native OS features.
 
 ### 🏠 Main Views

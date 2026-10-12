@@ -7,7 +7,7 @@ import { Text, Card, TextInput, Group, Stack, Table, Badge, ActionIcon, Tooltip,
 import { IconFolder, IconSettings, IconFileSearch, IconCheck, IconX, IconInfoCircle, IconRegex, IconCloudUpload } from '@tabler/icons-react';
 import { useState, useCallback, useEffect } from 'react';
 import { useImportSetApiSetsImportPost } from '../../api/generated/sets/sets';
-import { getAllFiles } from '../../utils/fileUtils';
+import { getAllFiles } from '../../utils/fileDrop';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     parseFolderNameWithPattern,

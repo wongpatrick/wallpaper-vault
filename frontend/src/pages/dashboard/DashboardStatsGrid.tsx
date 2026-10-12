@@ -6,7 +6,7 @@
 import React from 'react';
 import { SimpleGrid, Paper, Group, Text, ThemeIcon } from '@mantine/core';
 import { IconPhoto, IconFolders, IconUser, IconDatabase } from '@tabler/icons-react';
-import { formatBytes } from '../../utils/fileUtils';
+import { formatBytes } from '../../utils/formatBytes';
 import type { LibraryStats } from '../../api/model';
 
 interface StatsCardProps {

@@ -10,7 +10,7 @@ import {
 import {
     IconAlertCircle, IconTrash, IconChevronUp, IconChevronDown, IconGripVertical
 } from '@tabler/icons-react';
-import { getThumbnailUrl } from '../../utils/fileUtils';
+import { getThumbnailUrl } from '../../utils/imageUrl';
 import { VaultBadge } from '../../components/playlists/VaultBadge';
 import type { VaultEntry } from '../../types/electron';
 import type { Image as ImageModel } from '../../api/model';

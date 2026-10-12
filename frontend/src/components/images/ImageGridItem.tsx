@@ -6,7 +6,7 @@
 import { memo } from 'react';
 import { Card, Image, Box, Text, Stack, Badge, Group, Checkbox, ActionIcon, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconExclamationCircle, IconWallpaper } from '@tabler/icons-react';
-import { getThumbnailUrl } from '../../utils/fileUtils';
+import { getThumbnailUrl } from '../../utils/imageUrl';
 import type { Image as ImageModel } from '../../api/model';
 import type { WithMultiVault } from '../../types/vault';
 import { useLongPress } from '../../hooks/useLongPress';

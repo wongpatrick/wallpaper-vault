@@ -5,7 +5,7 @@
  */
 import { Modal, Stack, Group, Text, Button, SegmentedControl, Paper, Box, Image, Badge, SimpleGrid, Tooltip } from '@mantine/core';
 import { IconWallpaper, IconDeviceDesktop, IconCheck, IconStack } from '@tabler/icons-react';
-import { getImageUrl } from '../../utils/fileUtils';
+import { getImageUrl } from '../../utils/imageUrl';
 import type { Image as ImageModel } from '../../api/model';
 import { useSetWallpaperMutation } from './hooks/useSetWallpaperMutation';
 

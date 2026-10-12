@@ -6,7 +6,7 @@
  */
 import { Modal, Box, Group, Text, Center, Image } from '@mantine/core';
 import { IconCrop } from '@tabler/icons-react';
-import { getImageUrl } from '../../utils/fileUtils';
+import { getImageUrl } from '../../utils/imageUrl';
 import { CropOverlayGrid } from '../ui/CropOverlayGrid';
 import type { Image as ImageModel } from '../../api/model';
 import { useCropModalState } from './hooks/useCropModalState';

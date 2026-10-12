@@ -5,7 +5,7 @@
  */
 import { Stack, Title, Center, Loader, Text, Paper, Group, Image, Box, Badge } from '@mantine/core';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getThumbnailUrl } from '../../utils/fileUtils';
+import { getThumbnailUrl } from '../../utils/imageUrl';
 import type { WithMultiVault } from '../../types/vault';
 import type { SetSummary } from '../../api/model';
 import type { MultiVaultPage } from '../../hooks/useMultiVaultQuery';

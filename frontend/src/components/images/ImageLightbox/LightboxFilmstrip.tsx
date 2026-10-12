@@ -5,7 +5,7 @@
  */
 import { useMemo } from 'react';
 import { Box, Text, Group, Image } from '@mantine/core';
-import { getThumbnailUrl } from '../../../utils/fileUtils';
+import { getThumbnailUrl } from '../../../utils/imageUrl';
 import type { Image as ImageModel } from '../../../api/model';
 import type { WithMultiVault } from '../../../types/vault';
 import { ImageRating } from '../../../types/enums';

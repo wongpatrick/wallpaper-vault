@@ -5,7 +5,7 @@
 import { Paper, Center, Loader, Card, Image, Badge, Stack, Group, Box, Tooltip, Text, Button, ActionIcon } from '@mantine/core';
 import { IconStar, IconStarFilled, IconBan, IconPhoto, IconPlayerSkipForward, IconAlertCircle } from '@tabler/icons-react';
 import { Link, useLocation } from 'react-router-dom';
-import { getImageUrl } from '../../../utils/fileUtils';
+import { getImageUrl } from '../../../utils/imageUrl';
 import type { ImageDetail } from '../../../api/model';
 
 interface ActiveWallpaperPreviewProps {

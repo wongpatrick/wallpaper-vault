@@ -6,7 +6,7 @@
 import { Stack, Group, Title, Tooltip, ActionIcon, Card, Image, Text, Badge, Button, Paper, Center } from '@mantine/core';
 import { IconRefresh, IconExternalLink } from '@tabler/icons-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getImageUrl } from '../../utils/fileUtils';
+import { getImageUrl } from '../../utils/imageUrl';
 import { getARColor } from '../../utils/aspectRatio';
 import type { WithMultiVault } from '../../types/vault';
 import type { Image as ImageModel } from '../../api/model';

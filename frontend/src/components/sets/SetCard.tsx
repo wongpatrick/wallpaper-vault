@@ -8,7 +8,7 @@ import { Card, Image, Group, Stack, Text, Menu, ActionIcon, Badge, rem, Checkbox
 import { IconDotsVertical, IconExternalLink, IconFolder, IconTrash } from '@tabler/icons-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppNotifications } from '../../hooks/useAppNotifications';
-import { getThumbnailUrl, FALLBACK_IMAGE } from '../../utils/fileUtils';
+import { getThumbnailUrl, FALLBACK_IMAGE } from '../../utils/imageUrl';
 import { useLongPress } from '../../hooks/useLongPress';
 import { useVault } from '../../hooks/useVault';
 import type { Set, SetSummary } from '../../api/model';

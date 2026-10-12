@@ -1,13 +1,11 @@
 /**
  * @file
- * Custom Axios instance for API communication.
+ * Custom Axios instance and Orval mutator for API communication.
  * Provides the base configuration and custom request wrapper
  * used by auto-generated API clients to interact with the backend.
  */
-import Axios from 'axios';
+import Axios, { type AxiosError, type AxiosRequestConfig } from 'axios';
 import { API_BASE_URL } from '../config';
-
-import { setMutatorAxiosInstance } from './mutator';
 
 export const AXIOS_INSTANCE = Axios.create({
     baseURL: localStorage.getItem('backend_url') || API_BASE_URL,
@@ -16,19 +14,22 @@ export const AXIOS_INSTANCE = Axios.create({
     }
 });
 
-// Configure the Orval custom mutator instance
-setMutatorAxiosInstance(AXIOS_INSTANCE);
-
-// Request interceptor to append API key header
+// Request interceptor to append API key Authorization header
 AXIOS_INSTANCE.interceptors.request.use((config) => {
     const shouldSkipAuth = config.skipAuthInterceptor;
     if (shouldSkipAuth) {
         return config;
     }
     const key = localStorage.getItem('api_key') || '';
-    if (key && !config.headers?.['X-API-Key']) {
+    const hasAuthHeader = Boolean(
+        config.headers?.['Authorization'] ||
+        config.headers?.['authorization'] ||
+        config.headers?.['X-API-Key'] ||
+        config.headers?.['x-api-key']
+    );
+    if (key && !hasAuthHeader) {
         config.headers = config.headers || {};
-        config.headers['X-API-Key'] = key;
+        config.headers['Authorization'] = `Bearer ${key}`;
     }
     return config;
 }, (error) => {
@@ -47,7 +48,19 @@ AXIOS_INSTANCE.interceptors.response.use((response) => {
     return Promise.reject(error);
 });
 
+/**
+ * Custom Axios request wrapper used by the auto-generated API clients.
+ */
+export const customInstance = <T>(
+    config: AxiosRequestConfig,
+    options?: AxiosRequestConfig,
+): Promise<T> => {
+    return AXIOS_INSTANCE({
+        ...config,
+        ...options,
+    }).then(({ data }) => data);
+};
 
-export { customInstance } from './mutator';
+export type ErrorType<Error> = AxiosError<Error>;
 
-export type { ErrorType, BodyType } from './mutator';
+export type BodyType<BodyData> = BodyData;
