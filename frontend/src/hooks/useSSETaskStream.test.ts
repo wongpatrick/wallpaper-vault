@@ -21,6 +21,12 @@ describe('useSSETaskStream validation logic', () => {
       total: 10,
       error_message: 'Minor warning',
     })).toBe(true);
+    expect(isValidTaskInfo({
+      status: TaskStatus.ERROR,
+      progress: 5,
+      total: 10,
+      error_message: 'Failed to process task',
+    })).toBe(true);
   });
 
   it('rejects malformed task info', () => {
@@ -30,6 +36,9 @@ describe('useSSETaskStream validation logic', () => {
     expect(isValidTaskInfo({ status: TaskStatus.ACCEPTED, progress: 'not-a-number', total: 10 })).toBe(false);
     expect(isValidTaskInfo({ status: TaskStatus.ACCEPTED, progress: 0, total: NaN })).toBe(false);
     expect(isValidTaskInfo({ status: TaskStatus.ACCEPTED, progress: 0, total: 10, error_message: 123 })).toBe(false);
+    expect(isValidTaskInfo({ status: TaskStatus.ACCEPTED, progress: 0, total: 10, error_message: 'unexpected' })).toBe(false);
+    expect(isValidTaskInfo({ status: TaskStatus.ERROR, progress: 0, total: 10 })).toBe(false);
+    expect(isValidTaskInfo({ status: TaskStatus.ERROR, progress: 0, total: 10, error_message: null })).toBe(false);
   });
 
   it('validates full incoming task payloads', () => {

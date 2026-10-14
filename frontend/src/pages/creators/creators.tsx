@@ -235,7 +235,7 @@ export default function Creators() {
                         label="Filter by type"
                         placeholder="All types"
                         leftSection={<IconFilter size={16} />}
-                        data={CREATOR_TYPES as unknown as string[]}
+                        data={CREATOR_TYPES}
                         clearable
                         value={typeFilter}
                         onChange={handleTypeChange}

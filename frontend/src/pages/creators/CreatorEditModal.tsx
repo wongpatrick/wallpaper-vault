@@ -89,7 +89,7 @@ export function CreatorEditModal({
                 />
                 <Select 
                     label="Creator Type"
-                    data={CREATOR_TYPES as unknown as string[]}
+                    data={CREATOR_TYPES}
                     value={form.type}
                     onChange={(v) => setForm({ ...form, type: v || '' })}
                 />

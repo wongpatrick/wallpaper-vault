@@ -10,27 +10,19 @@ import { useAppNotifications } from '../../hooks/useAppNotifications';
 import { IconCheck, IconAlertCircle, IconTrash } from '@tabler/icons-react';
 import type { CreatorType } from '../../api/model';
 import { CREATOR_TYPES } from '../../types/enums';
+import { PLATFORM_OPTIONS } from '../../constants/creator';
+import type { PlatformType, SocialLink } from '../../types/creator';
 
 interface CreatorCreateFormProps {
     onSuccess: () => void;
 }
-
-const PLATFORM_OPTIONS = [
-    { value: 'Twitter', label: 'Twitter/X' },
-    { value: 'Pixiv', label: 'Pixiv' },
-    { value: 'Patreon', label: 'Patreon' },
-    { value: 'Fantia', label: 'Fantia' },
-    { value: 'Bilibili', label: 'Bilibili' },
-    { value: 'YouTube', label: 'YouTube' },
-    { value: 'Custom', label: 'Custom/Website' }
-];
 
 export function CreatorCreateForm({ onSuccess }: CreatorCreateFormProps) {
     const { showNotification } = useAppNotifications();
     const [name, setName] = useState('');
     const [type, setType] = useState<string | null>('Artist');
     const [notes, setNotes] = useState('');
-    const [socials, setSocials] = useState<{ platform: string; url: string }[]>([]);
+    const [socials, setSocials] = useState<SocialLink[]>([]);
     const [newPlatform, setNewPlatform] = useState<string | null>('Twitter');
     const [newUrl, setNewUrl] = useState('');
     const [loading, setLoading] = useState(false);
@@ -43,7 +35,7 @@ export function CreatorCreateForm({ onSuccess }: CreatorCreateFormProps) {
         if (!/^https?:\/\//i.test(formattedUrl)) {
             formattedUrl = 'https://' + formattedUrl;
         }
-        setSocials([...socials, { platform: newPlatform || 'Custom', url: formattedUrl }]);
+        setSocials([...socials, { platform: (newPlatform as PlatformType) || 'Custom', url: formattedUrl }]);
         setNewUrl('');
     };
 

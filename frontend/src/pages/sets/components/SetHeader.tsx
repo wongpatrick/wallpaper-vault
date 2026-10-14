@@ -17,7 +17,7 @@ export type SetWithDetails = SetModel & {
 interface SetHeaderProps {
     set: SetWithDetails;
     selectionMode: boolean;
-    setSelectionMode: (mode: boolean) => void;
+    enterSelectionMode: () => void;
     selectedImageIds: Set<number>;
     clearSelection: () => void;
     handleSelectAll: () => void;
@@ -35,7 +35,7 @@ interface SetHeaderProps {
 export function SetHeader({
     set,
     selectionMode,
-    setSelectionMode,
+    enterSelectionMode,
     selectedImageIds,
     clearSelection,
     handleSelectAll,
@@ -86,7 +86,7 @@ export function SetHeader({
                         variant={selectionMode ? "filled" : "light"} 
                         color={selectionMode ? "blue" : "gray"}
                         leftSection={selectionMode ? <IconCheck size={16} /> : null}
-                        onClick={() => selectionMode ? clearSelection() : setSelectionMode(true)}
+                        onClick={() => selectionMode ? clearSelection() : enterSelectionMode()}
                     >
                         {selectionMode ? "Finish Selecting" : "Select Items"}
                     </Button>

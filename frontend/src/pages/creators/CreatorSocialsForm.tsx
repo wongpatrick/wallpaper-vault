@@ -6,7 +6,8 @@
 import { useState } from 'react';
 import { Box, Stack, Group, Text, Select, TextInput, Button, ActionIcon } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
-import { PLATFORM_OPTIONS, type SocialLink } from '../../types/creator';
+import { PLATFORM_OPTIONS } from '../../constants/creator';
+import type { PlatformType, SocialLink } from '../../types/creator';
 
 interface CreatorSocialsFormProps {
     socials: SocialLink[];
@@ -23,7 +24,7 @@ export function CreatorSocialsForm({ socials, onChange }: CreatorSocialsFormProp
         if (!/^https?:\/\//i.test(formattedUrl)) {
             formattedUrl = 'https://' + formattedUrl;
         }
-        onChange([...socials, { platform: newPlatform || 'Custom', url: formattedUrl }]);
+        onChange([...socials, { platform: (newPlatform as PlatformType) || 'Custom', url: formattedUrl }]);
         setNewUrl('');
     };
 

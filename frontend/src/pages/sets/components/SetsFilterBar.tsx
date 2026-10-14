@@ -67,7 +67,7 @@ export function SetsFilterBar({
                 <Select
                     placeholder="All types"
                     leftSection={<IconFilter size={16} />}
-                    data={CREATOR_TYPES as unknown as string[]}
+                    data={CREATOR_TYPES}
                     clearable
                     value={typeFilter}
                     onChange={onTypeChange}

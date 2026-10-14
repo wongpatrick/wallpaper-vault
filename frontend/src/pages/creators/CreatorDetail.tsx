@@ -54,7 +54,7 @@ export default function CreatorDetail() {
     // Selection management for bulk operations
     const {
         selectionMode,
-        setSelectionMode,
+        enterSelectionMode,
         selectedIds,
         toggle: toggleSelect,
         clear: clearSelection,
@@ -141,7 +141,7 @@ export default function CreatorDetail() {
                         variant={selectionMode ? "filled" : "light"} 
                         color={selectionMode ? "blue" : "gray"}
                         leftSection={selectionMode ? <IconCheck size={16} /> : null}
-                        onClick={() => selectionMode ? clearSelection() : setSelectionMode(true)}
+                        onClick={() => selectionMode ? clearSelection() : enterSelectionMode()}
                     >
                         {selectionMode ? "Finish Selecting" : "Select Items"}
                     </Button>

@@ -12,7 +12,6 @@ import {
     IconDeviceTv, 
     IconBrush 
 } from '@tabler/icons-react';
-import type { SocialLink } from '../../types/creator';
 
 function getSocialIcon(platform: string) {
     switch (platform.toLowerCase()) {
@@ -33,7 +32,12 @@ function getSocialIcon(platform: string) {
     }
 }
 
-export function CreatorSocialBadges({ socials }: { socials?: SocialLink[] | null }) {
+export interface CreatorSocialItem {
+    platform: string;
+    url: string;
+}
+
+export function CreatorSocialBadges({ socials }: { socials?: CreatorSocialItem[] | null }) {
     if (!socials || socials.length === 0) return null;
 
     return (

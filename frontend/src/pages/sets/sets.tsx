@@ -37,7 +37,7 @@ export default function Sets() {
     // Selection State
     const { 
         selectionMode, 
-        setSelectionMode, 
+        enterSelectionMode, 
         selectedIds, 
         toggle: toggleSelect, 
         selectAll, 
@@ -127,7 +127,7 @@ export default function Sets() {
                         variant={selectionMode ? "filled" : "light"} 
                         color={selectionMode ? "blue" : "gray"}
                         leftSection={selectionMode ? <IconCheck size={16} /> : null}
-                        onClick={() => selectionMode ? clearSelection() : setSelectionMode(true)}
+                        onClick={() => selectionMode ? clearSelection() : enterSelectionMode()}
                     >
                         {selectionMode ? "Finish Selecting" : "Select Items"}
                     </Button>

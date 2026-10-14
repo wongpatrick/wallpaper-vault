@@ -3,46 +3,73 @@
  */
 import { useState, useCallback } from 'react';
 
+interface SelectionState<T> {
+    selectionMode: boolean;
+    selectedIds: Set<T>;
+}
+
 export function useSelection<T = number>() {
-    const [selectionMode, setSelectionMode] = useState(false);
-    const [selectedIds, setSelectedIds] = useState<Set<T>>(new Set());
+    const [state, setState] = useState<SelectionState<T>>({
+        selectionMode: false,
+        selectedIds: new Set(),
+    });
+
+    const enterSelectionMode = useCallback(() => {
+        setState(prev => (prev.selectionMode ? prev : { ...prev, selectionMode: true }));
+    }, []);
+
+    const exitSelectionMode = useCallback(() => {
+        setState({
+            selectionMode: false,
+            selectedIds: new Set(),
+        });
+    }, []);
 
     const toggle = useCallback((id: T) => {
-        setSelectedIds(prev => {
-            const next = new Set(prev);
+        setState(prev => {
+            const next = new Set(prev.selectedIds);
             if (next.has(id)) {
                 next.delete(id);
             } else {
                 next.add(id);
             }
-            return next;
+            return {
+                selectionMode: next.size > 0,
+                selectedIds: next,
+            };
         });
-        setSelectionMode(true);
     }, []);
 
     const selectAll = useCallback((allIds: T[]) => {
-        setSelectedIds(prev => {
-            const next = new Set(prev);
+        setState(prev => {
+            const next = new Set(prev.selectedIds);
             allIds.forEach(id => next.add(id));
-            return next;
+            return {
+                selectionMode: next.size > 0 ? true : prev.selectionMode,
+                selectedIds: next,
+            };
         });
-        setSelectionMode(true);
     }, []);
 
     const clear = useCallback(() => {
-        setSelectedIds(new Set());
-        setSelectionMode(false);
+        setState({
+            selectionMode: false,
+            selectedIds: new Set(),
+        });
     }, []);
 
     const startSelectionWith = useCallback((id: T) => {
-        setSelectionMode(true);
-        setSelectedIds(new Set([id]));
+        setState({
+            selectionMode: true,
+            selectedIds: new Set([id]),
+        });
     }, []);
 
     return {
-        selectionMode,
-        setSelectionMode,
-        selectedIds,
+        selectionMode: state.selectionMode,
+        enterSelectionMode,
+        exitSelectionMode,
+        selectedIds: state.selectedIds,
         toggle,
         selectAll,
         clear,
