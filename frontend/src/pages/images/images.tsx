@@ -33,7 +33,7 @@ export default function Images() {
     // Selection state
     const { 
         selectionMode, 
-        setSelectionMode, 
+        enterSelectionMode, 
         selectedIds: selectedImageIds, 
         toggle: toggleImageSelect, 
         clear: clearSelection 
@@ -118,9 +118,9 @@ export default function Images() {
         if (selectionMode) {
             clearSelection();
         } else {
-            setSelectionMode(true);
+            enterSelectionMode();
         }
-    }, [selectionMode, clearSelection, setSelectionMode]);
+    }, [selectionMode, clearSelection, enterSelectionMode]);
 
     return (
         <Container fluid px="xl">

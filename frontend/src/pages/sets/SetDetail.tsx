@@ -28,7 +28,7 @@ export default function SetDetail() {
     // Selection State
     const { 
         selectionMode, 
-        setSelectionMode, 
+        enterSelectionMode, 
         selectedIds: selectedImageIds, 
         toggle: toggleImageSelect, 
         selectAll, 
@@ -107,7 +107,7 @@ export default function SetDetail() {
             <SetHeader 
                 set={set}
                 selectionMode={selectionMode}
-                setSelectionMode={setSelectionMode}
+                enterSelectionMode={enterSelectionMode}
                 selectedImageIds={selectedImageIds}
                 clearSelection={clearSelection}
                 handleSelectAll={handleSelectAll}

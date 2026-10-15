@@ -10,6 +10,7 @@ import { CreatorMergeModal } from './CreatorMergeModal';
 import { CreatorDeleteModal } from './CreatorDeleteModal';
 import { CreateSetModal } from '../../../components/sets/CreateSetModal';
 import type { CreatorWithSets } from '../../../api/model';
+import type { PlatformType } from '../../../types/creator';
 import type { useCreatorMutations } from '../hooks/useCreatorMutations';
 
 export interface CreatorDetailModalsProps {
@@ -39,7 +40,7 @@ export function CreatorDetailModals({
                     canonical_name: creator.canonical_name,
                     type: creator.type || 'Creator',
                     notes: creator.notes || '',
-                    socials: creator.socials ? [...creator.socials] : []
+                    socials: creator.socials ? creator.socials.map(s => ({ platform: s.platform as PlatformType, url: s.url })) : []
                 }}
                 onSave={mutations.handleUpdate}
                 loading={mutations.updateMutation.isPending}

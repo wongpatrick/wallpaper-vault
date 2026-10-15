@@ -34,7 +34,13 @@ export function isValidTaskInfo(obj: unknown): obj is Omit<TaskInfo, 'id'> {
   if (typeof t.status !== 'string' || !VALID_STATUSES.has(t.status as TaskStatus)) return false;
   if (typeof t.progress !== 'number' || isNaN(t.progress)) return false;
   if (typeof t.total !== 'number' || isNaN(t.total)) return false;
-  if (t.error_message !== undefined && t.error_message !== null && typeof t.error_message !== 'string') return false;
+  if (t.status === TaskStatus.ERROR) {
+    if (typeof t.error_message !== 'string') return false;
+  } else if (t.status === TaskStatus.COMPLETED) {
+    if (t.error_message !== undefined && t.error_message !== null && typeof t.error_message !== 'string') return false;
+  } else {
+    if (t.error_message !== undefined && t.error_message !== null) return false;
+  }
   return true;
 }
 
@@ -132,7 +138,7 @@ export function useSSETaskStream({
               const fullTask: TaskInfo = {
                 ...tinfo,
                 id: tid,
-              };
+              } as TaskInfo;
               batch[tid] = fullTask;
               knownStatuses.set(tid, tinfo.status as TaskStatus);
 

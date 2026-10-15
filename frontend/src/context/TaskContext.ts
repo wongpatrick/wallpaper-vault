@@ -5,14 +5,40 @@
  */
 import { createContext } from 'react';
 
-export interface TaskInfo {
+import { TaskStatus } from '../types/enums';
+
+export interface BaseTaskInfo {
     id: string;
-    status: 'accepted' | 'processing' | 'completed' | 'error';
     progress: number;
     total: number;
-    error_message?: string | null;
     updated_at?: string;
 }
+
+export interface AcceptedTaskInfo extends BaseTaskInfo {
+    status: typeof TaskStatus.ACCEPTED;
+    error_message?: null;
+}
+
+export interface ProcessingTaskInfo extends BaseTaskInfo {
+    status: typeof TaskStatus.PROCESSING;
+    error_message?: null;
+}
+
+export interface CompletedTaskInfo extends BaseTaskInfo {
+    status: typeof TaskStatus.COMPLETED;
+    error_message?: string | null;
+}
+
+export interface ErrorTaskInfo extends BaseTaskInfo {
+    status: typeof TaskStatus.ERROR;
+    error_message: string;
+}
+
+export type TaskInfo =
+    | AcceptedTaskInfo
+    | ProcessingTaskInfo
+    | CompletedTaskInfo
+    | ErrorTaskInfo;
 
 export interface TaskContextType {
     tasks: Record<string, TaskInfo>;
