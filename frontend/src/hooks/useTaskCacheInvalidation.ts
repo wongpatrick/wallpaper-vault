@@ -6,6 +6,7 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppNotifications } from './useAppNotifications';
+import { matchesAnyEndpoint } from '../utils/queryKeyMatchers';
 import { TaskStatus } from '../types/enums';
 import type { TaskInfo } from '../context/TaskContext';
 
@@ -43,20 +44,7 @@ export function useTaskCacheInvalidation() {
     const targets = TASK_QUERY_TARGETS[category] || ALL_QUERY_TARGETS;
 
     queryClient.invalidateQueries({
-      predicate: (query) => {
-        const key0 = query.queryKey[0];
-        const key1 = query.queryKey[1];
-
-        const isMatch = (target: string) => {
-          if (typeof key0 === 'string') {
-            if (key0 === target || key0.startsWith(`/api/${target}`)) return true;
-            if (key0 === 'multi-vault' && typeof key1 === 'string' && (key1 === target || key1.startsWith(`/api/${target}`))) return true;
-          }
-          return false;
-        };
-
-        return targets.some(isMatch);
-      }
+      predicate: (query) => matchesAnyEndpoint(query.queryKey, targets),
     });
   }, [queryClient]);
 

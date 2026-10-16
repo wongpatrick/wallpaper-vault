@@ -30,7 +30,7 @@ const PADDING_SELECTION_MODE_PX = 100;
 export default function Sets() {
     const location = useLocation();
     const { search, localSearch, setLocalSearch } = useUrlSearch(SEARCH_DEBOUNCE_MS);
-    const { page, setPage, totalPages: getTotalPages } = useUrlPagination(PAGE_SIZE);
+    const { page, setPage, getTotalPages } = useUrlPagination(PAGE_SIZE);
     const [createModalOpened, setCreateModalOpened] = useState(false);
     const { switchVault } = useVault();
 
