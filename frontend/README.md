@@ -18,18 +18,21 @@ The "Wallpaper Vault" frontend is a desktop shell built with **Electron** and **
 The frontend is organized for maximum modularity and reusability:
 
 *   **`src/api/`**: Axios instance and generated React Query hooks.
-*   **`src/pages/`**: High-level page orchestrators (Library, Artists, Tools).
-*   **`src/pages/sets/components/`**: Modular library components like `SetCard`, `ImageGridItem`, and `Lightbox`.
+*   **`src/pages/`**: Route-level page orchestrators (Dashboard, Sets, Creators, Playlists, Rotation, Tools, Settings).
+*   **`src/context/`**: State providers (`VaultProvider` with platform strategy pattern, `TaskProvider`, `NotificationProvider`).
+*   **`src/context/adapters/`**: Platform storage adapters (`ElectronVaultAdapter` for desktop IPC and `WebLocalStorageVaultAdapter` for browser localStorage).
+*   **`src/components/`**: Modular UI components (Vault Switcher, Aggregated Banner, Lightbox, Crop Modal, Taxonomy).
 *   **`src/utils/`**: Centralized utilities (e.g., `imageUrl.ts` for URL handling, `fileDrop.ts` for folder drag-and-drop, `formatBytes.ts` for size formatting).
-*   **`electron/`**: Main process and preload scripts for native OS features.
+*   **`electron/`**: Main process, preload scripts, and modular services (`services/` for rotation coordination, PowerShell daemon, monitor layout, and vault registry).
 
 ### 🏠 Main Views
-*   **Dashboard:** Centralized landing page displaying real-time library statistics (including SQLite database size), recent imports, random inspiration, and interactive word clouds for tags, characters, and franchises.
-*   **Library (Sets):** Visual grid with live search and type-based filtering.
-*   **Playlists:** Dedicated page for managing custom wallpaper lists with custom sorting and aspect ratio filters.
-*   **Artist Hub (Creators):** Portfolio views showcasing an artist's full collection with merge capabilities.
-*   **Taxonomy Hub:** Management interface for Tags, Characters, and Franchises.
-*   **Tools:** Specialized utilities for batch importing and saliency-aware image cropping.
+*   **Dashboard:** Centralized landing page displaying real-time library statistics (including SQLite database size), recent imports, random inspiration auto-rotation, and dedicated split word clouds for set metadata vs image tags/characters/franchises.
+*   **Library (Sets):** Visual grid with live search, type-based filtering, and multi-path storage assignment.
+*   **Playlists:** Dedicated page for managing custom and smart playlists with drag-and-drop sorting, aspect ratio filters, and cross-vault image assembly.
+*   **Artist Hub (Creators):** Portfolio views showcasing an artist's full collection with social links and merge capabilities.
+*   **Taxonomy Hub:** Generic deduplicated CRUD management interface for Tags, Characters, and Franchises.
+*   **Tools:** Specialized utilities for multi-phase batch importing and saliency-aware image cropping.
+*   **Settings:** Complete configuration hub for multi-path storage roots, connected federated vaults, AI auto-tagging, cache management, and rotation settings.
 
 ---
 
@@ -41,9 +44,14 @@ Requires **Node.js 20+**.
 npm install
 ```
 
-### Running the Shell
+### Running the Shell (Desktop)
 ```powershell
 npm run dev
+```
+
+### Running in Web SPA Mode (Browser Only)
+```powershell
+npm run dev:web
 ```
 
 ### API Integration
@@ -59,7 +67,9 @@ npm run generate
 ---
 
 ## 🎨 Advanced Features
-- **Native OS Integration:** Open any set's folder directly in Windows Explorer via Electron's `shell` module.
+- **Multi-Vault Federation:** Fast context switcher in the top navigation bar, cross-vault playlist composition, and unified aggregated "All Vaults" catalog view.
+- **Native OS & Multi-Monitor Rotation:** Windows COM daemon (`IDesktopWallpaper`) for instant, flicker-free desktop wallpaper updates across multi-monitor setups, with automatic local caching for remote vault images.
+- **Native OS File Integration:** Open any set's folder directly in Windows Explorer via Electron's `shell` module.
 - **Playlists & DisplayFusion:** Custom playlist manager with drag-and-drop sort order, coupled with aspect ratio filtering and DisplayFusion rotation endpoint support.
 - **Precision Cropper:** A dedicated UI for creating perfect aspect-ratio crops for wallpapers using backend saliency maps.
 - **Batch Importer:** A drag-and-drop tool for bulk collection management with real-time progress tracking via SSE.

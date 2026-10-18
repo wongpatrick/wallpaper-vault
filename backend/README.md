@@ -65,19 +65,22 @@ uv run ruff check .
 Configure the application via `.env` in the `backend/` directory:
 - **`CORS_ORIGINS`**: Allowed origins for CORS middleware (default: `["*"]`). Accepts comma-separated strings (e.g. `http://localhost:3000,http://app.local`), JSON lists (`'["http://app.local"]'`), or wildcard `*`.
 - **`API_KEY`**: Secret token for securing API endpoints via `X-API-Key` header or `api_key` query parameter. If left empty, API authentication is disabled (a warning will be logged at startup).
+- **`DEMO_MODE`**: Set to `true` to activate the read-only sandbox middleware and SlowAPI rate limiting for hosted deployments.
+- **`DATABASE_URL`**: Async database connection URL (default: `sqlite+aiosqlite:///../db/wallpapers.db`).
 
 ---
 
-
 ## 📊 Database Schema
 Core entities include:
-- **Creators:** Artist profiles with portfolios.
-- **Sets:** Curated collections of wallpapers.
-- **Images:** Individual files with metadata (resolution, pHash).
-- **Playlists:** Curated collections of images with sorting orders.
+- **Creators:** Artist profiles with portfolios and social links.
+- **Sets:** Curated collections of wallpapers associated with a library path.
+- **Images:** Individual files with metadata (resolution, pHash, saliency crop points).
+- **Library Paths:** Configurable root storage directories spanning multiple drives or network shares.
+- **Playlists & Cross-Vault Items:** Custom and smart playlists, including cross-vault collections.
 - **Characters:** Tagging of specific subjects within images.
 - **Franchises:** Grouping characters and images by universe/IP.
 - **Tags:** General descriptive taxonomy for images and sets.
-- **Audit:** System health and phash duplicate tracking logs.
-- **Tasks:** Background operation tracking for long-running imports.
+- **Rotation Profiles, Rules & History:** Scheduling profiles, calendar rules, and rotation history tracking.
+- **Audit:** System health, missing file, and perceptual hash duplicate tracking logs.
+- **Tasks:** Background operation tracking for long-running imports and library scans.
 - **Settings:** Global application configuration.

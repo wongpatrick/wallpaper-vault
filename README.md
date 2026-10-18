@@ -1,57 +1,62 @@
 # Wallpaper Vault
 
-A production-ready desktop application and engine for managing, cataloging, and dynamically rotating high-resolution wallpaper collections across multi-monitor setups.
+A production-ready desktop and web application and engine for managing, cataloging, and dynamically rotating high-resolution wallpaper collections across multi-monitor setups.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
 ## 🌟 Vision
-Wallpaper Vault is more than just a gallery—it's a centralized hub for your digital aesthetics.
+Wallpaper Vault is a self-hostable, federated digital asset manager and rotation engine tailored for high-resolution wallpaper collections and multi-monitor setups. It bridges personal desktop customization and centralized media storage:
 
-*   **Host Anywhere & Connect Remotely:** Run locally or host the backend engine on a remote server or NAS. The desktop shell seamlessly connects to local or remote vaults via API key authentication.
-*   **Native Multi-Monitor Rotation:** Native display alignment and rotation engine powered by a persistent Windows COM daemon for instantaneous, flicker-free desktop wallpaper updates without third-party dependencies.
-*   **API-First Ecosystem:** Exposes rich REST endpoints (e.g. for **DisplayFusion** or external scripts) to serve randomized or playlist-driven wallpapers with aspect ratio filters.
+*   **Decoupled & Flexible:** Run as a native Windows desktop application with deep OS integration, or access your catalog through a standalone browser Web SPA.
+*   **Federated & Scalable:** Manage wallpapers across multiple storage drives, remote servers, or NAS instances from a single unified interface.
+*   **Automation-Ready:** Native multi-monitor rotation, AI-assisted tagging, saliency-aware cropping, and full REST API compatibility with external display managers like DisplayFusion.
 
 ---
 
 ## 🏗️ Architecture
-This project is built using a **Decoupled Engine & Shell** architecture:
+Wallpaper Vault uses a **Decoupled Engine & Shell** architecture:
 
-*   **The Engine (Backend):** High-performance **FastAPI** application managing a SQLite database via **SQLAlchemy 2.0 (Async)** with **aiosqlite**, OpenCV saliency processing, and WD14 ONNX tagging.
-*   **The Shell (Frontend):** Modern **Electron** desktop application built with **React 19 (Vite)**, **TypeScript**, and **Mantine UI v7**.
-*   **Native Windows Engine:** Persistent background PowerShell daemon (`psDaemon`) using the `IDesktopWallpaper` COM interface for fast multi-monitor layout mapping, positioning, and rotation.
-*   **Real-time Communication:** **Server-Sent Events (SSE)** provide live task progression and notifications for background jobs (imports, audits).
-*   **Resilience & Supervision:** Electron manages backend process lifecycle with continuous health monitoring and auto-reconnection (`BackendStatusGuard`).
+*   **Backend Engine (FastAPI):** Asynchronous Python service handling persistence (SQLAlchemy 2.0 Async / SQLite via aiosqlite), computer vision (OpenCV Spectral Residual saliency), and ML inference (WD14 ONNX tagging).
+*   **Frontend Shell (React 19 / Vite):** Modern web application built with TypeScript, Mantine UI v7, and TanStack Query v5, designed to run inside Electron or in a standalone browser.
+*   **Platform Strategy Layer:** The unified `VaultProvider` delegates storage through swappable adapters: `ElectronVaultAdapter` (native IPC and secure local storage) for desktop, and `WebLocalStorageVaultAdapter` for browser environments.
+*   **Modular Native Services:** The Electron main process is decoupled into specialized asynchronous services for rotation coordination (`rotationCoordinator`), the Windows COM wallpaper daemon (`powerShellDaemon`), monitor layout mapping (`monitorLayout`), and vault health supervision.
+*   **Reactive Streaming:** Server-Sent Events (SSE) broadcast live progress and notifications for long-running background tasks (batch imports, library scans, database audits).
+*   **Process Supervision:** `BackendStatusGuard` monitors backend health, manages process lifecycles, and handles automatic reconnection across registered vaults.
 
 ---
 
 ## 📁 Project Structure
 ```text
 wallpaper-vault/
-├── backend/        # FastAPI application (Python 3.14+ / uv)
-│   ├── app/        # Core API & business logic
-│   │   ├── api/    # REST Endpoints (Creators, Images, Sets, Playlists, Rotation, Settings)
-│   │   ├── core/   # Configuration, SSE Tasks, Saliency Cropper, Windows Daemon
-│   │   ├── crud/   # Async database operations
-│   │   ├── db/     # Database engine & migrations
-│   │   ├── models/ # SQLAlchemy ORM models
-│   │   ├── schemas/# Pydantic validation schemas
-│   │   └── services/# Services (Import Pipeline, Audit, Rotation, Set/Creator Management)
-│   ├── scripts/    # Database bootstrapping & model downloader
-│   ├── tests/      # Pytest test suite with coverage
-│   └── README.md   # Backend technical documentation
-├── frontend/       # Electron + React application (Node.js 20+ / npm)
-│   ├── electron/   # Main & Preload scripts (Native IPC, Tray, Window management)
-│   ├── src/        # React UI components (Mantine UI v7, React Query v5)
-│   │   ├── api/    # Orval-generated API client & custom Axios instance
-│   │   ├── components/ # Shared components, Navigation, Global Search Omnibar
-│   │   ├── pages/  # Feature pages (Dashboard, Sets, Creators, Playlists, Rotation, Tools)
-│   │   └── providers/  # Backend status supervisor, SSE Tasks & Notifications
-│   ├── tests/      # Vitest component tests & Playwright E2E suites
-│   └── README.md   # Frontend technical documentation
-├── db/             # Schema definitions and database initialization scripts
-└── scripts/        # Automation tools and Windows installer packaging (NSIS + PyInstaller)
+├── backend/            # FastAPI application (Python 3.14+ / uv)
+│   ├── app/            # Core API, CRUD, database models, schemas & services
+│   │   ├── api/        # REST Endpoints (Creators, Sets, Images, Playlists, Vault, Library Paths)
+│   │   ├── core/       # Tasks broadcaster, saliency cropper, demo sandbox & logging
+│   │   ├── crud/       # Database access layer and cross-vault queries
+│   │   ├── db/         # SQLAlchemy session, migrations & database indices
+│   │   ├── models/     # Relational database models
+│   │   └── services/   # Business logic (Import, Library Scanner, Audit, Rotation)
+│   ├── scripts/        # Model bootstrapping & demo seeding utilities
+│   ├── tests/          # Pytest suite with coverage
+│   └── README.md       # Backend documentation
+├── frontend/           # Electron + React application (Node.js 20+ / npm)
+│   ├── electron/       # Main & preload scripts, vault registry & modular services
+│   ├── src/            # React client (Mantine UI v7, TanStack Query v5)
+│   │   ├── api/        # Orval-generated API client & Axios instance
+│   │   ├── components/ # Reusable UI components & modals
+│   │   ├── context/    # VaultProvider, TaskProvider & NotificationProvider
+│   │   ├── pages/      # Feature views (Dashboard, Sets, Creators, Playlists, Rotation, Tools, Settings)
+│   │   └── utils/      # Modular helper utilities (imageUrl, fileDrop, formatBytes)
+│   ├── tests/          # Vitest unit/component tests & Playwright E2E suites
+│   ├── vite.config.ts  # Desktop/Electron build configuration
+│   ├── vite.config.web.ts # Web SPA build configuration
+│   └── README.md       # Frontend documentation
+├── db/                 # Database schema definitions and initialization scripts
+├── scripts/            # Packaging and distribution automation (NSIS + PyInstaller)
+├── Dockerfile          # Multi-stage container build (FastAPI + Web SPA)
+└── docker-compose.yml  # Docker Compose definition for hosted or demo deployments
 ```
 
 ---
@@ -59,81 +64,108 @@ wallpaper-vault/
 ## 🚀 Getting Started
 
 ### Prerequisites
-- **Python 3.14+** and **[uv](https://github.com/astral-sh/uv)**
-- **Node.js 20+** and **npm**
-
-### Quick Start (Full Stack)
-The easiest way to run the entire application in development mode:
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-*(This concurrently spins up the FastAPI backend and Vite/Electron frontend with automatic Orval client generation).*
+- **Python 3.14+** with **[uv](https://github.com/astral-sh/uv)**
+- **Node.js 20+** with **npm**
 
 ---
 
-### Individual Service Setup
-
-#### 1. Backend Engine
+### Installation
 ```powershell
-cd backend
-uv sync
-
-# (Optional) Pre-download default ONNX model weights
-uv run python scripts/bootstrap_models.py
-
-# Start FastAPI server
-uv run uvicorn app.main:app --reload
-```
-*   **Interactive API Docs:** Available at `http://localhost:8000/docs`.
-
-#### 2. Frontend Desktop Shell
-```powershell
+# 1. Install frontend dependencies
 cd frontend
 npm install
-npm run dev:frontend
+
+# 2. Install backend dependencies
+cd ../backend
+uv sync
+
+# (Optional) Pre-download default ONNX AI tagging models
+uv run python scripts/bootstrap_models.py
 ```
+
+---
+
+### Development Targets
+
+Choose your preferred development target:
+
+| Target | Command | Description |
+|---|---|---|
+| **Full Stack Desktop** | `npm run dev` *(in `frontend/`)* | Spins up FastAPI backend and Vite/Electron desktop shell concurrently. |
+| **Browser Web SPA** | `npm run dev:web` *(in `frontend/`)* | Runs the FastAPI backend and browser-only Vite frontend. |
+| **Standalone Backend** | `uv run uvicorn app.main:app --reload` *(in `backend/`)* | Runs the FastAPI API server on `http://localhost:8000` (docs at `/docs`). |
+| **Standalone Frontend** | `npm run dev:frontend` *(in `frontend/`)* | Runs the desktop Vite dev server independently. |
+
+---
+
+### Docker Deployment
+Build and run the containerized application (FastAPI backend serving the pre-built Web SPA with demo sandbox protection enabled):
+```powershell
+docker-compose up --build
+```
+Access the application at `http://localhost:8000`.
 
 ---
 
 ## 🛠️ Features & Current State
 
+### 🌐 Multi-Vault Federation & Registry
+- **Vault Registry:** Register, configure, and monitor multiple local or remote vaults with distinct URLs, API keys, and color badges.
+- **Fast Context Switching:** Switch active vault contexts dynamically via the navbar `VaultSwitcher` with real-time health badges.
+- **Aggregated Catalog View:** Seamlessly browse, search, and filter sets, creators, and wallpapers across all registered vaults simultaneously.
+
+### 🗄️ Multi-Path Library Storage
+- **Storage Pooling:** Distribute wallpapers across multiple storage paths (secondary drives, external storage, or network shares) under a single vault database.
+- **Capacity Monitoring:** Live disk usage and free space tracking per configured storage root in Settings.
+- **Multi-Path Library Scanner:** Background service crawling all configured paths to automatically detect, index, and reconcile folders.
+- **Target Storage Selection:** Select target storage paths when creating sets or importing archives.
+
 ### 🖥️ Native Multi-Monitor Rotation Engine
-- **Windows Display Alignment:** Accurately maps physical and virtual monitor coordinate systems, handling multi-monitor scaling and DPI differences.
-- **Persistent COM Daemon:** Uses an ultra-fast, persistent background PowerShell daemon leveraging Windows `IDesktopWallpaper` COM interfaces for flicker-free rotation.
-- **Rotation Profiles & Calendar Rules:** Schedule playlists and wallpaper rotation rules across a visual monthly calendar or switch profiles dynamically.
-- **Style Positioning:** Full control over wallpaper fitting (`Fit`, `Fill`, `Stretch`, `Center`, `Span`).
-- **Rotation Controls:** Searchable playlist selectors and instant Pause / Resume rotation toggles.
-- **External Display Manager Support:** REST endpoints (`/api/images/random/...`) remain fully compatible with external tools like DisplayFusion.
+- **Windows Display Alignment:** Maps physical and virtual monitor coordinates, accommodating mixed DPI, resolutions, and orientation layouts.
+- **Persistent COM Daemon:** Background PowerShell daemon leveraging Windows `IDesktopWallpaper` for instantaneous, flicker-free desktop wallpaper updates.
+- **Cross-Vault Caching:** Automatically downloads and caches remote vault images locally so remote collections rotate seamlessly through the Windows COM daemon.
+- **Rotation Profiles & Calendar Rules:** Schedule playlists and wallpaper rotation rules across a visual monthly calendar, or toggle profiles on demand.
+- **Display Positioning:** Full control over wallpaper fitting (`Fit`, `Fill`, `Stretch`, `Center`, `Span`).
+- **External Display Manager Support:** REST endpoints (`/api/images/random/...`) remain compatible with external tools like DisplayFusion.
+
+### 📊 Dashboard & Visual Analytics
+- **Dual Word Clouds:** Separate, interactive word clouds distinguishing set-level metadata tags from image-level tags, characters, and franchises.
+- **Inspiration Carousel:** Live inspiration card with automatic wallpaper rotation and quick preview.
+- **System Metrics:** Real-time metrics for total wallpapers, sets, creators, disk usage, and database health.
 
 ### 📂 Playlists & Collections
-- **Manual Playlists:** Drag-and-drop custom ordering across sets and creators.
+- **Manual Playlists:** Custom ordering across sets, creators, and cross-vault assets.
+- **Cross-Vault Picker:** Search and assemble wallpapers from any connected vault into unified playlists using `CrossVaultImagePickerModal`.
 - **Smart Playlists:** Dynamic rule-based filtering matching tags, creators, franchises, characters, ratings, and aspect ratios.
-- **Aspect Ratio Filtering:** Automatically filter pools by orientation (e.g. Ultra-wide, 16:9, Portrait).
+- **Aspect Ratio Filtering:** Instant filtering by orientation (e.g. Ultra-wide, 16:9, Portrait).
 
-### 🏷️ Taxonomy & Tagging System
-- **Per-Image Tagging:** Tag individual images with fine-grained tags, character associations, and franchise universe links.
-- **Characters & Franchises:** Relational subject tracking with popularity sorting (by set/wallpaper count).
-- **Taxonomy Management:** Live wallpaper count statistics, bulk tag/character/franchise deletion, and fast filtering.
-- **Creator Hub:** Creator profiles with portfolio statistics, social media links (Twitter/X, Pixiv, ArtStation, Patreon), creator merging, and inline creator creation inside the Set modal.
+### 🏷️ Taxonomy & AI Auto-Tagging
+- **Relational Subject Tracking:** Fine-grained per-image tags, characters, and franchise universe groupings.
+- **AI Auto-Tagging:** Built-in WD14 ONNX tagging with configurable confidence thresholds, batch processing, and auto-cleanup.
+- **Taxonomy Hub:** Deduplicated CRUD interface (`GenericTaxonomyTab`) with live wallpaper counts, merging, and bulk operations.
+- **Creator Hub:** Creator portfolios with social media links (Twitter/X, Pixiv, ArtStation, Patreon) and profile merging.
 
 ### 📚 Library & File Management
 - **Global Search (Omnibar):** Instant fuzzy search across sets, creators, characters, and franchises with breadcrumb navigation.
-- **Dedicated Hubs:** Searchable, filterable, and sortable entry points for Sets, Creators, and Taxonomy.
-- **File System Sync:** Automatic physical folder creation on set creation, and safe folder cleanup with transactional database rollback on set deletion.
-- **Draft State Protection:** Discard confirmation alerts to prevent accidental loss of edits in Set forms.
-- **Set Detail & Lightbox:** High-resolution gallery view with keyboard navigation and fullscreen lightbox.
-
-### 🔒 Remote Vault & Security
-- **Remote Connection:** Seamlessly connect desktop shell instances to a remote FastAPI backend on a NAS or home server.
-- **API Key Security:** Protected API endpoints via `X-API-Key` headers or query parameters.
-- **Process Supervisor (`BackendStatusGuard`):** Live backend health monitoring, automatic reconnection attempts, and graceful state handling.
+- **Set Detail & Lightbox:** Modular high-resolution gallery view with keyboard navigation and fullscreen lightbox.
+- **File System Integrity:** Automatic folder creation, safe folder cleanup with transactional database rollback on set deletion, and unsaved changes protection.
 
 ### ⚙️ Advanced Tools & Automation
-- **Batch Importer:** Multi-phase pipeline (Gather, Regex Parse & Validate, Execute) with SSE live progress broadcasting, automatic empty source folder cleanup, and stale thumbnail purging.
-- **Precision Cropper:** Saliency map detection (Spectral Residual) to compute the visual focal point and crop wallpapers to custom aspect ratios.
-- **Audit & Repair:** Perceptual Hashing (`pHash`) duplicate image detection and database/filesystem consistency auditing with detailed logs.
+- **Modular Batch Importer:** Multi-phase pipeline (Gather, Regex Parse & Validate, Execute) with SSE progress broadcasting, empty folder cleanup, and stale thumbnail purging.
+- **Saliency-Aware Precision Cropper:** Spectral Residual saliency map detection to compute focal points and generate custom aspect-ratio crops.
+- **Audit & Repair:** Perceptual Hashing (`pHash`) duplicate image detection and database/filesystem consistency auditing.
+
+### 🐳 Hosted Demo & Sandbox Environment
+- **Demo Sandbox Guard:** `DemoSandboxMiddleware` intercepts mutating API operations (POST, PUT, DELETE) to allow safe public evaluation without file modification.
+- **Rate Limiting:** Built-in SlowAPI rate limiting to safeguard public endpoints against abuse.
+
+---
+
+## ⚡ Performance & Quality
+- **Database Indexing:** Composite and single-column indices on foreign keys (`set_id`, `creator_id`, `library_path_id`), sort fields (`created_at`, `updated_at`, `rating`), and junction tables for sub-millisecond querying.
+- **Async I/O & N+1 Query Elimination:** Optimized SQLAlchemy joined and selectin loading strategies across sets, images, and taxonomy relationships.
+- **Frontend Code Splitting & Virtualization:** Route-level lazy loading with `React.lazy` and virtualized grid rendering for large collections.
+- **State Decoupling:** Isolated `TaskProvider`, `NotificationProvider`, and `VaultProvider` contexts to prevent unnecessary React re-renders.
 
 ---
 
