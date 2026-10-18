@@ -34,7 +34,7 @@ export default function Creators() {
     const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
     const { search, localSearch, setLocalSearch } = useUrlSearch(SEARCH_DEBOUNCE_MS);
-    const { page, setPage, totalPages: getTotalPages } = useUrlPagination(PAGE_SIZE);
+    const { page, setPage, getTotalPages } = useUrlPagination(PAGE_SIZE);
     
     // URL State (Source of Truth for API)
     const typeFilter = searchParams.get('type') || null;

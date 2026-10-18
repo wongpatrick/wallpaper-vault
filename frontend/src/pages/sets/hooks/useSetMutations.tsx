@@ -15,6 +15,7 @@ import {
 } from '../../../api/generated/sets/sets';
 import { useBulkUpdateImagesApiImagesBulkUpdatePost } from '../../../api/generated/images/images';
 import { useAppNotifications } from '../../../hooks/useAppNotifications';
+import { matchesEndpoint } from '../../../utils/queryKeyMatchers';
 import type { Set as SetModel, BulkOperationMode, ImageUpdate } from '../../../api/model';
 
 export interface UseSetMutationsOptions {
@@ -63,12 +64,7 @@ export function useSetMutations({
                 try {
                     await deleteMutation.mutateAsync({ setId: Number(setId) });
                     queryClient.invalidateQueries({
-                        predicate: (query) => {
-                            const key0 = query.queryKey[0];
-                            const key1 = query.queryKey[1];
-                            return key0 === 'sets' || key0 === '/api/sets/' ||
-                                (key0 === 'multi-vault' && (key1 === 'sets' || key1 === '/api/sets/'));
-                        }
+                        predicate: (query) => matchesEndpoint(query.queryKey, 'sets'),
                     });
                     queryClient.removeQueries({
                         queryKey: getReadSetApiSetsSetIdGetQueryKey(Number(setId))
