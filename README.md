@@ -21,9 +21,9 @@ Wallpaper Vault uses a **Decoupled Engine & Shell** architecture:
 *   **Backend Engine (FastAPI):** Asynchronous Python service handling persistence (SQLAlchemy 2.0 Async / SQLite via aiosqlite), computer vision (OpenCV Spectral Residual saliency), and ML inference (WD14 ONNX tagging).
 *   **Frontend Shell (React 19 / Vite):** Modern web application built with TypeScript, Mantine UI v7, and TanStack Query v5, designed to run inside Electron or in a standalone browser.
 *   **Platform Strategy Layer:** The unified `VaultProvider` delegates storage through swappable adapters: `ElectronVaultAdapter` (native IPC and secure local storage) for desktop, and `WebLocalStorageVaultAdapter` for browser environments.
-*   **Modular Native Services:** The Electron main process is decoupled into specialized asynchronous services for rotation coordination (`rotationCoordinator`), the Windows COM wallpaper daemon (`powerShellDaemon`), monitor layout mapping (`monitorLayout`), and vault health supervision.
+*   **Modular Native Services:** The Electron main process is decoupled into specialized asynchronous services for rotation coordination (`rotationCoordinator`), the Windows COM wallpaper daemon (`powerShellDaemon`), monitor layout mapping (`monitorLayout`), backend process management (`backendProcess`), and the system tray (`trayManager`). The `vaultRegistry` handles vault persistence and background health monitoring.
 *   **Reactive Streaming:** Server-Sent Events (SSE) broadcast live progress and notifications for long-running background tasks (batch imports, library scans, database audits).
-*   **Process Supervision:** `BackendStatusGuard` monitors backend health, manages process lifecycles, and handles automatic reconnection across registered vaults.
+*   **Connection Guarding:** `BackendStatusGuard` blocks the UI when the active vault is offline or unauthorized and offers switching to another registered vault.
 
 ---
 
@@ -35,9 +35,10 @@ wallpaper-vault/
 │   │   ├── api/        # REST Endpoints (Creators, Sets, Images, Playlists, Vault, Library Paths)
 │   │   ├── core/       # Tasks broadcaster, saliency cropper, demo sandbox & logging
 │   │   ├── crud/       # Database access layer and cross-vault queries
-│   │   ├── db/         # SQLAlchemy session, migrations & database indices
+│   │   ├── db/         # SQLAlchemy async session
 │   │   ├── models/     # Relational database models
-│   │   └── services/   # Business logic (Import, Library Scanner, Audit, Rotation)
+│   │   ├── schemas/    # Pydantic request/response schemas
+│   │   └── services/   # Business logic (Import, Library Scanner, Audit, AI Tagging, Cache, Sets)
 │   ├── scripts/        # Model bootstrapping & demo seeding utilities
 │   ├── tests/          # Pytest suite with coverage
 │   └── README.md       # Backend documentation
@@ -47,14 +48,15 @@ wallpaper-vault/
 │   │   ├── api/        # Orval-generated API client & Axios instance
 │   │   ├── components/ # Reusable UI components & modals
 │   │   ├── context/    # VaultProvider, TaskProvider & NotificationProvider
-│   │   ├── pages/      # Feature views (Dashboard, Sets, Creators, Playlists, Rotation, Tools, Settings)
+│   │   ├── hooks/      # Shared hooks (multi-vault queries, SSE task stream, URL state)
+│   │   ├── pages/      # Feature views (Dashboard, Images, Sets, Creators, Playlists, Taxonomy, Rotation, Tools, Settings)
 │   │   └── utils/      # Modular helper utilities (imageUrl, fileDrop, formatBytes)
-│   ├── tests/          # Vitest unit/component tests & Playwright E2E suites
+│   ├── tests/          # Playwright E2E suites (Vitest tests are colocated in src/)
 │   ├── vite.config.ts  # Desktop/Electron build configuration
 │   ├── vite.config.web.ts # Web SPA build configuration
 │   └── README.md       # Frontend documentation
 ├── db/                 # Database schema definitions and initialization scripts
-├── scripts/            # Packaging and distribution automation (NSIS + PyInstaller)
+├── scripts/            # Packaging automation (NSIS + PyInstaller) & database migration scripts
 ├── Dockerfile          # Multi-stage container build (FastAPI + Web SPA)
 └── docker-compose.yml  # Docker Compose definition for hosted or demo deployments
 ```
@@ -93,6 +95,7 @@ Choose your preferred development target:
 |---|---|---|
 | **Full Stack Desktop** | `npm run dev` *(in `frontend/`)* | Spins up FastAPI backend and Vite/Electron desktop shell concurrently. |
 | **Browser Web SPA** | `npm run dev:web` *(in `frontend/`)* | Runs the FastAPI backend and browser-only Vite frontend. |
+| **Demo Sandbox** | `npm run dev:demo` *(in `frontend/`)* | Runs the backend with `.env.demo` and the web frontend in demo mode. |
 | **Standalone Backend** | `uv run uvicorn app.main:app --reload` *(in `backend/`)* | Runs the FastAPI API server on `http://localhost:8000` (docs at `/docs`). |
 | **Standalone Frontend** | `npm run dev:frontend` *(in `frontend/`)* | Runs the desktop Vite dev server independently. |
 
@@ -143,10 +146,11 @@ Access the application at `http://localhost:8000`.
 - **Relational Subject Tracking:** Fine-grained per-image tags, characters, and franchise universe groupings.
 - **AI Auto-Tagging:** Built-in WD14 ONNX tagging with configurable confidence thresholds, batch processing, and auto-cleanup.
 - **Taxonomy Hub:** Deduplicated CRUD interface (`GenericTaxonomyTab`) with live wallpaper counts, merging, and bulk operations.
-- **Creator Hub:** Creator portfolios with social media links (Twitter/X, Pixiv, ArtStation, Patreon) and profile merging.
+- **Creator Hub:** Creator portfolios with social media links (Twitter/X, Pixiv, Patreon, Fantia, Bilibili, YouTube, or custom URLs) and profile merging.
 
 ### 📚 Library & File Management
 - **Global Search (Omnibar):** Instant fuzzy search across sets, creators, characters, and franchises with breadcrumb navigation.
+- **Color Explorer:** Filter the image gallery by color with adjustable match tolerance.
 - **Set Detail & Lightbox:** Modular high-resolution gallery view with keyboard navigation and fullscreen lightbox.
 - **File System Integrity:** Automatic folder creation, safe folder cleanup with transactional database rollback on set deletion, and unsaved changes protection.
 
@@ -156,7 +160,7 @@ Access the application at `http://localhost:8000`.
 - **Audit & Repair:** Perceptual Hashing (`pHash`) duplicate image detection and database/filesystem consistency auditing.
 
 ### 🐳 Hosted Demo & Sandbox Environment
-- **Demo Sandbox Guard:** `DemoSandboxMiddleware` intercepts mutating API operations (POST, PUT, DELETE) to allow safe public evaluation without file modification.
+- **Demo Sandbox Guard:** `DemoSandboxMiddleware` intercepts mutating API operations (POST, PUT, PATCH, DELETE) to allow safe public evaluation without file modification.
 - **Rate Limiting:** Built-in SlowAPI rate limiting to safeguard public endpoints against abuse.
 
 ---
