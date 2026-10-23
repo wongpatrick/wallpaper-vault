@@ -11,7 +11,7 @@ import http from 'node:http';
 import { exec } from 'node:child_process';
 import { app } from 'electron';
 import { type AppContext, DEFAULT_PORT, HTTP_STATUS_OK } from './appContext';
-import { psDaemon } from './powerShellDaemon';
+import { psDaemon, isNativeWallpaperSupported } from './powerShellDaemon';
 import {
     getOrderedDisplays,
     setWallpaperNatively,
@@ -258,6 +258,10 @@ export class RotationCoordinator {
     public async setupNativeTimers(port: number): Promise<void> {
         this.nativeRotationTimers.forEach((timer) => clearInterval(timer));
         this.nativeRotationTimers.clear();
+
+        if (!isNativeWallpaperSupported) {
+            return;
+        }
 
         if (this.globalRotationConfig.paused || getPowerStateSuspended()) {
             console.log('[Rotation Coordinator] Native rotation timers bypassed (paused or system suspended).');
@@ -610,6 +614,10 @@ export class RotationCoordinator {
     }
 
     public start(port: number): void {
+        if (!isNativeWallpaperSupported) {
+            console.log(`[Rotation Coordinator] Native rotation is not supported on ${process.platform}. Skipping.`);
+            return;
+        }
         this.isStopped = false;
         if (this.sseReconnectTimeout) {
             clearTimeout(this.sseReconnectTimeout);

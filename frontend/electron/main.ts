@@ -22,7 +22,7 @@ import {
     logBothToCombined
 } from './services/appContext';
 import { BackendProcessManager } from './services/backendProcess';
-import { psDaemon } from './services/powerShellDaemon';
+import { psDaemon, isNativeWallpaperSupported } from './services/powerShellDaemon';
 import {
     getOrderedDisplays,
     getSystemWallpapers,
@@ -317,6 +317,9 @@ ipcMain.handle('test-vault-connection', async (_event, url: string, apiKey?: str
 });
 
 ipcMain.handle('set-wallpaper', async (_event, { imageId, monitorIndex, style }) => {
+    if (!isNativeWallpaperSupported) {
+        return { success: false, error: `Setting wallpapers is not supported on ${process.platform}` };
+    }
     const port = getBackendPort();
     const activeVault = vaultRegistryManager?.getActiveVault();
     const baseUrl = activeVault ? activeVault.url : `http://127.0.0.1:${port}`;

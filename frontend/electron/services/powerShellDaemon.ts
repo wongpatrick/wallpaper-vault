@@ -10,6 +10,8 @@ import { logBothToCombined } from './appContext';
 const COMMAND_TIMEOUT_MS = 15000;
 const ERROR_SNIPPET_LENGTH = 50;
 
+export const isNativeWallpaperSupported = process.platform === 'win32';
+
 export function extractJsonArray(stdout: string): string {
     const lines = stdout.split(/\r?\n/);
     const jsonLine = lines.find(line => line.trim().startsWith('[') && line.trim().endsWith(']'));
@@ -25,7 +27,9 @@ export class PowerShellDaemon {
     private initPromise: Promise<void> | null = null;
 
     constructor() {
-        this.initPromise = this.init();
+        if (isNativeWallpaperSupported) {
+            this.initPromise = this.init();
+        }
     }
 
     private init(): Promise<void> {
@@ -319,6 +323,9 @@ export class PowerShellDaemon {
     }
 
     public async run(cmd: string): Promise<string> {
+        if (!isNativeWallpaperSupported) {
+            throw new Error(`Native wallpaper control is not supported on ${process.platform}`);
+        }
         await this.initPromise;
         return new Promise((resolve, reject) => {
             this.queue.push({ cmd, resolve, reject });
