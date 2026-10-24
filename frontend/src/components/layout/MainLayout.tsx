@@ -84,7 +84,7 @@ export default function MainLayout() {
             <Group gap="sm" className={classes.noDrag} wrap="nowrap">
               <NotificationCenter />
 
-              {window.electron && window.electron.platform === 'win32' && (
+              {window.electron && window.electron.platform !== 'darwin' && (
                 <Divider orientation="vertical" h={24} my="auto" />
               )}
 

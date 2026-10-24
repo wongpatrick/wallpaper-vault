@@ -10,7 +10,7 @@ import classes from './Layout.module.css';
 export default function TitleBarControls() {
     const [isMaximized, setIsMaximized] = useState(false);
     const isElectron = typeof window !== 'undefined' && 'electron' in window;
-    const isWindows = isElectron && window.electron?.platform === 'win32';
+    const needsCustomControls = isElectron && window.electron?.platform !== 'darwin';
 
     useEffect(() => {
         if (!isElectron || !window.electron) return;
@@ -28,7 +28,7 @@ export default function TitleBarControls() {
         };
     }, [isElectron]);
 
-    if (!isWindows) {
+    if (!needsCustomControls) {
         return null;
     }
 
