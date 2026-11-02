@@ -1,7 +1,7 @@
 /**
  * @file
  * Module: Gallery Modals Component
- * Description: Renders lightbox, wallpaper modal, single edit modal, crop modal, bulk edit modal, and add-to-playlist modal.
+ * Description: Renders lightbox, wallpaper modal, single edit modal, crop modal, bulk edit modal, add-to-playlist modal, and transfer modal.
  */
 import { lazy, Suspense } from 'react';
 import { ImageLightbox } from '../../../components/images/ImageLightbox';
@@ -9,6 +9,7 @@ import { SetAsWallpaperModal } from '../../../components/images/SetAsWallpaperMo
 import { ImageEditModal } from '../../../components/images/ImageEditModal';
 import { ImageBulkEditModal } from '../../../components/images/ImageBulkEditModal';
 import { AddToPlaylistModal } from '../../../components/playlists/AddToPlaylistModal';
+import { TransferModal } from '../../../components/transfer/TransferModal';
 import type { Image as ImageModel, BulkOperationMode, ImageUpdate } from '../../../api/model';
 import type { useGalleryModals } from '../hooks/useGalleryModals';
 
@@ -102,6 +103,16 @@ export function GalleryModals({
                 onSuccess={() => {
                     clearSelection();
                     refetch();
+                }}
+            />
+
+            <TransferModal
+                opened={modals.isTransferOpen}
+                onClose={modals.closeTransfer}
+                imageIds={Array.from(selectedImageIds)}
+                onSuccess={() => {
+                    clearSelection();
+                    handleCollectionReset();
                 }}
             />
         </>

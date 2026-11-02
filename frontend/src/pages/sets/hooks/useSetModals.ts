@@ -6,7 +6,14 @@
 import { useState, useCallback } from 'react';
 import type { Image as ImageModel } from '../../../api/model';
 
-export type ActiveSetModal = 'editSet' | 'bulkEdit' | 'move' | 'addToPlaylist' | null;
+export type ActiveSetModal =
+    | 'editSet'
+    | 'bulkEdit'
+    | 'move'
+    | 'addToPlaylist'
+    | 'transferSet'
+    | 'transferImages'
+    | null;
 
 export function useSetModals() {
     const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);

@@ -13,7 +13,8 @@ import {
     IconWallpaper,
     IconX,
     IconExclamationCircle,
-    IconAlertTriangle
+    IconAlertTriangle,
+    IconArrowsExchange,
 } from '@tabler/icons-react';
 import type { Image as ImageModel } from '../../../api/model';
 import type { WithMultiVault } from '../../../types/vault';
@@ -21,6 +22,10 @@ import { ImageRating } from '../../../types/enums';
 
 const BYTES_PER_KB = 1024;
 const SIDEBAR_WIDTH = 320;
+const CLOSE_ICON_SIZE = 28;
+const BADGE_ICON_SIZE = 10;
+const HEADER_Z_INDEX = 10;
+const TITLE_MAX_WIDTH = 400;
 
 export interface LightboxHeaderProps {
     image: ImageModel;
@@ -31,6 +36,7 @@ export interface LightboxHeaderProps {
     onClose: () => void;
     onEdit: (image: ImageModel) => void;
     onCrop?: (image: ImageModel) => void;
+    onTransfer?: (image: ImageModel) => void;
     onDelete: () => void;
     onSetWallpaper?: (image: ImageModel) => void;
     onToggleSidebar: () => void;
@@ -46,6 +52,7 @@ export function LightboxHeader({
     onClose,
     onEdit,
     onCrop,
+    onTransfer,
     onDelete,
     onSetWallpaper,
     onToggleSidebar,
@@ -62,7 +69,7 @@ export function LightboxHeader({
                 top: 0,
                 left: 0,
                 right: sidebarOpen ? SIDEBAR_WIDTH : 0,
-                zIndex: 10,
+                zIndex: HEADER_Z_INDEX,
                 WebkitAppRegion: 'no-drag',
                 transition: 'right 0.2s ease'
             }}
@@ -70,7 +77,7 @@ export function LightboxHeader({
             <Stack gap={0}>
                 <Group gap="xs">
                     <Tooltip label={image.filename} position="bottom" withArrow>
-                        <Text c="white" fw={600} truncate="end" maw={400}>
+                        <Text c="white" fw={600} truncate="end" maw={TITLE_MAX_WIDTH}>
                             {image.filename}
                         </Text>
                     </Tooltip>
@@ -84,7 +91,7 @@ export function LightboxHeader({
                             color={rating === ImageRating.EXPLICIT ? 'red' : 'yellow'} 
                             variant="filled" 
                             size="xs"
-                            leftSection={rating === ImageRating.EXPLICIT ? <IconExclamationCircle size={10} /> : <IconAlertTriangle size={10} />}
+                            leftSection={rating === ImageRating.EXPLICIT ? <IconExclamationCircle size={BADGE_ICON_SIZE} /> : <IconAlertTriangle size={BADGE_ICON_SIZE} />}
                         >
                             {rating}
                         </Badge>
@@ -133,6 +140,20 @@ export function LightboxHeader({
                         <IconTag size={20} />
                     </ActionIcon>
                 </Tooltip>
+                {onTransfer && (
+                    <Tooltip label="Transfer Image to Vault...">
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            size="lg"
+                            onClick={() => onTransfer(image)}
+                            disabled={disableActions}
+                            aria-label="Transfer Image to Vault..."
+                        >
+                            <IconArrowsExchange size={20} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
                 <Tooltip label="Edit Metadata">
                     <ActionIcon 
                         variant="subtle" 
@@ -170,7 +191,7 @@ export function LightboxHeader({
                     </Tooltip>
                 )}
                 <ActionIcon variant="subtle" color="gray" size="xl" onClick={onClose}>
-                    <IconX size={28} />
+                    <IconX size={CLOSE_ICON_SIZE} />
                 </ActionIcon>
             </Group>
         </Group>

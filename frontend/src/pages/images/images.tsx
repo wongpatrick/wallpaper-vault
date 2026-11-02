@@ -211,6 +211,7 @@ export default function Images() {
                 onClear={clearSelection}
                 onOpenBulkEdit={modals.openBulkEdit}
                 onOpenAddToPlaylist={modals.openAddToPlaylist}
+                onOpenTransfer={!isAggregated ? modals.openTransfer : undefined}
             />
         </Container>
     );

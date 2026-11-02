@@ -4,6 +4,7 @@
  * Description: Renders all modal and lightbox dialogs for the SetDetail page.
  */
 import { lazy, Suspense } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ImageLightbox } from '../../../components/images/ImageLightbox';
 import { SetAsWallpaperModal } from '../../../components/images/SetAsWallpaperModal';
@@ -11,6 +12,7 @@ import { ImageEditModal } from '../../../components/images/ImageEditModal';
 import { ImageMoveModal } from '../../../components/images/ImageMoveModal';
 import { ImageBulkEditModal } from '../../../components/images/ImageBulkEditModal';
 import { AddToPlaylistModal } from '../../../components/playlists/AddToPlaylistModal';
+import { TransferModal } from '../../../components/transfer/TransferModal';
 import { EditSetModal } from './EditSetModal';
 import { getReadSetApiSetsSetIdGetQueryKey } from '../../../api/generated/sets/sets';
 import type { Set as SetModel, ImageUpdate, BulkOperationMode } from '../../../api/model';
@@ -42,6 +44,7 @@ export function SetDetailModals({
     refetch
 }: SetDetailModalsProps) {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
 
     const handleOptimisticImageDelete = (deletedId: number) => {
         const queryKey = getReadSetApiSetsSetIdGetQueryKey(Number(setId));
@@ -142,6 +145,34 @@ export function SetDetailModals({
                 onClose={modals.closeModal} 
                 set={set}
                 onSuccess={refetch}
+            />
+
+            {/* Transfer Set Modal */}
+            <TransferModal
+                opened={modals.activeModal === 'transferSet'}
+                onClose={modals.closeModal}
+                setId={set.id}
+                setTitle={set.title}
+                sourceLibraryPathId={set.library_path_id}
+                onSuccess={(info) => {
+                    if (info.mode === 'move' && info.destinationType === 'vault') {
+                        navigate('/sets');
+                    } else {
+                        refetch();
+                    }
+                }}
+            />
+
+            {/* Transfer Selected Images Modal */}
+            <TransferModal
+                opened={modals.activeModal === 'transferImages'}
+                onClose={modals.closeModal}
+                imageIds={Array.from(selectedImageIds)}
+                sourceLibraryPathId={set.library_path_id}
+                onSuccess={() => {
+                    clearSelection();
+                    refetch();
+                }}
             />
         </>
     );
