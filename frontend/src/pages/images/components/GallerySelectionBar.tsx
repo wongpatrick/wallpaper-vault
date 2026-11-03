@@ -4,7 +4,7 @@
  * Description: Floating action bar displayed when wallpaper selection mode is active with selected items.
  */
 import { Button } from '@mantine/core';
-import { IconPlaylist, IconEdit } from '@tabler/icons-react';
+import { IconPlaylist, IconEdit, IconArrowsExchange } from '@tabler/icons-react';
 import { FloatingSelectionBar } from '../../../components/ui/FloatingSelectionBar';
 
 const FLOATING_BAR_MIN_WIDTH = 300;
@@ -16,6 +16,7 @@ interface GallerySelectionBarProps {
     onClear: () => void;
     onOpenBulkEdit: () => void;
     onOpenAddToPlaylist: () => void;
+    onOpenTransfer?: () => void;
 }
 
 export function GallerySelectionBar({
@@ -24,6 +25,7 @@ export function GallerySelectionBar({
     onClear,
     onOpenBulkEdit,
     onOpenAddToPlaylist,
+    onOpenTransfer,
 }: GallerySelectionBarProps) {
     return (
         <FloatingSelectionBar
@@ -43,6 +45,18 @@ export function GallerySelectionBar({
             >
                 Bulk Edit
             </Button>
+            {onOpenTransfer && (
+                <Button
+                    size="xs"
+                    variant="light"
+                    color="teal"
+                    leftSection={<IconArrowsExchange size={ICON_SIZE} />}
+                    radius="xl"
+                    onClick={onOpenTransfer}
+                >
+                    Transfer
+                </Button>
+            )}
             <Button
                 size="xs"
                 variant="light"

@@ -4,10 +4,16 @@
 import { Title, Text, Group, Badge, Button, Menu, ActionIcon, Stack } from '@mantine/core';
 import {
     IconArrowLeft, IconCheck, IconRefresh, IconFolder, IconSettings,
-    IconDotsVertical, IconSparkles, IconExternalLink, IconTrash, IconLock
+    IconDotsVertical, IconSparkles, IconExternalLink, IconTrash, IconLock, IconArrowsExchange
 } from '@tabler/icons-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { Set as SetModel } from '../../../api/model';
+
+const MENU_WIDTH = 200;
+const ICON_SIZE_SM = 14;
+const ICON_SIZE_MD = 16;
+const ICON_SIZE_LG = 18;
+const LOCK_ICON_SIZE = 12;
 
 export type SetWithDetails = SetModel & {
     is_locked?: boolean;
@@ -24,6 +30,7 @@ interface SetHeaderProps {
     handleResync: () => void;
     handleOpenFolder: () => void;
     onOpenEditModal: () => void;
+    onOpenTransferModal?: () => void;
     handleAutoTag: () => void;
     handleDelete: () => void;
     resyncPending: boolean;
@@ -42,6 +49,7 @@ export function SetHeader({
     handleResync,
     handleOpenFolder,
     onOpenEditModal,
+    onOpenTransferModal,
     handleAutoTag,
     handleDelete,
     resyncPending,
@@ -58,7 +66,7 @@ export function SetHeader({
             <Group justify="space-between">
                 <Button 
                     variant="subtle" 
-                    leftSection={<IconArrowLeft size={16} />} 
+                    leftSection={<IconArrowLeft size={ICON_SIZE_MD} />} 
                     onClick={() => {
                         if (location.state?.from) {
                             navigate(-1);
@@ -85,7 +93,7 @@ export function SetHeader({
                     <Button 
                         variant={selectionMode ? "filled" : "light"} 
                         color={selectionMode ? "blue" : "gray"}
-                        leftSection={selectionMode ? <IconCheck size={16} /> : null}
+                        leftSection={selectionMode ? <IconCheck size={ICON_SIZE_MD} /> : null}
                         onClick={() => selectionMode ? clearSelection() : enterSelectionMode()}
                     >
                         {selectionMode ? "Finish Selecting" : "Select Items"}
@@ -98,7 +106,7 @@ export function SetHeader({
                 <Title order={1}>{set.title || 'Untitled Set'}</Title>
                 <Group>
                     <Button 
-                        leftSection={<IconRefresh size={18} />} 
+                        leftSection={<IconRefresh size={ICON_SIZE_LG} />} 
                         variant="light"
                         color="blue"
                         onClick={handleResync}
@@ -108,47 +116,56 @@ export function SetHeader({
                         Resync Folder
                     </Button>
                     <Button 
-                        leftSection={<IconFolder size={18} />} 
+                        leftSection={<IconFolder size={ICON_SIZE_LG} />} 
                         variant="light"
                         onClick={handleOpenFolder}
                     >
                         Open Folder
                     </Button>
                     <Button 
-                        leftSection={<IconSettings size={18} />} 
+                        leftSection={<IconSettings size={ICON_SIZE_LG} />} 
                         variant="outline"
                         onClick={onOpenEditModal}
                         disabled={autoTagPending || isLocalTaggingActive}
                     >
                         Edit Set Details
                     </Button>
-                    <Menu shadow="md" width={200} position="bottom-end">
+                    <Menu shadow="md" width={MENU_WIDTH} position="bottom-end">
                         <Menu.Target>
-                            <ActionIcon variant="outline" size="lg" radius="md">
-                                <IconDotsVertical size={18} />
+                            <ActionIcon variant="outline" size="lg" radius="md" aria-label="Set Management">
+                                <IconDotsVertical size={ICON_SIZE_LG} />
                             </ActionIcon>
                         </Menu.Target>
                         <Menu.Dropdown>
                             <Menu.Label>Management</Menu.Label>
                             <Menu.Item 
-                                leftSection={<IconSparkles size={14} />} 
+                                leftSection={<IconSparkles size={ICON_SIZE_SM} />} 
                                 onClick={handleAutoTag}
                                 disabled={autoTagPending || isAnyTaggingActive}
                             >
                                 Run AI Auto-Tagging
                             </Menu.Item>
+                            {onOpenTransferModal && (
+                                <Menu.Item
+                                    leftSection={<IconArrowsExchange size={ICON_SIZE_SM} />}
+                                    onClick={onOpenTransferModal}
+                                    disabled={autoTagPending || isLocalTaggingActive}
+                                >
+                                    Transfer Set to Vault...
+                                </Menu.Item>
+                            )}
                             {set.source_url && (
                                 <Menu.Item 
                                     component="a" 
                                     href={set.source_url} 
                                     target="_blank" 
-                                    leftSection={<IconExternalLink size={14} />}
+                                    leftSection={<IconExternalLink size={ICON_SIZE_SM} />}
                                 >
                                     Source URL
                                 </Menu.Item>
                             )}
-                             <Menu.Item 
-                                leftSection={<IconTrash size={14} />} 
+                            <Menu.Item 
+                                leftSection={<IconTrash size={ICON_SIZE_SM} />} 
                                 color="red" 
                                 onClick={handleDelete}
                                 disabled={autoTagPending || isLocalTaggingActive}
@@ -188,7 +205,7 @@ export function SetHeader({
                     {set.images?.length || 0} Wallpapers
                 </Badge>
                 {set.is_locked && (
-                    <Badge size="lg" color="orange" variant="light" leftSection={<IconLock size={12} />}>
+                    <Badge size="lg" color="orange" variant="light" leftSection={<IconLock size={LOCK_ICON_SIZE} />}>
                         Locked
                     </Badge>
                 )}

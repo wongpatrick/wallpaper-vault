@@ -20,6 +20,7 @@ from app.api import rotation_profiles
 from app.api import rotation_rules
 from app.api import library_paths
 from app.api import vault
+from app.api import vault_transfer
 from app.api import image_import
 
 api_router = APIRouter()
@@ -43,3 +44,4 @@ api_router.include_router(rotation_profiles.router, prefix="/rotation-profiles",
 api_router.include_router(rotation_rules.router, prefix="/rotation-rules", tags=["rotation-rules"])
 api_router.include_router(library_paths.router, prefix="/library-paths", tags=["library-paths"])
 api_router.include_router(vault.router, prefix="/vault", tags=["vault"])
+api_router.include_router(vault_transfer.router, prefix="/vault/transfer", tags=["vault-transfer"])

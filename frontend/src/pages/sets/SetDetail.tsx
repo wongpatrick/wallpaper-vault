@@ -17,6 +17,8 @@ import { SetDetailModals } from './components/SetDetailModals';
 import { useSetModals } from './hooks/useSetModals';
 import { useSetMutations } from './hooks/useSetMutations';
 
+const LOADER_HEIGHT = 400;
+
 export default function SetDetail() {
     const { setId } = useParams<{ setId: string }>();
     const navigate = useNavigate();
@@ -75,7 +77,7 @@ export default function SetDetail() {
     };
 
     if (isLoading) {
-        return <Center h={400}><Loader size="xl" /></Center>;
+        return <Center h={LOADER_HEIGHT}><Loader size="xl" /></Center>;
     }
 
     if (error || !set) {
@@ -114,6 +116,7 @@ export default function SetDetail() {
                 handleResync={handleResync}
                 handleOpenFolder={handleOpenFolder}
                 onOpenEditModal={() => modals.openModal('editSet')}
+                onOpenTransferModal={() => modals.openModal('transferSet')}
                 handleAutoTag={handleAutoTag}
                 handleDelete={handleDelete}
                 resyncPending={resyncPending}
@@ -151,6 +154,7 @@ export default function SetDetail() {
             >
                 <Button variant="light" size="xs" disabled={selectedImageIds.size === 0} onClick={() => modals.openModal('bulkEdit')}>Bulk Edit</Button>
                 <Button variant="light" size="xs" disabled={selectedImageIds.size === 0} onClick={() => modals.openModal('move')}>Move</Button>
+                <Button variant="light" size="xs" disabled={selectedImageIds.size === 0} onClick={() => modals.openModal('transferImages')}>Transfer</Button>
                 <Button variant="light" size="xs" disabled={selectedImageIds.size === 0} onClick={() => modals.openModal('addToPlaylist')}>Add to Playlist</Button>
             </FloatingSelectionBar>
         </Container>

@@ -12,6 +12,7 @@ import { getLabelFromPath } from '../../../utils/navigationUtils';
 import { useDeleteImage } from '../../../hooks/useDeleteImage';
 import { useAppNotifications } from '../../../hooks/useAppNotifications';
 import { useVault } from '../../../hooks/useVault';
+import { TransferModal } from '../../transfer/TransferModal';
 import type { Image as ImageModel } from '../../../api/model';
 import type { WithMultiVault } from '../../../types/vault';
 import { ImageRating } from '../../../types/enums';
@@ -50,7 +51,7 @@ export function ImageLightbox({
     onSetWallpaper
 }: ImageLightboxProps) {
     const { showNotification } = useAppNotifications();
-    const { isAggregated, switchVault } = useVault();
+    const { vaults, activeVault, isAggregated, switchVault } = useVault();
     const { deleteImage, isDeleting } = useDeleteImage();
     const navigate = useNavigate();
     const location = useLocation();
@@ -60,6 +61,7 @@ export function ImageLightbox({
         const saved = localStorage.getItem('lightbox_sidebar_open');
         return saved !== null ? saved === 'true' : true;
     });
+    const [transferringImage, setTransferringImage] = useState<WithMultiVault<ImageModel> | null>(null);
 
     const toggleSidebar = useCallback(() => {
         setSidebarOpen(prev => {
@@ -70,6 +72,15 @@ export function ImageLightbox({
     }, []);
 
     const currentImage = selectedIndex !== null ? images[selectedIndex] : null;
+
+    const currentSourceVault = useMemo(() => {
+        if (!currentImage) return activeVault;
+        const multiImg = currentImage as WithMultiVault<ImageModel>;
+        if (multiImg._vaultId) {
+            return vaults.find((v) => v.id === multiImg._vaultId) || activeVault;
+        }
+        return activeVault;
+    }, [currentImage, vaults, activeVault]);
 
     // Close lightbox if the index becomes invalid (e.g. after deletion or list reload)
     useEffect(() => {
@@ -159,7 +170,7 @@ export function ImageLightbox({
 
     // Keyboard shortcuts integration
     useLightboxShortcuts({
-        enabled: selectedIndex !== null && !!currentImage,
+        enabled: selectedIndex !== null && !!currentImage && !transferringImage,
         onPrev: handlePrev,
         onNext: handleNext,
         onClose,
@@ -181,62 +192,86 @@ export function ImageLightbox({
     if (selectedIndex === null || !currentImage) return null;
 
     return (
-        <Modal
-            opened={selectedIndex !== null}
-            onClose={onClose}
-            fullScreen
-            trapFocus={false}
-            padding={0}
-            withCloseButton={false}
-            styles={{
-                content: { backgroundColor: 'rgba(0,0,0,0.95)' },
-                body: { height: '100%', padding: 0 }
-            }}
-        >
-            <Box style={{ height: '100vh', width: '100vw', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                <LightboxHeader
-                    image={currentImage}
-                    isAggregated={isAggregated}
-                    sidebarOpen={sidebarOpen}
-                    disableActions={disableActions}
-                    isDeleting={isDeleting}
-                    onClose={onClose}
-                    onEdit={onEdit}
-                    onCrop={onCrop}
-                    onDelete={handleDelete}
-                    onSetWallpaper={onSetWallpaper}
-                    onToggleSidebar={toggleSidebar}
-                    onNavigateToSet={currentImage.set_id ? navigateToSet : undefined}
-                />
-
-                {/* Content Area (Image + Sidebar) */}
-                <Box style={{ flex: 1, display: 'flex', minHeight: 0, width: '100%', position: 'relative' }}>
-                    <LightboxImageViewer
-                        currentImage={currentImage}
-                        borderColor={borderColor}
-                        selectedIndex={selectedIndex}
-                        totalImages={images.length}
+        <>
+            <Modal
+                opened={selectedIndex !== null}
+                onClose={onClose}
+                fullScreen
+                trapFocus={false}
+                padding={0}
+                withCloseButton={false}
+                styles={{
+                    content: { backgroundColor: 'rgba(0,0,0,0.95)' },
+                    body: { height: '100%', padding: 0 }
+                }}
+            >
+                <Box style={{ height: '100vh', width: '100vw', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                    <LightboxHeader
+                        image={currentImage}
+                        isAggregated={isAggregated}
                         sidebarOpen={sidebarOpen}
-                        onPrev={handlePrev}
-                        onNext={handleNext}
+                        disableActions={disableActions}
+                        isDeleting={isDeleting}
+                        onClose={onClose}
+                        onEdit={onEdit}
+                        onCrop={onCrop}
+                        onTransfer={(img) => setTransferringImage(img as WithMultiVault<ImageModel>)}
+                        onDelete={handleDelete}
+                        onSetWallpaper={onSetWallpaper}
+                        onToggleSidebar={toggleSidebar}
+                        onNavigateToSet={currentImage.set_id ? navigateToSet : undefined}
                     />
 
-                    <LightboxSidebar
-                        currentImage={currentImage}
-                        opened={sidebarOpen}
-                        onUpdated={onUpdated}
+                    {/* Content Area (Image + Sidebar) */}
+                    <Box style={{ flex: 1, display: 'flex', minHeight: 0, width: '100%', position: 'relative' }}>
+                        <LightboxImageViewer
+                            currentImage={currentImage}
+                            borderColor={borderColor}
+                            selectedIndex={selectedIndex}
+                            totalImages={images.length}
+                            sidebarOpen={sidebarOpen}
+                            onPrev={handlePrev}
+                            onNext={handleNext}
+                        />
+
+                        <LightboxSidebar
+                            currentImage={currentImage}
+                            opened={sidebarOpen}
+                            onUpdated={onUpdated}
+                        />
+                    </Box>
+
+                    {/* Filmstrip Thumbnail Navigation */}
+                    <LightboxFilmstrip
+                        images={images}
+                        selectedIndex={selectedIndex}
+                        totalCount={totalCount}
+                        onSelectIndex={onSelectIndex}
                     />
                 </Box>
+            </Modal>
 
-                {/* Filmstrip Thumbnail Navigation */}
-                <LightboxFilmstrip
-                    images={images}
-                    selectedIndex={selectedIndex}
-                    totalCount={totalCount}
-                    onSelectIndex={onSelectIndex}
-                />
-            </Box>
-        </Modal>
+            <TransferModal
+                opened={transferringImage !== null}
+                onClose={() => setTransferringImage(null)}
+                imageIds={transferringImage ? [transferringImage.id] : undefined}
+                sourceVault={currentSourceVault}
+                onSuccess={(info) => {
+                    if (info.mode === 'move' && info.destinationType === 'vault' && transferringImage) {
+                        const movedId = transferringImage.id;
+                        setTransferringImage(null);
+                        if (onDelete) {
+                            onDelete(movedId);
+                        } else {
+                            onUpdated?.();
+                        }
+                    } else {
+                        setTransferringImage(null);
+                        onUpdated?.();
+                    }
+                }}
+            />
+        </>
     );
 }
 

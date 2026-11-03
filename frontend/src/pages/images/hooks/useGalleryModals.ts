@@ -13,6 +13,7 @@ export function useGalleryModals() {
     const [wallpaperImage, setWallpaperImage] = useState<ImageModel | null>(null);
     const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
     const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+    const [isTransferOpen, setIsTransferOpen] = useState(false);
 
     const handleImageClick = useCallback((originalIdx: number) => {
         setSelectedImageIndex(originalIdx);
@@ -30,6 +31,8 @@ export function useGalleryModals() {
     const closeBulkEdit = useCallback(() => setIsBulkEditOpen(false), []);
     const openAddToPlaylist = useCallback(() => setIsAddToPlaylistOpen(true), []);
     const closeAddToPlaylist = useCallback(() => setIsAddToPlaylistOpen(false), []);
+    const openTransfer = useCallback(() => setIsTransferOpen(true), []);
+    const closeTransfer = useCallback(() => setIsTransferOpen(false), []);
 
     return {
         selectedImageIndex,
@@ -44,6 +47,8 @@ export function useGalleryModals() {
         setIsAddToPlaylistOpen,
         isBulkEditOpen,
         setIsBulkEditOpen,
+        isTransferOpen,
+        setIsTransferOpen,
         handleImageClick,
         handleSetWallpaper,
         closeLightbox,
@@ -53,6 +58,8 @@ export function useGalleryModals() {
         openBulkEdit,
         closeBulkEdit,
         openAddToPlaylist,
-        closeAddToPlaylist
+        closeAddToPlaylist,
+        openTransfer,
+        closeTransfer
     };
 }
