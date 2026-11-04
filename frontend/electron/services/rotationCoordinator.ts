@@ -8,7 +8,8 @@ import { Notification } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import http from 'node:http';
-import { exec } from 'node:child_process';
+import { DisplayFusionService, displayFusionService } from './displayFusion';
+import { planSkip } from './rotationSkipPlan';
 import { app } from 'electron';
 import { type AppContext, DEFAULT_PORT, HTTP_STATUS_OK } from './appContext';
 import { psDaemon, isNativeWallpaperSupported } from './powerShellDaemon';
@@ -62,10 +63,12 @@ export class RotationCoordinator {
 
     private monitorConfigs: Map<number, MonitorRotationConfig> = new Map();
     private onMenuUpdateCallback?: () => void;
+    private dfService: DisplayFusionService;
 
-    constructor(context: AppContext, onMenuUpdate?: () => void) {
+    constructor(context: AppContext, onMenuUpdate?: () => void, dfService?: DisplayFusionService) {
         this.context = context;
         this.onMenuUpdateCallback = onMenuUpdate;
+        this.dfService = dfService || displayFusionService;
     }
 
     public setMenuUpdateCallback(callback: () => void): void {
@@ -421,54 +424,20 @@ export class RotationCoordinator {
     public handleSkipEvent(port: number, targetMonitor: string): void {
         console.log(`[Rotation Coordinator] Skip event triggered for monitor target: ${targetMonitor}`);
 
-        void this.fetchRotationSettings(port).then((ok) => {
+        void this.fetchRotationSettings(port).then(async (ok) => {
             if (ok) {
                 void this.setupNativeTimers(port);
             }
 
-            if (targetMonitor === 'all') {
-                if (this.globalRotationConfig.mode === 'displayfusion') {
-                    void this.executeDisplayFusionSkip();
-                } else {
-                    void this.triggerNativeRotation(port, -1);
-                }
-            } else {
-                const index = parseInt(targetMonitor, 10);
-                const config = this.monitorConfigs.get(index) || this.globalRotationConfig;
+            const displays = await getOrderedDisplays();
+            const plan = planSkip(targetMonitor, this.globalRotationConfig, this.monitorConfigs, displays);
 
-                if (config.mode === 'displayfusion') {
-                    void this.executeDisplayFusionSkip();
-                } else {
-                    void this.triggerNativeRotation(port, index);
-                }
+            if (plan.invokeDisplayFusion) {
+                void this.dfService.nextImage();
             }
-        });
-    }
 
-    private async executeDisplayFusionSkip(): Promise<void> {
-        const paths = [
-            'C:\\Program Files\\DisplayFusion\\DisplayFusionCommand.exe',
-            'C:\\Program Files (x86)\\DisplayFusion\\DisplayFusionCommand.exe'
-        ];
-        let exePath = '';
-        for (const p of paths) {
-            try {
-                await fs.promises.access(p);
-                exePath = p;
-                break;
-            } catch {
-                // Not found
-            }
-        }
-        if (!exePath) {
-            console.warn('[Rotation Coordinator] DisplayFusion CLI executable not found.');
-            return;
-        }
-
-        console.log(`[Rotation Coordinator] Calling DisplayFusion skip: "${exePath}" -WallpaperNextImage`);
-        exec(`"${exePath}" -WallpaperNextImage`, (err) => {
-            if (err) {
-                console.error('[Rotation Coordinator] DisplayFusion CLI failed:', err);
+            for (const monIdx of plan.nativeMonitors) {
+                void this.triggerNativeRotation(port, monIdx);
             }
         });
     }

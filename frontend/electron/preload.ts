@@ -38,6 +38,9 @@ contextBridge.exposeInMainWorld('electron', {
         };
     },
     openDirectory: () => ipcRenderer.invoke('open-directory'),
+    openFile: (options?: { title?: string; filters?: Array<{ name: string; extensions: string[] }> }) => ipcRenderer.invoke('open-file', options),
+    getDisplayFusionStatus: () => ipcRenderer.invoke('get-displayfusion-status'),
+    setDisplayFusionPath: (customPath: string) => ipcRenderer.invoke('set-displayfusion-path', customPath),
     openPath: (path: string) => ipcRenderer.invoke('open-path', path),
     getLoginSettings: () => ipcRenderer.invoke('get-login-item-settings'),
     setLoginSettings: (openAtLogin: boolean) => ipcRenderer.invoke('set-login-item-settings', openAtLogin),

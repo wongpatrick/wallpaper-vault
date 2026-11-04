@@ -95,12 +95,29 @@ export interface ElectronVaultAPI {
     onVaultRegistryUpdated: (callback: (data: VaultRegistryData) => void) => () => void;
 }
 
+export type DisplayFusionSource = 'custom' | 'registry' | 'default' | null;
+
+export interface DisplayFusionStatus {
+    supported: boolean;
+    installed: boolean;
+    running: boolean;
+    exePath: string | null;
+    source: DisplayFusionSource;
+}
+
+export interface ElectronDisplayFusionAPI {
+    getDisplayFusionStatus: () => Promise<DisplayFusionStatus>;
+    setDisplayFusionPath: (customPath: string) => Promise<DisplayFusionStatus>;
+    openFile: (options?: { title?: string; filters?: Array<{ name: string; extensions: string[] }> }) => Promise<string | null>;
+}
+
 export interface ElectronAPI
     extends ElectronWindowAPI,
         ElectronProcessAPI,
         ElectronWallpaperAPI,
         ElectronFileAPI,
-        ElectronVaultAPI {}
+        ElectronVaultAPI,
+        ElectronDisplayFusionAPI {}
 
 declare global {
     interface Window {

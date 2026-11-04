@@ -10,6 +10,7 @@ from app.crud import settings as crud_settings
 from app.schemas import settings as schema_settings
 from app.schemas import cache as schema_cache
 from app.services import cache_service
+from app.core.settings_validation import validate_rotation_setting
 
 router = APIRouter()
 
@@ -123,6 +124,11 @@ async def update_setting(
     
     If the setting key already exists, its value and description are updated. If it does not exist, a new configuration key is created. This allows dynamic reconfiguration of paths and app behavior.
     """
+    try:
+        validate_rotation_setting(key, setting.value)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
     if key == "ai_model_source":
         val = setting.value.strip()
         if val not in ["predefined", "huggingface", "local"]:
@@ -172,7 +178,7 @@ async def update_setting(
                 
     updated_setting = await crud_settings.update_setting(db, key=key, setting=setting)
     await db.commit()
-    if key.startswith("wallpaper_rotation_") or key == "favorite_rotation_probability":
+    if key.startswith("wallpaper_rotation_") or key.startswith("monitor_") or key == "favorite_rotation_probability":
         from app.core.rotation import rotation_broadcaster
         await rotation_broadcaster.broadcast({"event": "ping"})
     return updated_setting

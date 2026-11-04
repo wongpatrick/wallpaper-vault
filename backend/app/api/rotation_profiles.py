@@ -14,6 +14,7 @@ from app.models.rotation_profile import RotationProfile as RotationProfileModel
 from app.models.settings import Setting as SettingModel
 from app.schemas import rotation_profile as schema
 from app.core.rotation import rotation_broadcaster
+from app.core.settings_validation import validate_rotation_setting
 from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
@@ -112,6 +113,17 @@ async def apply_profile(
 
     # 1. Update/insert settings in the database
     for key, val in config_data.items():
+        try:
+            validate_rotation_setting(key, str(val))
+        except ValueError as val_err:
+            logger.warning(
+                "Skipping invalid rotation setting in profile",
+                profile=profile.name,
+                key=key,
+                value=val,
+                error=str(val_err)
+            )
+            continue
         setting_result = await db.execute(
             select(SettingModel).where(SettingModel.key == key)
         )

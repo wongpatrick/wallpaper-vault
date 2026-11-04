@@ -16,6 +16,7 @@ import type { MonitorInfo } from '../hooks/useMonitors';
 import type { ConfigState } from '../hooks/useRotationConfig';
 import { useRotationFormContext } from '../context/RotationFormContext';
 import { ProfileManagerCard } from './ProfileManagerCard';
+import { DisplayFusionStatus } from './DisplayFusionStatus';
 
 const DEFAULT_CONFIG_STATE: ConfigState = {
     mode: 'displayfusion',
@@ -207,7 +208,15 @@ export function GlobalConfigForm() {
                                         styles={{ title: { fontWeight: 600 } }}
                                         title="DisplayFusion CLI Configuration"
                                     >
-                                        DisplayFusion is currently driving the interval schedule. To change rotation intervals, please adjust your DisplayFusion monitor settings.
+                                        <Text size="sm">
+                                            DisplayFusion is currently driving the interval schedule. To change rotation intervals, please adjust your DisplayFusion monitor settings.
+                                        </Text>
+                                        {activeConfigTab !== 'global' && (
+                                            <Text size="xs" mt={4} c="dimmed">
+                                                Note: DisplayFusion CLI advances all monitors it manages simultaneously on skip.
+                                            </Text>
+                                        )}
+                                        <DisplayFusionStatus />
                                     </Alert>
                                 )}
 
