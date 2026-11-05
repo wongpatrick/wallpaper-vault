@@ -149,7 +149,7 @@ if ($entry -and $entry.InstallLocation) {
             const raw = await this.deps.runPowerShell(script);
             const installLocation = raw.trim();
             if (installLocation) {
-                return path.join(installLocation, 'DisplayFusionCommand.exe');
+                return path.win32.join(installLocation, 'DisplayFusionCommand.exe');
             }
         } catch (err) {
             console.warn('[DisplayFusion] Registry query failed:', err);

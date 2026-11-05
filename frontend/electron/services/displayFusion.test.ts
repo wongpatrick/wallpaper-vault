@@ -4,6 +4,7 @@
  */
 /* eslint-disable no-magic-numbers, @typescript-eslint/no-explicit-any */
 // @vitest-environment node
+import path from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
 import { DisplayFusionService } from './displayFusion';
 
@@ -38,7 +39,8 @@ describe('DisplayFusionService', () => {
     });
 
     it('falls back to registry if custom path is absent or missing', async () => {
-        const fileExistsMock = vi.fn(async (p: string) => p.includes('C:\\DisplayFusionInstalled\\DisplayFusionCommand.exe'));
+        const expectedPath = path.win32.join('C:\\DisplayFusionInstalled', 'DisplayFusionCommand.exe');
+        const fileExistsMock = vi.fn(async (p: string) => p === expectedPath);
         const service = new DisplayFusionService({
             platform: 'win32',
             fileExists: fileExistsMock,
@@ -49,7 +51,7 @@ describe('DisplayFusionService', () => {
         const status = await service.getStatus();
         expect(status.supported).toBe(true);
         expect(status.installed).toBe(true);
-        expect(status.exePath).toBe('C:\\DisplayFusionInstalled\\DisplayFusionCommand.exe');
+        expect(status.exePath).toBe(expectedPath);
         expect(status.source).toBe('registry');
     });
 
