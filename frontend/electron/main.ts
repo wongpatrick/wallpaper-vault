@@ -34,6 +34,7 @@ import {
 } from './services/monitorLayout';
 import { RotationCoordinator } from './services/rotationCoordinator';
 import { TrayManager } from './services/trayManager';
+import { displayFusionService } from './services/displayFusion';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -314,6 +315,46 @@ ipcMain.handle('remove-vault', async (_event, id: string) => {
 
 ipcMain.handle('test-vault-connection', async (_event, url: string, apiKey?: string) => {
     return await vaultRegistryManager?.testConnection(url, apiKey);
+});
+
+ipcMain.handle('get-displayfusion-status', async () => {
+    return await displayFusionService.getStatus();
+});
+
+ipcMain.handle('set-displayfusion-path', async (_event, customPath: string) => {
+    try {
+        const settings = await readWindowSettings();
+        if (customPath && typeof customPath === 'string' && customPath.trim().length > 0) {
+            const cleanPath = customPath.trim();
+            try {
+                await fs.promises.access(cleanPath, fs.constants.F_OK);
+                settings.displayFusionExePath = cleanPath;
+            } catch {
+                console.warn(`[DisplayFusion] Custom path does not exist on disk: ${cleanPath}`);
+                delete settings.displayFusionExePath;
+            }
+        } else {
+            delete settings.displayFusionExePath;
+        }
+        await writeWindowSettings(settings);
+        displayFusionService.invalidate();
+        return await displayFusionService.getStatus();
+    } catch (err) {
+        console.error('Failed to update DisplayFusion path:', err);
+        return await displayFusionService.getStatus();
+    }
+});
+
+ipcMain.handle('open-file', async (_event, options?: { title?: string; filters?: Array<{ name: string; extensions: string[] }> }) => {
+    const result = await dialog.showOpenDialog({
+        title: options?.title || 'Select File',
+        properties: ['openFile'],
+        filters: options?.filters || [{ name: 'Executable Files', extensions: ['exe'] }]
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+        return null;
+    }
+    return result.filePaths[0];
 });
 
 ipcMain.handle('set-wallpaper', async (_event, { imageId, monitorIndex, style }) => {
