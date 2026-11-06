@@ -24,6 +24,11 @@ export function ProfileManagerCard() {
         handleDeleteProfile
     } = useRotationFormContext();
 
+    const handleCloseSaveModal = () => {
+        setSaveModalOpen(false);
+        setNewProfileName('');
+    };
+
     return (
         <>
             <Paper withBorder p="md" radius="md">
@@ -73,10 +78,7 @@ export function ProfileManagerCard() {
 
             <Modal
                 opened={saveModalOpen}
-                onClose={() => {
-                    setSaveModalOpen(false);
-                    setNewProfileName('');
-                }}
+                onClose={handleCloseSaveModal}
                 title="Save Settings Profile"
                 centered
             >
@@ -90,7 +92,7 @@ export function ProfileManagerCard() {
                         data-autofocus
                     />
                     <Group justify="flex-end" gap="xs">
-                        <Button variant="subtle" onClick={() => setSaveModalOpen(false)}>Cancel</Button>
+                        <Button variant="subtle" onClick={handleCloseSaveModal}>Cancel</Button>
                         <Button color="blue" onClick={handleSaveProfile} loading={savingProfile}>Save Profile</Button>
                     </Group>
                 </Stack>

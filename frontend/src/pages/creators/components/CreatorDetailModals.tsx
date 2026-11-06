@@ -3,6 +3,7 @@
  * Module: Creator Detail Modals Component
  * Description: Mounts edit, merge, delete, and create-set dialog modals for CreatorDetail.
  */
+import { useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getReadSetsApiSetsGetQueryKey } from '../../../api/generated/sets/sets';
 import { CreatorEditModal } from '../CreatorEditModal';
@@ -30,18 +31,20 @@ export function CreatorDetailModals({
 }: CreatorDetailModalsProps) {
     const queryClient = useQueryClient();
 
+    const initialData = useMemo(() => ({
+        canonical_name: creator.canonical_name,
+        type: creator.type || 'Creator',
+        notes: creator.notes || '',
+        socials: creator.socials ? creator.socials.map(s => ({ platform: s.platform as PlatformType, url: s.url })) : []
+    }), [creator.canonical_name, creator.type, creator.notes, creator.socials]);
+
     return (
         <>
             {/* Edit Modal */}
             <CreatorEditModal 
                 opened={mutations.isEditModalOpen} 
                 onClose={() => mutations.setIsEditModalOpen(false)} 
-                initialData={{
-                    canonical_name: creator.canonical_name,
-                    type: creator.type || 'Creator',
-                    notes: creator.notes || '',
-                    socials: creator.socials ? creator.socials.map(s => ({ platform: s.platform as PlatformType, url: s.url })) : []
-                }}
+                initialData={initialData}
                 onSave={mutations.handleUpdate}
                 loading={mutations.updateMutation.isPending}
             />

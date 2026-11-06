@@ -55,6 +55,20 @@ export function LibraryPathsSection() {
     const [editModalOpened, { open: openEditModal, close: closeEditModal }] = useDisclosure(false);
     const [deleteModalOpened, { open: openDeleteModal, close: closeDeleteModal }] = useDisclosure(false);
 
+    const handleCloseAddModal = () => {
+        setNewPath('');
+        setNewLabel('');
+        setNewScanExisting(true);
+        setNewIsDefault(false);
+        closeAddModal();
+    };
+
+    const handleCloseEditModal = () => {
+        setEditLabel('');
+        setSelectedPath(null);
+        closeEditModal();
+    };
+
     const [newPath, setNewPath] = useState('');
     const [newLabel, setNewLabel] = useState('');
     const [newScanExisting, setNewScanExisting] = useState(true);
@@ -341,7 +355,7 @@ export function LibraryPathsSection() {
             {/* Add Library Path Modal */}
             <Modal
                 opened={addModalOpened}
-                onClose={closeAddModal}
+                onClose={handleCloseAddModal}
                 title="Add Storage & Library Path"
                 size="lg"
             >
@@ -377,7 +391,7 @@ export function LibraryPathsSection() {
                     />
 
                     <Group justify="flex-end" mt="md">
-                        <Button variant="default" onClick={closeAddModal}>
+                        <Button variant="default" onClick={handleCloseAddModal}>
                             Cancel
                         </Button>
                         <Button
@@ -394,7 +408,7 @@ export function LibraryPathsSection() {
             {/* Edit Label Modal */}
             <Modal
                 opened={editModalOpened}
-                onClose={closeEditModal}
+                onClose={handleCloseEditModal}
                 title="Edit Storage Path Label"
             >
                 <Stack gap="md">
@@ -410,7 +424,7 @@ export function LibraryPathsSection() {
                     />
 
                     <Group justify="flex-end" mt="md">
-                        <Button variant="default" onClick={closeEditModal}>
+                        <Button variant="default" onClick={handleCloseEditModal}>
                             Cancel
                         </Button>
                         <Button

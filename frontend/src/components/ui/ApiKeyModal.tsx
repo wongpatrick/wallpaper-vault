@@ -15,6 +15,7 @@ export default function ApiKeyModal() {
 
     useEffect(() => {
         const handleUnauthorized = () => {
+            setApiKey('');
             setOpened(true);
         };
         window.addEventListener('unauthorized-api-call', handleUnauthorized);
@@ -33,7 +34,10 @@ export default function ApiKeyModal() {
     return (
         <Modal
             opened={opened}
-            onClose={() => setOpened(false)}
+            onClose={() => {
+                setApiKey('');
+                setOpened(false);
+            }}
             title={
                 <Group gap="xs">
                     <ThemeIcon color="yellow" variant="light" size="md">

@@ -24,6 +24,7 @@ export interface UseImageEditFormOptions {
 
 export function useImageEditForm({
     image,
+    opened,
     onClose,
     onUpdated,
     zIndex = DEFAULT_MODAL_Z_INDEX
@@ -49,6 +50,8 @@ export function useImageEditForm({
     });
 
     const [prevImageId, setPrevImageId] = useState<number | null>(null);
+    const [prevOpened, setPrevOpened] = useState<boolean | undefined>(opened);
+
     if (image && image.id !== prevImageId) {
         setPrevImageId(image.id);
         setForm({
@@ -58,9 +61,27 @@ export function useImageEditForm({
             aspect_ratio_label: image.aspect_ratio_label || '',
             rating: image.rating || ImageRating.SAFE,
             dominant_color: image.dominant_color || '',
-            tags: (image as ImageDetail).tags || [],
-            characters: (image as ImageDetail).characters || []
+            tags: imageDetail?.tags ?? (image as ImageDetail).tags ?? [],
+            characters: imageDetail?.characters ?? (image as ImageDetail).characters ?? []
         });
+    }
+
+    if (opened && !prevOpened) {
+        setPrevOpened(true);
+        if (image) {
+            setForm({
+                filename: image.filename || '',
+                notes: image.notes || '',
+                sort_order: image.sort_order || 0,
+                aspect_ratio_label: image.aspect_ratio_label || '',
+                rating: image.rating || ImageRating.SAFE,
+                dominant_color: image.dominant_color || '',
+                tags: imageDetail?.tags ?? (image as ImageDetail).tags ?? [],
+                characters: imageDetail?.characters ?? (image as ImageDetail).characters ?? []
+            });
+        }
+    } else if (!opened && prevOpened) {
+        setPrevOpened(false);
     }
 
     // Update tags and characters form fields once detailed image metadata is loaded
@@ -77,8 +98,8 @@ export function useImageEditForm({
 
     const isFormDirty = useMemo(() => {
         if (!image) return false;
-        const originalTags = (image as ImageDetail).tags || [];
-        const originalCharacters = (image as ImageDetail).characters || [];
+        const originalTags = imageDetail?.tags ?? (image as ImageDetail).tags ?? [];
+        const originalCharacters = imageDetail?.characters ?? (image as ImageDetail).characters ?? [];
 
         const arraysEqual = (a: string[], b: string[]) => {
             if (a.length !== b.length) return false;
@@ -97,7 +118,7 @@ export function useImageEditForm({
             !arraysEqual(form.tags || [], originalTags) ||
             !arraysEqual(form.characters || [], originalCharacters)
         );
-    }, [form, image]);
+    }, [form, image, imageDetail]);
 
     const resetForm = useCallback(() => {
         if (image) {
@@ -108,11 +129,11 @@ export function useImageEditForm({
                 aspect_ratio_label: image.aspect_ratio_label || '',
                 rating: image.rating || ImageRating.SAFE,
                 dominant_color: image.dominant_color || '',
-                tags: (image as ImageDetail).tags || [],
-                characters: (image as ImageDetail).characters || []
+                tags: imageDetail?.tags ?? (image as ImageDetail).tags ?? [],
+                characters: imageDetail?.characters ?? (image as ImageDetail).characters ?? []
             });
         }
-    }, [image]);
+    }, [image, imageDetail]);
 
     const setField = useCallback(<K extends keyof ImageUpdate>(key: K, value: ImageUpdate[K]) => {
         setForm(prev => ({ ...prev, [key]: value }));

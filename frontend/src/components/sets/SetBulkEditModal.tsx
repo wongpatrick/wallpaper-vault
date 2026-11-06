@@ -29,6 +29,26 @@ export function SetBulkEditModal({ opened, onClose, type, selectedCount, onConfi
     const [tags, setTags] = useState<string[]>([]);
     const [characters, setCharacters] = useState<string[]>([]);
 
+    const resetForm = () => {
+        setMode('append');
+        setSelectedCreators([]);
+        setTags([]);
+        setCharacters([]);
+    };
+
+    const [prevOpened, setPrevOpened] = useState(opened);
+    if (opened && !prevOpened) {
+        setPrevOpened(true);
+        resetForm();
+    } else if (!opened && prevOpened) {
+        setPrevOpened(false);
+    }
+
+    const handleClose = () => {
+        resetForm();
+        onClose();
+    };
+
     const { data: creatorsData } = useReadCreatorsApiCreatorsGet({ limit: 1000 }, { query: { enabled: opened && type === 'artist' } });
     const creatorOptions = (creatorsData?.items || []).map(c => ({
         value: c.id.toString(),
@@ -45,12 +65,13 @@ export function SetBulkEditModal({ opened, onClose, type, selectedCount, onConfi
         } else {
             onConfirm({} as SetUpdate, 'replace' as BulkOperationMode); // Delete mode
         }
+        resetForm();
     };
 
     const title = type === 'artist' ? 'Bulk Edit Artists' : type === 'tags' ? 'Bulk Edit Tags' : type === 'characters' ? 'Bulk Edit Characters' : 'Confirm Bulk Delete';
 
     return (
-        <Modal opened={opened} onClose={onClose} title={title} centered>
+        <Modal opened={opened} onClose={handleClose} title={title} centered>
             <Stack>
                 <Text size="sm">
                     Updating <b>{selectedCount}</b> sets.
@@ -114,7 +135,7 @@ export function SetBulkEditModal({ opened, onClose, type, selectedCount, onConfi
                 )}
 
                 <Group justify="flex-end" mt="md">
-                    <Button variant="subtle" onClick={onClose} disabled={loading}>Cancel</Button>
+                    <Button variant="subtle" onClick={handleClose} disabled={loading}>Cancel</Button>
                     <Button 
                         color={type === 'delete' ? 'red' : 'blue'} 
                         onClick={handleConfirm} 

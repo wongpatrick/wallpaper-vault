@@ -74,6 +74,26 @@ export function CrossVaultImagePickerModal({
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const resetState = useCallback(() => {
+        setSearchQuery('');
+        setPage(1);
+        setSelectedIds(new Set());
+        setError(null);
+    }, []);
+
+    const [prevOpened, setPrevOpened] = useState(opened);
+    if (opened && !prevOpened) {
+        setPrevOpened(true);
+        resetState();
+    } else if (!opened && prevOpened) {
+        setPrevOpened(false);
+    }
+
+    const handleClose = useCallback(() => {
+        resetState();
+        onClose();
+    }, [resetState, onClose]);
+
     const selectedVault = vaults.find((v) => v.id === selectedVaultId);
 
     const vaultOptions = vaults.map((v) => {
@@ -172,7 +192,7 @@ export function CrossVaultImagePickerModal({
                 color: 'green',
             });
 
-            setSelectedIds(new Set());
+            resetState();
             onClose();
             onSuccess();
         } catch (err: unknown) {
@@ -191,7 +211,7 @@ export function CrossVaultImagePickerModal({
     return (
         <Modal
             opened={opened}
-            onClose={onClose}
+            onClose={handleClose}
             title="Add Wallpapers from Vault"
             size="xl"
             styles={{ body: { minHeight: MODAL_MIN_HEIGHT } }}
@@ -249,30 +269,30 @@ export function CrossVaultImagePickerModal({
                                             cursor: 'pointer',
                                             borderColor: isSelected ? 'var(--mantine-color-blue-filled)' : undefined,
                                             borderWidth: isSelected ? BORDER_WIDTH_SELECTED : BORDER_WIDTH_DEFAULT,
-                                            position: 'relative',
                                         }}
                                         onClick={() => toggleImageSelection(img.id)}
                                     >
-                                        <Card.Section>
+                                        <Card.Section style={{ position: 'relative' }}>
                                             <MantineImage
                                                 src={thumbUrl}
-                                                h={THUMBNAIL_HEIGHT}
+                                                height={THUMBNAIL_HEIGHT}
                                                 fit="cover"
-                                                alt={img.filename}
-                                                fallbackSrc="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' fill='%23555'><rect width='100' height='100'/></svg>"
+                                                fallbackSrc="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect fill='%23333' width='100' height='100'/%3E%3C/svg%3E"
                                             />
-                                        </Card.Section>
-                                        <Group justify="space-between" mt="xs">
-                                            <Text size="xs" truncate style={{ maxWidth: '80%' }}>
-                                                {img.filename}
-                                            </Text>
                                             <Checkbox
                                                 checked={isSelected}
-                                                onChange={() => toggleImageSelection(img.id)}
-                                                onClick={(e) => e.stopPropagation()}
-                                                size="xs"
+                                                onChange={() => {}}
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: 6,
+                                                    right: 6,
+                                                    pointerEvents: 'none',
+                                                }}
                                             />
-                                        </Group>
+                                        </Card.Section>
+                                        <Text size="xs" fw={500} truncate mt="xs">
+                                            {img.filename}
+                                        </Text>
                                     </Card>
                                 );
                             })}
@@ -281,7 +301,7 @@ export function CrossVaultImagePickerModal({
                 )}
 
                 {totalPages > 1 && (
-                    <Center>
+                    <Center mt="xs">
                         <Pagination total={totalPages} value={page} onChange={setPage} size="sm" />
                     </Center>
                 )}
@@ -291,7 +311,7 @@ export function CrossVaultImagePickerModal({
                         {selectedIds.size} wallpaper{selectedIds.size === 1 ? '' : 's'} selected
                     </Text>
                     <Group>
-                        <Button variant="default" onClick={onClose}>
+                        <Button variant="default" onClick={handleClose}>
                             Cancel
                         </Button>
                         <Button

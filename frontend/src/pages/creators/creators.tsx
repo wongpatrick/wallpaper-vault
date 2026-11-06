@@ -340,8 +340,12 @@ export default function Creators() {
 
             {/* Merge Modal */}
             <Modal 
-                opened={isMergeModalOpen} 
-                onClose={() => setIsMergeModalOpen(false)} 
+                opened={isMergeModalOpen}
+                onClose={() => {
+                    setIsMergeModalOpen(false);
+                    setSourceCreatorIds([]);
+                    setTargetCreatorId(null);
+                }}
                 title="Merge Artists"
                 radius="md"
                 size="lg"
