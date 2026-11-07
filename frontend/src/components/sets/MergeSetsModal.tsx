@@ -18,9 +18,29 @@ interface MergeSetsModalProps {
 
 export function MergeSetsModal({ opened, onClose, selectedSets, onConfirm, loading }: MergeSetsModalProps) {
     const [targetId, setTargetId] = useState<string | null>(null);
+    const [prevOpened, setPrevOpened] = useState(opened);
+
+    if (opened && !prevOpened) {
+        setPrevOpened(true);
+        setTargetId(null);
+    } else if (!opened && prevOpened) {
+        setPrevOpened(false);
+    }
+
+    const handleClose = () => {
+        setTargetId(null);
+        onClose();
+    };
+
+    const handleExecute = () => {
+        if (!targetId) return;
+        const idToConfirm = Number(targetId);
+        setTargetId(null);
+        onConfirm(idToConfirm);
+    };
 
     return (
-        <Modal opened={opened} onClose={onClose} title="Merge Sets" size="md" radius="md">
+        <Modal opened={opened} onClose={handleClose} title="Merge Sets" size="md" radius="md">
             <Stack gap="md">
                 <Alert icon={<IconAlertCircle size={16} />} color="blue" variant="light">
                     Merging will move all images into the selected target folder. Source sets will be deleted, and their creators/tags will be combined into the target set.
@@ -60,7 +80,7 @@ export function MergeSetsModal({ opened, onClose, selectedSets, onConfirm, loadi
                     leftSection={<IconGitMerge size={18} />} 
                     disabled={!targetId} 
                     loading={loading}
-                    onClick={() => targetId && onConfirm(Number(targetId))}
+                    onClick={handleExecute}
                     mt="md"
                     color="blue"
                     size="md"

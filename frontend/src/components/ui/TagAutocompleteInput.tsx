@@ -24,6 +24,10 @@ export function TagAutocompleteInput(props: TagAutocompleteInputProps) {
             data={Array.from(new Set(searchValue.length > 0 ? (suggestions || []) : []))}
             searchValue={searchValue}
             onSearchChange={setSearchValue}
+            onBlur={(e) => {
+                setSearchValue('');
+                props.onBlur?.(e);
+            }}
             splitChars={[',', ' ']}
             clearable
             comboboxProps={{ zIndex: 4000, portalProps: { zIndex: 4000 } } as ComboboxProps}

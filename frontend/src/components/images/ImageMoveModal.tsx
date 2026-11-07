@@ -29,6 +29,23 @@ export function ImageMoveModal({ opened, onClose, selectedImageIds, onSuccess }:
     const [searchValue, setSearchValue] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchValue, SEARCH_DEBOUNCE_MS);
     const [selectedSet, setSelectedSet] = useState<{ value: string; label: string } | null>(null);
+
+    const [prevOpened, setPrevOpened] = useState(opened);
+    if (opened && !prevOpened) {
+        setPrevOpened(true);
+        setTargetSetId(null);
+        setSearchValue('');
+        setSelectedSet(null);
+    } else if (!opened && prevOpened) {
+        setPrevOpened(false);
+    }
+
+    const handleClose = () => {
+        setTargetSetId(null);
+        setSearchValue('');
+        setSelectedSet(null);
+        onClose();
+    };
     
     const { data: setsData, isFetching: isFetchingSets, refetch: refetchSets } = useReadSetsApiSetsGet({ 
         limit: 1000,
@@ -79,6 +96,8 @@ export function ImageMoveModal({ opened, onClose, selectedImageIds, onSuccess }:
             });
             
             setTargetSetId(null);
+            setSearchValue('');
+            setSelectedSet(null);
             onSuccess();
             onClose();
         } catch (error) {
@@ -101,12 +120,7 @@ export function ImageMoveModal({ opened, onClose, selectedImageIds, onSuccess }:
             <Modal 
                 opened={opened} 
                 trapFocus={!isCreateModalOpen}
-                onClose={() => {
-                    setTargetSetId(null);
-                    setSearchValue('');
-                    setSelectedSet(null);
-                    onClose();
-                }} 
+                onClose={handleClose} 
                 title="Move Images to Set"
                 size="md"
                 radius="md"
@@ -121,6 +135,7 @@ export function ImageMoveModal({ opened, onClose, selectedImageIds, onSuccess }:
                             placeholder="Search sets..."
                             data={setOptions}
                             value={targetSetId}
+                            searchValue={searchValue}
                             onChange={(val) => {
                                 setTargetSetId(val);
                                 if (val) {
@@ -150,7 +165,7 @@ export function ImageMoveModal({ opened, onClose, selectedImageIds, onSuccess }:
                     </Button>
                     
                     <Group justify="flex-end" mt="md">
-                        <Button variant="subtle" onClick={onClose}>Cancel</Button>
+                        <Button variant="subtle" onClick={handleClose}>Cancel</Button>
                         <Button 
                             onClick={handleConfirmMove} 
                             loading={bulkMoveMutation.isPending}

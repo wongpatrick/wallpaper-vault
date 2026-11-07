@@ -34,10 +34,25 @@ export function CreatorEditModal({
 }: CreatorEditModalProps) {
     const [form, setForm] = useState<CreatorEditFormData>(initialData);
     const [prevInitialData, setPrevInitialData] = useState<CreatorEditFormData>(initialData);
+    const [prevOpened, setPrevOpened] = useState(opened);
 
-    if (initialData !== prevInitialData) {
+    const hasInitialDataChanged = (
+        initialData.canonical_name !== prevInitialData.canonical_name ||
+        initialData.type !== prevInitialData.type ||
+        initialData.notes !== prevInitialData.notes ||
+        JSON.stringify(initialData.socials) !== JSON.stringify(prevInitialData.socials)
+    );
+
+    if (hasInitialDataChanged) {
         setPrevInitialData(initialData);
         setForm(initialData);
+    }
+
+    if (opened && !prevOpened) {
+        setPrevOpened(true);
+        setForm(initialData);
+    } else if (!opened && prevOpened) {
+        setPrevOpened(false);
     }
 
     const isDirty = useMemo(() => {
@@ -62,10 +77,12 @@ export function CreatorEditModal({
                 labels: { confirm: 'Discard Changes', cancel: 'Keep Editing' },
                 confirmProps: { color: 'red' },
                 onConfirm: () => {
+                    setForm(initialData);
                     onClose();
                 }
             });
         } else {
+            setForm(initialData);
             onClose();
         }
     };
@@ -81,35 +98,37 @@ export function CreatorEditModal({
             title="Edit Creator Profile"
             radius="md"
         >
-            <Stack gap="md">
-                <TextInput 
-                    label="Artist Name" 
-                    value={form.canonical_name} 
-                    onChange={(e) => setForm({ ...form, canonical_name: e.currentTarget.value })}
-                />
-                <Select 
-                    label="Creator Type"
-                    data={CREATOR_TYPES}
-                    value={form.type}
-                    onChange={(v) => setForm({ ...form, type: v || '' })}
-                />
-                <Textarea 
-                    label="Internal Notes"
-                    placeholder="Add links or artist info..."
-                    value={form.notes}
-                    onChange={(e) => setForm({ ...form, notes: e.currentTarget.value })}
-                    minRows={3}
-                />
+            {opened && (
+                <Stack gap="md">
+                    <TextInput 
+                        label="Artist Name" 
+                        value={form.canonical_name} 
+                        onChange={(e) => setForm({ ...form, canonical_name: e.currentTarget.value })}
+                    />
+                    <Select 
+                        label="Creator Type"
+                        data={CREATOR_TYPES}
+                        value={form.type}
+                        onChange={(v) => setForm({ ...form, type: v || '' })}
+                    />
+                    <Textarea 
+                        label="Internal Notes"
+                        placeholder="Add links or artist info..."
+                        value={form.notes}
+                        onChange={(e) => setForm({ ...form, notes: e.currentTarget.value })}
+                        minRows={3}
+                    />
 
-                <CreatorSocialsForm
-                    socials={form.socials || []}
-                    onChange={(newSocials) => setForm({ ...form, socials: newSocials })}
-                />
+                    <CreatorSocialsForm
+                        socials={form.socials || []}
+                        onChange={(newSocials) => setForm({ ...form, socials: newSocials })}
+                    />
 
-                <Button fullWidth onClick={handleSubmit} loading={loading} mt="md">
-                    Save Changes
-                </Button>
-            </Stack>
+                    <Button fullWidth onClick={handleSubmit} loading={loading} mt="md">
+                        Save Changes
+                    </Button>
+                </Stack>
+            )}
         </Modal>
     );
 }
