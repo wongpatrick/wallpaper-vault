@@ -34,11 +34,17 @@ export interface ErrorTaskInfo extends BaseTaskInfo {
     error_message: string;
 }
 
+export interface CancelledTaskInfo extends BaseTaskInfo {
+    status: typeof TaskStatus.CANCELLED;
+    error_message?: string | null;
+}
+
 export type TaskInfo =
     | AcceptedTaskInfo
     | ProcessingTaskInfo
     | CompletedTaskInfo
-    | ErrorTaskInfo;
+    | ErrorTaskInfo
+    | CancelledTaskInfo;
 
 export interface TaskContextType {
     tasks: Record<string, TaskInfo>;

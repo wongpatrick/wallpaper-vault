@@ -24,7 +24,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
 
     const { handleTaskCompleted, handleTaskFailed } = useTaskCacheInvalidation();
 
-    // Schedule cleanup of completed/failed tasks from local state after delay
+    // Schedule cleanup of completed/failed/cancelled tasks from local state after delay
     const scheduleTaskCleanup = useCallback((taskId: string) => {
         const existingTimer = cleanupTimersRef.current.get(taskId);
         if (existingTimer) {
@@ -73,11 +73,16 @@ export function TaskProvider({ children }: TaskProviderProps) {
         scheduleTaskCleanup(taskId);
     }, [handleTaskFailed, scheduleTaskCleanup]);
 
+    const onTaskCancelled = useCallback((taskId: string) => {
+        scheduleTaskCleanup(taskId);
+    }, [scheduleTaskCleanup]);
+
     // Connect to SSE stream
     useSSETaskStream({
         onTasksUpdate,
         onTaskCompleted,
         onTaskFailed,
+        onTaskCancelled,
     });
 
     const addTask = useCallback((task: TaskInfo) => {
@@ -90,7 +95,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
     // Check if any background task is currently active
     const isTaskRunning = useMemo(() => {
         return Object.values(tasks).some(
-            (t) => t.status !== TaskStatus.COMPLETED && t.status !== TaskStatus.ERROR
+            (t) => t.status !== TaskStatus.COMPLETED && t.status !== TaskStatus.ERROR && t.status !== TaskStatus.CANCELLED
         );
     }, [tasks]);
 

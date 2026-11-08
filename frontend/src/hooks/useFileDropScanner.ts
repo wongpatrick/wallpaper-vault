@@ -109,13 +109,16 @@ export function useFileDropScanner(): UseFileDropScannerReturn {
 
   const closeImportModal = useCallback(() => {
     setImportOpened(false);
+    setImportLocalPaths([]);
+    setImportFiles([]);
+    setImportSuggestedFolder('');
   }, []);
 
   useEffect(() => {
     const isToolsRoute = location.pathname.startsWith('/tools');
 
     const handleWindowDragEnter = (e: DragEvent) => {
-      if (isToolsRoute) return;
+      if (isToolsRoute || importOpened) return;
 
       const types = e.dataTransfer?.types;
       const hasFiles = types && Array.from(types).includes('Files');
@@ -130,7 +133,7 @@ export function useFileDropScanner(): UseFileDropScannerReturn {
     };
 
     const handleWindowDragLeave = (e: DragEvent) => {
-      if (isToolsRoute) return;
+      if (isToolsRoute || importOpened) return;
       e.preventDefault();
       e.stopPropagation();
       dragCounter.current--;
@@ -141,7 +144,7 @@ export function useFileDropScanner(): UseFileDropScannerReturn {
     };
 
     const handleWindowDragOver = (e: DragEvent) => {
-      if (isToolsRoute) return;
+      if (isToolsRoute || importOpened) return;
       const types = e.dataTransfer?.types;
       const hasFiles = types && Array.from(types).includes('Files');
       if (!hasFiles) return;
@@ -151,7 +154,7 @@ export function useFileDropScanner(): UseFileDropScannerReturn {
     };
 
     const handleWindowDrop = async (e: DragEvent) => {
-      if (isToolsRoute) return;
+      if (isToolsRoute || importOpened) return;
       e.preventDefault();
       e.stopPropagation();
       setIsDragging(false);
@@ -253,7 +256,7 @@ export function useFileDropScanner(): UseFileDropScannerReturn {
       window.removeEventListener('dragover', handleWindowDragOver);
       window.removeEventListener('drop', handleWindowDrop);
     };
-  }, [location.pathname]);
+  }, [location.pathname, importOpened]);
 
   return {
     isDragging,

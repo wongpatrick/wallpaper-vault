@@ -4,7 +4,7 @@
  * Description: Displays a premium, centered loading card overlay with backdrop blur
  * and customizable title/message, preventing interactions during asynchronous actions.
  */
-import { Paper, Loader, Group, Stack, Text, Transition, Progress } from '@mantine/core';
+import { Paper, Loader, Group, Stack, Text, Transition, Progress, Button } from '@mantine/core';
 
 interface ActionLoadingOverlayProps {
     visible: boolean;
@@ -13,9 +13,20 @@ interface ActionLoadingOverlayProps {
     progress?: number;
     total?: number;
     bottomOffset?: number;
+    onCancel?: () => void;
+    cancelLabel?: string;
 }
 
-export function ActionLoadingOverlay({ visible, title, message, progress, total, bottomOffset = 0 }: ActionLoadingOverlayProps) {
+export function ActionLoadingOverlay({
+    visible,
+    title,
+    message,
+    progress,
+    total,
+    bottomOffset = 0,
+    onCancel,
+    cancelLabel = 'Cancel',
+}: ActionLoadingOverlayProps) {
     const showProgress = total !== undefined && total > 0;
     const progressPercent = showProgress ? Math.round(((progress || 0) / total) * 100) : 0;
 
@@ -66,6 +77,18 @@ export function ActionLoadingOverlay({ visible, title, message, progress, total,
                                         Processed {progress} / {total} images ({progressPercent}%)
                                     </Text>
                                 </Stack>
+                            )}
+                            {onCancel && (
+                                <Group justify="flex-end" mt={showProgress ? 4 : 8}>
+                                    <Button
+                                        size="compact-xs"
+                                        variant="subtle"
+                                        color="red"
+                                        onClick={onCancel}
+                                    >
+                                        {cancelLabel}
+                                    </Button>
+                                </Group>
                             )}
                         </Stack>
                     </Group>

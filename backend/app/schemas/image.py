@@ -152,3 +152,11 @@ class ImageCropResponse(BaseModel):
     width: Optional[int] = Field(None, description="Calculated crop width")
     height: Optional[int] = Field(None, description="Calculated crop height")
     image: Optional[ImageDetail] = Field(None, description="The resulting image object (populated when preview_only=False)")
+
+class ImageImportCleanupRequest(BaseModel):
+    paths: Optional[list[str]] = Field(default_factory=list, description="List of temp file paths or directory paths to remove.")
+    session_id: Optional[str] = Field(None, description="Optional temp session uuid to remove.")
+
+class ImageImportCleanupResponse(BaseModel):
+    removed_count: int
+    message: str

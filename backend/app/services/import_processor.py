@@ -2,6 +2,7 @@
 Processor for executing batch and image import tasks into the vault.
 """
 
+import asyncio
 import os
 from pathlib import Path
 import re
@@ -91,6 +92,7 @@ async def execute_import_item(
     delete_source_default: bool,
     task_id: Optional[str] = None,
     progress_state: Optional[dict] = None,
+    context: Optional[dict] = None,
 ) -> BatchImportItem:
     """Phase 3: Process images and save to database for a single item."""
     from app.crud.set import get_set_by_title_and_creators
@@ -132,6 +134,9 @@ async def execute_import_item(
 
         folder_name = sanitize_filename(f"{joined_creators} - {item.set_title}")
         dest_dir = vault_root / folder_name
+        dest_dir_existed = dest_dir.exists()
+        if not dest_dir_existed and context is not None:
+            context["created_dest_dirs"].append(dest_dir)
         dest_dir.mkdir(parents=True, exist_ok=True)
 
         creator_ids = [c.id for c in db_creators]
@@ -162,6 +167,8 @@ async def execute_import_item(
         processed_in_item = 0
         try:
             for img_path in image_paths:
+                if task_id and tasks.is_task_cancelled(task_id):
+                    raise asyncio.CancelledError(f"Task {task_id} cancelled")
                 p = Path(img_path)
                 base_out = dest_dir / p.name
 
@@ -178,6 +185,8 @@ async def execute_import_item(
 
                 if ok:
                     final_p = Path(final_p_str)
+                    if context is not None:
+                        context["created_vault_files"].append(final_p)
                     img_data = load_image(final_p_str)
                     if img_data is not None:
                         h, w = img_data.shape[:2]
@@ -259,36 +268,41 @@ async def execute_import_item(
 
         if delete_source_default:
             source_p = Path(item.source_path)
-            is_dir = source_p.is_dir()
-            deleted, err = await retry_delete(source_p, is_dir)
-            if not deleted:
-                if is_dir:
-                    logger.error(
-                        "Failed to delete batch source directory after retries due to lock",
-                        path=item.source_path,
-                        error=err,
-                    )
-                else:
-                    logger.error(
-                        "Failed to delete batch source file after retries due to lock",
-                        path=item.source_path,
-                        error=err,
-                    )
-            elif not is_dir:
-                parent = source_p.parent
-                try:
-                    if await delete_dir_if_empty_async(parent):
-                        logger.info(
-                            "Deleted empty source directory", path=str(parent)
+            if context is not None:
+                context["sources_to_delete"].append(source_p)
+            else:
+                is_dir = source_p.is_dir()
+                deleted, err = await retry_delete(source_p, is_dir)
+                if not deleted:
+                    if is_dir:
+                        logger.error(
+                            "Failed to delete batch source directory after retries due to lock",
+                            path=item.source_path,
+                            error=err,
                         )
-                except Exception as dir_err:
-                    logger.error(
-                        "Failed to delete empty source directory",
-                        path=str(parent),
-                        error=str(dir_err),
-                    )
+                    else:
+                        logger.error(
+                            "Failed to delete batch source file after retries due to lock",
+                            path=item.source_path,
+                            error=err,
+                        )
+                elif not is_dir:
+                    parent = source_p.parent
+                    try:
+                        if await delete_dir_if_empty_async(parent):
+                            logger.info(
+                                "Deleted empty source directory", path=str(parent)
+                            )
+                    except Exception as dir_err:
+                        logger.error(
+                            "Failed to delete empty source directory",
+                            path=str(parent),
+                            error=str(dir_err),
+                        )
 
         item.status = "success"
+    except asyncio.CancelledError:
+        raise
     except Exception as e:
         item.status = "error"
         item.error = str(e)
@@ -465,6 +479,9 @@ async def _import_images_background_task_impl(
         delete_source = request_data.get("delete_source") or False
         items = request_data.get("items") or []
         parent_dirs = set()
+        created_vault_files: list[Path] = []
+        created_dest_dirs: list[Path] = []
+        sources_to_delete: list[Path] = []
 
         req_lp_id = request_data.get("library_path_id")
         vault_root, target_lp_id = await resolve_vault_root(
@@ -532,6 +549,8 @@ async def _import_images_background_task_impl(
             if not db_set:
                 folder_name = sanitize_filename(f"{joined_creators} - {set_title}")
                 dest_dir = vault_root / folder_name
+                if not dest_dir.exists():
+                    created_dest_dirs.append(dest_dir)
                 dest_dir.mkdir(parents=True, exist_ok=True)
                 db_set = SetModel(
                     title=set_title,
@@ -559,6 +578,8 @@ async def _import_images_background_task_impl(
             db_set = res.scalars().first()
             if not db_set:
                 dest_dir = vault_root / "Imports"
+                if not dest_dir.exists():
+                    created_dest_dirs.append(dest_dir)
                 dest_dir.mkdir(parents=True, exist_ok=True)
                 db_set = SetModel(
                     title="Imports",
@@ -623,6 +644,9 @@ async def _import_images_background_task_impl(
         all_detected_characters = set()
 
         for idx, file_info in enumerate(all_import_files):
+            if task_id and tasks.is_task_cancelled(task_id):
+                raise asyncio.CancelledError(f"Task {task_id} cancelled")
+
             src_path = file_info["source_path"]
             filename = file_info["filename"]
             rating_str = file_info["rating"]
@@ -648,6 +672,7 @@ async def _import_images_background_task_impl(
 
             if ok:
                 final_p = Path(final_p_str)
+                created_vault_files.append(final_p)
                 img_data = load_image(final_p_str)
                 if img_data is not None:
                     h, w = img_data.shape[:2]
@@ -704,15 +729,7 @@ async def _import_images_background_task_impl(
                     db_images.append(db_img)
 
             if delete_source:
-                deleted, err = await retry_delete(p, False)
-                if deleted:
-                    parent_dirs.add(p.parent)
-                else:
-                    logger.error(
-                        "Failed to delete source file after retries due to lock",
-                        path=src_path,
-                        error=err,
-                    )
+                sources_to_delete.append(p)
 
             await tasks.update_task(
                 db, task_id, progress=idx + 1, total=total_files
@@ -720,6 +737,16 @@ async def _import_images_background_task_impl(
 
         cleanup_warnings = []
         if delete_source:
+            for src_p in sources_to_delete:
+                deleted, err = await retry_delete(src_p, False)
+                if deleted:
+                    parent_dirs.add(src_p.parent)
+                else:
+                    logger.error(
+                        "Failed to delete source file after retries due to lock",
+                        path=str(src_p),
+                        error=err,
+                    )
             dropped_dirs = set(
                 item["dir_root"]
                 for item in all_import_files
@@ -761,18 +788,51 @@ async def _import_images_background_task_impl(
             task_id=task_id,
         )
 
+    except asyncio.CancelledError:
+        logger.info("Background import task cancelled", task_id=task_id)
+        await db.rollback()
+        for f in created_vault_files:
+            try:
+                if f.exists():
+                    f.unlink()
+            except Exception as e:
+                logger.error("Failed to remove vault file on cancel", path=str(f), error=str(e))
+        for d in created_dest_dirs:
+            try:
+                if d.exists() and not any(d.iterdir()):
+                    d.rmdir()
+            except Exception as e:
+                logger.error("Failed to remove empty destination dir on cancel", path=str(d), error=str(e))
+        await tasks.update_task(
+            db, task_id, status=TaskStatus.CANCELLED, error_message="Task cancelled by user"
+        )
     except Exception as e:
         logger.exception(
             "Error during background import", task_id=task_id, error=str(e)
         )
         await db.rollback()
+        for f in created_vault_files:
+            try:
+                if f.exists():
+                    f.unlink()
+            except Exception as e:
+                logger.error("Failed to remove vault file on error", path=str(f), error=str(e))
+        for d in created_dest_dirs:
+            try:
+                if d.exists() and not any(d.iterdir()):
+                    d.rmdir()
+            except Exception as e:
+                logger.error("Failed to remove empty destination dir on error", path=str(d), error=str(e))
         await tasks.update_task(
             db, task_id, status="error", error_message=str(e)
         )
 
 
 async def batch_import_sets(
-    db: AsyncSession, batch_in: BatchImportRequest, task_id: Optional[str] = None
+    db: AsyncSession,
+    batch_in: BatchImportRequest,
+    task_id: Optional[str] = None,
+    context: Optional[dict] = None,
 ) -> BatchImportResponse:
     """Executes a batch import process for multiple folders."""
     candidates = await gather_candidates(db, batch_in)
@@ -812,8 +872,17 @@ async def batch_import_sets(
     if task_id:
         await tasks.update_task(db, task_id, progress=0, total=total_images)
 
+    if context is None:
+        context = {
+            "created_vault_files": [],
+            "created_dest_dirs": [],
+            "sources_to_delete": [],
+        }
+
     final_results = []
     for item in results:
+        if task_id and tasks.is_task_cancelled(task_id):
+            raise asyncio.CancelledError(f"Task {task_id} cancelled")
         processed_item = await execute_import_item(
             db=db,
             item=item,
@@ -825,11 +894,12 @@ async def batch_import_sets(
             delete_source_default=batch_in.delete_source_default,
             task_id=task_id,
             progress_state=progress_state,
+            context=context,
         )
         final_results.append(processed_item)
 
     cleanup_warnings = []
-    if batch_in.delete_source_default:
+    if batch_in.delete_source_default and task_id is None:
         for item in batch_in.items:
             source_p = Path(item.source_path)
             if source_p.exists() and source_p.is_dir():
@@ -870,24 +940,101 @@ async def run_batch_import_background(
     batch_in: BatchImportRequest, task_id: str
 ) -> None:
     """Entry point for running batch imports as a background task."""
+    context = {
+        "created_vault_files": [],
+        "created_dest_dirs": [],
+        "sources_to_delete": [],
+    }
     async with SessionLocal() as db:
         try:
             await tasks.update_task(db, task_id, status=TaskStatus.PROCESSING)
-            response = await batch_import_sets(db, batch_in, task_id=task_id)
+            response = await batch_import_sets(db, batch_in, task_id=task_id, context=context)
             await db.commit()
 
+            cleanup_warnings = []
+            if batch_in.delete_source_default:
+                for source_p in context["sources_to_delete"]:
+                    is_dir = source_p.is_dir()
+                    deleted, err = await retry_delete(source_p, is_dir)
+                    if not deleted:
+                        logger.error(
+                            "Failed to delete batch source after retries due to lock",
+                            path=str(source_p),
+                            error=err,
+                        )
+                    elif not is_dir:
+                        parent = source_p.parent
+                        try:
+                            if await delete_dir_if_empty_async(parent):
+                                logger.info(
+                                    "Deleted empty source directory", path=str(parent)
+                                )
+                        except Exception as dir_err:
+                            logger.error(
+                                "Failed to delete empty source directory",
+                                path=str(parent),
+                                error=str(dir_err),
+                            )
+                for item in batch_in.items:
+                    source_p = Path(item.source_path)
+                    if source_p.exists() and source_p.is_dir():
+                        try:
+                            if delete_dir_if_empty(source_p):
+                                logger.info(
+                                    "Deleted empty batch source directory",
+                                    path=item.source_path,
+                                )
+                            else:
+                                cleanup_warnings.append(source_p.name)
+                        except Exception as err:
+                            logger.error(
+                                "Failed to delete empty batch source directory",
+                                path=item.source_path,
+                                error=str(err),
+                            )
+
             warning_msg = None
-            warnings = getattr(response, "cleanup_warnings", [])
+            warnings = list(getattr(response, "cleanup_warnings", [])) + cleanup_warnings
             if warnings:
-                folders_str = ", ".join(f"'{f}'" for f in warnings)
+                folders_str = ", ".join(f"'{f}'" for f in set(warnings))
                 warning_msg = f"Source folder(s) {folders_str} still contained files and were left on disk."
 
             await tasks.update_task(
                 db, task_id, status=TaskStatus.COMPLETED, error_message=warning_msg
             )
+        except asyncio.CancelledError:
+            logger.info("Batch import background task cancelled", task_id=task_id)
+            await db.rollback()
+            for f in context["created_vault_files"]:
+                try:
+                    if f.exists():
+                        f.unlink()
+                except Exception:
+                    pass
+            for d in context["created_dest_dirs"]:
+                try:
+                    if d.exists() and not any(d.iterdir()):
+                        d.rmdir()
+                except Exception:
+                    pass
+            await tasks.update_task(
+                db, task_id, status=TaskStatus.CANCELLED, error_message="Task cancelled by user"
+            )
         except Exception as e:
             logger.exception("Batch import background task failed", error=str(e))
             await db.rollback()
+            for f in context["created_vault_files"]:
+                try:
+                    if f.exists():
+                        f.unlink()
+                except Exception:
+                    pass
+            for d in context["created_dest_dirs"]:
+                try:
+                    if d.exists() and not any(d.iterdir()):
+                        d.rmdir()
+                except Exception:
+                    pass
             await tasks.update_task(
                 db, task_id, status=TaskStatus.ERROR, error_message=str(e)
             )

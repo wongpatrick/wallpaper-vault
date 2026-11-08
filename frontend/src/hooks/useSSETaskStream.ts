@@ -19,6 +19,7 @@ export interface UseSSETaskStreamOptions {
   onTasksUpdate: (incomingBatch: Record<string, TaskInfo>) => void;
   onTaskCompleted: (taskId: string, task: TaskInfo) => void;
   onTaskFailed: (taskId: string, task: TaskInfo) => void;
+  onTaskCancelled?: (taskId: string, task: TaskInfo) => void;
 }
 
 const VALID_STATUSES = new Set([
@@ -26,6 +27,7 @@ const VALID_STATUSES = new Set([
   TaskStatus.PROCESSING,
   TaskStatus.COMPLETED,
   TaskStatus.ERROR,
+  TaskStatus.CANCELLED,
 ]);
 
 export function isValidTaskInfo(obj: unknown): obj is Omit<TaskInfo, 'id'> {
@@ -36,7 +38,7 @@ export function isValidTaskInfo(obj: unknown): obj is Omit<TaskInfo, 'id'> {
   if (typeof t.total !== 'number' || isNaN(t.total)) return false;
   if (t.status === TaskStatus.ERROR) {
     if (typeof t.error_message !== 'string') return false;
-  } else if (t.status === TaskStatus.COMPLETED) {
+  } else if (t.status === TaskStatus.COMPLETED || t.status === TaskStatus.CANCELLED) {
     if (t.error_message !== undefined && t.error_message !== null && typeof t.error_message !== 'string') return false;
   } else {
     if (t.error_message !== undefined && t.error_message !== null) return false;
@@ -59,6 +61,7 @@ export function useSSETaskStream({
   onTasksUpdate,
   onTaskCompleted,
   onTaskFailed,
+  onTaskCancelled,
 }: UseSSETaskStreamOptions) {
   const { onVaultSwitch } = useVaultEvent();
   const knownTaskStatusesRef = useRef<Map<string, TaskStatus>>(new Map());
@@ -67,11 +70,13 @@ export function useSSETaskStream({
   const onTasksUpdateRef = useRef(onTasksUpdate);
   const onTaskCompletedRef = useRef(onTaskCompleted);
   const onTaskFailedRef = useRef(onTaskFailed);
+  const onTaskCancelledRef = useRef(onTaskCancelled);
 
   useEffect(() => {
     onTasksUpdateRef.current = onTasksUpdate;
     onTaskCompletedRef.current = onTaskCompleted;
     onTaskFailedRef.current = onTaskFailed;
+    onTaskCancelledRef.current = onTaskCancelled;
   });
 
   useEffect(() => {
@@ -127,12 +132,14 @@ export function useSSETaskStream({
             const batch: Record<string, TaskInfo> = {};
             const completedList: [string, TaskInfo][] = [];
             const failedList: [string, TaskInfo][] = [];
+            const cancelledList: [string, TaskInfo][] = [];
 
             Object.entries(incomingTasks).forEach(([tid, tinfo]) => {
               const prevStatus = knownStatuses.get(tid);
               const wasActive = !prevStatus || (
                 prevStatus !== TaskStatus.COMPLETED &&
-                prevStatus !== TaskStatus.ERROR
+                prevStatus !== TaskStatus.ERROR &&
+                prevStatus !== TaskStatus.CANCELLED
               );
 
               const fullTask: TaskInfo = {
@@ -147,6 +154,8 @@ export function useSSETaskStream({
                   completedList.push([tid, fullTask]);
                 } else if (tinfo.status === TaskStatus.ERROR) {
                   failedList.push([tid, fullTask]);
+                } else if (tinfo.status === TaskStatus.CANCELLED) {
+                  cancelledList.push([tid, fullTask]);
                 }
               }
             });
@@ -160,6 +169,10 @@ export function useSSETaskStream({
 
             failedList.forEach(([tid, task]) => {
               onTaskFailedRef.current(tid, task);
+            });
+
+            cancelledList.forEach(([tid, task]) => {
+              onTaskCancelledRef.current?.(tid, task);
             });
           } catch (err) {
             console.error('Error processing SSE task event:', err);
@@ -186,18 +199,22 @@ export function useSSETaskStream({
         retryTimeout = null;
       }
       knownTaskStatusesRef.current.clear();
-      onTasksUpdateRef.current({});
-      retryDelay = INITIAL_RETRY_DELAY_MS;
       connect();
     };
 
-    const unsubscribeVaultSwitch = onVaultSwitch(handleVaultSwitched);
+    const cleanupVaultSwitch = onVaultSwitch(handleVaultSwitched);
 
     return () => {
       isUnmounted = true;
-      unsubscribeVaultSwitch();
-      if (retryTimeout) clearTimeout(retryTimeout);
-      if (eventSource) eventSource.close();
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+        retryTimeout = null;
+      }
+      cleanupVaultSwitch();
     };
   }, [onVaultSwitch]);
 }

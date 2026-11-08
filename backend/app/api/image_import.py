@@ -1,4 +1,4 @@
-﻿"""
+"""
 API router for image import and path validation endpoints.
 """
 
@@ -15,6 +15,8 @@ from app.core.crop import collect_image_paths
 from app.core.rate_limit import limiter
 from app.db.session import SessionLocal, get_db
 from app.schemas.image import (
+    ImageImportCleanupRequest,
+    ImageImportCleanupResponse,
     ImageImportRequest,
     ImageImportValidationRequest,
     ImageImportValidationResponse,
@@ -24,6 +26,13 @@ from app.services import import_service
 logger = structlog.get_logger(__name__)
 
 router = APIRouter()
+
+
+def get_temp_imports_root() -> Path:
+    """Returns canonical root directory for staged temporary file imports."""
+    root = Path(__file__).resolve().parent.parent.parent / "temp_imports"
+    root.mkdir(parents=True, exist_ok=True)
+    return root
 
 
 @router.post("/import/validate", response_model=ImageImportValidationResponse)
@@ -47,7 +56,7 @@ async def validate_import_uploaded_files(
     db: AsyncSession = Depends(get_db),
 ) -> ImageImportValidationResponse:
     """Accepts uploaded files, saves them to a temporary directory, and validates them for import."""
-    temp_dir = Path("../backend/temp_imports") / str(uuid.uuid4())
+    temp_dir = get_temp_imports_root() / str(uuid.uuid4())
     temp_dir.mkdir(parents=True, exist_ok=True)
 
     local_paths = []
@@ -73,6 +82,51 @@ async def validate_import_uploaded_files(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/import/cleanup-temp", response_model=ImageImportCleanupResponse)
+async def cleanup_import_temp_files(
+    req: ImageImportCleanupRequest,
+) -> ImageImportCleanupResponse:
+    """Cleans up staged temporary upload directories and files."""
+    root = get_temp_imports_root().resolve()
+    removed_count = 0
+
+    if req.session_id:
+        # Sanitize session_id to avoid path traversal
+        safe_session = Path(req.session_id).name
+        target_session_dir = (root / safe_session).resolve()
+        if root in target_session_dir.parents and target_session_dir.exists():
+            try:
+                shutil.rmtree(target_session_dir, ignore_errors=True)
+                removed_count += 1
+            except Exception as e:
+                logger.error("Failed to delete temp session dir", dir=str(target_session_dir), error=str(e))
+
+    if req.paths:
+        for p_str in req.paths:
+            try:
+                target_path = Path(p_str).resolve()
+                if root in target_path.parents and target_path.exists():
+                    if target_path.is_file():
+                        target_path.unlink(missing_ok=True)
+                        removed_count += 1
+                        parent = target_path.parent
+                        if parent != root and parent.exists() and not any(parent.iterdir()):
+                            try:
+                                parent.rmdir()
+                            except Exception:
+                                pass
+                    elif target_path.is_dir():
+                        shutil.rmtree(target_path, ignore_errors=True)
+                        removed_count += 1
+            except Exception as e:
+                logger.error("Failed cleaning temp path", path=p_str, error=str(e))
+
+    return ImageImportCleanupResponse(
+        removed_count=removed_count,
+        message=f"Cleaned up {removed_count} temporary items",
+    )
+
+
 @router.post("/import/scan-paths", response_model=list[str])
 async def scan_import_paths(
     req: ImageImportValidationRequest,
@@ -90,7 +144,7 @@ async def scan_import_paths(
 
 
 @router.post("/import", response_model=str)
-@limiter.limit("5/minute")
+@limiter.limit("60/minute")
 async def import_images(
     request: Request,
     req: ImageImportRequest,

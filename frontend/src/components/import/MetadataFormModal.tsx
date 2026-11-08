@@ -4,7 +4,7 @@
  * Description: Displays a form allowing users to assign global creators, sets, tags, and ratings
  * to dropped files/folders, showing a preview list with phash duplicate warnings and overrides.
  */
-import { useMemo, useState, useEffect, Fragment } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { 
     Modal, TextInput, Stack, Button, Group, Text, Checkbox, 
     Table, Badge, ScrollArea, ActionIcon, Tooltip, Select, 
@@ -18,7 +18,8 @@ import { useReadCreatorsApiCreatorsGet } from '../../api/generated/creators/crea
 import { useReadSetsApiSetsGet } from '../../api/generated/sets/sets';
 import { useReadSettingsApiSettingsGet } from '../../api/generated/settings/settings';
 import { useListLibraryPathsApiLibraryPathsGet } from '../../api/generated/library-paths/library-paths';
-import { useImportImagesApiImagesImportPost } from '../../api/generated/images/images';
+import { useImportImagesApiImagesImportPost, cleanupImportTempFilesApiImagesImportCleanupTempPost } from '../../api/generated/images/images';
+import { cancelTaskEndpointApiTasksTaskIdCancelPost } from '../../api/generated/tasks/tasks';
 import { useImportQueue } from './hooks/useImportQueue';
 import { useImportScanner } from './hooks/useImportScanner';
 import { useImportFolderGroups } from './hooks/useImportFolderGroups';
@@ -62,7 +63,6 @@ export function MetadataFormModal({
         if (opened) {
             const defaultLp = libraryPaths.find(p => p.is_default) || libraryPaths[0];
             if (defaultLp) {
-                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setSelectedLibraryPathId(defaultLp.id.toString());
             }
             setGlobalTags([]);
@@ -80,11 +80,22 @@ export function MetadataFormModal({
         removeItem
     } = useImportQueue({ opened });
 
+    const sessionCountRef = useRef(0);
+    const importAbortRef = useRef<AbortController | null>(null);
+    const activeImportTaskIdsRef = useRef<string[]>([]);
+
+    useEffect(() => {
+        if (opened) {
+            sessionCountRef.current++;
+        }
+    }, [opened]);
+
     const {
         isValidating,
         validationProgress,
         validationCount,
-        validationTotal
+        validationTotal,
+        cancelValidation
     } = useImportScanner({
         opened,
         initialLocalPaths,
@@ -149,7 +160,34 @@ export function MetadataFormModal({
         return items;
     };
 
+    const handleCancelOrClose = useCallback(() => {
+        if (importAbortRef.current) {
+            importAbortRef.current.abort();
+            importAbortRef.current = null;
+        }
+        if (activeImportTaskIdsRef.current.length > 0) {
+            activeImportTaskIdsRef.current.forEach(tid => {
+                cancelTaskEndpointApiTasksTaskIdCancelPost(tid).catch(() => {});
+            });
+            activeImportTaskIdsRef.current = [];
+        }
+        importImagesMutation.reset();
+        cancelValidation();
+        if (!isElectron && queue.length > 0) {
+            const tempPaths = queue.map(q => q.local_path).filter(Boolean);
+            if (tempPaths.length > 0) {
+                cleanupImportTempFilesApiImagesImportCleanupTempPost({ paths: tempPaths }).catch(() => {});
+            }
+        }
+        onClose();
+    }, [isElectron, queue, cancelValidation, onClose, importImagesMutation]);
+
     const handleImport = async () => {
+        const currentSession = sessionCountRef.current;
+        const abortCtrl = new AbortController();
+        importAbortRef.current = abortCtrl;
+        activeImportTaskIdsRef.current = [];
+
         const selectedItems = selectedQueueItems;
         if (selectedItems.length === 0) {
             showNotification({
@@ -171,6 +209,10 @@ export function MetadataFormModal({
 
         try {
             for (const [groupKey, groupItems] of Object.entries(itemsByGroup)) {
+                if (sessionCountRef.current !== currentSession || abortCtrl.signal.aborted) {
+                    return;
+                }
+
                 const meta = groupsMetadata[groupKey] || { creatorNames: [], setIdOrTitle: '', searchQuery: '' };
                 const creatorStr = meta.creatorNames.join(' & ');
                 let targetSetId: number | undefined;
@@ -202,6 +244,17 @@ export function MetadataFormModal({
                     }
                 });
 
+                if (sessionCountRef.current !== currentSession || abortCtrl.signal.aborted) {
+                    if (responseTaskId) {
+                        cancelTaskEndpointApiTasksTaskIdCancelPost(responseTaskId).catch(() => {});
+                    }
+                    return;
+                }
+
+                if (responseTaskId) {
+                    activeImportTaskIdsRef.current.push(responseTaskId);
+                }
+
                 if (addTask && responseTaskId) {
                     addTask({
                         id: responseTaskId,
@@ -216,16 +269,31 @@ export function MetadataFormModal({
                     message: `Importing ${groupItems.length} items. Task ID: ${responseTaskId}`,
                     color: 'blue'
                 });
+
+                // Remove successfully started group items from queue
+                const processedIds = new Set(groupItems.map(it => it.id));
+                setQueue(prev => prev.filter(it => !processedIds.has(it.id)));
             }
 
-            onClose();
-        } catch (error) {
-            console.error('Import error:', error);
-            showNotification({
-                title: 'Import Failed',
-                message: 'An error occurred while starting the import task.',
-                color: 'red'
-            });
+            if (sessionCountRef.current === currentSession && !abortCtrl.signal.aborted) {
+                importImagesMutation.reset();
+                onClose();
+            }
+        } catch (error: unknown) {
+            const isAborted = abortCtrl.signal.aborted ||
+                (error as { name?: string })?.name === 'CanceledError' ||
+                (error as { name?: string })?.name === 'AbortError';
+
+            if (!isAborted && sessionCountRef.current === currentSession) {
+                console.error('Import error:', error);
+                showNotification({
+                    title: 'Import Failed',
+                    message: 'An error occurred while starting the import task.',
+                    color: 'red'
+                });
+            }
+        } finally {
+            importAbortRef.current = null;
         }
     };
 
@@ -247,7 +315,7 @@ export function MetadataFormModal({
     return (
         <Modal
             opened={opened}
-            onClose={onClose}
+            onClose={handleCancelOrClose}
             title={
                 <Text fw={700} size="lg">
                     📥 Drag-and-Drop Import Manager ({totalItemsCount} items{isValidating ? ', scanning...' : ''})
@@ -292,6 +360,15 @@ export function MetadataFormModal({
                                     ? `${validationCount} of ${validationTotal} items (${Math.round(validationProgress)}%)` 
                                     : `${Math.round(validationProgress)}% complete`}
                             </Text>
+                            <Button 
+                                size="xs" 
+                                variant="subtle" 
+                                color="red" 
+                                mt="xs"
+                                onClick={handleCancelOrClose}
+                            >
+                                Cancel Validation
+                            </Button>
                         </Stack>
                     </div>
                 )}
@@ -518,7 +595,7 @@ export function MetadataFormModal({
                         </ScrollArea.Autosize>
 
                         <Group justify="flex-end" mt="md">
-                            <Button variant="subtle" onClick={onClose}>
+                            <Button variant="subtle" onClick={handleCancelOrClose}>
                                 Cancel
                             </Button>
                             <Button

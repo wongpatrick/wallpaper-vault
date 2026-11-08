@@ -8,6 +8,7 @@ class TaskStatus(StrEnum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     ERROR = "error"
+    CANCELLED = "cancelled"
 
 
 class AuditIssueType(StrEnum):

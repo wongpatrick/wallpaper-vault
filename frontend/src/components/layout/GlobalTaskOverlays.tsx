@@ -3,9 +3,10 @@
  * Module: Global Task Overlays Component
  * Description: Renders background task loading overlays isolated from the main layout shell to prevent context re-render churn.
  */
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useTasks } from '../../hooks/useTasks';
 import { ActionLoadingOverlay } from '../ui/ActionLoadingOverlay';
+import { cancelTaskEndpointApiTasksTaskIdCancelPost } from '../../api/generated/tasks/tasks';
 
 const AUTO_TAG_OVERLAY_HEIGHT_PX = 110;
 
@@ -18,17 +19,20 @@ export function GlobalTaskOverlays() {
         );
     }, [tasks]);
 
-    const activeImportTask = useMemo(() => {
-        const importTasks = Object.values(tasks).filter(
+    const activeImportTasks = useMemo(() => {
+        return Object.values(tasks).filter(
             (t) => t.id.startsWith('import-') && (t.status === 'accepted' || t.status === 'processing')
         );
-        if (importTasks.length === 0) return null;
+    }, [tasks]);
+
+    const activeImportTask = useMemo(() => {
+        if (activeImportTasks.length === 0) return null;
 
         let progress = 0;
         let total = 0;
         let isProcessing = false;
 
-        importTasks.forEach(t => {
+        activeImportTasks.forEach(t => {
             progress += t.progress || 0;
             total += t.total || 0;
             if (t.status === 'processing') {
@@ -42,7 +46,13 @@ export function GlobalTaskOverlays() {
             progress,
             total
         };
-    }, [tasks]);
+    }, [activeImportTasks]);
+
+    const handleCancelImports = useCallback(() => {
+        activeImportTasks.forEach(t => {
+            cancelTaskEndpointApiTasksTaskIdCancelPost(t.id).catch(() => {});
+        });
+    }, [activeImportTasks]);
 
     return (
         <>
@@ -68,6 +78,8 @@ export function GlobalTaskOverlays() {
                 progress={activeImportTask?.progress}
                 total={activeImportTask?.total}
                 bottomOffset={activeAutoTagTask ? AUTO_TAG_OVERLAY_HEIGHT_PX : 0}
+                onCancel={handleCancelImports}
+                cancelLabel="Cancel Import"
             />
         </>
     );
