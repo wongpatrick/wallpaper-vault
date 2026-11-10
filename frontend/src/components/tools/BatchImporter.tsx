@@ -15,12 +15,14 @@ export function BatchImporter() {
         template,
         setTemplate,
         results,
-        setResults,
         isImporting,
         isScanning,
+        isTaskRunning,
         globalDeleteSource,
         setGlobalDeleteSource,
         handleResultChange,
+        handleClearQueue,
+        handleCancelImport,
         handleDrop,
         handleScan,
         handleReparse,
@@ -127,14 +129,25 @@ export function BatchImporter() {
                                 >
                                     Re-parse Queue
                                 </Button>
-                                <Button 
-                                    size="sm" color="grape" leftSection={<IconCloudUpload size={18} />}
-                                    onClick={handleImportAll} loading={isImporting}
-                                    disabled={!results.some(r => r.isValid && (r.status === 'pending' || r.status === 'error'))}
-                                >
-                                    Start Batch Import
-                                </Button>
-                                <ActionIcon variant="subtle" color="gray" onClick={() => setResults([])}>
+                                {isTaskRunning ? (
+                                    <Button
+                                        size="sm"
+                                        color="red"
+                                        variant="outline"
+                                        onClick={handleCancelImport}
+                                    >
+                                        Cancel Import
+                                    </Button>
+                                ) : (
+                                    <Button 
+                                        size="sm" color="grape" leftSection={<IconCloudUpload size={18} />}
+                                        onClick={handleImportAll} loading={isImporting}
+                                        disabled={!results.some(r => r.isValid && (r.status === 'pending' || r.status === 'error'))}
+                                    >
+                                        Start Batch Import
+                                    </Button>
+                                )}
+                                <ActionIcon variant="subtle" color="gray" onClick={handleClearQueue}>
                                     <IconX size={18} />
                                 </ActionIcon>
                             </Group>

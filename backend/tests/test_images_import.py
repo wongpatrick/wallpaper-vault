@@ -301,3 +301,88 @@ async def test_images_import_background_task_creates_own_session(client: AsyncCl
         assert db_set.title == "Session Own Set"
 
 
+
+
+@pytest.mark.asyncio
+async def test_task_cancel_endpoint(client: AsyncClient, db_session: AsyncSession):
+    """Test POST /api/tasks/{task_id}/cancel endpoint and cancellation registry."""
+    from app.core import tasks
+    from app.core.enums import TaskStatus
+
+    task_id = await tasks.create_task(db_session=db_session, status=TaskStatus.PROCESSING, prefix="test")
+
+    resp = await client.post(f"/api/tasks/{task_id}/cancel")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["task_id"] == task_id
+    assert data["status"] == TaskStatus.CANCELLED
+    assert tasks.is_task_cancelled(task_id) is True
+
+    # Calling cancel again on terminal state
+    resp2 = await client.post(f"/api/tasks/{task_id}/cancel")
+    assert resp2.status_code == 200
+    assert resp2.json()["status"] == TaskStatus.CANCELLED
+
+
+@pytest.mark.asyncio
+async def test_images_import_cancellation_rollback_and_preserve_source(client: AsyncClient, mock_images_dir: Path, db_session: AsyncSession):
+    """Test cancelling an import mid-way rolls back vault files and does not delete source files."""
+    from app.core import tasks
+
+    with tempfile.TemporaryDirectory() as vault_dir:
+        await client.put("/api/settings/base_library_path", json={"value": vault_dir})
+
+        temp_src_dir = Path(vault_dir) / "temp_cancel_src"
+        temp_src_dir.mkdir()
+
+        p1 = temp_src_dir / "img1.png"
+        shutil.copy(mock_images_dir / "img1.png", p1)
+
+        task_id = await tasks.create_task(db_session=db_session, status="accepted", prefix="import")
+        # Pre-request cancellation before/during loop
+        tasks.request_cancel_task(task_id)
+
+        import_req = {
+            "items": [{"local_path": str(p1)}],
+            "creator_name": "Cancel Artist",
+            "set_title": "Cancelled Set",
+            "rating": "safe",
+            "delete_source": True
+        }
+
+        await import_service._import_images_background_task_impl(db_session, import_req, task_id)
+
+        # Source file must still exist!
+        assert p1.exists()
+
+        # Database set must NOT exist!
+        res = await db_session.execute(select(SetModel).where(SetModel.title == "Cancelled Set"))
+        assert res.scalars().first() is None
+
+        # Vault destination set folder must NOT exist or have leftover images!
+        vault_dest = Path(vault_dir) / "Cancel Artist - Cancelled Set"
+        assert not vault_dest.exists()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_temp_files_endpoint(client: AsyncClient):
+    """Test POST /api/images/import/cleanup-temp endpoint cleans up staged upload directories."""
+    from app.api.image_import import get_temp_imports_root
+    import uuid
+
+    session_id = str(uuid.uuid4())
+    temp_dir = get_temp_imports_root() / session_id
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    temp_file = temp_dir / "test_upload.png"
+    temp_file.write_text("dummy")
+
+    assert temp_file.exists()
+
+    resp = await client.post(
+        "/api/images/import/cleanup-temp",
+        json={"session_id": session_id, "paths": [str(temp_file)]}
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["removed_count"] >= 1
+    assert not temp_dir.exists()

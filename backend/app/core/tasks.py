@@ -16,6 +16,26 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
+_cancelled_task_ids: Set[str] = set()
+
+
+def request_cancel_task(task_id: str) -> bool:
+    """Register a cancellation request for a task."""
+    _cancelled_task_ids.add(task_id)
+    logger.info("Task cancellation requested", task_id=task_id)
+    return True
+
+
+def is_task_cancelled(task_id: str) -> bool:
+    """Check if task has a pending cancellation request."""
+    return task_id in _cancelled_task_ids
+
+
+def clear_task_cancellation(task_id: str) -> None:
+    """Clear in-memory cancellation status after task has finished cancelling."""
+    _cancelled_task_ids.discard(task_id)
+
+
 class TaskBroadcaster:
     def __init__(self):
         self.subscribers: Set[asyncio.Queue] = set()
@@ -93,6 +113,15 @@ async def update_task(db_session: AsyncSession, task_id: str, status: Optional[s
             # Log significant state changes
             if updated_task.status in [TaskStatus.COMPLETED, TaskStatus.ERROR]:
                 logger.info("Background task finished", task_id=updated_task.id, status=updated_task.status)
+                clear_task_cancellation(updated_task.id)
+            elif updated_task.status == TaskStatus.CANCELLED:
+                logger.info("Background task marked as cancelled", task_id=updated_task.id)
+            return updated_task
+    return None
+
+async def cancel_task(db_session: AsyncSession, task_id: str) -> Optional[Task]:
+    request_cancel_task(task_id)
+    return await update_task(db_session, task_id, status=TaskStatus.CANCELLED, error_message="Task cancelled by user")
 
 async def event_stream() -> AsyncGenerator[str, None]:
     """Generator for Server-Sent Events using Pub/Sub with initial DB sync"""
