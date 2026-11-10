@@ -3,14 +3,18 @@
  * System tray icon and context menu management service.
  * Manages tray icon decoding, monitor wallpaper indicators, and tray actions.
  */
-import { app, Tray, Menu, nativeImage, type MenuItemConstructorOptions } from 'electron';
+import { app, Tray, Menu, nativeImage, screen, type MenuItemConstructorOptions } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { AppContext } from './appContext';
 import type { RotationCoordinator } from './rotationCoordinator';
+import { resolvePublicDir } from '../utils/paths';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const HIDPI_SCALE_THRESHOLD = 1.5;
+const TRAY_ICON_SIZE_STANDARD = 16;
+const TRAY_ICON_SIZE_HIDPI = 32;
 
 export class TrayManager {
     private context: AppContext;
@@ -26,13 +30,11 @@ export class TrayManager {
     public async create(): Promise<void> {
         console.log('--- Tray Creation ---');
         try {
-            const publicDir = process.env.VITE_DEV_SERVER_URL
-                ? path.resolve(__dirname, '../../public')
-                : path.join(process.resourcesPath, 'public');
+            const publicDir = resolvePublicDir(__dirname);
 
             console.log('Public Directory:', publicDir);
 
-            const iconNames = ['vault-icon.png', 'vault-icon.ico', 'vault-tray.png', 'tray.png', 'vault-tray.ico', 'tray.ico'];
+            const iconNames = ['vault-tray.png', 'vault-icon.png', 'vault-icon.ico'];
             let trayIcon: Electron.NativeImage | null = null;
 
             for (const name of iconNames) {
@@ -81,6 +83,10 @@ export class TrayManager {
             if (!trayIcon || trayIcon.isEmpty()) {
                 console.error('CRITICAL: No valid icon could be decoded. Using empty fallback.');
                 trayIcon = nativeImage.createEmpty();
+            } else {
+                const scaleFactor = screen.getPrimaryDisplay()?.scaleFactor ?? 1;
+                const traySize = scaleFactor >= HIDPI_SCALE_THRESHOLD ? TRAY_ICON_SIZE_HIDPI : TRAY_ICON_SIZE_STANDARD;
+                trayIcon = trayIcon.resize({ width: traySize, height: traySize, quality: 'best' });
             }
 
             if (this.tray) this.tray.destroy();
