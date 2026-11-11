@@ -35,6 +35,7 @@ import {
 import { RotationCoordinator } from './services/rotationCoordinator';
 import { TrayManager } from './services/trayManager';
 import { displayFusionService } from './services/displayFusion';
+import { resolvePublicDir } from './utils/paths';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -72,9 +73,7 @@ const backendManager = new BackendProcessManager(appContext, (port) => {
 function createWindow() {
     Menu.setApplicationMenu(null);
 
-    const publicDir = process.env.VITE_DEV_SERVER_URL
-        ? path.resolve(__dirname, '..', 'public')
-        : path.join(process.resourcesPath, 'public');
+    const publicDir = resolvePublicDir(__dirname);
 
     mainWindow = new BrowserWindow({
         width: 1600,
