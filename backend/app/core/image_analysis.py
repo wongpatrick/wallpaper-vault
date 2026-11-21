@@ -54,3 +54,20 @@ def calculate_dominant_color(path: Path | str) -> Optional[str]:
     except Exception as e:
         logger.error("Error calculating dominant color", path=str(path), error=str(e))
         return None
+
+
+def hamming_distance_hex(phash_a: str, phash_b: str) -> Optional[int]:
+    """Compute bitwise Hamming distance between two hex perceptual hashes."""
+    try:
+        return (int(phash_a, 16) ^ int(phash_b, 16)).bit_count()
+    except (ValueError, TypeError):
+        return None
+
+
+def hamming_similarity_percent(distance: int, bit_length: int = 64) -> float:
+    """Calculate percentage similarity from Hamming distance (0 dist = 100%)."""
+    if bit_length <= 0:
+        return 0.0
+    diff_ratio = min(max(distance, 0), bit_length) / bit_length
+    return round((1.0 - diff_ratio) * 100.0, 1)
+

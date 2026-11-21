@@ -1,8 +1,9 @@
 /**
  * @file
  * Hook for scanning and resolving image duplicate groups by perceptual hash.
+ * Supports exact match and configurable bitwise distance threshold for near-duplicate detection.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import {
     useReadDuplicateGroupsApiImagesDuplicatesGroupsGet,
@@ -15,12 +16,17 @@ const ITEMS_PER_PAGE = 10;
 
 export function useDuplicateScanner() {
     const { showNotification } = useAppNotifications();
+    const [maxDistance, setMaxDistance] = useState<number>(0);
+    const [ignoredGroupIds, setIgnoredGroupIds] = useState<Set<string>>(new Set());
+
     const { 
-        data: groups, 
+        data: rawGroups, 
         isLoading, 
         isError, 
         refetch 
-    } = useReadDuplicateGroupsApiImagesDuplicatesGroupsGet({});
+    } = useReadDuplicateGroupsApiImagesDuplicatesGroupsGet({
+        max_distance: maxDistance
+    });
     
     const resolveMutation = useResolveDuplicatesApiImagesDuplicatesResolvePost();
 
@@ -28,7 +34,17 @@ export function useDuplicateScanner() {
     const [viewMode, setViewMode] = useState<'grid' | 'columns'>('grid');
     const [page, setPage] = useState(1);
     
+    // Filter out groups dismissed in this session
+    const groups = useMemo(() => {
+        if (!rawGroups) return [];
+        return rawGroups.filter(g => !ignoredGroupIds.has(g.group_id || g.phash));
+    }, [rawGroups, ignoredGroupIds]);
+
     const totalPages = groups ? Math.ceil(groups.length / ITEMS_PER_PAGE) : 0;
+
+    useEffect(() => {
+        setPage(1);
+    }, [maxDistance]);
 
     useEffect(() => {
         if (groups && page > totalPages && totalPages > 0) {
@@ -36,12 +52,23 @@ export function useDuplicateScanner() {
         }
     }, [groups, page, totalPages]);
 
+    const handleDismissGroup = (groupId: string) => {
+        setIgnoredGroupIds(prev => new Set([...prev, groupId]));
+        showNotification({
+            title: 'Group Dismissed',
+            message: 'Images kept and hidden from the current audit view.',
+            color: 'blue',
+            icon: <IconCheck size={16} />
+        });
+    };
+
     const handleResolve = async (group: DuplicateGroup, keepId: number) => {
         const removeIds = group.images
             .map(img => img.id)
             .filter(id => id !== keepId);
 
-        setResolving(group.phash);
+        const groupKey = group.group_id || group.phash;
+        setResolving(groupKey);
         try {
             await resolveMutation.mutateAsync({
                 data: {
@@ -70,6 +97,7 @@ export function useDuplicateScanner() {
 
     return {
         groups,
+        rawCount: rawGroups?.length || 0,
         isLoading,
         isError,
         refetch,
@@ -80,6 +108,9 @@ export function useDuplicateScanner() {
         setPage,
         totalPages,
         ITEMS_PER_PAGE,
+        maxDistance,
+        setMaxDistance,
+        handleDismissGroup,
         handleResolve
     };
 }
