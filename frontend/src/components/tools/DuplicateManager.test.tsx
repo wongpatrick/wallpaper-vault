@@ -5,7 +5,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '../../test/test-utils';
 import { DuplicateManager } from './DuplicateManager';
-import type { DuplicateGroup } from '../../api/model';
+import type { DuplicateGroup, ImageWithContext } from '../../api/model';
+
+const createMockImage = (overrides: Partial<ImageWithContext> & { id: number; filename: string }): ImageWithContext => ({
+    local_path: `/path/to/${overrides.filename}`,
+    phash: '1111222233334444',
+    width: 1920,
+    height: 1080,
+    file_size: 1_000_000,
+    sort_order: 0,
+    rating: 'safe',
+    is_favorite: false,
+    is_blacklisted: false,
+    set_id: 1,
+    created_at: '2026-01-01T00:00:00Z',
+    date_added: '2026-01-01T00:00:00Z',
+    set_title: 'Nature Set',
+    creator_names: ['Artist Alpha'],
+    ...overrides,
+});
 
 const mockExactGroup: DuplicateGroup = {
     group_id: 'dup-1-hash1',
@@ -14,36 +32,21 @@ const mockExactGroup: DuplicateGroup = {
     similarity_percentage: 100.0,
     recommended_keep_id: 1,
     images: [
-        {
+        createMockImage({
             id: 1,
             filename: 'wallpaper-4k.jpg',
-            local_path: '/path/to/wallpaper-4k.jpg',
-            phash: '1111222233334444',
             width: 3840,
             height: 2160,
             file_size: 5_000_000,
-            sort_order: 0,
-            rating: 'safe',
-            is_favorite: false,
-            is_blacklisted: false,
-            set_title: 'Nature Set',
-            creator_names: ['Artist Alpha'],
-        },
-        {
+        }),
+        createMockImage({
             id: 2,
             filename: 'wallpaper-1080p.jpg',
-            local_path: '/path/to/wallpaper-1080p.jpg',
-            phash: '1111222233334444',
             width: 1920,
             height: 1080,
             file_size: 1_200_000,
             sort_order: 1,
-            rating: 'safe',
-            is_favorite: false,
-            is_blacklisted: false,
-            set_title: 'Nature Set',
-            creator_names: ['Artist Alpha'],
-        },
+        }),
     ],
 };
 
@@ -54,36 +57,27 @@ const mockNearDuplicateGroup: DuplicateGroup = {
     similarity_percentage: 95.3,
     recommended_keep_id: 3,
     images: [
-        {
+        createMockImage({
             id: 3,
             filename: 'clean-art.png',
-            local_path: '/path/to/clean-art.png',
             phash: 'aaaabbbbccccdddd',
             width: 2560,
             height: 1440,
             file_size: 4_000_000,
-            sort_order: 0,
-            rating: 'safe',
             is_favorite: true,
-            is_blacklisted: false,
             set_title: 'Sci-Fi Collection',
             creator_names: ['Artist Beta'],
-        },
-        {
+        }),
+        createMockImage({
             id: 4,
             filename: 'watermarked-art.jpg',
-            local_path: '/path/to/watermarked-art.jpg',
             phash: 'aaaabbbbccccddde',
             width: 1920,
             height: 1080,
             file_size: 900_000,
-            sort_order: 0,
-            rating: 'safe',
-            is_favorite: false,
-            is_blacklisted: false,
             set_title: 'Sci-Fi Collection',
             creator_names: ['Artist Beta'],
-        },
+        }),
     ],
 };
 
