@@ -23,7 +23,7 @@ from app.core.color_utils import get_color_bucket
 from app.core.constants import THUMBS_DIR
 from app.core.enums import ImageRating
 from app.core.exceptions import AppError, FileSystemError, ResourceNotFoundError
-from app.core.image_analysis import calculate_dominant_color, calculate_phash
+from app.core.image_analysis import calculate_dominant_color, calculate_phash, hamming_distance_hex
 from app.core.utils import sanitize_filename
 from app.core.vault_utils import resolve_vault_root
 from app.crud import library_path as crud_library_path
@@ -214,12 +214,7 @@ async def export_images(db: AsyncSession, image_ids: list[int]) -> list[SetTrans
     return packages
 
 
-def _hamming_distance_hex(phash_a: str, phash_b: str) -> Optional[int]:
-    """Compute bitwise Hamming distance between two 64-bit hex perceptual hashes."""
-    try:
-        return (int(phash_a, 16) ^ int(phash_b, 16)).bit_count()
-    except (ValueError, TypeError):
-        return None
+_hamming_distance_hex = hamming_distance_hex
 
 
 async def preflight_check(

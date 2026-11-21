@@ -11,10 +11,10 @@ from app.db.session import get_db
 from app.api.deps import PaginationParams, pagination_params
 from app.crud import image as crud_image
 
-from app.services import image_service
+from app.services import duplicate_service, image_service
 from app.schemas.image import (
     Image, ImageUpdate, ImageCreate, ImageBulkUpdate, ImageBulkMove,
-    DuplicateGroup, DuplicateResolutionRequest, ImageWithContext, ImagePage, ImageDetail,
+    DuplicateGroup, DuplicateResolutionRequest, ImagePage, ImageDetail,
     ImageCropRequest, ImageCropResponse
 )
 from app.models.image import Image as ImageModel
@@ -96,40 +96,23 @@ async def read_color_stats(
 
 @router.get("/duplicates/groups", response_model=List[DuplicateGroup])
 async def read_duplicate_groups(
-    db: AsyncSession = Depends(get_db)
+    max_distance: int = Query(
+        0,
+        ge=0,
+        le=16,
+        description="Maximum bitwise Hamming distance (0 = exact match, 1-8 = near duplicates)",
+    ),
+    set_id: Optional[int] = Query(None, description="Optional set filter to scope duplicate search"),
+    limit: Optional[int] = Query(None, ge=1, le=500, description="Optional limit on number of duplicate groups returned"),
+    db: AsyncSession = Depends(get_db),
 ) -> List[DuplicateGroup]:
     """
-    Get all groups of duplicate images.
+    Get all groups of duplicate or near-duplicate images.
+    Supports exact pHash matching (max_distance=0) and similarity-based near-duplicate detection.
     """
-    groups_dict = await crud_image.get_duplicate_groups(db)
-    
-    result = []
-    for phash, img_list in groups_dict.items():
-        images_with_context = [map_image_to_context_schema(img) for img in img_list]
-        
-        # Sort: Highest resolution first
-        def score_img(img: ImageWithContext) -> float:
-            score = 0
-            if "Needs Organizing" not in (" ".join(img.creator_names)):
-                score += 1000
-            
-            # Use 0 if width/height is missing
-            w = img.width or 0
-            h = img.height or 0
-            score += (w * h) / 1000000
-            return score
-            
-        images_with_context.sort(key=score_img, reverse=True)
-        
-        result.append(
-            DuplicateGroup(
-                phash=phash,
-                images=images_with_context,
-                recommended_keep_id=images_with_context[0].id
-            )
-        )
-    
-    return result
+    return await duplicate_service.get_duplicate_groups(
+        db, max_distance=max_distance, set_id=set_id, limit=limit
+    )
 
 @router.post("/duplicates/resolve")
 async def resolve_duplicates(

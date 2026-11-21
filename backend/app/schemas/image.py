@@ -2,7 +2,7 @@
 Pydantic schemas for image entities.
 Defines models for creating, updating, bulk operations, and deduplication of images.
 """
-from typing import Optional, List
+from typing import Optional, List, Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator, computed_field
 
 class ImageBase(BaseModel):
@@ -79,9 +79,16 @@ class ImageWithContext(Image):
     creator_names: List[str] = Field(..., description="List of creator names associated with this image's set.")
 
 class DuplicateGroup(BaseModel):
+    group_id: str = Field(default="", description="Unique identifier for this duplicate group.")
     phash: str = Field(..., description="The perceptual hash shared by this group of duplicates.")
     images: List[ImageWithContext] = Field(..., description="List of visually similar images in this group.")
     recommended_keep_id: int = Field(..., description="The ID of the image recommended to be kept (usually highest resolution).")
+    max_distance: int = Field(0, description="Maximum pairwise Hamming distance among images in this group.")
+    similarity_percentage: float = Field(100.0, description="Calculated similarity percentage of this group.")
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.group_id:
+            self.group_id = self.phash
 
 class DuplicateResolutionRequest(BaseModel):
     keep_image_id: int = Field(..., description="The ID of the image to keep. All others will be deleted.")
