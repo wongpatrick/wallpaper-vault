@@ -19,6 +19,7 @@ export interface OrderedDisplay {
 
 let cachedOrderedDisplays: OrderedDisplay[] | null = null;
 let cachedDisplayFingerprint: string | null = null;
+let inFlightOrderedDisplaysPromise: Promise<OrderedDisplay[]> | null = null;
 let isPowerStateSuspended = false;
 let pendingDisplayChange = false;
 
@@ -32,6 +33,7 @@ export function computeDisplayFingerprint(displays: Electron.Display[]): string 
 export function invalidateDisplayCache(): void {
     cachedOrderedDisplays = null;
     cachedDisplayFingerprint = null;
+    inFlightOrderedDisplaysPromise = null;
 }
 
 export function setPowerStateSuspended(suspended: boolean): void {
@@ -51,6 +53,19 @@ export function getPendingDisplayChange(): boolean {
 }
 
 export async function getOrderedDisplays(forceRefresh = false): Promise<OrderedDisplay[]> {
+    if (!forceRefresh && inFlightOrderedDisplaysPromise) {
+        return inFlightOrderedDisplaysPromise;
+    }
+    const p = internalGetOrderedDisplays(forceRefresh).finally(() => {
+        if (inFlightOrderedDisplaysPromise === p) {
+            inFlightOrderedDisplaysPromise = null;
+        }
+    });
+    inFlightOrderedDisplaysPromise = p;
+    return p;
+}
+
+async function internalGetOrderedDisplays(forceRefresh = false): Promise<OrderedDisplay[]> {
     const displays = screen.getAllDisplays();
     const currentFingerprint = computeDisplayFingerprint(displays);
 
