@@ -50,6 +50,9 @@ export class RotationCoordinator {
     private recentlyAppliedManualWallpapers: Map<string, number> = new Map();
     private rotationNotificationsEnabled = true;
     private pendingTriggerMonitors: Set<number> = new Set();
+    private pendingMonitorTimeouts: Map<number, NodeJS.Timeout> = new Map();
+    private activeFetchSettingsPromise: Promise<boolean> | null = null;
+    private setupTimersDebounceTimeout: NodeJS.Timeout | null = null;
 
     private globalRotationConfig: GlobalRotationConfig = {
         mode: 'displayfusion',
@@ -186,6 +189,16 @@ export class RotationCoordinator {
     }
 
     public async fetchRotationSettings(port: number): Promise<boolean> {
+        if (this.activeFetchSettingsPromise) {
+            return this.activeFetchSettingsPromise;
+        }
+        this.activeFetchSettingsPromise = this.doFetchRotationSettings(port).finally(() => {
+            this.activeFetchSettingsPromise = null;
+        });
+        return this.activeFetchSettingsPromise;
+    }
+
+    private async doFetchRotationSettings(port: number): Promise<boolean> {
         const displays = await getOrderedDisplays();
         return new Promise((resolve) => {
             const url = `http://127.0.0.1:${port}/api/settings/`;
@@ -225,14 +238,14 @@ export class RotationCoordinator {
                                     }
                                 }
 
-                                this.monitorConfigs.clear();
+                                const newConfigs = new Map<number, MonitorRotationConfig>();
 
                                 displays.forEach((display) => {
                                     const index = display.index;
                                     const overrideVal = getVal(`monitor_${index}_override_enabled`, false);
                                     const overrideEnabled = overrideVal === true || String(overrideVal) === 'true';
 
-                                    this.monitorConfigs.set(index, {
+                                    newConfigs.set(index, {
                                         enabled: overrideEnabled,
                                         mode: (overrideEnabled ? String(getVal(`monitor_${index}_wallpaper_rotation_mode`, this.globalRotationConfig.mode)) : this.globalRotationConfig.mode) as any,
                                         interval: overrideEnabled ? (parseInt(String(getVal(`monitor_${index}_wallpaper_rotation_interval`, String(this.globalRotationConfig.interval))), 10) || 15) : this.globalRotationConfig.interval,
@@ -242,6 +255,8 @@ export class RotationCoordinator {
                                         style: (overrideEnabled ? String(getVal(`monitor_${index}_wallpaper_rotation_style`, this.globalRotationConfig.style)) : this.globalRotationConfig.style) as any
                                     });
                                 });
+
+                                this.monitorConfigs = newConfigs;
                                 this.onMenuUpdateCallback?.();
                                 resolve(true);
                             });
@@ -259,8 +274,24 @@ export class RotationCoordinator {
     }
 
     public async setupNativeTimers(port: number): Promise<void> {
+        if (this.setupTimersDebounceTimeout) {
+            clearTimeout(this.setupTimersDebounceTimeout);
+        }
+        return new Promise<void>((resolve) => {
+            this.setupTimersDebounceTimeout = setTimeout(async () => {
+                this.setupTimersDebounceTimeout = null;
+                await this.executeSetupNativeTimers(port);
+                resolve();
+            }, 300);
+        });
+    }
+
+    private async executeSetupNativeTimers(port: number): Promise<void> {
         this.nativeRotationTimers.forEach((timer) => clearInterval(timer));
         this.nativeRotationTimers.clear();
+        this.pendingTriggerMonitors.clear();
+        this.pendingMonitorTimeouts.forEach((timeout) => clearTimeout(timeout));
+        this.pendingMonitorTimeouts.clear();
 
         if (!isNativeWallpaperSupported) {
             return;
@@ -272,27 +303,29 @@ export class RotationCoordinator {
         }
 
         const displays = await getOrderedDisplays();
-        let hasOverrides = false;
+        let nativeMonitorsCount = 0;
 
         displays.forEach((display) => {
             const index = display.index;
             const config = this.monitorConfigs.get(index);
-            if (config && config.enabled) {
-                hasOverrides = true;
-                if (config.mode === 'native') {
-                    const intervalMs = config.interval * 60 * 1000;
-                    console.log(`[Rotation Coordinator] Spawning timer for Monitor ${index + 1} (${config.interval} mins)`);
-                    const timer = setInterval(() => {
-                        void this.triggerNativeRotation(port, index);
-                    }, intervalMs);
-                    this.nativeRotationTimers.set(index, timer);
-                }
+            const isOverride = Boolean(config && config.enabled);
+            const effectiveMode = isOverride ? config!.mode : this.globalRotationConfig.mode;
+            const effectiveInterval = isOverride ? config!.interval : this.globalRotationConfig.interval;
+
+            if (effectiveMode === 'native') {
+                nativeMonitorsCount++;
+                const intervalMs = effectiveInterval * 60 * 1000;
+                console.log(`[Rotation Coordinator] Spawning timer for Monitor ${index + 1} (${effectiveInterval} mins)`);
+                const timer = setInterval(() => {
+                    void this.triggerNativeRotation(port, index);
+                }, intervalMs);
+                this.nativeRotationTimers.set(index, timer);
             }
         });
 
-        if (!hasOverrides && this.globalRotationConfig.mode === 'native') {
+        if (nativeMonitorsCount === 0 && displays.length === 0 && this.globalRotationConfig.mode === 'native') {
             const intervalMs = this.globalRotationConfig.interval * 60 * 1000;
-            console.log(`[Rotation Coordinator] No overrides. Spawning global native timer (${this.globalRotationConfig.interval} mins)`);
+            console.log(`[Rotation Coordinator] No displays detected. Spawning fallback global native timer (${this.globalRotationConfig.interval} mins)`);
             const timer = setInterval(() => {
                 void this.triggerNativeRotation(port, -1);
             }, intervalMs);
@@ -349,7 +382,23 @@ export class RotationCoordinator {
             console.log(`[Rotation Coordinator] Auto-detected orientation for Monitor ${monitorIndex + 1}: ${orientation} (${width}x${height})`);
         }
 
+        const releasePendingMonitor = () => {
+            const timeout = this.pendingMonitorTimeouts.get(monitorIndex);
+            if (timeout) {
+                clearTimeout(timeout);
+                this.pendingMonitorTimeouts.delete(monitorIndex);
+            }
+            this.pendingTriggerMonitors.delete(monitorIndex);
+        };
+
         this.pendingTriggerMonitors.add(monitorIndex);
+        const fallbackTimeout = setTimeout(() => {
+            if (this.pendingTriggerMonitors.has(monitorIndex)) {
+                console.warn(`[Rotation Coordinator] Monitor ${monitorIndex + 1} rotation timed out after 30s. Clearing pending state.`);
+                releasePendingMonitor();
+            }
+        }, 30000);
+        this.pendingMonitorTimeouts.set(monitorIndex, fallbackTimeout);
 
         const tempDir = app.getPath('temp');
         const filename = `wallpaper-vault-active-monitor-${monitorIndex}-rot-${Date.now()}.jpg`;
@@ -384,7 +433,7 @@ export class RotationCoordinator {
         const fileStream = fs.createWriteStream(tempPath);
         fileStream.on('error', (err) => {
             console.error('[Rotation Coordinator] File write stream error:', err);
-            this.pendingTriggerMonitors.delete(monitorIndex);
+            releasePendingMonitor();
         });
 
         const url = `http://127.0.0.1:${port}${randomUrl}?${params.toString()}`;
@@ -393,7 +442,7 @@ export class RotationCoordinator {
                 console.error(`[Rotation Coordinator] Failed to fetch random wallpaper file. HTTP status: ${res.statusCode}`);
                 res.resume();
                 safeCleanupTempFile(fileStream, tempPath);
-                this.pendingTriggerMonitors.delete(monitorIndex);
+                releasePendingMonitor();
                 return;
             }
 
@@ -401,7 +450,7 @@ export class RotationCoordinator {
             res.on('error', (err) => {
                 console.error('[Rotation Coordinator] Response stream error:', err);
                 safeCleanupTempFile(fileStream, tempPath);
-                this.pendingTriggerMonitors.delete(monitorIndex);
+                releasePendingMonitor();
             });
             fileStream.on('finish', () => {
                 fileStream.close();
@@ -410,14 +459,14 @@ export class RotationCoordinator {
                         console.error(`[Rotation Coordinator] Native wallpaper apply failed for Monitor ${monitorIndex + 1}:`, err);
                     })
                     .finally(() => {
-                        this.pendingTriggerMonitors.delete(monitorIndex);
+                        releasePendingMonitor();
                     });
             });
         });
         req.on('error', (err) => {
             console.error('[Rotation Coordinator] Failed to trigger rotation:', err);
             safeCleanupTempFile(fileStream, tempPath);
-            this.pendingTriggerMonitors.delete(monitorIndex);
+            releasePendingMonitor();
         });
     }
 
@@ -582,7 +631,7 @@ export class RotationCoordinator {
         });
     }
 
-    public start(port: number): void {
+    public start(port: number, force = false): void {
         if (!isNativeWallpaperSupported) {
             console.log(`[Rotation Coordinator] Native rotation is not supported on ${process.platform}. Skipping.`);
             return;
@@ -592,7 +641,7 @@ export class RotationCoordinator {
             clearTimeout(this.sseReconnectTimeout);
             this.sseReconnectTimeout = null;
         }
-        if (this.activeSsePort === port) {
+        if (!force && this.activeSsePort === port && this.activeSseRequest && !this.activeSseRequest.destroyed) {
             return;
         }
         this.activeSsePort = port;
@@ -719,6 +768,10 @@ export class RotationCoordinator {
 
     public stop(): void {
         this.isStopped = true;
+        if (this.setupTimersDebounceTimeout) {
+            clearTimeout(this.setupTimersDebounceTimeout);
+            this.setupTimersDebounceTimeout = null;
+        }
         if (this.sseReconnectTimeout) {
             clearTimeout(this.sseReconnectTimeout);
             this.sseReconnectTimeout = null;
@@ -730,5 +783,8 @@ export class RotationCoordinator {
         this.activeSsePort = null;
         this.nativeRotationTimers.forEach((timer) => clearInterval(timer));
         this.nativeRotationTimers.clear();
+        this.pendingMonitorTimeouts.forEach((timeout) => clearTimeout(timeout));
+        this.pendingMonitorTimeouts.clear();
+        this.pendingTriggerMonitors.clear();
     }
 }

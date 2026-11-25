@@ -67,7 +67,7 @@ const appContext: AppContext = {
 const rotationCoordinator = new RotationCoordinator(appContext);
 const trayManager = new TrayManager(appContext, rotationCoordinator);
 const backendManager = new BackendProcessManager(appContext, (port) => {
-    rotationCoordinator.start(port);
+    rotationCoordinator.start(port, true);
 });
 
 function createWindow() {
@@ -528,32 +528,34 @@ app.whenReady().then(async () => {
         void rotationCoordinator.setupNativeTimers(getBackendPort());
     });
 
-    powerMonitor.on('resume', () => {
-        console.log('[Rotation Coordinator] System resumed. Checking state...');
+    const WAKE_DEBOUNCE_DELAY_MS = 1000;
+    let wakeDebounceTimeout: NodeJS.Timeout | null = null;
+    const handleWakeEvent = (eventName: string) => {
+        console.log(`[Rotation Coordinator] System ${eventName}. Checking state...`);
         setPowerStateSuspended(false);
-        if (getPendingDisplayChange()) {
-            console.log('[Rotation Coordinator] Pending display change found. Triggering displays changed notification.');
-            setPendingDisplayChange(false);
-            notifyDisplaysChanged();
+        if (wakeDebounceTimeout) {
+            clearTimeout(wakeDebounceTimeout);
         }
-        const port = getBackendPort();
-        void rotationCoordinator.fetchRotationSettings(port).then((ok) => {
-            if (ok) void rotationCoordinator.setupNativeTimers(port);
-        });
+        wakeDebounceTimeout = setTimeout(() => {
+            wakeDebounceTimeout = null;
+            if (getPendingDisplayChange()) {
+                console.log('[Rotation Coordinator] Pending display change found. Triggering displays changed notification.');
+                setPendingDisplayChange(false);
+                notifyDisplaysChanged();
+            }
+            const port = getBackendPort();
+            void rotationCoordinator.fetchRotationSettings(port).then((ok) => {
+                if (ok) void rotationCoordinator.setupNativeTimers(port);
+            });
+        }, WAKE_DEBOUNCE_DELAY_MS);
+    };
+
+    powerMonitor.on('resume', () => {
+        handleWakeEvent('resumed');
     });
 
     powerMonitor.on('unlock-screen', () => {
-        console.log('[Rotation Coordinator] System unlocked. Checking state...');
-        setPowerStateSuspended(false);
-        if (getPendingDisplayChange()) {
-            console.log('[Rotation Coordinator] Pending display change found. Triggering displays changed notification.');
-            setPendingDisplayChange(false);
-            notifyDisplaysChanged();
-        }
-        const port = getBackendPort();
-        void rotationCoordinator.fetchRotationSettings(port).then((ok) => {
-            if (ok) void rotationCoordinator.setupNativeTimers(port);
-        });
+        handleWakeEvent('unlocked');
     });
 });
 

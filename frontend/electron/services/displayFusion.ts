@@ -25,6 +25,7 @@ export interface DisplayFusionDeps {
     platform?: string;
     fileExists?: (path: string) => Promise<boolean>;
     runPowerShell?: (script: string) => Promise<string>;
+    execPowerShellStandalone?: (script: string, timeoutMs?: number) => Promise<string>;
     execFile?: (
         file: string,
         args: string[],
@@ -62,6 +63,25 @@ export class DisplayFusionService {
                 }
             }),
             runPowerShell: deps?.runPowerShell ?? ((script: string) => psDaemon.run(script)),
+            execPowerShellStandalone: deps?.execPowerShellStandalone ?? ((script: string, timeoutMs = CLI_TIMEOUT_MS) => {
+                if (deps?.runPowerShell) {
+                    return deps.runPowerShell(script);
+                }
+                return new Promise<string>((resolve, reject) => {
+                    nodeExecFile(
+                        'powershell.exe',
+                        ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
+                        { timeout: timeoutMs, windowsHide: true },
+                        (err, stdout) => {
+                            if (err) {
+                                reject(err);
+                            } else {
+                                resolve(stdout);
+                            }
+                        }
+                    );
+                });
+            }),
             execFile: deps?.execFile ?? ((file, args, opts, cb) => nodeExecFile(file, args, opts, cb)),
             showNotification: deps?.showNotification ?? ((title: string, body: string) => {
                 try {
@@ -146,7 +166,7 @@ if ($entry -and $entry.InstallLocation) {
     Write-Output $entry.InstallLocation
 }
 `.trim();
-            const raw = await this.deps.runPowerShell(script);
+            const raw = await this.deps.execPowerShellStandalone(script, CLI_TIMEOUT_MS);
             const installLocation = raw.trim();
             if (installLocation) {
                 return path.win32.join(installLocation, 'DisplayFusionCommand.exe');

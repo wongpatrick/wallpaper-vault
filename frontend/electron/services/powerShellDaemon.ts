@@ -3,11 +3,11 @@
  * Persistent background PowerShell daemon for Windows display and wallpaper manipulation.
  * Manages Win32/COM interop, monitor enumeration, and native wallpaper setting.
  */
-/* eslint-disable no-useless-escape */
+/* eslint-disable no-useless-escape, no-magic-numbers */
 import { spawn, type ChildProcess } from 'node:child_process';
 import { logBothToCombined } from './appContext';
 
-const COMMAND_TIMEOUT_MS = 15000;
+const DEFAULT_COMMAND_TIMEOUT_MS = 15000;
 const ERROR_SNIPPET_LENGTH = 50;
 
 export const isNativeWallpaperSupported = process.platform === 'win32';
@@ -18,24 +18,43 @@ export function extractJsonArray(stdout: string): string {
     return jsonLine ? jsonLine.trim() : '[]';
 }
 
+interface TrackedChildProcess extends ChildProcess {
+    __isKilledForRespawn?: boolean;
+}
+
+export interface PowerShellDaemonOptions {
+    timeoutMs?: number;
+    autoInit?: boolean;
+    isSupported?: boolean;
+    spawn?: typeof spawn;
+}
+
 export class PowerShellDaemon {
-    private process: ChildProcess | null = null;
+    private process: TrackedChildProcess | null = null;
     private queue: Array<{ cmd: string; resolve: (val: string) => void; reject: (err: Error) => void }> = [];
-    private currentCallback: { resolve: (val: string) => void; reject: (err: Error) => void } | null = null;
+    private currentCallback: { nonce: string; resolve: (val: string) => void; reject: (err: Error) => void } | null = null;
     private outputBuffer = '';
     private isReady = false;
     private initPromise: Promise<void> | null = null;
+    private commandTimeoutMs = DEFAULT_COMMAND_TIMEOUT_MS;
+    private supported: boolean;
+    private spawnFn: typeof spawn;
 
-    constructor() {
-        if (isNativeWallpaperSupported) {
-            this.initPromise = this.init();
+    constructor(options?: PowerShellDaemonOptions) {
+        this.spawnFn = options?.spawn ?? spawn;
+        this.commandTimeoutMs = options?.timeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS;
+        this.supported = options?.isSupported ?? isNativeWallpaperSupported;
+        if (this.supported && (options?.autoInit ?? true)) {
+            this.initPromise = this.init().catch((err) => {
+                void logBothToCombined(`[PS Daemon] Initial spawn failed: ${err.message}`);
+            });
         }
     }
 
     private init(): Promise<void> {
         return new Promise((resolve, reject) => {
             void logBothToCombined('[PS Daemon] Starting persistent background PowerShell daemon...');
-            this.process = spawn('Powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass'], {
+            this.process = this.spawnFn('Powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass'], {
                 stdio: ['pipe', 'pipe', 'pipe']
             });
 
@@ -44,12 +63,19 @@ export class PowerShellDaemon {
                 reject(err);
             });
 
-            this.process.on('exit', (code, signal) => {
+            const currentProc = this.process;
+            currentProc.on('exit', (code, signal) => {
                 void logBothToCombined(`[PS Daemon] Process exited with code ${code}, signal ${signal}`);
-                const err = new Error(`PowerShell daemon exited with code ${code}, signal ${signal}`);
                 const wasReady = this.isReady;
                 this.isReady = false;
 
+                if (currentProc.__isKilledForRespawn) {
+                    // Intentionally killed to recover from wedged/timed-out state;
+                    // the queue will be processed by the respawned process once ready.
+                    return;
+                }
+
+                const err = new Error(`PowerShell daemon exited with code ${code}, signal ${signal}`);
                 if (this.currentCallback) {
                     const cb = this.currentCallback;
                     this.currentCallback = null;
@@ -257,6 +283,7 @@ export class PowerShellDaemon {
             ].join('\r\n');
 
             this.currentCallback = {
+                nonce: '__BOOTSTRAP_DONE__',
                 resolve: () => {
                     this.isReady = true;
                     void logBothToCombined('[PS Daemon] Background PowerShell daemon successfully initialized and bootstrapped.');
@@ -283,11 +310,13 @@ export class PowerShellDaemon {
             return;
         }
 
-        const marker = '__CMD_DONE__';
-        const idx = this.outputBuffer.indexOf(marker);
+        if (!this.currentCallback) return;
+
+        const nonce = this.currentCallback.nonce;
+        const idx = this.outputBuffer.indexOf(nonce);
         if (idx !== -1) {
             const result = this.outputBuffer.substring(0, idx).trim();
-            this.outputBuffer = this.outputBuffer.substring(idx + marker.length).replace(/^[\r\n]*/, '');
+            this.outputBuffer = this.outputBuffer.substring(idx + nonce.length).replace(/^[\r\n]*/, '');
             const cb = this.currentCallback;
             this.currentCallback = null;
             cb?.resolve(result);
@@ -295,20 +324,51 @@ export class PowerShellDaemon {
         }
     }
 
+    private respawn(): void {
+        if (!this.supported) return;
+        void logBothToCombined('[PS Daemon] Respawning background PowerShell daemon...');
+        this.isReady = false;
+        if (this.process) {
+            const oldProc = this.process;
+            this.process = null;
+            try {
+                oldProc.__isKilledForRespawn = true;
+                oldProc.kill();
+            } catch (err) {
+                console.error('[PS Daemon] Failed to kill process during respawn:', err);
+            }
+        }
+        this.outputBuffer = '';
+        this.initPromise = this.init()
+            .then(() => {
+                this.processNext();
+            })
+            .catch((err) => {
+                void logBothToCombined(`[PS Daemon] Respawn bootstrap failed: ${err.message}`);
+            });
+    }
+
     private processNext() {
-        if (this.queue.length === 0 || this.currentCallback !== null) return;
+        if (!this.isReady || this.queue.length === 0 || this.currentCallback !== null) return;
         const task = this.queue.shift();
         if (task) {
+            const nonceSuffix = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}__`;
+            const nonce = `__CMD_DONE_${nonceSuffix}`;
             const timeout = setTimeout(() => {
-                if (this.currentCallback && this.currentCallback.resolve === task.resolve) {
-                    console.error('[PS Daemon] Command timed out after 15s:', task.cmd);
+                if (this.currentCallback && this.currentCallback.nonce === nonce) {
+                    const snippet = task.cmd.substring(0, ERROR_SNIPPET_LENGTH);
+                    void logBothToCombined(
+                        `[PS Daemon] Command timed out after ${this.commandTimeoutMs / 1000}s: "${snippet}". Killing wedged PowerShell process and respawning...`
+                    );
+                    const cb = this.currentCallback;
                     this.currentCallback = null;
-                    task.reject(new Error(`PowerShell command timed out: ${task.cmd.substring(0, ERROR_SNIPPET_LENGTH)}`));
-                    this.processNext();
+                    cb.reject(new Error(`PowerShell command timed out: ${snippet}`));
+                    this.respawn();
                 }
-            }, COMMAND_TIMEOUT_MS);
+            }, this.commandTimeoutMs);
 
             this.currentCallback = {
+                nonce,
                 resolve: (val) => {
                     clearTimeout(timeout);
                     task.resolve(val);
@@ -318,15 +378,21 @@ export class PowerShellDaemon {
                     task.reject(err);
                 }
             };
-            this.process?.stdin?.write(`${task.cmd}\r\nWrite-Output ("_" + "_CMD_DONE_" + "_")\r\n`);
+
+            // Split the nonce in the Write-Output expression so PowerShell's stdin echo
+            // does not match the completion delimiter before the command actually finishes.
+            const wrappedCmd = `& {\r\n${task.cmd}\r\n}\r\nWrite-Output ("__CMD_DONE_" + "${nonceSuffix}")\r\n\r\n`;
+            this.process?.stdin?.write(wrappedCmd);
         }
     }
 
     public async run(cmd: string): Promise<string> {
-        if (!isNativeWallpaperSupported) {
+        if (!this.supported) {
             throw new Error(`Native wallpaper control is not supported on ${process.platform}`);
         }
-        await this.initPromise;
+        if (this.initPromise) {
+            await this.initPromise;
+        }
         return new Promise((resolve, reject) => {
             this.queue.push({ cmd, resolve, reject });
             this.processNext();
@@ -334,8 +400,18 @@ export class PowerShellDaemon {
     }
 
     public kill() {
-        console.log('[PS Daemon] Killing background PowerShell daemon...');
+        void logBothToCombined('[PS Daemon] Killing background PowerShell daemon...');
+        this.isReady = false;
+        if (this.currentCallback) {
+            this.currentCallback.reject(new Error('PowerShell daemon killed'));
+            this.currentCallback = null;
+        }
+        while (this.queue.length > 0) {
+            const task = this.queue.shift();
+            task?.reject(new Error('PowerShell daemon killed'));
+        }
         this.process?.kill();
+        this.process = null;
     }
 }
 
